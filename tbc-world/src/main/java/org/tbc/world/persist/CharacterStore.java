@@ -7,6 +7,7 @@ import org.tbc.world.content.ChrStatic;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
+import org.tbc.world.entity.Mail;
 import org.tbc.world.entity.Player;
 
 import java.sql.Connection;
@@ -29,6 +30,10 @@ public final class CharacterStore {
     private final Map<Integer, Player> memory = new ConcurrentHashMap<>();
     private final Map<Integer, List<Player>> byAccount = new ConcurrentHashMap<>();
     private final Map<Integer, Player> inWorld = new ConcurrentHashMap<>();
+    private final Map<Integer, List<Player.Friend>> social = new ConcurrentHashMap<>();
+    private final Map<Integer, Mail> mails = new ConcurrentHashMap<>();
+    private final Map<Integer, List<Integer>> inbox = new ConcurrentHashMap<>();
+    private final AtomicInteger nextMail = new AtomicInteger(1);
 
     public CharacterStore(DbPool chars) {
         this.chars = chars;
@@ -180,6 +185,7 @@ public final class CharacterStore {
                 p.bindY = ci.y();
                 p.bindZ = ci.z();
             }
+            mgr.applyCreateSkills(p);
         }
         p.applyCreateFields();
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, col(rs, "health", 50)));
@@ -252,6 +258,7 @@ public final class CharacterStore {
         applyCreateActions(p, mgr);
         if (mgr != null) {
             mgr.giveStartItems(p, this::nextItemGuid);
+            mgr.applyCreateSkills(p);
         }
         int hp = 50;
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASE_HEALTH, hp);
@@ -326,7 +333,12 @@ public final class CharacterStore {
         }
         Player snap = memory.get(g);
         if (snap != null) {
-            return snap.accountId == accountId ? PlayerPersist.copy(snap) : null;
+            if (snap.accountId != accountId) {
+                return null;
+            }
+            Player copy = PlayerPersist.copy(snap);
+            attachSocial(copy);
+            return copy;
         }
         if (chars == null) {
             return null;
@@ -353,7 +365,13 @@ public final class CharacterStore {
                 log.warn("load inventory {}", e.getMessage());
             }
             attachStartItems(p, mgr);
+            try {
+                loadSocialSql(c, p);
+            } catch (Exception e) {
+                log.warn("load social {}", e.getMessage());
+            }
             memory.put(g, PlayerPersist.copy(p));
+            attachSocial(p);
             return p;
         } catch (Exception e) {
             log.warn("load {}", e.getMessage());
@@ -666,5 +684,133 @@ public final class CharacterStore {
             max = Math.max(max, it.guid + 1);
         }
         return max;
+    }
+
+    public Player storedByName(String name) {
+        if (name == null || name.isEmpty()) {
+            return null;
+        }
+        for (Player p : memory.values()) {
+            if (p.name.equalsIgnoreCase(name)) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    public void attachSocial(Player p) {
+        p.friends.clear();
+        List<Player.Friend> rows = social.get(Guid.low(p.guid));
+        if (rows == null) {
+            return;
+        }
+        for (Player.Friend f : rows) {
+            Player.Friend c = new Player.Friend();
+            c.guid = f.guid;
+            c.flags = f.flags;
+            c.note = f.note;
+            p.friends.add(c);
+        }
+    }
+
+    public void addFriend(int guid, Player.Friend row) {
+        social.computeIfAbsent(guid, k -> new ArrayList<>()).add(row);
+        if (chars == null) {
+            return;
+        }
+        try (Connection c = chars.get()) {
+            PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO character_social (guid, friend, flags, note) VALUES (?,?,?,?)");
+            ps.setInt(1, guid);
+            ps.setInt(2, Guid.low(row.guid));
+            ps.setInt(3, row.flags);
+            ps.setString(4, row.note == null ? "" : row.note);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.warn("addFriend {}", e.getMessage());
+        }
+    }
+
+    public int nextMailId() {
+        return nextMail.getAndIncrement();
+    }
+
+    public void storeMail(Mail m) {
+        mails.put(m.id, m);
+        inbox.computeIfAbsent(m.receiver, k -> new ArrayList<>());
+        List<Integer> ids = inbox.get(m.receiver);
+        if (!ids.contains(m.id)) {
+            ids.add(m.id);
+        }
+        if (chars == null) {
+            return;
+        }
+        try (Connection c = chars.get()) {
+            PreparedStatement del = c.prepareStatement("DELETE FROM mail WHERE id = ?");
+            del.setInt(1, m.id);
+            del.executeUpdate();
+            PreparedStatement ins = c.prepareStatement(
+                    "INSERT INTO mail (id,messageType,stationery,mailTemplateId,sender,receiver,subject,itemTextId,has_items,expire_time,deliver_time,money,cod,checked) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+            ins.setInt(1, m.id);
+            ins.setInt(2, 0);
+            ins.setInt(3, m.stationery);
+            ins.setInt(4, 0);
+            ins.setInt(5, m.sender);
+            ins.setInt(6, m.receiver);
+            ins.setString(7, m.subject);
+            ins.setInt(8, 0);
+            ins.setInt(9, m.items.isEmpty() ? 0 : 1);
+            ins.setLong(10, m.expireTime);
+            ins.setLong(11, m.deliverTime);
+            ins.setInt(12, m.money);
+            ins.setInt(13, m.cod);
+            ins.setInt(14, m.checked);
+            ins.executeUpdate();
+            PreparedStatement di = c.prepareStatement("DELETE FROM mail_items WHERE mail_id = ?");
+            di.setInt(1, m.id);
+            di.executeUpdate();
+            for (Item it : m.items) {
+                PreparedStatement mi = c.prepareStatement(
+                        "INSERT INTO mail_items (mail_id, item_guid, item_template, receiver) VALUES (?,?,?,?)");
+                mi.setInt(1, m.id);
+                mi.setInt(2, Guid.low(it.guid));
+                mi.setInt(3, it.entry);
+                mi.setInt(4, m.receiver);
+                mi.executeUpdate();
+            }
+        } catch (Exception e) {
+            log.warn("storeMail {}", e.getMessage());
+        }
+    }
+
+    public Mail mail(int id) {
+        return mails.get(id);
+    }
+
+    public List<Mail> inbox(int receiver, long nowUnix) {
+        List<Mail> out = new ArrayList<>();
+        for (int id : inbox.getOrDefault(receiver, List.of())) {
+            Mail m = mails.get(id);
+            if (m != null && m.deliverTime <= nowUnix) {
+                out.add(m);
+            }
+        }
+        return out;
+    }
+
+    private void loadSocialSql(Connection c, Player p) throws Exception {
+        PreparedStatement ps = c.prepareStatement(
+                "SELECT friend, flags, note FROM character_social WHERE guid = ?");
+        ps.setInt(1, Guid.low(p.guid));
+        ResultSet rs = ps.executeQuery();
+        List<Player.Friend> rows = new ArrayList<>();
+        while (rs.next()) {
+            Player.Friend f = new Player.Friend();
+            f.guid = Guid.player(rs.getInt("friend"));
+            f.flags = rs.getInt("flags");
+            f.note = rs.getString("note");
+            rows.add(f);
+        }
+        social.put(Guid.low(p.guid), rows);
     }
 }

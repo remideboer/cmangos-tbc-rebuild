@@ -7,7 +7,6 @@ import org.tbc.common.Srp6;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.ChrStatic;
 import org.tbc.world.entity.Creature;
-import org.tbc.world.entity.Group;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.map.GameMap;
@@ -50,7 +49,7 @@ public final class WorldSession {
     private final List<Integer> sentOpcodes = new ArrayList<>();
     private final Set<Long> seen = new HashSet<>();
     private final AtomicInteger timeSync = new AtomicInteger();
-    public Group pendingGroup;
+    public Player pendingInviteFrom;
     public final List<String> channels = new ArrayList<>();
     public String lastTicket = "";
     public int bgQueue;
@@ -211,7 +210,7 @@ public final class WorldSession {
             case Opcodes.CMSG_TIME_SYNC_RESP -> in.skip(Math.min(8, in.remaining()));
             case Opcodes.CMSG_SET_ACTIVE_MOVER -> in.getU64();
             case Opcodes.CMSG_ZONEUPDATE -> player.zoneClient = in.getU32();
-            case Opcodes.CMSG_CONTACT_LIST -> send(Opcodes.SMSG_CONTACT_LIST, u32(0, 0));
+            case Opcodes.CMSG_CONTACT_LIST -> SocialHandler.contactList(this, world);
             case Opcodes.CMSG_SET_ACTION_BUTTON -> {
                 int button = in.getU8();
                 int packed = in.getU32();
@@ -242,13 +241,19 @@ public final class WorldSession {
             case Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST -> handleQuestAccept(world, in);
             case Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD ->
                     handleQuestComplete(world, in);
-            case Opcodes.CMSG_GROUP_INVITE -> handleGroupInvite(world, in);
-            case Opcodes.CMSG_GROUP_ACCEPT -> handleGroupAccept(world);
-            case Opcodes.CMSG_GROUP_DISBAND -> handleGroupDisband(world);
-            case Opcodes.CMSG_INITIATE_TRADE -> handleTrade(world, in);
-            case Opcodes.CMSG_WHO -> handleWho(world, in);
-            case Opcodes.CMSG_ADD_FRIEND -> handleAddFriend(world, in);
-            case Opcodes.CMSG_SEND_MAIL -> handleMail(world, in);
+            case Opcodes.CMSG_GROUP_INVITE -> SocialHandler.groupInvite(this, world, in);
+            case Opcodes.CMSG_GROUP_ACCEPT -> SocialHandler.groupAccept(this, world);
+            case Opcodes.CMSG_GROUP_DISBAND -> SocialHandler.groupDisband(this);
+            case Opcodes.CMSG_INITIATE_TRADE -> SocialHandler.initiateTrade(this, world, in);
+            case Opcodes.CMSG_BEGIN_TRADE -> SocialHandler.beginTrade(this);
+            case Opcodes.CMSG_SET_TRADE_ITEM -> SocialHandler.setTradeItem(this, in);
+            case Opcodes.CMSG_ACCEPT_TRADE -> SocialHandler.acceptTrade(this, in);
+            case Opcodes.CMSG_CANCEL_TRADE -> SocialHandler.cancelTrade(this);
+            case Opcodes.CMSG_WHO -> SocialHandler.who(this, world, in);
+            case Opcodes.CMSG_ADD_FRIEND -> SocialHandler.addFriend(this, world, in);
+            case Opcodes.CMSG_SEND_MAIL -> SocialHandler.sendMail(this, world, in);
+            case Opcodes.CMSG_GET_MAIL_LIST -> SocialHandler.getMailList(this, world, in);
+            case Opcodes.CMSG_MAIL_TAKE_ITEM -> SocialHandler.takeMailItem(this, world, in);
             case Opcodes.MSG_AUCTION_HELLO -> handleAuctionHello(world, in);
             case Opcodes.CMSG_BATTLEMASTER_JOIN -> handleBgJoin(world, 489);
             case Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA -> handleBgJoin(world, 562);
@@ -482,7 +487,13 @@ public final class WorldSession {
         p.gmLevel = account.gmlevel();
         p.applyCreateFields();
         status = STATUS_LOGGEDIN;
+        log.info("login {} race={} commonSkill={} gnomishSkill={} langSpell={}",
+                p.name, p.race, p.hasSkill(ChrStatic.SKILL_LANG_COMMON),
+                p.hasSkill(ChrStatic.SKILL_LANG_GNOMISH), p.spells.contains(ChrStatic.SPELL_LANG_COMMON));
         LoginBurst.send(this, p, world);
+        log.info("login {} race={} commonSkill={} gnomishSkill={} langSpell={}",
+                p.name, p.race, p.hasSkill(ChrStatic.SKILL_LANG_COMMON),
+                p.hasSkill(ChrStatic.SKILL_LANG_GNOMISH), p.spells.contains(ChrStatic.SPELL_LANG_COMMON));
         world.map(p.mapId, p.instanceId).add(p);
         seen.clear();
         seen.add(p.guid);
@@ -573,9 +584,13 @@ public final class WorldSession {
             system(r);
             return;
         }
+        if (type == 0x07 && lang != 0xFFFFFFFF) {
+            lang = 0;
+        }
+        int tag = 0;
         if (type == 0x01 || type == 0x06) {
             double range = type == 0x06 ? world.yellRange : world.sayRange;
-            byte[] pkt = chatPacket(type, lang, player.guid, player.guid, msg, player.gmLevel > 0 ? 4 : 0);
+            byte[] pkt = chatPacket(type, lang, player.guid, player.guid, msg, tag);
             send(Opcodes.SMSG_MESSAGECHAT, pkt);
             for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, range)) {
                 o.session.send(Opcodes.SMSG_MESSAGECHAT, pkt);
@@ -589,7 +604,9 @@ public final class WorldSession {
         } else if (type == 0x02 && player.group != null) {
             byte[] pkt = chatPacket(type, lang, player.guid, player.guid, msg, 0);
             for (Player m : player.group.members) {
-                m.session.send(Opcodes.SMSG_MESSAGECHAT, pkt);
+                if (m.session != null) {
+                    m.session.send(Opcodes.SMSG_MESSAGECHAT, pkt);
+                }
             }
         }
     }
@@ -756,108 +773,6 @@ public final class WorldSession {
 
     private void handleQuestComplete(World world, WowBuffer in) {
         world.content.completeQuest(player, world.map(player.mapId, player.instanceId), in, this::send);
-    }
-
-    private void handleGroupInvite(World world, WowBuffer in) {
-        String name = in.getCString();
-        Player t = world.playerByName(name);
-        if (t == null || t.session == null) {
-            return;
-        }
-        t.session.pendingGroupInvite(player);
-        WowBuffer b = new WowBuffer(16);
-        b.putCString(player.name);
-        t.session.send(Opcodes.SMSG_GROUP_INVITE, b.array());
-    }
-
-    private void pendingGroupInvite(Player from) {
-        pendingGroup = from.group != null ? from.group : new Group();
-        if (from.group == null) {
-            pendingGroup.leaderGuid = from.guid;
-            pendingGroup.members.add(from);
-            from.group = pendingGroup;
-        }
-    }
-
-    private void handleGroupAccept(World world) {
-        if (pendingGroup == null) {
-            return;
-        }
-        pendingGroup.members.add(player);
-        player.group = pendingGroup;
-        sendGroupList();
-        for (Player m : pendingGroup.members) {
-            if (m.session != null) {
-                m.session.sendGroupList();
-            }
-        }
-    }
-
-    private void sendGroupList() {
-        if (player.group == null) {
-            return;
-        }
-        WowBuffer b = new WowBuffer(64);
-        b.putU8(player.group.raid ? 1 : 0);
-        b.putU8(player.group.members.size());
-        for (Player m : player.group.members) {
-            b.putCString(m.name);
-            b.putU64(m.guid);
-            b.putU8(1);
-            b.putU8(0);
-            b.putU8(0);
-            b.putU8(0);
-        }
-        b.putU64(player.group.leaderGuid);
-        send(Opcodes.SMSG_GROUP_LIST, b.array());
-    }
-
-    private void handleGroupDisband(World world) {
-        if (player.group == null) {
-            return;
-        }
-        for (Player m : new ArrayList<>(player.group.members)) {
-            m.group = null;
-            if (m.session != null) {
-                m.session.send(Opcodes.SMSG_GROUP_DESTROYED, new byte[0]);
-            }
-        }
-    }
-
-    private void handleTrade(World world, WowBuffer in) {
-        long guid = in.getU64();
-        send(Opcodes.SMSG_TRADE_STATUS, u32(1));
-        for (Player o : world.map(player.mapId, player.instanceId).players()) {
-            if (o.guid == guid && o.session != null) {
-                o.session.send(Opcodes.SMSG_TRADE_STATUS, u32(1));
-            }
-        }
-    }
-
-    private void handleWho(World world, WowBuffer in) {
-        WowBuffer out = new WowBuffer(16);
-        out.putU32(1);
-        out.putU32(1);
-        out.putCString(player.name);
-        out.putCString("");
-        out.putU32(player.level);
-        out.putU32(player.clazz);
-        out.putU32(player.race);
-        out.putU32(player.zoneId);
-        send(Opcodes.SMSG_WHO, out.array());
-    }
-
-    private void handleAddFriend(World world, WowBuffer in) {
-        String name = in.getCString();
-        WowBuffer out = new WowBuffer(16);
-        out.putU8(0);
-        out.putU64(0);
-        out.putU8(1);
-        send(Opcodes.SMSG_FRIEND_STATUS, out.array());
-    }
-
-    private void handleMail(World world, WowBuffer in) {
-        send(Opcodes.SMSG_SEND_MAIL_RESULT, u32(0, 0, 0));
     }
 
     private void handleAuctionHello(World world, WowBuffer in) {

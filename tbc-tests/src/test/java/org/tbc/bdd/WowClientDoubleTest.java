@@ -54,5 +54,18 @@ class WowClientDoubleTest {
         d.clear();
         d.castSpell(w, 78, 1, 0);
         d.castSpell(w, 78, 1, created.guid);
+        d.sendMail(w, 1, "Nobody", "s", "b", 0);
+        d.sendMail(w, 1, "Nobody", "s", "b", 1);
+        d.who(w);
+        d.addFriend(w, "Nobody");
+        d.groupInvite(w, "Nobody");
+        d.groupAccept(w);
+        d.partyChat(w, "hi");
+        d.initiateTrade(w, 0);
+        d.beginTrade(w);
+        d.setTradeItem(w, 0, 0, 23);
+        d.acceptTrade(w);
+        d.getMailList(w, 1);
+        d.takeMailItem(w, 1, 1, 1);
     }
 }

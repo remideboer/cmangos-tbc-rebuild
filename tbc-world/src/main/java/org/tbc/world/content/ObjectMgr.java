@@ -28,6 +28,7 @@ public final class ObjectMgr {
 
     public record CreateInfo(int race, int clazz, int map, int zone, float x, float y, float z, float o) {}
     public record CreateItem(int itemId, int amount) {}
+    public record CreateSkill(int raceMask, int classMask, int skill, int step) {}
 
     public record CreatureTemplate(int entry, String name, int display, int faction, int hp, int level, int npcFlags,
                                    String scriptName, String gossip, int trainerType,
@@ -176,6 +177,7 @@ public final class ObjectMgr {
     public final Map<Integer, List<Integer>> createSpells = new HashMap<>();
     public final Map<Integer, int[]> createActions = new HashMap<>();
     public final Map<Integer, List<CreateItem>> createItems = new HashMap<>();
+    public final List<CreateSkill> createSkills = new ArrayList<>();
     public final Map<Integer, List<Integer>> startOutfit = new HashMap<>();
     public final Map<Integer, CreatureTemplate> creatures = new HashMap<>();
     public final Map<Integer, QuestTemplate> quests = new HashMap<>();
@@ -265,6 +267,17 @@ public final class ObjectMgr {
                 }
             }
         } catch (Exception ignored) {
+        }
+        try {
+            PreparedStatement sk = c.prepareStatement(
+                    "SELECT raceMask, classMask, skill, step FROM playercreateinfo_skills");
+            ResultSet kr = sk.executeQuery();
+            while (kr.next()) {
+                createSkills.add(new CreateSkill(kr.getInt(1), kr.getInt(2), kr.getInt(3), kr.getInt(4)));
+            }
+            log.info("loaded {} playercreateinfo_skills", createSkills.size());
+        } catch (Exception e) {
+            log.warn("playercreateinfo_skills load failed: {}", e.getMessage());
         }
         try {
             PreparedStatement it = c.prepareStatement(
@@ -580,6 +593,31 @@ public final class ObjectMgr {
             it.quality = t.quality;
             if (it.durability <= 0) {
                 it.durability = t.maxDurability;
+            }
+        }
+    }
+
+    /** CMaNGOS LearnDefaultSkills from playercreateinfo_skills. Languages are 300/300. */
+    public void applyCreateSkills(Player p) {
+        if (p == null || createSkills.isEmpty()) {
+            return;
+        }
+        int raceBit = p.race <= 0 ? 0 : 1 << (p.race - 1);
+        int classBit = p.clazz <= 0 ? 0 : 1 << (p.clazz - 1);
+        for (CreateSkill cs : createSkills) {
+            if (cs.skill() == 0) {
+                continue;
+            }
+            if (cs.raceMask() != 0 && (cs.raceMask() & raceBit) == 0) {
+                continue;
+            }
+            if (cs.classMask() != 0 && (cs.classMask() & classBit) == 0) {
+                continue;
+            }
+            if (ChrStatic.isLanguageSkill(cs.skill())) {
+                p.learnSkill(cs.skill(), 300, 300, cs.step());
+            } else {
+                p.learnSkill(cs.skill(), 1, Math.max(1, p.level * 5), cs.step());
             }
         }
     }

@@ -8,6 +8,8 @@ public final class Guid {
     public static final long HIGH_GAMEOBJECT = 0xF110000000000000L;
     public static final long HIGH_ITEM = 0x4000000000000000L;
     public static final long HIGH_CORPSE = 0xF101000000000000L;
+    /** ObjectGuid(HIGHGUID_GROUP, id) — high 16 bits 0x1F50. */
+    public static final long HIGH_GROUP = 0x1F50000000000000L;
 
     private Guid() {}
 

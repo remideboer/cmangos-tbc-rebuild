@@ -169,6 +169,104 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_CAST_SPELL, b.array());
     }
 
+    public void groupInvite(World world, String name) {
+        WowBuffer b = new WowBuffer(16);
+        b.putCString(name);
+        handle(world, Opcodes.CMSG_GROUP_INVITE, b.array());
+    }
+
+    public void groupAccept(World world) {
+        handle(world, Opcodes.CMSG_GROUP_ACCEPT, new byte[0]);
+    }
+
+    public void partyChat(World world, String msg) {
+        WowBuffer b = new WowBuffer(8 + msg.length());
+        b.putU32(0x02);
+        b.putU32(0);
+        b.putCString(msg);
+        handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
+    }
+
+    public void initiateTrade(World world, long guid) {
+        WowBuffer b = new WowBuffer(8);
+        b.putU64(guid);
+        handle(world, Opcodes.CMSG_INITIATE_TRADE, b.array());
+    }
+
+    public void beginTrade(World world) {
+        handle(world, Opcodes.CMSG_BEGIN_TRADE, new byte[0]);
+    }
+
+    public void setTradeItem(World world, int tradeSlot, int bag, int slot) {
+        WowBuffer b = new WowBuffer(3);
+        b.putU8(tradeSlot);
+        b.putU8(bag);
+        b.putU8(slot);
+        handle(world, Opcodes.CMSG_SET_TRADE_ITEM, b.array());
+    }
+
+    public void acceptTrade(World world) {
+        WowBuffer b = new WowBuffer(4);
+        b.putU32(0);
+        handle(world, Opcodes.CMSG_ACCEPT_TRADE, b.array());
+    }
+
+    public void who(World world) {
+        WowBuffer b = new WowBuffer(32);
+        b.putU32(1);
+        b.putU32(100);
+        b.putCString("");
+        b.putCString("");
+        b.putU32(0);
+        b.putU32(0);
+        b.putU32(0);
+        b.putU32(0);
+        handle(world, Opcodes.CMSG_WHO, b.array());
+    }
+
+    public void addFriend(World world, String name) {
+        WowBuffer b = new WowBuffer(32);
+        b.putCString(name);
+        b.putCString("");
+        handle(world, Opcodes.CMSG_ADD_FRIEND, b.array());
+    }
+
+    public void sendMail(World world, long mailbox, String receiver, String subject, String body, long itemGuid) {
+        WowBuffer b = new WowBuffer(64);
+        b.putU64(mailbox);
+        b.putCString(receiver);
+        b.putCString(subject);
+        b.putCString(body);
+        b.putU32(41);
+        b.putU32(0);
+        if (itemGuid != 0) {
+            b.putU8(1);
+            b.putU8(0);
+            b.putU64(itemGuid);
+        } else {
+            b.putU8(0);
+        }
+        b.putU32(0);
+        b.putU32(0);
+        b.putU64(0);
+        b.putU8(0);
+        handle(world, Opcodes.CMSG_SEND_MAIL, b.array());
+    }
+
+    public void getMailList(World world, long mailbox) {
+        WowBuffer b = new WowBuffer(8);
+        b.putU64(mailbox);
+        handle(world, Opcodes.CMSG_GET_MAIL_LIST, b.array());
+    }
+
+    public void takeMailItem(World world, long mailbox, int mailId, int itemLow) {
+        WowBuffer b = new WowBuffer(16);
+        b.putU64(mailbox);
+        b.putU32(mailId);
+        b.putU32(itemLow);
+        handle(world, Opcodes.CMSG_MAIL_TAKE_ITEM, b.array());
+    }
+
     public static long u64le(byte[] p, int off) {
         return (u32le(p, off) & 0xFFFFFFFFL) | ((long) u32le(p, off + 4) << 32);
     }

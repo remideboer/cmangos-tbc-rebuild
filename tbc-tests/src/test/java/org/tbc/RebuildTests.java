@@ -350,13 +350,84 @@ class SliceTests {
         World w = World.inMemory();
         CaptureSink sink = new CaptureSink();
         WorldSession s = loggedIn(w, sink, "Talker");
-        sink.opcodes.clear();
+        WowBuffer initSpells = new WowBuffer(payloadOf(sink, Opcodes.SMSG_INITIAL_SPELLS));
+        initSpells.getU8();
+        int spellCount = initSpells.getU16();
+        boolean sawCommon = false;
+        for (int i = 0; i < spellCount; i++) {
+            if (initSpells.getU16() == ChrStatic.SPELL_LANG_COMMON) {
+                sawCommon = true;
+            }
+            initSpells.getU16();
+        }
+        assertTrue(sawCommon);
+        assertTrue(sink.opcodes.contains(Opcodes.SMSG_LEARNED_SPELL));
+        WowBuffer learned = new WowBuffer(payloadOf(sink, Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(ChrStatic.SPELL_LANG_COMMON, learned.getU32());
+        int learnedAt = sink.opcodes.indexOf(Opcodes.SMSG_LEARNED_SPELL);
+        int createAt = Math.max(sink.opcodes.indexOf(Opcodes.SMSG_UPDATE_OBJECT),
+                sink.opcodes.indexOf(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+        assertTrue(createAt >= 0 && learnedAt > createAt);
+        clear(sink);
         WowBuffer chat = new WowBuffer(32);
         chat.putU32(1);
         chat.putU32(7);
         chat.putCString("hello");
         s.handle(w, Opcodes.CMSG_MESSAGECHAT, chat.array());
         assertTrue(sink.opcodes.contains(Opcodes.SMSG_MESSAGECHAT));
+        byte[] chatPayload = payloadOf(sink, Opcodes.SMSG_MESSAGECHAT);
+        WowBuffer decoded = new WowBuffer(chatPayload);
+        assertEquals(1, decoded.getU8());
+        assertEquals(7, decoded.getU32());
+        assertEquals(0, chatPayload[chatPayload.length - 1] & 0xFF);
+        assertEquals(ChrStatic.SKILL_LANG_COMMON, s.player().getInt(UpdateFields.PLAYER_SKILL_INFO_1_1) & 0xFFFF);
+        int skillVal = s.player().getInt(UpdateFields.PLAYER_SKILL_INFO_1_1 + 1);
+        assertEquals(300, skillVal & 0xFFFF);
+        assertEquals(300, (skillVal >>> 16) & 0xFFFF);
+        assertTrue(s.player().spells.contains(ChrStatic.SPELL_LANG_COMMON));
+        assertTrue(s.player().visibleToOwner(UpdateFields.PLAYER_SKILL_INFO_1_1, true));
+        assertFalse(s.player().visibleToOwner(UpdateFields.PLAYER_SKILL_INFO_1_1, false));
+
+        CaptureSink hearSink = new CaptureSink();
+        loggedIn(w, hearSink, "Hearer");
+        clear(sink);
+        clear(hearSink);
+        WowBuffer whisper = new WowBuffer(32);
+        whisper.putU32(0x07);
+        whisper.putU32(7);
+        whisper.putCString("Hearer");
+        whisper.putCString("psst");
+        s.handle(w, Opcodes.CMSG_MESSAGECHAT, whisper.array());
+        WowBuffer toHear = new WowBuffer(payloadOf(hearSink, Opcodes.SMSG_MESSAGECHAT));
+        assertEquals(0x07, toHear.getU8());
+        assertEquals(0, toHear.getU32());
+        WowBuffer inform = new WowBuffer(payloadOf(sink, Opcodes.SMSG_MESSAGECHAT));
+        assertEquals(0x09, inform.getU8());
+        assertEquals(0, inform.getU32());
+
+        hearSink.opcodes.clear();
+        hearSink.payloads.clear();
+        WowBuffer addon = new WowBuffer(32);
+        addon.putU32(0x07);
+        addon.putU32(0xFFFFFFFF);
+        addon.putCString("Hearer");
+        addon.putCString("addon");
+        s.handle(w, Opcodes.CMSG_MESSAGECHAT, addon.array());
+        WowBuffer addonChat = new WowBuffer(payloadOf(hearSink, Opcodes.SMSG_MESSAGECHAT));
+        assertEquals(0x07, addonChat.getU8());
+        assertEquals(0xFFFFFFFF, addonChat.getU32());
+
+        Player gnome = w.characters.create(1, "Gnomey", 7, 1, 0, 1, 1, 1, 1, 0, w.objectMgr);
+        assertTrue(gnome.hasSkill(ChrStatic.SKILL_LANG_COMMON));
+        assertTrue(gnome.hasSkill(ChrStatic.SKILL_LANG_GNOMISH));
+        assertTrue(gnome.spells.contains(ChrStatic.SPELL_LANG_COMMON));
+        assertTrue(gnome.spells.contains(ChrStatic.SPELL_LANG_GNOMISH));
+        gnome.setSkill(-1, 98, 300, 300);
+        gnome.setSkill(127, 98, 300, 300);
+
+        assertEquals(UpdateFields.PRIVATE, UpdateFields.visibility(929));
+        assertEquals(UpdateFields.PRIVATE, UpdateFields.visibility(1311));
+
         sink.opcodes.clear();
         s.handle(w, Opcodes.CMSG_LOGOUT_REQUEST, new byte[0]);
         assertTrue(sink.opcodes.contains(Opcodes.SMSG_LOGOUT_RESPONSE));

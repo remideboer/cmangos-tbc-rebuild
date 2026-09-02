@@ -409,6 +409,9 @@ public final class UpdateFields {
     public static final int CORPSE_FIELD_PAD = 39;
 
     public static int visibility(int offset) {
+        if (offset >= PLAYER_SKILL_INFO_1_1 && offset < PLAYER_CHARACTER_POINTS1) {
+            return PRIVATE;
+        }
         return switch (offset) {
             case 0 -> PUBLIC;
             case 2 -> PUBLIC;

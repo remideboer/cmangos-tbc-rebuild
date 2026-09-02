@@ -59,6 +59,8 @@ public final class Player extends Unit {
     public int zoneClient;
     public Pet pet;
     public Group group;
+    public TradeData trade;
+    public final List<Friend> friends = new ArrayList<>();
     public String motdLine = "";
     public boolean resting;
     public float restBonus;
@@ -114,6 +116,7 @@ public final class Player extends Unit {
         if (powerType == POWER_RAGE) {
             setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, POWER_RAGE_MAX);
         }
+        applyLanguageSkills();
         movement.x = x;
         movement.y = y;
         movement.z = z;
@@ -158,6 +161,28 @@ public final class Player extends Unit {
         return null;
     }
 
+    public int firstFreeBagSlot() {
+        for (int s = INVENTORY_SLOT_ITEM_START; s < INVENTORY_SLOT_ITEM_END; s++) {
+            if (itemAt(0, s) == null) {
+                return s;
+            }
+        }
+        return -1;
+    }
+
+    public static final class Friend {
+        public long guid;
+        public int flags = 1;
+        public String note = "";
+    }
+
+    public static final class TradeData {
+        public Player partner;
+        public boolean accepted;
+        public int gold;
+        public final Item[] slots = new Item[7];
+    }
+
     public void applyEquippedVisuals() {
         for (Item it : items.values()) {
             if (it.bag != 0 || it.slot < 0 || it.slot >= EQUIPMENT_SLOT_END) {
@@ -180,5 +205,58 @@ public final class Player extends Unit {
 
     public int observerFlags() {
         return UPDATEFLAG_HIGHGUID | UPDATEFLAG_LIVING | UPDATEFLAG_HAS_POSITION;
+    }
+
+    /** CMaNGOS PLAYER_SKILL_INDEX / MAKE_PAIR32(id, step) / MAKE_SKILL_VALUE. */
+    public void setSkill(int slot, int skillId, int value, int max) {
+        setSkill(slot, skillId, value, max, 0);
+    }
+
+    public void setSkill(int slot, int skillId, int value, int max, int step) {
+        if (slot < 0 || slot >= 127) {
+            return;
+        }
+        int base = UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
+        setInt(base, (skillId & 0xFFFF) | ((step & 0xFFFF) << 16));
+        setInt(base + 1, (value & 0xFFFF) | ((max & 0xFFFF) << 16));
+    }
+
+    public boolean hasSkill(int skillId) {
+        int want = skillId & 0xFFFF;
+        for (int slot = 0; slot < 127; slot++) {
+            if ((getInt(UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3) & 0xFFFF) == want) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void learnSkill(int skillId, int value, int max, int step) {
+        int free = -1;
+        int want = skillId & 0xFFFF;
+        for (int slot = 0; slot < 127; slot++) {
+            int id = getInt(UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3) & 0xFFFF;
+            if (id == want) {
+                setSkill(slot, skillId, value, max, step);
+                return;
+            }
+            if (free < 0 && id == 0) {
+                free = slot;
+            }
+        }
+        if (free >= 0) {
+            setSkill(free, skillId, value, max, step);
+        }
+    }
+
+    void applyLanguageSkills() {
+        for (int skill : org.tbc.world.content.ChrStatic.languageSkills(race)) {
+            learnSkill(skill, 300, 300, 0);
+        }
+        for (int spell : org.tbc.world.content.ChrStatic.languageSpells(race)) {
+            if (!spells.contains(spell)) {
+                spells.add(spell);
+            }
+        }
     }
 }

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -81,6 +82,23 @@ class ObjectMgrStartItemsTest {
         mgr.fillItemVisuals(p);
         assertEquals(1542, it.displayId);
         assertEquals(21, it.inventoryType);
+    }
+
+    @Test
+    void gnomeCreateSkillsIncludeCommonAndDefense() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.createSkills.add(new ObjectMgr.CreateSkill(0, 0, 95, 0));
+        mgr.createSkills.add(new ObjectMgr.CreateSkill(1101, 0, ChrStatic.SKILL_LANG_COMMON, 0));
+        mgr.createSkills.add(new ObjectMgr.CreateSkill(64, 0, ChrStatic.SKILL_LANG_GNOMISH, 0));
+        mgr.createSkills.add(new ObjectMgr.CreateSkill(690, 0, ChrStatic.SKILL_LANG_ORCISH, 0));
+        Player p = player(7, 1, 0);
+        p.level = 1;
+        mgr.applyCreateSkills(p);
+        p.applyCreateFields();
+        assertTrue(p.hasSkill(95));
+        assertTrue(p.hasSkill(ChrStatic.SKILL_LANG_COMMON));
+        assertTrue(p.hasSkill(ChrStatic.SKILL_LANG_GNOMISH));
+        assertFalse(p.hasSkill(ChrStatic.SKILL_LANG_ORCISH));
     }
 
     private static Player player(int race, int clazz, int gender) {

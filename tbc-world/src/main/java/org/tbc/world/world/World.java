@@ -211,6 +211,24 @@ public final class World implements Runnable {
         return null;
     }
 
+    public Player playerByGuid(long guid) {
+        for (GameMap m : maps.values()) {
+            Player p = m.players.get(guid);
+            if (p != null) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    public java.util.List<Player> playersOnline() {
+        java.util.ArrayList<Player> all = new java.util.ArrayList<>();
+        for (GameMap m : maps.values()) {
+            all.addAll(m.players.values());
+        }
+        return all;
+    }
+
     public void teleport(Player p, int mapId, float x, float y, float z, float o) {
         if (p.session != null) {
             if (p.mapId != mapId) {

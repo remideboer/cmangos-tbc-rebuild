@@ -1,6 +1,7 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.ChrStatic;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -10,6 +11,7 @@ import org.tbc.world.world.World;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /** spec/03-protocol/packets/login-burst.md — order is normative. */
@@ -83,6 +85,7 @@ public final class LoginBurst {
         sent.add(Opcodes.SMSG_TUTORIAL_FLAGS);
         s.send(Opcodes.SMSG_INSTANCE_DIFFICULTY, u32(p.difficulty, 0));
         sent.add(Opcodes.SMSG_INSTANCE_DIFFICULTY);
+        p.applyCreateFields();
         WowBuffer spells = new WowBuffer(8 + p.spells.size() * 4);
         spells.putU8(0);
         spells.putU16(p.spells.size());
@@ -124,7 +127,8 @@ public final class LoginBurst {
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, true, (int) world.nowMs()));
         s.send(upd.opcode(), upd.payload());
         sent.add(Opcodes.SMSG_UPDATE_OBJECT);
-        s.send(Opcodes.SMSG_CONTACT_LIST, u32(0, 0));
+        sendKnownLanguages(s, p);
+        SocialHandler.contactList(s, world);
         sent.add(Opcodes.SMSG_CONTACT_LIST);
         WowBuffer ws = new WowBuffer(16);
         ws.putU32(p.mapId);
@@ -141,6 +145,37 @@ public final class LoginBurst {
         sent.add(Opcodes.SMSG_LFG_DISABLED);
         p.setInt(UpdateFields.OBJECT_FIELD_GUID, (int) p.guid);
         return sent;
+    }
+
+    /**
+     * ChatFrame.lua builds the language menu on PLAYER_ENTERING_WORLD / LANGUAGE_LIST_CHANGED.
+     * Create-self skills can arrive after that event; SMSG_LEARNED_SPELL (0x12B, uint32 id) is the
+     * in-world learn opcode and refreshes GetNumLanguages().
+     */
+    static void sendKnownLanguages(WorldSession s, Player p) {
+        int[] fields = languageSkillFields(p);
+        if (fields.length > 0) {
+            s.send(Opcodes.SMSG_UPDATE_OBJECT, UpdateBuilder.values(p, fields));
+        }
+        for (int spell : ChrStatic.languageSpells(p.race)) {
+            WowBuffer learned = new WowBuffer(4);
+            learned.putU32(spell);
+            s.send(Opcodes.SMSG_LEARNED_SPELL, learned.array());
+        }
+    }
+
+    public static int[] languageSkillFields(Player p) {
+        int[] tmp = new int[32];
+        int n = 0;
+        for (int slot = 0; slot < 127; slot++) {
+            int base = UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
+            int id = p.getInt(base) & 0xFFFF;
+            if (id != 0 && ChrStatic.isLanguageSkill(id)) {
+                tmp[n++] = base;
+                tmp[n++] = base + 1;
+            }
+        }
+        return Arrays.copyOf(tmp, n);
     }
 
     public static void sendInventory(WorldSession s, Player p) {

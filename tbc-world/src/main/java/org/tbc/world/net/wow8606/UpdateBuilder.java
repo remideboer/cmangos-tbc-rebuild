@@ -7,6 +7,7 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 
 import java.util.zip.Deflater;
+import java.io.ByteArrayOutputStream;
 
 /** SMSG_UPDATE_OBJECT / compressed. spec/03-protocol/packets/update-object.md */
 public final class UpdateBuilder {
@@ -172,13 +173,16 @@ public final class UpdateBuilder {
         Deflater def = new Deflater(1);
         def.setInput(uncompressed);
         def.finish();
-        byte[] buf = new byte[uncompressed.length + 64];
-        int n = def.deflate(buf);
+        ByteArrayOutputStream bos = new ByteArrayOutputStream(uncompressed.length);
+        byte[] buf = new byte[1024];
+        while (!def.finished()) {
+            int n = def.deflate(buf);
+            bos.write(buf, 0, n);
+        }
         def.end();
-        WowBuffer out = new WowBuffer(n + 4);
+        byte[] z = bos.toByteArray();
+        WowBuffer out = new WowBuffer(z.length + 4);
         out.putU32(uncompressed.length);
-        byte[] z = new byte[n];
-        System.arraycopy(buf, 0, z, 0, n);
         out.putBytes(z);
         return new Compressed(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT, out.array());
     }
