@@ -1,0 +1,155 @@
+package org.tbc.bdd;
+
+import io.cucumber.java.en.And;
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
+import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.world.World;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public class CombatSteps {
+    private static final World.Account ACCOUNT =
+            new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
+
+    private World world;
+    private WowClientDouble client;
+    private Creature kobold;
+
+    @Given("a logged-in character standing next to Kobold Vermin {int}")
+    public void nextToKobold(int entry) {
+        world = World.inMemory();
+        client = new WowClientDouble();
+        client.connect(ACCOUNT);
+        Player created = world.characters.create(ACCOUNT.id(), "Fighter", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        kobold = find(entry);
+        Player p = client.session().player();
+        p.relocate(kobold.x, kobold.y, kobold.z, kobold.o);
+        world.map(p.mapId, p.instanceId).add(p);
+    }
+
+    @When("the player auto-attacks until the kobold is dead")
+    public void attackUntilDead() {
+        client.clear();
+        client.attackSwing(world, kobold.guid);
+        int n = 0;
+        while (kobold.alive() && n++ < 80) {
+            world.meleeHit(client.session().player(), kobold);
+        }
+        assertFalse(kobold.alive());
+    }
+
+    @Then("the server has sent SMSG_ATTACKERSTATEUPDATE")
+    public void sawAttackerState() {
+        byte[] p = client.payload(Opcodes.SMSG_ATTACKERSTATEUPDATE);
+        assertTrue(p.length > 8);
+        int hitInfo = WowClientDouble.u32le(p, 0);
+        assertTrue(hitInfo == org.tbc.world.combat.Combat.HITINFO_NORMALSWING2
+                || (hitInfo & org.tbc.world.combat.Combat.HITINFO_MISS) != 0
+                || hitInfo == 0);
+    }
+
+    @When("the player loots the corpse")
+    public void lootCorpse() {
+        client.clear();
+        client.loot(world, kobold.guid);
+    }
+
+    @Then("SMSG_LOOT_RESPONSE is a corpse window for that guid")
+    public void lootWindow() {
+        byte[] p = client.payload(Opcodes.SMSG_LOOT_RESPONSE);
+        assertTrue(p.length >= 14);
+        assertEquals(kobold.guid, WowClientDouble.u64le(p, 0));
+        assertEquals(org.tbc.world.combat.Combat.LOOT_CORPSE, p[8] & 0xFF);
+    }
+
+    @Given("the player is in combat with the kobold")
+    public void inCombat() {
+        client.attackSwing(world, kobold.guid);
+        assertTrue(kobold.inCombat);
+        assertTrue(kobold.alive());
+    }
+
+    @When("the player runs past the {int} yard leash")
+    public void runPastLeash(int yards) {
+        Player p = client.session().player();
+        p.relocate(kobold.spawnX + yards + 5, kobold.spawnY, kobold.spawnZ, 0);
+        client.clear();
+        world.tick(50);
+    }
+
+    @Then("the kobold is at spawn with full health and an empty threat list")
+    public void resetHome() {
+        assertEquals(kobold.spawnX, kobold.x, 0.01f);
+        assertEquals(kobold.spawnY, kobold.y, 0.01f);
+        assertEquals(kobold.maxHealth(), kobold.health());
+        assertEquals(0, kobold.threat);
+        assertFalse(kobold.inCombat);
+        assertFalse(kobold.lootable);
+    }
+
+    @When("the player loots the living kobold")
+    @When("the player loots the kobold")
+    public void lootKobold() {
+        client.clear();
+        client.loot(world, kobold.guid);
+    }
+
+    @Then("the server does not send SMSG_LOOT_RESPONSE")
+    public void noLoot() {
+        assertFalse(client.saw(Opcodes.SMSG_LOOT_RESPONSE));
+    }
+
+    @When("a second mock client loots the same corpse")
+    public void secondLoots() {
+        WowClientDouble other = new WowClientDouble();
+        other.connect(new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86"));
+        Player created = world.characters.create(2, "Other", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        other.login(world, created.guid);
+        other.clear();
+        other.loot(world, kobold.guid);
+        client = other;
+    }
+
+    @Then("the second client does not receive SMSG_LOOT_RESPONSE")
+    public void secondNoLoot() {
+        assertFalse(client.saw(Opcodes.SMSG_LOOT_RESPONSE));
+    }
+
+    @When("the mock client sends CMSG_LOOT with fewer than {int} bytes")
+    public void truncatedLoot(int n) {
+        assertEquals(8, n);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_LOOT, new byte[3]);
+    }
+
+    @Then("the combat session still answers CMSG_PING with SMSG_PONG")
+    public void pong() {
+        client.clear();
+        client.ping(world, 9);
+        assertTrue(client.saw(Opcodes.SMSG_PONG));
+        assertEquals(9, WowClientDouble.u32le(client.payload(Opcodes.SMSG_PONG), 0));
+    }
+
+    @When("the creature pursuit timer expires")
+    public void pursuitExpires() {
+        kobold.lastHitMs = world.nowMs() - org.tbc.world.combat.Combat.PURSUIT_MS - 1;
+        client.clear();
+        world.tick(50);
+    }
+
+    private Creature find(int entry) {
+        for (Creature c : world.map(0, 0).creatures.values()) {
+            if (c.entry == entry) {
+                return c;
+            }
+        }
+        throw new IllegalStateException("no creature " + entry);
+    }
+}

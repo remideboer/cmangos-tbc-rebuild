@@ -1,0 +1,9 @@
+LoginDatabaseInfo = "127.0.0.1;3306;mangos;mangos;tbcrealmd"
+RealmServerPort = 3724
+BindIP = "0.0.0.0"
+LogsDir = "logs"
+PidFile = ""
+MaxPingTime = 30
+WrongPass.MaxCount = 0
+WrongPass.BanTime = 600
+WrongPass.BanType = 0
