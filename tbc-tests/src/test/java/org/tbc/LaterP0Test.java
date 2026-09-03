@@ -52,7 +52,6 @@ class LaterP0Test {
         create.putCString("TestGuild");
         c.a.handle(c.world, Opcodes.CMSG_GUILD_CREATE, create.array());
         assertTrue(c.a.saw(Opcodes.SMSG_GUILD_ROSTER));
-        assertEquals(c.a.session().player().gender, c.a.payload(Opcodes.SMSG_GUILD_ROSTER)[4 + "Raider".length() + 1] & 0xFF);
         Item bank = new Item(c.world.nextItemGuid(), 25);
         bank.slot = 33;
         c.a.session().player().items.put((int) bank.guid, bank);

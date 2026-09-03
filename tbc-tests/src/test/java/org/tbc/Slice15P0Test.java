@@ -94,6 +94,37 @@ class Slice15P0Test {
         assertEquals(requester, WowClientDouble.u64le(lastPayload(g.b, Opcodes.MSG_RAID_READY_CHECK), 0));
     }
 
+    @Test
+    void tpSl15GuildRosterGender() {
+        Pair g = loginTwo("Raider", "Mate");
+        Player p = g.a.session().player();
+        g.a.clear();
+        WowBuffer create = new WowBuffer(16);
+        create.putCString("TestGuild");
+        g.a.handle(g.world, Opcodes.CMSG_GUILD_CREATE, create.array());
+        WowBuffer r = new WowBuffer(lastPayload(g.a, Opcodes.SMSG_GUILD_ROSTER));
+        assertEquals(1, r.getU32());
+        r.getCString();
+        r.getCString();
+        int ranks = r.getU32();
+        assertTrue(ranks >= 1);
+        for (int i = 0; i < ranks; i++) {
+            r.getU32();
+            r.getU32();
+            for (int t = 0; t < 6; t++) {
+                r.getU32();
+                r.getU32();
+            }
+        }
+        assertEquals(p.guid, r.getU64());
+        assertEquals(1, r.getU8());
+        assertEquals("Raider", r.getCString());
+        r.getU32();
+        assertEquals(p.level, r.getU8());
+        assertEquals(p.clazz, r.getU8());
+        assertEquals(p.gender, r.getU8());
+    }
+
     private static Pair loginTwo(String aName, String bName) {
         World world = World.inMemory();
         WowClientDouble a = new WowClientDouble();

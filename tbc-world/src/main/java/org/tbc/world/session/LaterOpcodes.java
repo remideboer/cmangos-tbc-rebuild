@@ -135,10 +135,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_GUILD_CREATE) {
-            p.guildId = 1;
-            p.guildLeader = true;
-            p.guildName = in.getCString();
-            roster(s, p);
+            GuildHandler.create(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS) {
@@ -420,15 +417,5 @@ public final class LaterOpcodes {
         if (p.level >= 11) {
             p.auras.add(new Unit.Aura(PvpObjectives.SICKNESS, 0, 1));
         }
-    }
-
-    static void roster(WorldSession s, Player p) {
-        WowBuffer r = new WowBuffer(64);
-        r.putU32(1);
-        r.putCString(p.name);
-        r.putU8(p.gender);
-        r.putU8(p.level);
-        r.putU8(p.clazz);
-        s.send(Opcodes.SMSG_GUILD_ROSTER, r.array());
     }
 }
