@@ -9,7 +9,6 @@ import org.tbc.world.content.ChrStatic;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
-import org.tbc.world.loot.GroupLoot;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.AddonInfo;
 import org.tbc.world.net.wow8606.MovementInfo;
@@ -757,9 +756,7 @@ public final class WorldSession {
         if (pkt != null) {
             send(Opcodes.SMSG_LOOT_RESPONSE, pkt);
         }
-        if (c != null && player.group != null && GroupLoot.rolling(player.group.lootMethod)) {
-            GroupLoot.start(player.group, guid, 0, org.tbc.world.content.Content.ITEM_WORN_SHORTSWORD);
-        }
+        LootHandler.maybeStartRoll(player, c, guid);
     }
 
     private void handleLootRelease(World world, WowBuffer in) {
