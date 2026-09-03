@@ -32,17 +32,8 @@ class LaterP0Test {
             new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86");
 
     @Test
-    void tpSl14TrainerTaxiWeather() {
+    void tpSl14TaxiWeather() {
         Ctx c = loginOne("Swapper");
-        Player p = c.client.session().player();
-        c.client.clear();
-        WowBuffer buy = new WowBuffer(12);
-        buy.putU64(0);
-        buy.putU32(100);
-        c.client.handle(c.world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
-        assertTrue(c.client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
-        assertTrue(c.client.saw(Opcodes.SMSG_LEARNED_SPELL));
-        assertTrue(p.spells.contains(100));
         c.client.clear();
         c.client.handle(c.world, Opcodes.CMSG_ACTIVATETAXI, new byte[0]);
         assertTrue(c.client.saw(Opcodes.SMSG_NEW_TAXI_PATH));

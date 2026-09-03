@@ -190,6 +190,9 @@ public final class ObjectMgr {
     public final Map<Integer, List<Integer>> vendorItems = new HashMap<>();
     public final Map<Integer, List<Integer>> questGivers = new HashMap<>();
     public final Map<Integer, List<Integer>> questInvolved = new HashMap<>();
+    public record TrainerSpell(int spell, int cost, int reqLevel) {}
+    public final Map<Integer, List<TrainerSpell>> trainerSpells = new HashMap<>();
+    public final Map<Integer, Integer> trainerClass = new HashMap<>();
     public final AtomicInteger nextCreatureLow = new AtomicInteger(1_000_000);
     public final AtomicInteger nextItemLow = new AtomicInteger(1);
 
@@ -503,6 +506,11 @@ public final class ObjectMgr {
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER, "", "", 0));
         creatures.put(Content.NPC_MARSHAL_MCBRIDE, new CreatureTemplate(Content.NPC_MARSHAL_MCBRIDE, "Marshal McBride", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER, "", "", 0));
+        creatures.put(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
+        trainerClass.put(Content.NPC_LLANE_BESHERE, 1);
+        trainerSpells.put(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
+                new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1))));
         quests.put(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
                 0, "Speak with Marshal McBride.", "Speak with Marshal McBride."));
         vendorItems.put(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
@@ -515,16 +523,22 @@ public final class ObjectMgr {
             spawns.add(new Spawn(4, Content.NPC_DEPUTY_WILLEM, 0, -8906f, -128f, 80f, 0f));
             spawns.add(new Spawn(5, Content.NPC_MARSHAL_MCBRIDE, 0, -8908f, -130f, 80f, 0f));
             spawns.add(new Spawn(6, 103, 0, -8910f, -125f, 80f, 0f));
+            spawns.add(new Spawn(7, Content.NPC_LLANE_BESHERE, 0, -8918.36f, -208.411f, 82.309f, 0f));
         }
     }
 
     private void seedQueryDefaults() {
         creatures.putIfAbsent(6, new CreatureTemplate(6, "Kobold Vermin", 10913, 7, 42, 1, 0, "", "", 0));
+        creatures.putIfAbsent(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         items.putIfAbsent(25, ItemTemplate.wornShortsword());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0));
         vendorItems.putIfAbsent(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
         questGivers.putIfAbsent(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
         questInvolved.putIfAbsent(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
+        trainerClass.putIfAbsent(Content.NPC_LLANE_BESHERE, 1);
+        trainerSpells.putIfAbsent(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
+                new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1))));
     }
 
     private static String nz(String s) {

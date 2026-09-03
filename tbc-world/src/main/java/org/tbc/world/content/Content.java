@@ -21,6 +21,8 @@ public final class Content {
     public static final int UNIT_NPC_FLAG_GOSSIP = 0x1;
     public static final int UNIT_NPC_FLAG_QUESTGIVER = 0x2;
     public static final int UNIT_NPC_FLAG_VENDOR = 0x80;
+    public static final int UNIT_NPC_FLAG_TRAINER = 0x10;
+    public static final int UNIT_NPC_FLAG_FLIGHTMASTER = 0x2000;
     public static final int EQUIP_ERR_NOT_ENOUGH_MONEY = 29;
     public static final int QUEST_STATE_COMPLETE = 0x1;
     public static final int QUEST_A_THREAT_WITHIN = 783;
@@ -28,7 +30,10 @@ public final class Content {
     public static final int NPC_MARSHAL_MCBRIDE = 197;
     public static final int NPC_MARSHAL_DUGHAN = 240;
     public static final int NPC_DEPUTY_WILLEM = 823;
+    public static final int NPC_LLANE_BESHERE = 911;
     public static final int ITEM_WORN_SHORTSWORD = 25;
+    public static final int SPELL_BATTLE_SHOUT = 6673;
+    public static final int TRAINER_SPELL_BATTLE_SHOUT_COST = 200;
     public static final int BACKPACK_START = 23;
     public static final int BACKPACK_END = 39;
 
@@ -182,11 +187,11 @@ public final class Content {
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q));
     }
 
-    static boolean outOfRange(Player p, Creature c) {
+    public static boolean outOfRange(Player p, Creature c) {
         return p.distance2d(c) > INTERACT_RANGE;
     }
 
-    static Creature creature(GameMap map, long guid) {
+    public static Creature creature(GameMap map, long guid) {
         return guid == 0 ? null : map.creatures.get(guid);
     }
 

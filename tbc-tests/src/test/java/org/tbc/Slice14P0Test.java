@@ -2,6 +2,8 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -14,6 +16,7 @@ import java.util.zip.Inflater;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL14-* from packet files, one criterion per method. */
@@ -56,6 +59,32 @@ class Slice14P0Test {
         long atDst = guidAt(update, invSlotField(dstSlot));
         assertEquals(UpdateBuilder.itemGuid(second), atSrc);
         assertEquals(UpdateBuilder.itemGuid(first), atDst);
+    }
+
+    @Test
+    void tpSl14TrainerBuySpell() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Trainee", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        p.setMoney(Content.TRAINER_SPELL_BATTLE_SHOUT_COST);
+        client.clear();
+        WowBuffer buy = new WowBuffer(12);
+        buy.putU64(trainer.guid);
+        buy.putU32(Content.SPELL_BATTLE_SHOUT);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        WowBuffer ok = new WowBuffer(client.payload(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertEquals(trainer.guid, ok.getU64());
+        assertEquals(Content.SPELL_BATTLE_SHOUT, ok.getU32());
+        assertEquals(Content.SPELL_BATTLE_SHOUT, WowClientDouble.u32le(lastPayload(client, Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertEquals(0, p.money);
     }
 
     private static int invSlotField(int slot) {
@@ -119,5 +148,23 @@ class Slice14P0Test {
         assertTrue(written > 0);
         assertTrue(sawLow && sawHigh);
         return low | (high << 32);
+    }
+
+    private static Creature find(World world, int entry) {
+        for (Creature c : world.map(0, 0).creatures.values()) {
+            if (c.entry == entry) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    private static byte[] lastPayload(WowClientDouble client, int opcode) {
+        for (int i = client.opcodes.size() - 1; i >= 0; i--) {
+            if (client.opcodes.get(i) == opcode) {
+                return client.payloads.get(i);
+            }
+        }
+        throw new AssertionError("missing opcode " + opcode);
     }
 }
