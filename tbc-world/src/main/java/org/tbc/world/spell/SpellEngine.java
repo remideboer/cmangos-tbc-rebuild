@@ -11,6 +11,7 @@ import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.pvp.Honor;
 import org.tbc.world.script.ClassScripts;
 
 import java.util.HashMap;
@@ -32,6 +33,7 @@ public final class SpellEngine {
     public static final int EFFECT_APPLY_AURA = 6;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
     public static final int EFFECT_ENERGIZE = 30;
+    public static final int EFFECT_ADD_HONOR = 45;
     public static final int EFFECT_LEARN_SPELL = 36;
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_OPEN_LOCK = 33;
@@ -45,7 +47,7 @@ public final class SpellEngine {
 
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
-            EFFECT_ENERGIZE, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
+            EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_DUMMY, EFFECT_SCRIPT);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {}
@@ -154,6 +156,10 @@ public final class SpellEngine {
             energize(target, Math.max(1, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
+        if (sp.effect == EFFECT_ADD_HONOR) {
+            addHonor(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
         if (sp.effect == EFFECT_DUMMY || sp.effect == EFFECT_SCRIPT) {
             catalogDummy(sp.effect);
             if (sp.id == ClassScripts.SPELL_EXECUTE) {
@@ -169,6 +175,14 @@ public final class SpellEngine {
             return;
         }
         target.setPower(target.power() + amount);
+    }
+
+    /** Effect 45 — add honor points from damage (spell-algorithms.md). */
+    public void addHonor(Unit target, int amount) {
+        if (!(target instanceof Player p) || amount <= 0) {
+            return;
+        }
+        Honor.reward(p, null, 0, amount);
     }
 
     static boolean outOfRange(Unit caster, Unit target, SpellInfo sp) {
