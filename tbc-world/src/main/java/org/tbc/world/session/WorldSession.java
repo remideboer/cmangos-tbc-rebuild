@@ -898,8 +898,11 @@ public final class WorldSession {
             flushWorldStates(world.ab.drainWorldStates());
         }
         if (player.mapId == 30) {
-            world.av.assaultGraveyard(AvBattlefield.NODE_SNOWFALL, AvBattlefield.TEAM_ALLIANCE, true, world.nowMs());
-            // timer armed; WS on capture complete via tick
+            if (guid == PvpObjectives.GO_AV_IRONDEEP || guid == PvpObjectives.GO_AV_COLDTOOTH) {
+                world.av.claimMine(AvBattlefield.TEAM_ALLIANCE, world.nowMs());
+            } else {
+                world.av.assaultGraveyard(AvBattlefield.NODE_SNOWFALL, AvBattlefield.TEAM_ALLIANCE, true, world.nowMs());
+            }
         }
         if (player.mapId == 566) {
             boolean carrying = player.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.EY_FLAG_AURA);

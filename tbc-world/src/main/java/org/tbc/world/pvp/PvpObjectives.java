@@ -4,6 +4,9 @@ package org.tbc.world.pvp;
 public final class PvpObjectives {
     public static final int AV_CAP_MS = 240_000;
     public static final int AV_SNOWFALL_MS = 300_000;
+    public static final int AV_MINE_TICK_MS = 45_000;
+    public static final int GO_AV_IRONDEEP = 178785;
+    public static final int GO_AV_COLDTOOTH = 178784;
     public static final int AB_CONTEST_MS = 60_000;
     public static final int[] AB_TICK_MS = {0, 12_000, 9_000, 6_000, 3_000, 1_000};
     public static final int AB_STABLES = 180087;

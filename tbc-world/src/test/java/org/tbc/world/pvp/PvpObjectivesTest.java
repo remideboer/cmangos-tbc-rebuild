@@ -31,6 +31,13 @@ class PvpObjectivesTest {
         av.assaultGraveyard(AvBattlefield.NODE_SNOWFALL, AvBattlefield.TEAM_ALLIANCE, true, 1_000);
         assertEquals(300_000, av.captureDurationMs());
         assertEquals(301_000, av.captureReadyAt());
+        av.claimMine(AvBattlefield.TEAM_ALLIANCE, 0);
+        av.advance(PvpObjectives.AV_MINE_TICK_MS);
+        assertEquals(601, av.reinforcementsAlliance());
+        av.claimMine(AvBattlefield.TEAM_HORDE, 0);
+        av.advance(PvpObjectives.AV_MINE_TICK_MS);
+        var ws = av.drainWorldStates();
+        assertTrue(ws.stream().anyMatch(u -> u[0] == PvpObjectives.WS_AV_SCORE_H && u[1] == 601));
     }
 
     @Test

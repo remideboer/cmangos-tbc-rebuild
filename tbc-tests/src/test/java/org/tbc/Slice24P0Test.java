@@ -62,6 +62,26 @@ class Slice24P0Test {
     }
 
     @Test
+    void tpSl24AvMineTickWorldState() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "AvMine");
+        Player p = client.session().player();
+        world.teleport(p, 30, 0, 0, 0, 0);
+        client.clear();
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(PvpObjectives.GO_AV_IRONDEEP);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        assertEquals(600, world.av.reinforcementsAlliance());
+
+        client.clear();
+        world.advanceMs(PvpObjectives.AV_MINE_TICK_MS);
+        client.session().tick(world, 50);
+
+        assertEquals(601, world.av.reinforcementsAlliance());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_AV_SCORE_A, 601));
+    }
+
+    @Test
     void tpSl24EyFlagAuraOnUse() {
         World world = World.inMemory();
         WowClientDouble client = login(world, "EyFlag");
