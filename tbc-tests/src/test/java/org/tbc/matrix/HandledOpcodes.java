@@ -102,6 +102,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_TRAINER_BUY_SPELL,
             Opcodes.CMSG_TEXT_EMOTE,
             Opcodes.CMSG_GROUP_RAID_CONVERT,
+            Opcodes.CMSG_LOOT_METHOD,
             Opcodes.MSG_RAID_READY_CHECK,
             Opcodes.CMSG_GUILD_CREATE,
             Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS,

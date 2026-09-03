@@ -6,6 +6,7 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.loot.GroupLoot;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.world.World;
@@ -119,6 +120,20 @@ public final class LaterOpcodes {
             Player other = world.playerByGuid(target);
             if (other != null && other.session != null) {
                 other.session.send(Opcodes.SMSG_TEXT_EMOTE, out.array());
+            }
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_LOOT_METHOD) {
+            if (p.group != null && p.group.leaderGuid == p.guid && in.remaining() >= 16) {
+                int method = in.getU32();
+                long looter = in.getU64();
+                int threshold = in.getU32();
+                GroupLoot.setMethod(p.group, method, looter, threshold);
+                for (Player m : p.group.members) {
+                    if (m.session != null) {
+                        m.session.send(Opcodes.SMSG_GROUP_LIST, p.group.listFor(m));
+                    }
+                }
             }
             return true;
         }
@@ -375,10 +390,10 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_LOOT_ROLL) {
-            WowBuffer start = new WowBuffer(16);
-            start.putU64(p.guid);
-            s.send(Opcodes.SMSG_LOOT_START_ROLL, start.array());
-            s.send(Opcodes.SMSG_LOOT_ROLL_WON, start.array());
+            long lootGuid = in.remaining() >= 8 ? in.getU64() : 0;
+            int slot = in.remaining() >= 4 ? in.getU32() : 0;
+            int type = in.remaining() > 0 ? in.getU8() : GroupLoot.ROLL_PASS;
+            GroupLoot.vote(p, lootGuid, slot, type);
             return true;
         }
         if (opcode == Opcodes.CMSG_GMTICKET_GETTICKET) {

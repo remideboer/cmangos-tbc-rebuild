@@ -3,7 +3,9 @@ package org.tbc.world.entity;
 import org.tbc.common.WowBuffer;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class Group {
@@ -23,6 +25,10 @@ public final class Group {
     public final long[] icons = new long[8];
     public int instanceId;
     public int bindMap;
+    public long rollLootGuid;
+    public int rollSlot;
+    public int rollItemId;
+    public final Map<Long, Integer> rollVotes = new HashMap<>();
 
     public Group() {
         id = NEXT.getAndIncrement();

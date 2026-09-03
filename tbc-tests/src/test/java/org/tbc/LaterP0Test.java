@@ -40,10 +40,6 @@ class LaterP0Test {
     @Test
     void tpSl15SocialLeftover() {
         Ctx c = loginTwo("Raider", "Mate");
-        c.a.clear();
-        c.a.handle(c.world, Opcodes.CMSG_LOOT_ROLL, new byte[16]);
-        assertTrue(c.a.saw(Opcodes.SMSG_LOOT_START_ROLL));
-        assertTrue(c.a.saw(Opcodes.SMSG_LOOT_ROLL_WON));
         c.a.handle(c.world, Opcodes.CMSG_GROUP_RAID_CONVERT, new byte[0]);
         assertTrue(c.a.session().player().group.raid);
         c.a.clear();
