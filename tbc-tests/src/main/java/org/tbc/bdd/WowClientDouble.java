@@ -44,6 +44,11 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_LOGOUT_REQUEST, new byte[0]);
     }
 
+    /** CMSG_PLAYER_LOGOUT — logout.md: intentional no-op (not a LOGOUT_REQUEST substitute). */
+    public void playerLogout(World world) {
+        handle(world, Opcodes.CMSG_PLAYER_LOGOUT, new byte[0]);
+    }
+
     public void ping(World world, int latency) {
         WowBuffer b = new WowBuffer(4);
         b.putU32(latency);

@@ -276,6 +276,26 @@ public final class Player extends Unit {
         }
     }
 
+    /** Domain setup: both players are in an active duel (logout.md cantLogout). */
+    public void engageDuel(Player other) {
+        if (other == null) {
+            return;
+        }
+        duelOpponent = other;
+        other.duelOpponent = this;
+        duelPhase = 1;
+        other.duelPhase = 1;
+    }
+
+    /** Domain setup: taxi flight in progress (logout.md InstantLogout). */
+    public void startTaxiFlight(int pathId) {
+        taxiPath = pathId;
+    }
+
+    public void clearTaxiFlight() {
+        taxiPath = 0;
+    }
+
     public boolean taxiKnown(int node) {
         if (node < 1) {
             return false;

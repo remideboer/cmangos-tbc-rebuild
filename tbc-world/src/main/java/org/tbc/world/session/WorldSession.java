@@ -206,6 +206,7 @@ public final class WorldSession {
         switch (opcode) {
             case Opcodes.CMSG_LOGOUT_REQUEST -> handleLogoutRequest(world);
             case Opcodes.CMSG_LOGOUT_CANCEL -> handleLogoutCancel();
+            // logout.md: CMaNGOS HandlePlayerLogoutOpcode is empty — not a LOGOUT_REQUEST substitute
             case Opcodes.CMSG_PLAYER_LOGOUT -> { }
             case Opcodes.CMSG_MESSAGECHAT -> handleChat(world, in);
             case Opcodes.CMSG_NAME_QUERY -> handleNameQuery(world, in);
@@ -659,13 +660,19 @@ public final class WorldSession {
     }
 
     private void handleLogoutRequest(World world) {
-        boolean cant = player.inCombat || (player.movement.moveFlags & (MovementInfo.MOVEFLAG_FALLING) ) != 0;
-        boolean inst = player.resting || account.gmlevel() >= world.instantLogout;
+        int fallMask = MovementInfo.MOVEFLAG_FALLING | MovementInfo.MOVEFLAG_FALLINGFAR;
+        boolean cant = player.inCombat
+                || player.duelOpponent != null
+                || (player.movement.moveFlags & fallMask) != 0;
+        boolean inst = player.resting
+                || player.taxiPath != 0
+                || account.gmlevel() >= world.instantLogout;
         WowBuffer b = new WowBuffer(5);
         b.putU32(cant ? 1 : 0);
         b.putU8(!cant && inst ? 1 : 0);
         send(Opcodes.SMSG_LOGOUT_RESPONSE, b.array());
         if (cant) {
+            logoutAt = 0;
             return;
         }
         if (inst) {

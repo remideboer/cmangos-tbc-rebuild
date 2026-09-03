@@ -6,6 +6,7 @@ import org.tbc.common.WowBuffer;
 public final class MovementInfo {
     public static final int MOVEFLAG_ONTRANSPORT = 0x00000200;
     public static final int MOVEFLAG_FALLING = 0x00001000;
+    public static final int MOVEFLAG_FALLINGFAR = 0x00004000;
     public static final int MOVEFLAG_SWIMMING = 0x00200000;
     public static final int MOVEFLAG_FLYING2 = 0x02000000;
     public static final int MOVEFLAG_SPLINE_ELEVATION = 0x04000000;
