@@ -18,6 +18,7 @@ import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.pvp.AbBattlefield;
 import org.tbc.world.pvp.AvBattlefield;
 import org.tbc.world.pvp.PvpObjectives;
+import org.tbc.world.spell.GameObjectUse;
 import org.tbc.world.world.World;
 
 import java.util.ArrayList;
@@ -902,6 +903,16 @@ public final class WorldSession {
         if (player.zoneId == 1377) {
             world.outdoorPvp.deliverSilithyst(player, 200, true);
             flushWorldStates(world.outdoorPvp.drainWorldStates());
+        }
+        GameMap map = world.map(player.mapId, player.instanceId);
+        org.tbc.world.entity.GameObject go = map.gameObjects.get(guid);
+        if (go != null && GameObjectUse.openDoor(go)) {
+            GameObjectUse.sendCustomAnim(this::send, guid, 0);
+            return;
+        }
+        if (go != null && GameObjectUse.isChest(go)) {
+            send(Opcodes.SMSG_LOOT_RESPONSE, world.combat.encodeLoot(guid, 0, 0));
+            return;
         }
         send(Opcodes.SMSG_LOOT_RESPONSE, world.combat.encodeLoot(guid, 0, 0));
     }

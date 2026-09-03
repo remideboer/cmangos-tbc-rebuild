@@ -6,6 +6,7 @@ import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.pvp.PvpObjectives;
+import org.tbc.world.spell.GameObjectUse;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +30,27 @@ class Slice26P0Test {
         byte[] loot = lastPayload(client, Opcodes.SMSG_LOOT_RESPONSE);
         assertEquals(1L, WowClientDouble.u64le(loot, 0));
         assertEquals(Combat.LOOT_CORPSE, loot[8] & 0xFF);
+    }
+
+    @Test
+    void tpSl26GoDoorOpens() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Caster");
+        Player p = client.session().player();
+        org.tbc.world.entity.GameObject door = new org.tbc.world.entity.GameObject();
+        door.guid = 42;
+        door.type = GameObjectUse.TYPE_DOOR;
+        door.state = GameObjectUse.STATE_READY;
+        world.map(p.mapId, p.instanceId).gameObjects.put(door.guid, door);
+        client.clear();
+        WowBuffer use = new WowBuffer(8);
+        use.putU64(door.guid);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, use.array());
+        assertEquals(GameObjectUse.STATE_ACTIVE, door.state);
+        byte[] anim = lastPayload(client, Opcodes.SMSG_GAMEOBJECT_CUSTOM_ANIM);
+        assertEquals(42L, WowClientDouble.u64le(anim, 0));
+        assertEquals(0, WowClientDouble.u32le(anim, 8));
+        assertFalse(client.saw(Opcodes.SMSG_LOOT_RESPONSE));
     }
 
     @Test
