@@ -8,12 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PvpObjectivesTest {
     @Test
-    void tpSl24AvCaptureTimer() {
-        assertEquals(240_000, PvpObjectives.avCaptureMs(false));
-        assertEquals(300_000, PvpObjectives.avCaptureMs(true));
-    }
-
-    @Test
     void tpSl24AbStablesTick() {
         assertEquals(60_000, PvpObjectives.AB_CONTEST_MS);
         assertEquals(180087, PvpObjectives.AB_STABLES);
@@ -21,6 +15,22 @@ class PvpObjectivesTest {
         assertEquals(1_000, PvpObjectives.abTickMs(5));
         assertEquals(1776, PvpObjectives.WS_AB_RES_A);
         assertEquals(1777, PvpObjectives.WS_AB_RES_H);
+        AbBattlefield ab = new AbBattlefield();
+        ab.assaultStables(AbBattlefield.TEAM_ALLIANCE, 0);
+        assertEquals(AbBattlefield.STATUS_ALLY_CONT, ab.stablesStatus());
+        ab.advance(PvpObjectives.AB_CONTEST_MS);
+        assertEquals(AbBattlefield.STATUS_ALLY_OCC, ab.stablesStatus());
+        assertEquals(1, ab.ownedAlliance());
+    }
+
+    @Test
+    void tpSl24AvCaptureTimer() {
+        assertEquals(240_000, PvpObjectives.avCaptureMs(false));
+        assertEquals(300_000, PvpObjectives.avCaptureMs(true));
+        AvBattlefield av = new AvBattlefield();
+        av.assaultGraveyard(AvBattlefield.NODE_SNOWFALL, AvBattlefield.TEAM_ALLIANCE, true, 1_000);
+        assertEquals(300_000, av.captureDurationMs());
+        assertEquals(301_000, av.captureReadyAt());
     }
 
     @Test
@@ -45,6 +55,8 @@ class PvpObjectivesTest {
         assertEquals(2313, PvpObjectives.WS_SILITHYST_A);
         assertEquals(2314, PvpObjectives.WS_SILITHYST_H);
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.SILITHYST_WIN));
+        var ws = zone.drainWorldStates();
+        assertTrue(ws.stream().anyMatch(u -> u[0] == PvpObjectives.WS_SILITHYST_A && u[1] == 200));
     }
 
     @Test
@@ -56,6 +68,8 @@ class PvpObjectivesTest {
         assertEquals(2767, PvpObjectives.WS_TF_LOCK_A);
         assertEquals(2768, PvpObjectives.WS_TF_LOCK_H);
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.TEROKKAR_BLESSING));
+        var ws = zone.drainWorldStates();
+        assertTrue(ws.stream().anyMatch(u -> u[0] == PvpObjectives.WS_TF_LOCK_A && u[1] == 1));
     }
 
     @Test

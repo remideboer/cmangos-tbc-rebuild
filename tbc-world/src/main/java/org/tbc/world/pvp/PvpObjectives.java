@@ -30,6 +30,13 @@ public final class PvpObjectives {
     public static final int WS_AB_RES_H = 1777;
     public static final int WS_AB_BLACKSMITH_A = 1782;
     public static final int WS_AB_BLACKSMITH_H = 1783;
+    /** battleground-ab.md Stables node 0 */
+    public static final int WS_AB_STABLES_OCC_A = 1767;
+    public static final int WS_AB_STABLES_OCC_H = 1768;
+    public static final int WS_AB_STABLES_CONT_A = 1769;
+    public static final int WS_AB_STABLES_CONT_H = 1770;
+    public static final int WS_AV_SCORE_A = 3127;
+    public static final int WS_AV_SCORE_H = 3128;
     public static final int[] EY_FLAG_POINTS = {75, 85, 100, 500};
     public static final int TIMER_TF_LOCK_MS = 6 * 60 * 60 * 1000;
     public static final int WS_TF_LOCK_A = 2767;

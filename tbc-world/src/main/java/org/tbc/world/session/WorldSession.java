@@ -15,6 +15,9 @@ import org.tbc.world.net.wow8606.MovementInfo;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.pvp.AbBattlefield;
+import org.tbc.world.pvp.AvBattlefield;
+import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.world.World;
 
 import java.util.ArrayList;
@@ -134,6 +137,20 @@ public final class WorldSession {
                     break;
                 }
             }
+        }
+        if (player.mapId == 529) {
+            world.ab.advance(world.nowMs());
+            flushWorldStates(world.ab.drainWorldStates());
+        }
+        if (player.mapId == 30) {
+            world.av.advance(world.nowMs());
+            flushWorldStates(world.av.drainWorldStates());
+        }
+    }
+
+    private void flushWorldStates(java.util.List<int[]> updates) {
+        for (int[] u : updates) {
+            sendWs(u[0], u[1]);
         }
     }
 
@@ -870,6 +887,21 @@ public final class WorldSession {
             sendWs(2480, 1);
             sendWs(2476, 1);
             sendWs(2478, 1);
+        }
+        if (player.mapId == 529) {
+            world.ab.assaultStables(AbBattlefield.TEAM_ALLIANCE, world.nowMs());
+            flushWorldStates(world.ab.drainWorldStates());
+        }
+        if (player.mapId == 30) {
+            world.av.assaultGraveyard(AvBattlefield.NODE_SNOWFALL, AvBattlefield.TEAM_ALLIANCE, true, world.nowMs());
+            // timer armed; WS on capture complete via tick
+        }
+        if (player.mapId == 566) {
+            player.auras.add(new org.tbc.world.entity.Unit.Aura(PvpObjectives.EY_FLAG_AURA, 0, 1));
+        }
+        if (player.zoneId == 1377) {
+            world.outdoorPvp.deliverSilithyst(player, 200, true);
+            flushWorldStates(world.outdoorPvp.drainWorldStates());
         }
         send(Opcodes.SMSG_LOOT_RESPONSE, world.combat.encodeLoot(guid, 0, 0));
     }

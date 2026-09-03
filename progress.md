@@ -3,7 +3,7 @@
 Status: `not_started` | `in_progress` | `p0_junit` | `p0_client` | `done`
 
 `done` requires P0 pass. `skip` is not pass. See `spec/07-rebuild/test-plan.md`.
-JUnit: `mvn -f tbc-server/pom.xml test` (TP-INV, TP-NEG, SL01–03 P0, matrix, Gherkin slices 4–11, Slice14P0Test–Slice23P0Test, Slice26P0Test–Slice30P0Test, `PvpObjectivesTest` 24–25, `LaterP0Test` leftover, `SpecFilesP0Test` 31–34).
+JUnit: `mvn -f tbc-server/pom.xml test` (TP-INV, TP-NEG, SL01–03 P0, matrix, Gherkin slices 4–11, Slice14P0Test–Slice30P0Test, `Slice04LogoutTest`, `PvpObjectivesTest` 24–25, `LaterP0Test` leftover, `SpecFilesP0Test` 31–34).
 
 Sidecar: `tbc-admin` is a Swing operator tool for `tbcrealmd.account` (create / role / password / delete). It is **not** a slice, **not** SOAP/RA, and **not** `p0_client`. Passwords are stored as SRP6 `v`/`s` only.
 
@@ -39,8 +39,8 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 21 Guild leftover | p0_junit | Wire: `Slice21P0Test` guild query name (`001`), `MSG_GUILD_PERMISSIONS` 6 tab pairs (`002`), roll + ping guid (`003`). |
 | 22 Honor / inspect / duel | p0_junit | Wire: `Slice22P0Test` `SMSG_PVP_CREDIT` + cap 75000 (`001`), inspect packed + 0x3D (`002`), duel **3000** + OOB (`003`). |
 | 23 Arena teams | p0_junit | Wire: `Slice23P0Test` arena roster personalRating (`001`), PvP log type 0 (`002`), AFK **43680** from 3 unique reporters (`003`). |
-| 24 AV / AB / EY | p0_junit | `PvpObjectivesTest`: AV 240000/300000; AB tick + WS **1776/1777**; EY `{75,85,100,500}` + aura **34976**. |
-| 25 Outdoor PvP | p0_junit | `PvpObjectivesTest`: Silithyst **200**/WS **2313**; TF lock + **33377**; Halaa **15**/GY **993**/**33795**. |
+| 24 AV / AB / EY | p0_junit | Wire: `Slice24P0Test` AB stables contested WS **1769** → occupied **1767** after 60s (`TP-SL24-002`); AV Snowfall timer **300000** + score WS **3127** (`001`); EY flag aura **34976** (`003`). Domain: `AbBattlefield`/`AvBattlefield`. |
+| 25 Outdoor PvP | p0_junit | Wire: `Slice25P0Test` Silithyst deliver WS **2313** + buff **30754**. Domain: TF lock WS **2767**; Halaa **15**/GY **993**/**33795**. |
 | 26 Spell algorithms | p0_junit | Wire: `Slice26P0Test` GO loot (`001`), talent wipe `SMSG_LEARNED_SPELL` **14867** (`002`), cancel channel `SMSG_SPELL_FAILURE` (`003`). |
 | 27 Transports | p0_junit | Wire: `Slice27P0Test` ONTRANSPORT echo packed t_guid (`001`), FORCE_RUN_SPEED_ACK (`002`), cancel mount **78** (`003`). |
 | 28 Misc packets | p0_junit | Wire: `Slice28P0Test` quest push guid (`001`), master loot `SMSG_ITEM_PUSH_RESULT` (`002`), GMTICKET **0x06** (`003`), LFG accept `SMSG_LFG_UPDATE` (`004`). |

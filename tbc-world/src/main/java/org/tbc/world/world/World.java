@@ -22,6 +22,9 @@ import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.persist.CharacterStore;
+import org.tbc.world.pvp.AbBattlefield;
+import org.tbc.world.pvp.AvBattlefield;
+import org.tbc.world.pvp.OutdoorPvp;
 import org.tbc.world.script.ScriptRegistry;
 import org.tbc.world.session.WorldSession;
 import org.tbc.world.spell.SpellEngine;
@@ -53,6 +56,9 @@ public final class World implements Runnable {
     public final SpellEngine spells = new SpellEngine();
     public final Combat combat = new Combat();
     public final GmCommands gm;
+    public final AbBattlefield ab = new AbBattlefield();
+    public final AvBattlefield av = new AvBattlefield();
+    public final OutdoorPvp outdoorPvp = new OutdoorPvp();
     public final String motd;
     public final int realmId;
     public final int instantLogout;
@@ -131,6 +137,11 @@ public final class World implements Runnable {
 
     public long nowMs() {
         return nowMs.get();
+    }
+
+    /** Test / domain clock advance (logout delay, BG capture timers). */
+    public void advanceMs(long deltaMs) {
+        nowMs.addAndGet(deltaMs);
     }
 
     public GameMap map(int mapId, int instanceId) {
