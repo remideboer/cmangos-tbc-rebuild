@@ -127,21 +127,11 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_GROUP_RAID_CONVERT) {
-            if (p.group != null) {
-                p.group.raid = true;
-                s.send(Opcodes.SMSG_GROUP_LIST, p.group.listFor(p));
-            }
+            GroupHandler.raidConvert(s);
             return true;
         }
         if (opcode == Opcodes.MSG_RAID_READY_CHECK) {
-            s.send(Opcodes.MSG_RAID_READY_CHECK, new byte[0]);
-            if (p.group != null) {
-                for (Player m : p.group.members) {
-                    if (m.session != null) {
-                        m.session.send(Opcodes.MSG_RAID_READY_CHECK, new byte[0]);
-                    }
-                }
-            }
+            GroupHandler.readyCheck(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_GUILD_CREATE) {

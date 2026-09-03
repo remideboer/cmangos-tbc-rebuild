@@ -78,6 +78,37 @@ class Slice15P0Test {
         assertTrue(b.saw(Opcodes.SMSG_LOOT_ROLL_WON));
     }
 
+    @Test
+    void tpSl15RaidConvertReadyCheck() {
+        Pair g = loginTwo("Raider", "Mate");
+        g.a.clear();
+        g.b.clear();
+        g.a.handle(g.world, Opcodes.CMSG_GROUP_RAID_CONVERT, new byte[0]);
+        assertEquals(1, lastPayload(g.a, Opcodes.SMSG_GROUP_LIST)[0] & 0xFF);
+        assertEquals(1, lastPayload(g.b, Opcodes.SMSG_GROUP_LIST)[0] & 0xFF);
+        g.a.clear();
+        g.b.clear();
+        g.a.handle(g.world, Opcodes.MSG_RAID_READY_CHECK, new byte[0]);
+        long requester = g.a.session().player().guid;
+        assertEquals(requester, WowClientDouble.u64le(lastPayload(g.a, Opcodes.MSG_RAID_READY_CHECK), 0));
+        assertEquals(requester, WowClientDouble.u64le(lastPayload(g.b, Opcodes.MSG_RAID_READY_CHECK), 0));
+    }
+
+    private static Pair loginTwo(String aName, String bName) {
+        World world = World.inMemory();
+        WowClientDouble a = new WowClientDouble();
+        WowClientDouble b = new WowClientDouble();
+        a.connect(ACC_A);
+        b.connect(ACC_B);
+        Player pa = world.characters.create(ACC_A.id(), aName, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player pb = world.characters.create(ACC_B.id(), bName, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        a.login(world, pa.guid);
+        b.login(world, pb.guid);
+        a.groupInvite(world, bName);
+        b.groupAccept(world);
+        return new Pair(world, a, b);
+    }
+
     private static void assertStartRoll(byte[] payload, long lootGuid) {
         WowBuffer s = new WowBuffer(payload);
         assertEquals(lootGuid, s.getU64());
@@ -134,4 +165,6 @@ class Slice15P0Test {
         }
         throw new AssertionError("missing opcode " + opcode);
     }
+
+    private record Pair(World world, WowClientDouble a, WowClientDouble b) {}
 }
