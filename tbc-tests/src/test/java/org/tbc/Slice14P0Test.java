@@ -87,6 +87,33 @@ class Slice14P0Test {
         assertEquals(0, p.money);
     }
 
+    @Test
+    void tpSl14ActivateTaxi() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Flyer", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature master = find(world, Content.NPC_DUNGAR_LONGDRINK);
+        assertNotNull(master);
+        p.relocate(master.x, master.y, master.z, master.o);
+        p.learnTaxi(Content.TAXI_STORMWIND);
+        p.learnTaxi(Content.TAXI_IRONFORGE);
+        client.clear();
+        WowBuffer taxi = new WowBuffer(16);
+        taxi.putU64(master.guid);
+        taxi.putU32(Content.TAXI_STORMWIND);
+        taxi.putU32(Content.TAXI_IRONFORGE);
+        client.handle(world, Opcodes.CMSG_ACTIVATETAXI, taxi.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_NEW_TAXI_PATH));
+        assertTrue(client.saw(Opcodes.SMSG_ACTIVATETAXIREPLY));
+        assertEquals(Content.ERR_TAXIOK, WowClientDouble.u32le(client.payload(Opcodes.SMSG_ACTIVATETAXIREPLY), 0));
+        WowBuffer move = new WowBuffer(lastPayload(client, Opcodes.SMSG_MONSTER_MOVE));
+        assertEquals(p.guid, move.getPackedGuid());
+    }
+
     private static int invSlotField(int slot) {
         return UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + slot * 2;
     }

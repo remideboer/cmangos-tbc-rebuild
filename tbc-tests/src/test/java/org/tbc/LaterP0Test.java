@@ -32,11 +32,8 @@ class LaterP0Test {
             new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86");
 
     @Test
-    void tpSl14TaxiWeather() {
+    void tpSl14Weather() {
         Ctx c = loginOne("Swapper");
-        c.client.clear();
-        c.client.handle(c.world, Opcodes.CMSG_ACTIVATETAXI, new byte[0]);
-        assertTrue(c.client.saw(Opcodes.SMSG_NEW_TAXI_PATH));
         assertTrue(c.loginSawWeather);
     }
 

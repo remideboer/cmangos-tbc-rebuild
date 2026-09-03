@@ -191,8 +191,10 @@ public final class ObjectMgr {
     public final Map<Integer, List<Integer>> questGivers = new HashMap<>();
     public final Map<Integer, List<Integer>> questInvolved = new HashMap<>();
     public record TrainerSpell(int spell, int cost, int reqLevel) {}
+    public record TaxiHop(int from, int to, int cost, float x, float y, float z) {}
     public final Map<Integer, List<TrainerSpell>> trainerSpells = new HashMap<>();
     public final Map<Integer, Integer> trainerClass = new HashMap<>();
+    public final Map<Long, TaxiHop> taxiPaths = new HashMap<>();
     public final AtomicInteger nextCreatureLow = new AtomicInteger(1_000_000);
     public final AtomicInteger nextItemLow = new AtomicInteger(1);
 
@@ -511,6 +513,10 @@ public final class ObjectMgr {
         trainerClass.put(Content.NPC_LLANE_BESHERE, 1);
         trainerSpells.put(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1))));
+        creatures.put(Content.NPC_DUNGAR_LONGDRINK, new CreatureTemplate(Content.NPC_DUNGAR_LONGDRINK, "Dungar Longdrink", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_FLIGHTMASTER, "", "", 0));
+        taxiPaths.put(taxiKey(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE),
+                new TaxiHop(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE, 0, -4821.13f, -1152.4f, 502.295f));
         quests.put(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
                 0, "Speak with Marshal McBride.", "Speak with Marshal McBride."));
         vendorItems.put(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
@@ -524,6 +530,7 @@ public final class ObjectMgr {
             spawns.add(new Spawn(5, Content.NPC_MARSHAL_MCBRIDE, 0, -8908f, -130f, 80f, 0f));
             spawns.add(new Spawn(6, 103, 0, -8910f, -125f, 80f, 0f));
             spawns.add(new Spawn(7, Content.NPC_LLANE_BESHERE, 0, -8918.36f, -208.411f, 82.309f, 0f));
+            spawns.add(new Spawn(8, Content.NPC_DUNGAR_LONGDRINK, 0, -8835.76f, 490.084f, 109.699f, 0f));
         }
     }
 
@@ -539,6 +546,14 @@ public final class ObjectMgr {
         trainerClass.putIfAbsent(Content.NPC_LLANE_BESHERE, 1);
         trainerSpells.putIfAbsent(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1))));
+        creatures.putIfAbsent(Content.NPC_DUNGAR_LONGDRINK, new CreatureTemplate(Content.NPC_DUNGAR_LONGDRINK, "Dungar Longdrink", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_FLIGHTMASTER, "", "", 0));
+        taxiPaths.putIfAbsent(taxiKey(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE),
+                new TaxiHop(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE, 0, -4821.13f, -1152.4f, 502.295f));
+    }
+
+    public static long taxiKey(int from, int to) {
+        return ((long) from << 32) | (to & 0xFFFFFFFFL);
     }
 
     private static String nz(String s) {

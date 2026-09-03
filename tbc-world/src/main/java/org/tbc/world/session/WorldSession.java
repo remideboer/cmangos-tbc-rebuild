@@ -280,7 +280,9 @@ public final class WorldSession {
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
             case Opcodes.CMSG_LEARN_TALENT -> handleTalent(in);
             case Opcodes.CMSG_TRAINER_LIST -> handleTrainer(world, in);
-            case Opcodes.CMSG_ACTIVATETAXI, Opcodes.CMSG_ACTIVATETAXIEXPRESS -> handleTaxi(world);
+            case Opcodes.CMSG_ACTIVATETAXI -> TaxiHandler.activate(this, world, in);
+            case Opcodes.CMSG_ACTIVATETAXIEXPRESS -> {
+            }
             case Opcodes.CMSG_GAMEOBJ_USE -> handleGoUse(world, in);
             case Opcodes.CMSG_GMTICKET_CREATE -> handleTicket(in);
             case Opcodes.CMSG_INSPECT -> handleInspect(in);
@@ -882,10 +884,6 @@ public final class WorldSession {
         out.putU32(0);
         out.putU32(0);
         send(Opcodes.SMSG_TRAINER_LIST, out.array());
-    }
-
-    private void handleTaxi(World world) {
-        send(Opcodes.SMSG_NEW_TAXI_PATH, new byte[0]);
     }
 
     private void handleGoUse(World world, WowBuffer in) {

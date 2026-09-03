@@ -75,6 +75,7 @@ public final class Player extends Unit {
     public int duelPhase;
     public Corpse corpse;
     public int taxiPath;
+    public final int[] taxiMask = new int[16];
     public boolean mounted;
     public String lfgComment = "";
     public int instanceId;
@@ -270,6 +271,25 @@ public final class Player extends Unit {
             if (!spells.contains(spell)) {
                 spells.add(spell);
             }
+        }
+    }
+
+    public boolean taxiKnown(int node) {
+        if (node < 1) {
+            return false;
+        }
+        int field = (node - 1) / 32;
+        int bit = 1 << ((node - 1) % 32);
+        return field < taxiMask.length && (taxiMask[field] & bit) == bit;
+    }
+
+    public void learnTaxi(int node) {
+        if (node < 1) {
+            return;
+        }
+        int field = (node - 1) / 32;
+        if (field < taxiMask.length) {
+            taxiMask[field] |= 1 << ((node - 1) % 32);
         }
     }
 }

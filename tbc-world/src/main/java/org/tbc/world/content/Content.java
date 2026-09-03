@@ -31,9 +31,14 @@ public final class Content {
     public static final int NPC_MARSHAL_DUGHAN = 240;
     public static final int NPC_DEPUTY_WILLEM = 823;
     public static final int NPC_LLANE_BESHERE = 911;
+    public static final int NPC_DUNGAR_LONGDRINK = 352;
     public static final int ITEM_WORN_SHORTSWORD = 25;
     public static final int SPELL_BATTLE_SHOUT = 6673;
     public static final int TRAINER_SPELL_BATTLE_SHOUT_COST = 200;
+    public static final int TAXI_STORMWIND = 2;
+    public static final int TAXI_IRONFORGE = 6;
+    public static final int ERR_TAXIOK = 0;
+    public static final int ERR_TAXINOTVISITED = 6;
     public static final int BACKPACK_START = 23;
     public static final int BACKPACK_END = 39;
 
