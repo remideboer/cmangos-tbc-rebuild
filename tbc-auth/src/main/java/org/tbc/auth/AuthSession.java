@@ -28,7 +28,7 @@ final class AuthSession {
     private static final int ST_CLOSED = 4;
 
     private final DbPool db;
-    private final AuthHandler handler;
+    private final AuthIo handler;
     private int status = ST_CHALLENGE;
     private String login = "";
     private int build;
@@ -42,7 +42,7 @@ final class AuthSession {
     private int expansion;
     private int securityFlags;
 
-    AuthSession(DbPool db, AuthHandler handler) {
+    AuthSession(DbPool db, AuthIo handler) {
         this.db = db;
         this.handler = handler;
     }

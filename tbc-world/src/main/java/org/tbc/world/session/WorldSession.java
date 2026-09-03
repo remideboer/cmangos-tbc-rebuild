@@ -185,6 +185,16 @@ public final class WorldSession {
             handleWorldportAck(world);
             return;
         }
+        if (opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
+            try {
+                handleMove(world, opcode, in, true);
+                if (in.remaining() >= 4) {
+                    player.lastAckSpeed = in.getFloat();
+                }
+            } catch (RuntimeException ignored) {
+            }
+            return;
+        }
         if (opcode >= Opcodes.MSG_MOVE_START_FORWARD && opcode <= Opcodes.MSG_MOVE_HEARTBEAT) {
             handleMove(world, opcode, in, false);
             return;
@@ -263,8 +273,8 @@ public final class WorldSession {
                 player.setHealth(player.maxHealth());
                 player.ghost = false;
             }
-            case Opcodes.CMSG_PET_ACTION -> {
-            }
+            case Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE ->
+                    org.tbc.world.session.LaterOpcodes.handle(this, world, opcode, in);
             case Opcodes.CMSG_JOIN_CHANNEL -> handleJoinChannel(in);
             case Opcodes.CMSG_BUY_ITEM -> handleBuy(world, in);
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
@@ -278,17 +288,16 @@ public final class WorldSession {
             case Opcodes.CMSG_TOGGLE_PVP -> player.pvpFlagged = !player.pvpFlagged;
             case Opcodes.CMSG_OPEN_ITEM -> {
             }
-            case Opcodes.CMSG_AREA_SPIRIT_HEALER_QUERY, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE -> {
-            }
             case Opcodes.MSG_PVP_LOG_DATA -> send(Opcodes.MSG_PVP_LOG_DATA, u32(0));
             default -> handleRest(world, opcode, in);
         }
     }
 
     private void handleRest(World world, int opcode, WowBuffer in) {
+        if (LaterOpcodes.handle(this, world, opcode, in)) {
+            return;
+        }
         if (opcode == Opcodes.CMSG_VOICE_SESSION_ENABLE
-                || opcode == Opcodes.CMSG_SWAP_INV_ITEM
-                || opcode == Opcodes.CMSG_SWAP_ITEM
                 || opcode == Opcodes.CMSG_DESTROYITEM) {
             return;
         }
@@ -305,6 +314,8 @@ public final class WorldSession {
                         player.group.instanceId = inst;
                     }
                     player.instanceId = inst;
+                } else {
+                    player.instanceId = 0;
                 }
                 world.teleport(player, at.map(), at.x(), at.y(), at.z(), at.o());
             }
@@ -367,11 +378,14 @@ public final class WorldSession {
             in.getU32();
         }
         long now = world.nowMs();
-        if (lastPingMs != 0 && now - lastPingMs < 20) {
+        if (lastPingMs != 0 && now - lastPingMs < 27_000) {
             overspeedPings++;
             if (overspeedPings > world.maxOverspeedPings && world.maxOverspeedPings > 0) {
-                sink.close();
-                return;
+                int gm = account == null ? 0 : account.gmlevel();
+                if (gm == 0) {
+                    sink.close();
+                    return;
+                }
             }
         } else {
             overspeedPings = 0;
@@ -529,6 +543,9 @@ public final class WorldSession {
         m.write(echo, true, player.guid, m.stime);
         for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
             o.session.send(opcode, echo.array());
+        }
+        if (player.duelOpponent != null && player.distance2d(player.duelOpponent) > 50) {
+            send(Opcodes.SMSG_DUEL_OUTOFBOUNDS, new byte[0]);
         }
         revealNearby(world);
     }
@@ -696,6 +713,9 @@ public final class WorldSession {
         world.combat.startAttack(player, c, world.nowMs());
         if (c.eventAi != null) {
             c.eventAi.onAggro(c, player, (cr, t, spell) -> {
+                org.tbc.world.spell.SpellCastTargets tgt = new org.tbc.world.spell.SpellCastTargets();
+                send(Opcodes.SMSG_SPELL_START, world.spells.encodeStart(cr.guid, spell, 1, tgt));
+                send(Opcodes.SMSG_SPELL_GO, world.spells.encodeGo(cr.guid, t == null ? cr.guid : t.guid, spell, world.nowMs(), tgt));
             });
         }
         if (c.script != null) {
@@ -785,32 +805,32 @@ public final class WorldSession {
 
     private void handleBgJoin(World world, int map) {
         bgQueue = map;
-        WowBuffer st = new WowBuffer(8);
-        st.putU32(1);
-        st.putU8(2);
+        WowBuffer st = new WowBuffer(32);
+        st.putU32(0);
+        st.putU64((0x0DL << 8) | (2L << 16) | (0x1F90L << 48));
+        st.putU32(0);
+        st.putU8(0);
+        st.putU32(2);
+        st.putU32(map);
+        st.putU32(80_000);
         send(Opcodes.SMSG_BATTLEFIELD_STATUS, st.array());
-        world.teleport(player, map, 0, 0, 0, 0);
-        if (map == 489) {
-            WowBuffer ws = new WowBuffer(24);
-            ws.putU32(map);
-            ws.putU32(0);
-            ws.putU32(0);
-            ws.putU16(2);
-            ws.putU32(1545);
-            ws.putU32(1);
-            ws.putU32(1546);
-            ws.putU32(1);
-            send(Opcodes.SMSG_INIT_WORLD_STATES, ws.array());
-        }
-        if (map == 530) {
-            worldStates2476 = 1;
-            worldStates2478 = 1;
-        }
     }
 
     private void handleRepop(World world) {
         player.ghost = true;
         player.setHealth(1);
+        org.tbc.world.entity.Corpse corpse = new org.tbc.world.entity.Corpse();
+        corpse.ownerGuid = player.guid;
+        corpse.mapId = player.mapId;
+        corpse.relocate(player.x, player.y, player.z, player.o);
+        player.corpse = corpse;
+        player.auras.add(new org.tbc.world.entity.Unit.Aura(org.tbc.world.pvp.PvpObjectives.GHOST_AURA, 0, 1));
+        WowBuffer loc = new WowBuffer(16);
+        loc.putU32(player.mapId);
+        loc.putFloat(player.x);
+        loc.putFloat(player.y);
+        loc.putFloat(player.z);
+        send(Opcodes.SMSG_DEATH_RELEASE_LOC, loc.array());
         send(Opcodes.MSG_CORPSE_QUERY, u32(1));
     }
 
@@ -869,7 +889,39 @@ public final class WorldSession {
     }
 
     private void handleGoUse(World world, WowBuffer in) {
-        in.getU64();
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        if (player.selection != 0 && player.selection != player.guid) {
+            WowBuffer d = new WowBuffer(16);
+            d.putU64(guid);
+            d.putU64(player.guid);
+            Player other = world.playerByGuid(player.selection);
+            if (other != null && other.session != null) {
+                other.session.send(Opcodes.SMSG_DUEL_REQUESTED, d.array());
+                player.duelOpponent = other;
+                other.duelOpponent = player;
+            }
+        }
+        if (player.mapId == 489) {
+            sendWs(1545, 1);
+            player.auras.add(new org.tbc.world.entity.Unit.Aura(23333, 0, 1));
+        }
+        if (player.mapId == 530) {
+            worldStates2476 = 1;
+            worldStates2478 = 1;
+            sendWs(2476, 1);
+            sendWs(2478, 1);
+        }
+        send(Opcodes.SMSG_LOOT_RESPONSE, world.combat.encodeLoot(guid, 0, 0));
+    }
+
+    private void sendWs(int field, int value) {
+        WowBuffer ws = new WowBuffer(8);
+        ws.putU32(field);
+        ws.putU32(value);
+        send(Opcodes.SMSG_UPDATE_WORLD_STATE, ws.array());
     }
 
     private void handleTicket(WowBuffer in) {
@@ -887,8 +939,11 @@ public final class WorldSession {
 
     private void handleDuel(World world) {
         WowBuffer cd = new WowBuffer(8);
-        cd.putU8(3);
+        cd.putU32(3000);
         send(Opcodes.SMSG_DUEL_COUNTDOWN, cd.array());
+        if (player.duelOpponent != null && player.duelOpponent.session != null) {
+            player.duelOpponent.session.send(Opcodes.SMSG_DUEL_COUNTDOWN, cd.array());
+        }
     }
 
     private void system(String msg) {

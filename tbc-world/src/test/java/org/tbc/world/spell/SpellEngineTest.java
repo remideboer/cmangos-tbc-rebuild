@@ -88,6 +88,14 @@ class SpellEngineTest {
     }
 
     @Test
+    void tpSl13CatalogDummyAndKnownEffects() {
+        assertTrue(engine.knownEffect(SpellEngine.EFFECT_SCHOOL_DAMAGE));
+        assertTrue(engine.knownEffect(SpellEngine.EFFECT_DUMMY));
+        engine.catalogDummy(SpellEngine.EFFECT_DUMMY);
+        engine.catalogDummy(SpellEngine.EFFECT_SCRIPT);
+    }
+
+    @Test
     void dummyHealAuraWeaponAndExecute() {
         engine.cast(p, map, 0, SpellEngine.LOGINEFFECT, 1, empty(), this::capture);
         assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));

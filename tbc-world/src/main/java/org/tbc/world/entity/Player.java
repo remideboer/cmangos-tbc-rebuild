@@ -33,6 +33,7 @@ public final class Player extends Unit {
     public int atLogin;
     public int difficulty;
     public int guildId;
+    public boolean guildLeader;
     public int gmLevel;
     public int team; // 67 horde / 469 alliance
     public int bindMap, bindZone;
@@ -78,7 +79,19 @@ public final class Player extends Unit {
     public String lfgComment = "";
     public int instanceId;
     public int bgTypeId;
+    public String guildName = "";
+    public Item guildBankItem;
+    public int guildBankTabs;
+    public boolean looking;
+    public boolean channeling;
+    public int afkReports;
+    public int arenaTeam;
     public int arenaTeamId2, arenaTeamId3, arenaTeamId5;
+    public int honorToday;
+    public int honorYesterday;
+    public int yesterdayContrib;
+    public final long[] totems = new long[4];
+    public float lastAckSpeed;
 
     public Player() {
         super(UpdateFields.PLAYER_END, TYPEID_PLAYER);

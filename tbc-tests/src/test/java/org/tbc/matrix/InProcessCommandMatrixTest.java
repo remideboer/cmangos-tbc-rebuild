@@ -152,9 +152,14 @@ class InProcessCommandMatrixTest {
         if (opcode >= Opcodes.MSG_MOVE_START_FORWARD && opcode <= Opcodes.MSG_MOVE_HEARTBEAT
                 || opcode == Opcodes.CMSG_FORCE_MOVE_ROOT_ACK
                 || opcode == Opcodes.CMSG_FORCE_MOVE_UNROOT_ACK) {
-            WowBuffer b = new WowBuffer(40);
-            if (opcode == Opcodes.CMSG_FORCE_MOVE_ROOT_ACK || opcode == Opcodes.CMSG_FORCE_MOVE_UNROOT_ACK) {
+            WowBuffer b = new WowBuffer(48);
+            if (opcode == Opcodes.CMSG_FORCE_MOVE_ROOT_ACK
+                    || opcode == Opcodes.CMSG_FORCE_MOVE_UNROOT_ACK
+                    || opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
                 b.putPackedGuid(s.player().guid);
+            }
+            if (opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
+                b.putU32(1);
             }
             b.putU32(0);
             b.putU8(0);
@@ -165,6 +170,9 @@ class InProcessCommandMatrixTest {
             b.putFloat(p.z);
             b.putFloat(p.o);
             b.putU32(0);
+            if (opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
+                b.putFloat(7f);
+            }
             return b.array();
         }
         return PAD;

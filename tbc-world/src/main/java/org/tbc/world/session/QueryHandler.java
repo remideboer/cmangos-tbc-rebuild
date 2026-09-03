@@ -179,7 +179,7 @@ public final class QueryHandler {
         int guildId = readU32(in);
         WowBuffer out = new WowBuffer(32);
         out.putU32(guildId);
-        out.putCString("");
+        out.putCString(session.player() != null ? nz(session.player().guildName) : "");
         for (int i = 0; i < 10; i++) {
             out.putU8(0);
         }

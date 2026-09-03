@@ -248,6 +248,9 @@ public final class World implements Runnable {
         GameMap old = map(p.mapId, p.instanceId);
         old.remove(p);
         p.mapId = mapId;
+        if (mapId == 0 || mapId == 1 || mapId == 530) {
+            p.instanceId = 0;
+        }
         p.relocate(x, y, z, o);
         map(mapId, p.instanceId).add(p);
     }

@@ -61,6 +61,15 @@ class WowClientDoubleTest {
         d.groupInvite(w, "Nobody");
         d.groupAccept(w);
         d.partyChat(w, "hi");
+        d.say(w, "hi");
+        d.whisper(w, "Nobody", "x");
+        d.nameQuery(w, created.guid);
+        d.heartbeat(w, 0, 0, 0, 0);
+        d.areaTrigger(w, 2230);
+        d.worldportAck(w);
+        d.resetInstances(w);
+        d.battlemasterJoin(w);
+        d.battlefieldPort(w, 1);
         d.initiateTrade(w, 0);
         d.beginTrade(w);
         d.setTradeItem(w, 0, 0, 23);

@@ -21,7 +21,8 @@ public final class EventAi {
         for (Row r : rows) {
             if (r.eventType == EVENT_ON_AGGRO && r.eventChance >= 100) {
                 if (r.action1 == ACTION_CAST && r.param1 != 0) {
-                    cast.cast(c, victim, r.param1);
+                    Unit t = r.param2 == 0 ? c : victim;
+                    cast.cast(c, t, r.param1);
                 }
             }
         }

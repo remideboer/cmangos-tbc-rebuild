@@ -299,6 +299,10 @@ public final class CharacterStore {
 
     public boolean delete(int accountId, long guid) {
         int g = Guid.low(guid);
+        Player live = memory.get(g);
+        if (live != null && live.guildLeader) {
+            return false;
+        }
         if (chars != null) {
             try (Connection c = chars.get()) {
                 PreparedStatement gl = c.prepareStatement("SELECT 1 FROM guild WHERE leaderGuid = ?");

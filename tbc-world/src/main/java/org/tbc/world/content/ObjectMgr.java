@@ -493,6 +493,8 @@ public final class ObjectMgr {
         createInfo.put(key(2, 1), new CreateInfo(2, 1, 1, 14, -618.518f, -4251.67f, 38.718f, 0f));
         createSpells.put((int) key(1, 1), new ArrayList<>(List.of(6603, 78, 81, 107, 196, 203, 204, 522, 668, 2382, 2479, 3050, 3365, 6233, 6246, 6247, 6477, 6478, 7266, 7267, 7355, 8386, 9078, 9125, 20597, 20598, 20599, 20864, 21651, 21652, 22027, 22810)));
         creatures.put(6, new CreatureTemplate(6, "Kobold Vermin", 10913, 7, 42, 1, 0, "", "", 0));
+        creatures.put(103, new CreatureTemplate(103, "Garrick Padfoot", 3734, 21, 80, 5, 0, "", "", 0));
+        areaTriggers.put(2230, new AreaTrigger(2230, 389, 0.797643f, -8.23429f, -15.5288f, 0f));
         creatures.put(Content.NPC_CORINA_STEELE, new CreatureTemplate(Content.NPC_CORINA_STEELE, "Corina Steele", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_VENDOR, "", "", 0));
         creatures.put(Content.NPC_MARSHAL_DUGHAN, new CreatureTemplate(Content.NPC_MARSHAL_DUGHAN, "Marshal Dughan", 0, 12, 100, 10,
@@ -512,6 +514,7 @@ public final class ObjectMgr {
             spawns.add(new Spawn(3, Content.NPC_CORINA_STEELE, 0, -8903f, -125f, 80f, 0f));
             spawns.add(new Spawn(4, Content.NPC_DEPUTY_WILLEM, 0, -8906f, -128f, 80f, 0f));
             spawns.add(new Spawn(5, Content.NPC_MARSHAL_MCBRIDE, 0, -8908f, -130f, 80f, 0f));
+            spawns.add(new Spawn(6, 103, 0, -8910f, -125f, 80f, 0f));
         }
     }
 
@@ -752,6 +755,10 @@ public final class ObjectMgr {
         c.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_NPC_FLAGS, t.npcFlags());
         if (scripts != null && t.scriptName() != null && !t.scriptName().isEmpty()) {
             c.script = scripts.create(t.scriptName());
+        }
+        if (entry == 103) {
+            c.eventAi = new org.tbc.world.ai.EventAi();
+            c.eventAi.rows.add(new org.tbc.world.ai.EventAi.Row(4, 100, 11, 7164, 0, 0));
         }
         return c;
     }

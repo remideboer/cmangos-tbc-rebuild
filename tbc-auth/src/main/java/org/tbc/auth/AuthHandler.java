@@ -11,7 +11,7 @@ import org.tbc.common.WowBuffer;
 
 import java.net.InetSocketAddress;
 
-final class AuthHandler extends ChannelInboundHandlerAdapter {
+final class AuthHandler extends ChannelInboundHandlerAdapter implements AuthIo {
     private static final Logger log = LoggerFactory.getLogger(AuthHandler.class);
     private final DbPool db;
     private AuthSession session;
@@ -28,7 +28,8 @@ final class AuthHandler extends ChannelInboundHandlerAdapter {
         this.acc = io.netty.buffer.Unpooled.buffer();
     }
 
-    String remoteIp() {
+    @Override
+    public String remoteIp() {
         if (ctx == null) {
             return "0.0.0.0";
         }
@@ -36,11 +37,13 @@ final class AuthHandler extends ChannelInboundHandlerAdapter {
         return a.getAddress().getHostAddress();
     }
 
-    void send(byte[] data) {
+    @Override
+    public void send(byte[] data) {
         send(data, false);
     }
 
-    void sendAndClose(byte[] data) {
+    @Override
+    public void sendAndClose(byte[] data) {
         send(data, true);
     }
 
@@ -54,7 +57,8 @@ final class AuthHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-    void close() {
+    @Override
+    public void close() {
         if (ctx != null) {
             ctx.close();
         }

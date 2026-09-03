@@ -187,6 +187,43 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
     }
 
+    public void say(World world, String msg) {
+        WowBuffer b = new WowBuffer(8 + msg.length());
+        b.putU32(1);
+        b.putU32(7);
+        b.putCString(msg);
+        handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
+    }
+
+    public void whisper(World world, String name, String msg) {
+        WowBuffer b = new WowBuffer(16 + name.length() + msg.length());
+        b.putU32(0x07);
+        b.putU32(7);
+        b.putCString(name);
+        b.putCString(msg);
+        handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
+    }
+
+    public void nameQuery(World world, long guid) {
+        WowBuffer b = new WowBuffer(8);
+        b.putU64(guid);
+        handle(world, Opcodes.CMSG_NAME_QUERY, b.array());
+    }
+
+    /** C2S MSG_MOVE_HEARTBEAT: MovementInfo only, no packed GUID. */
+    public void heartbeat(World world, float x, float y, float z, float o) {
+        WowBuffer b = new WowBuffer(32);
+        b.putU32(0);
+        b.putU8(0);
+        b.putU32(0);
+        b.putFloat(x);
+        b.putFloat(y);
+        b.putFloat(z);
+        b.putFloat(o);
+        b.putU32(0);
+        handle(world, Opcodes.MSG_MOVE_HEARTBEAT, b.array());
+    }
+
     public void initiateTrade(World world, long guid) {
         WowBuffer b = new WowBuffer(8);
         b.putU64(guid);
@@ -265,6 +302,39 @@ public final class WowClientDouble implements PacketSink {
         b.putU32(mailId);
         b.putU32(itemLow);
         handle(world, Opcodes.CMSG_MAIL_TAKE_ITEM, b.array());
+    }
+
+    public void areaTrigger(World world, int trigger) {
+        WowBuffer b = new WowBuffer(4);
+        b.putU32(trigger);
+        handle(world, Opcodes.CMSG_AREATRIGGER, b.array());
+    }
+
+    public void worldportAck(World world) {
+        handle(world, Opcodes.MSG_MOVE_WORLDPORT_ACK, new byte[0]);
+    }
+
+    public void resetInstances(World world) {
+        handle(world, Opcodes.CMSG_RESET_INSTANCES, new byte[0]);
+    }
+
+    public void battlemasterJoin(World world) {
+        WowBuffer b = new WowBuffer(17);
+        b.putU64(0);
+        b.putU32(2);
+        b.putU32(0);
+        b.putU8(0);
+        handle(world, Opcodes.CMSG_BATTLEMASTER_JOIN, b.array());
+    }
+
+    public void battlefieldPort(World world, int action) {
+        WowBuffer b = new WowBuffer(9);
+        b.putU8(0);
+        b.putU8(0x0D);
+        b.putU32(2);
+        b.putU16(0x1F90);
+        b.putU8(action);
+        handle(world, Opcodes.CMSG_BATTLEFIELD_PORT, b.array());
     }
 
     public static long u64le(byte[] p, int off) {

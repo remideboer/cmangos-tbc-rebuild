@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class MeleeTableTest {
     @Test
-    void sequentialSidesAndGlance() {
+    void tpSl12MeleeTableOneRoll() {
         Player a = new Player();
         a.level = 1;
         Creature v = new Creature();
