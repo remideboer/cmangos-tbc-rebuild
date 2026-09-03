@@ -26,6 +26,7 @@ public final class ScriptRegistry {
         registerKarathress();
         registerAlar();
         registerAnetheron();
+        registerNajentus();
         registerClassKeys();
     }
 
@@ -82,6 +83,13 @@ public final class ScriptRegistry {
         factories.put("boss_anetheron", new BossScript("boss_anetheron", 534, List.of(
                 new BossScript.Action("SPELL_CARRION_SWARM", 31306, 20_000, false),
                 new BossScript.Action("SPELL_ENRAGE", 26662, 600_000, true)
+        )));
+    }
+
+    private void registerNajentus() {
+        // black_temple.md — SPELL_IMPALING_SPINE 39837 (TP-SL31-007); timer is GetInitialActionTimer (not a literal)
+        factories.put("boss_najentus", new BossScript("boss_najentus", 564, List.of(
+                new BossScript.Action("SPELL_IMPALING_SPINE", 39837, 0, false)
         )));
     }
 

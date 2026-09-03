@@ -69,4 +69,14 @@ class Slice31P0Test {
         boss.update(new Creature(), new Player(), 20_000, (c, t, id) -> casts.add(id));
         assertTrue(casts.contains(31306), "SPELL_CARRION_SWARM 31306 at 20000 ms");
     }
+
+    @Test
+    void tpSl31NajentusImpalingSpine() {
+        World w = World.inMemory();
+        assertTrue(w.scripts.knows("boss_najentus"));
+        BossScript boss = w.scripts.create("boss_najentus");
+        assertEquals(564, boss.mapId);
+        assertTrue(boss.actions.stream().anyMatch(a -> a.spellId() == 39837),
+                "SPELL_IMPALING_SPINE 39837 from black_temple.md");
+    }
 }

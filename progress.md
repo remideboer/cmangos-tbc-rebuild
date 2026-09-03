@@ -46,7 +46,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 28 Misc packets | p0_junit | Wire: `Slice28P0Test` quest push guid (`001`), master loot `SMSG_ITEM_PUSH_RESULT` (`002`), GMTICKET **0x06** (`003`), LFG accept `SMSG_LFG_UPDATE` (`004`). |
 | 29 GM commands | p0_junit | `Slice29P0Test`: `.help`/`.dismount` SEC_PLAYER; `.appear` LowerSecurity; SQL overlay. |
 | 30 ScriptDevAI registry | p0_junit | `Slice30P0Test`: `boss_gruul` Growth **36300**; missing ScriptName fallback. |
-| 31 TBC raids | p0_junit | Curator **30383**; Magtheridon **30616**; Karathress **38441**; Al'ar **34121**; Anetheron **31306** / 20s (`TP-SL31-006`). |
+| 31 TBC raids | p0_junit | Curator **30383**; Magtheridon; Karathress; Al'ar; Anetheron **31306** / 20s; Najentus **39837** (`TP-SL31-007`). |
 | 32 TBC 5-mans | p0_junit | Spec file existence for HFC/CF/Auch/TK/CoT |
 | 33 Classic raids | p0_junit | MC/BWL/AQ/Naxx/ZG/Onyxia + `world-remaining.md` |
 | 34 Class scripts | p0_junit | Execute **5308→20647**; UA **30108**; spec grep |
