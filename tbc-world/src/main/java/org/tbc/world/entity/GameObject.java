@@ -10,6 +10,9 @@ public final class GameObject extends Entity {
     public String name = "";
     public String scriptName = "";
     public int state = 1;
+    /** MO transport path progress ms (movement.md); period from DB when loaded. */
+    public int pathProgress;
+    public int periodMs;
 
     public GameObject() {
         super(UpdateFields.GAMEOBJECT_END, TYPEID_GAMEOBJECT);

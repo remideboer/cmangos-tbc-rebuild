@@ -22,6 +22,7 @@ public final class ScriptRegistry {
         }
         registerGruul();
         registerCurator();
+        registerMagtheridon();
         registerClassKeys();
     }
 
@@ -46,6 +47,14 @@ public final class ScriptRegistry {
         factories.put("boss_curator", new BossScript("boss_curator", 532, List.of(
                 new BossScript.Action("SPELL_HATEFUL_BOLT", 30383, 15_000, false),
                 new BossScript.Action("SPELL_ASTRAL_FLARE", 30236, 11_000, false)
+        )));
+    }
+
+    private void registerMagtheridon() {
+        // magtheridons_lair.md — SPELL_BLASTNOVA 30616 (TP-SL31-003); interval from spell list (not seeded)
+        factories.put("boss_magtheridon", new BossScript("boss_magtheridon", 544, List.of(
+                new BossScript.Action("SPELL_BLASTNOVA", 30616, 0, true),
+                new BossScript.Action("SPELL_CLEAVE", 30619, 0, false)
         )));
     }
 

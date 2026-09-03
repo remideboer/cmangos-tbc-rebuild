@@ -150,6 +150,10 @@ public final class SpellEngine {
             target.auras.add(new Unit.Aura(sp.id, 30_000, 1));
             return 0;
         }
+        if (sp.effect == EFFECT_ENERGIZE) {
+            energize(target, Math.max(1, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
         if (sp.effect == EFFECT_DUMMY || sp.effect == EFFECT_SCRIPT) {
             catalogDummy(sp.effect);
             if (sp.id == ClassScripts.SPELL_EXECUTE) {
@@ -157,6 +161,14 @@ public final class SpellEngine {
             }
         }
         return 0;
+    }
+
+    /** Effect 30 — restore power (spell-algorithms.md). */
+    public void energize(Unit target, int amount) {
+        if (target == null || amount <= 0) {
+            return;
+        }
+        target.setPower(target.power() + amount);
     }
 
     static boolean outOfRange(Unit caster, Unit target, SpellInfo sp) {

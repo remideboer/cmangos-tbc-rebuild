@@ -890,7 +890,11 @@ public final class WorldSession {
             sendWs(2478, 1);
         }
         if (player.mapId == 529) {
-            world.ab.assaultStables(AbBattlefield.TEAM_ALLIANCE, world.nowMs());
+            if (guid == PvpObjectives.AB_BLACKSMITH) {
+                world.ab.assaultBlacksmith(AbBattlefield.TEAM_ALLIANCE, world.nowMs());
+            } else {
+                world.ab.assaultStables(AbBattlefield.TEAM_ALLIANCE, world.nowMs());
+            }
             flushWorldStates(world.ab.drainWorldStates());
         }
         if (player.mapId == 30) {
@@ -902,6 +906,10 @@ public final class WorldSession {
         }
         if (player.zoneId == 1377) {
             world.outdoorPvp.deliverSilithyst(player, 200, true);
+            flushWorldStates(world.outdoorPvp.drainWorldStates());
+        }
+        if (guid == PvpObjectives.GO_EP_NORTHPASS) {
+            world.outdoorPvp.captureNorthpass(true);
             flushWorldStates(world.outdoorPvp.drainWorldStates());
         }
         GameMap map = world.map(player.mapId, player.instanceId);

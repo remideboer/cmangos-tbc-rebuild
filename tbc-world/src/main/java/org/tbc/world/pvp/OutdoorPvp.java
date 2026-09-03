@@ -46,6 +46,19 @@ public final class OutdoorPvp {
         p.auras.add(new Unit.Aura(PvpObjectives.HALAA_BUFF, 0, 1));
     }
 
+    /** Eastern Plaguelands Northpass tower GO 181899 — WS A/H/N 2372/2373/2352. */
+    public void captureNorthpass(boolean alliance) {
+        if (alliance) {
+            emit(PvpObjectives.WS_EP_NORTHPASS_A, 1);
+            emit(PvpObjectives.WS_EP_NORTHPASS_H, 0);
+            emit(PvpObjectives.WS_EP_NORTHPASS_N, 0);
+        } else {
+            emit(PvpObjectives.WS_EP_NORTHPASS_A, 0);
+            emit(PvpObjectives.WS_EP_NORTHPASS_H, 1);
+            emit(PvpObjectives.WS_EP_NORTHPASS_N, 0);
+        }
+    }
+
     public java.util.List<int[]> drainWorldStates() {
         java.util.List<int[]> out = new java.util.ArrayList<>(pendingWs.size());
         while (!pendingWs.isEmpty()) {

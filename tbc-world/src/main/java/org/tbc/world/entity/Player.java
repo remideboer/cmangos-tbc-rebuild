@@ -310,7 +310,7 @@ public final class Player extends Unit {
         movement.ty = 0;
         movement.tz = 0;
         movement.to = 0;
-        movement.tTime = 0;
+        movement.tTime = transport.pathProgress;
     }
 
     public void leaveMoTransport() {

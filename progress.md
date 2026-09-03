@@ -39,14 +39,14 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 21 Guild leftover | p0_junit | Wire: `Slice21P0Test` guild query name (`001`), `MSG_GUILD_PERMISSIONS` 6 tab pairs (`002`), roll + ping guid (`003`). |
 | 22 Honor / inspect / duel | p0_junit | Wire: `Slice22P0Test` `SMSG_PVP_CREDIT` + cap 75000 (`001`), inspect packed + 0x3D (`002`), duel **3000** + OOB (`003`). |
 | 23 Arena teams | p0_junit | Wire: `Slice23P0Test` arena roster personalRating (`001`), PvP log type 0 (`002`), AFK **43680** from 3 unique reporters (`003`). |
-| 24 AV / AB / EY | p0_junit | Wire: `Slice24P0Test` AB stables contested WS **1769** → occupied **1767** after 60s (`TP-SL24-002`); AV Snowfall timer **300000** + score WS **3127** (`001`); EY flag aura **34976** (`003`). Domain: `AbBattlefield`/`AvBattlefield`. |
-| 25 Outdoor PvP | p0_junit | Wire: `Slice25P0Test` Silithyst deliver WS **2313** + buff **30754**. Domain: TF lock WS **2767**; Halaa **15**/GY **993**/**33795**. |
-| 26 Spell algorithms | p0_junit | Wire: `Slice26P0Test` GO loot (`001`), door READY→ACTIVE + `SMSG_GAMEOBJECT_CUSTOM_ANIM` (`001` deepen), talent wipe **14867** (`002`), cancel channel (`003`). |
-| 27 Transports | p0_junit | Wire: ONTRANSPORT echo (`001`); board seeded TYPE_MO_TRANSPORT=15 → flags+t_guid (`001` runtime); FORCE_RUN_SPEED_ACK (`002`); cancel mount **78** (`003`). DB `transports.period` not loaded in-memory (no invent). |
+| 24 AV / AB / EY | p0_junit | AB stables WS; Blacksmith **1784**→**1782** (`TP-SL24-004`); AV Snowfall; EY **34976**. |
+| 25 Outdoor PvP | p0_junit | Silithyst **2313**; Northpass GO **181899** WS **2372**/2352 (`TP-SL25-004`); TF/Halaa domain. |
+| 26 Spell algorithms | p0_junit | GO loot/door anim; talent wipe; cancel channel; Effect **30** energize API. |
+| 27 Transports | p0_junit | ONTRANSPORT echo; board MO + `t_time`=pathProgress; ACK; cancel mount. DB period not loaded. |
 | 28 Misc packets | p0_junit | Wire: `Slice28P0Test` quest push guid (`001`), master loot `SMSG_ITEM_PUSH_RESULT` (`002`), GMTICKET **0x06** (`003`), LFG accept `SMSG_LFG_UPDATE` (`004`). |
 | 29 GM commands | p0_junit | `Slice29P0Test`: `.help`/`.dismount` SEC_PLAYER; `.appear` LowerSecurity; SQL overlay. |
 | 30 ScriptDevAI registry | p0_junit | `Slice30P0Test`: `boss_gruul` Growth **36300**; missing ScriptName fallback. |
-| 31 TBC raids | p0_junit | `SpecFilesP0Test` Karazhan–Sunwell + ZA files. P1 deepen: `Slice31P0Test` `boss_curator` Hateful Bolt **30383** / 15s (`TP-SL31-002`). Not raid `done`. |
+| 31 TBC raids | p0_junit | Spec files; `boss_curator` **30383**/15s; `boss_magtheridon` lists **30616**. Not raid `done`. |
 | 32 TBC 5-mans | p0_junit | Spec file existence for HFC/CF/Auch/TK/CoT |
 | 33 Classic raids | p0_junit | MC/BWL/AQ/Naxx/ZG/Onyxia + `world-remaining.md` |
 | 34 Class scripts | p0_junit | Execute **5308→20647**; UA **30108**; spec grep |

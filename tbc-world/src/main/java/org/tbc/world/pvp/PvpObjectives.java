@@ -7,6 +7,7 @@ public final class PvpObjectives {
     public static final int AB_CONTEST_MS = 60_000;
     public static final int[] AB_TICK_MS = {0, 12_000, 9_000, 6_000, 3_000, 1_000};
     public static final int AB_STABLES = 180087;
+    public static final int AB_BLACKSMITH = 180088;
     public static final int EY_FLAG_AURA = 34976;
     public static final int SILITHYST_MAX = 200;
     public static final int SILITHYST_WIN = 30754;
@@ -30,6 +31,8 @@ public final class PvpObjectives {
     public static final int WS_AB_RES_H = 1777;
     public static final int WS_AB_BLACKSMITH_A = 1782;
     public static final int WS_AB_BLACKSMITH_H = 1783;
+    public static final int WS_AB_BLACKSMITH_CONT_A = 1784;
+    public static final int WS_AB_BLACKSMITH_CONT_H = 1785;
     /** battleground-ab.md Stables node 0 */
     public static final int WS_AB_STABLES_OCC_A = 1767;
     public static final int WS_AB_STABLES_OCC_H = 1768;
@@ -41,6 +44,10 @@ public final class PvpObjectives {
     public static final int TIMER_TF_LOCK_MS = 6 * 60 * 60 * 1000;
     public static final int WS_TF_LOCK_A = 2767;
     public static final int WS_TF_LOCK_H = 2768;
+    public static final int WS_EP_NORTHPASS_A = 2372;
+    public static final int WS_EP_NORTHPASS_H = 2373;
+    public static final int WS_EP_NORTHPASS_N = 2352;
+    public static final int GO_EP_NORTHPASS = 181899;
     public static final int HALAA_GUARDS = 15;
 
     public static int avCaptureMs(boolean snowfallFirstClaim) {

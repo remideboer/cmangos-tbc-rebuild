@@ -76,6 +76,28 @@ class Slice24P0Test {
         assertEquals(500, PvpObjectives.eyFlagPoints(4));
     }
 
+    @Test
+    void tpSl24AbBlacksmithOccupiedWs() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "AbSmith");
+        Player p = client.session().player();
+        world.teleport(p, 529, 0, 0, 0, 0);
+        client.clear();
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(PvpObjectives.AB_BLACKSMITH);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+
+        assertTrue(hasWorldState(client, PvpObjectives.WS_AB_BLACKSMITH_CONT_A, 1));
+        assertEquals(AbBattlefield.STATUS_ALLY_CONT, world.ab.blacksmithStatus());
+
+        client.clear();
+        world.advanceMs(PvpObjectives.AB_CONTEST_MS);
+        client.session().tick(world, 50);
+
+        assertTrue(hasWorldState(client, PvpObjectives.WS_AB_BLACKSMITH_A, 1));
+        assertEquals(AbBattlefield.STATUS_ALLY_OCC, world.ab.blacksmithStatus());
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

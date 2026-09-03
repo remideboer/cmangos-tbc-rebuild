@@ -115,6 +115,9 @@ class SpellEngineTest {
         assertEquals(50, p.power());
         engine.apply(p, c, engine.info(ClassScripts.SPELL_EXECUTE));
         engine.apply(p, p, new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_SCRIPT, 0, 0, 0, 0, 0, 0f));
+        engine.apply(p, p, new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
+        engine.apply(p, p, new SpellEngine.SpellInfo(ClassScripts.SPELL_EXECUTE, SpellEngine.EFFECT_SCRIPT, 0, 0, 0, 0, 0, 0f));
+        engine.apply(p, p, new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_OPEN_LOCK, 0, 0, 0, 0, 0, 0f));
         engine.apply(p, p, new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_ENERGIZE, 0, 0, 0, 0, 0, 0f));
         assertEquals(0, engine.apply(p, p, null));
         assertEquals(0, engine.apply(p, null, engine.info(78)));

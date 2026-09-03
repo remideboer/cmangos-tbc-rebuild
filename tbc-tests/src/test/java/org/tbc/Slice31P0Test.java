@@ -27,4 +27,14 @@ class Slice31P0Test {
         curator.update(new Creature(), new Player(), 15_000, (c, t, id) -> casts.add(id));
         assertTrue(casts.contains(30383), "SPELL_HATEFUL_BOLT 30383 every 15s");
     }
+
+    @Test
+    void tpSl31MagtheridonBlastNova() {
+        World w = World.inMemory();
+        assertTrue(w.scripts.knows("boss_magtheridon"));
+        BossScript mag = w.scripts.create("boss_magtheridon");
+        assertEquals(544, mag.mapId);
+        assertTrue(mag.actions.stream().anyMatch(a -> a.spellId() == 30616),
+                "SPELL_BLASTNOVA 30616 from magtheridons_lair.md");
+    }
 }

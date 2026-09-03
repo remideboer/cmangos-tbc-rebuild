@@ -65,6 +65,8 @@ class Slice27P0Test {
         org.tbc.world.entity.GameObject boat = new org.tbc.world.entity.GameObject();
         boat.guid = TRANSPORT;
         boat.type = org.tbc.world.spell.GameObjectUse.TYPE_MO_TRANSPORT;
+        boat.pathProgress = 1234;
+        boat.periodMs = 60_000;
         world.map(p.mapId, p.instanceId).gameObjects.put(boat.guid, boat);
         client.clear();
         WowBuffer use = new WowBuffer(8);
@@ -72,6 +74,7 @@ class Slice27P0Test {
         client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, use.array());
         assertEquals(MovementInfo.MOVEFLAG_ONTRANSPORT, p.movement.moveFlags & MovementInfo.MOVEFLAG_ONTRANSPORT);
         assertEquals(TRANSPORT, p.movement.transportGuid);
+        assertEquals(1234, p.movement.tTime);
     }
 
     @Test

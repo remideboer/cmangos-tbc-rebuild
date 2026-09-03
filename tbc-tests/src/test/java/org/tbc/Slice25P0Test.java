@@ -32,6 +32,21 @@ class Slice25P0Test {
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.SILITHYST_WIN));
     }
 
+    @Test
+    void tpSl25NorthpassTowerWorldState() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "EpTower", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(PvpObjectives.GO_EP_NORTHPASS);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_EP_NORTHPASS_A, 1));
+        assertTrue(hasWorldState(client, PvpObjectives.WS_EP_NORTHPASS_N, 0));
+    }
+
     private static boolean hasWorldState(WowClientDouble client, int field, int value) {
         for (int i = 0; i < client.opcodes.size(); i++) {
             if (client.opcodes.get(i) != Opcodes.SMSG_UPDATE_WORLD_STATE) {
