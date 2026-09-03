@@ -25,6 +25,7 @@ public final class ScriptRegistry {
         registerMagtheridon();
         registerKarathress();
         registerAlar();
+        registerAnetheron();
         registerClassKeys();
     }
 
@@ -73,6 +74,14 @@ public final class ScriptRegistry {
         factories.put("boss_alar", new BossScript("boss_alar", 550, List.of(
                 new BossScript.Action("SPELL_FLAME_BUFFET", 34121, 0, false),
                 new BossScript.Action("SPELL_FLAME_QUILLS", 34229, 0, false)
+        )));
+    }
+
+    private void registerAnetheron() {
+        // hyjal.md — ANETHERON_ACTION_CARRION_SWARM 20000 / SPELL_CARRION_SWARM 31306 (TP-SL31-006)
+        factories.put("boss_anetheron", new BossScript("boss_anetheron", 534, List.of(
+                new BossScript.Action("SPELL_CARRION_SWARM", 31306, 20_000, false),
+                new BossScript.Action("SPELL_ENRAGE", 26662, 600_000, true)
         )));
     }
 

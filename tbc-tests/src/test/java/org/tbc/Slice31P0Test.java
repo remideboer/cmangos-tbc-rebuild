@@ -57,4 +57,16 @@ class Slice31P0Test {
         assertTrue(boss.actions.stream().anyMatch(a -> a.spellId() == 34121),
                 "SPELL_FLAME_BUFFET 34121");
     }
+
+    @Test
+    void tpSl31AnetheronCarrionSwarm() {
+        World w = World.inMemory();
+        assertTrue(w.scripts.knows("boss_anetheron"));
+        BossScript boss = w.scripts.create("boss_anetheron");
+        assertEquals(534, boss.mapId);
+        boss.aggro();
+        List<Integer> casts = new ArrayList<>();
+        boss.update(new Creature(), new Player(), 20_000, (c, t, id) -> casts.add(id));
+        assertTrue(casts.contains(31306), "SPELL_CARRION_SWARM 31306 at 20000 ms");
+    }
 }
