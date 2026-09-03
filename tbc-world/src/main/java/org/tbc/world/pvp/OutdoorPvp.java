@@ -59,6 +59,19 @@ public final class OutdoorPvp {
         }
     }
 
+    /** Zangarmarsh East beacon GO 182523 — UI WS A/H/N 2558/2559/2560 (TP-SL25-005). */
+    public void captureZmEast(boolean alliance) {
+        if (alliance) {
+            emit(PvpObjectives.WS_ZM_EAST_A, 1);
+            emit(PvpObjectives.WS_ZM_EAST_H, 0);
+            emit(PvpObjectives.WS_ZM_EAST_N, 0);
+        } else {
+            emit(PvpObjectives.WS_ZM_EAST_A, 0);
+            emit(PvpObjectives.WS_ZM_EAST_H, 1);
+            emit(PvpObjectives.WS_ZM_EAST_N, 0);
+        }
+    }
+
     public java.util.List<int[]> drainWorldStates() {
         java.util.List<int[]> out = new java.util.ArrayList<>(pendingWs.size());
         while (!pendingWs.isEmpty()) {

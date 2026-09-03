@@ -37,4 +37,24 @@ class Slice31P0Test {
         assertTrue(mag.actions.stream().anyMatch(a -> a.spellId() == 30616),
                 "SPELL_BLASTNOVA 30616 from magtheridons_lair.md");
     }
+
+    @Test
+    void tpSl31KarathressCataclysmicBolt() {
+        World w = World.inMemory();
+        assertTrue(w.scripts.knows("boss_fathomlord_karathress"));
+        BossScript boss = w.scripts.create("boss_fathomlord_karathress");
+        assertEquals(548, boss.mapId);
+        assertTrue(boss.actions.stream().anyMatch(a -> a.spellId() == 38441),
+                "SPELL_CATACLYSMIC_BOLT 38441");
+    }
+
+    @Test
+    void tpSl31AlarFlameBuffet() {
+        World w = World.inMemory();
+        assertTrue(w.scripts.knows("boss_alar"));
+        BossScript boss = w.scripts.create("boss_alar");
+        assertEquals(550, boss.mapId);
+        assertTrue(boss.actions.stream().anyMatch(a -> a.spellId() == 34121),
+                "SPELL_FLAME_BUFFET 34121");
+    }
 }

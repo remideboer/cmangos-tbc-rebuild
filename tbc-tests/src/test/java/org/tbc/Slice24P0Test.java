@@ -72,8 +72,14 @@ class Slice24P0Test {
         go.putU64(1);
         client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.EY_FLAG_AURA));
-        assertEquals(75, PvpObjectives.eyFlagPoints(1));
-        assertEquals(500, PvpObjectives.eyFlagPoints(4));
+        assertEquals(1, world.ey.towersAlliance());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_EY_TOWERS_A, 1));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        assertEquals(75, world.ey.resourcesAlliance());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_EY_RES_A, 75));
+        assertTrue(p.auras.stream().noneMatch(a -> a.spellId() == PvpObjectives.EY_FLAG_AURA));
     }
 
     @Test

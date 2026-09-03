@@ -36,6 +36,21 @@ public final class GameObjectUse {
         return go != null && go.type == TYPE_CHEST;
     }
 
+    /**
+     * Effect 33 / 59 open lock — chest/door READY → ACTIVE (unlocked/open).
+     * Returns true when state changed.
+     */
+    public static boolean openLock(GameObject go) {
+        if (go == null || (go.type != TYPE_CHEST && go.type != TYPE_DOOR)) {
+            return false;
+        }
+        if (go.state == STATE_ACTIVE) {
+            return false;
+        }
+        go.state = STATE_ACTIVE;
+        return true;
+    }
+
     public static boolean isMoTransport(GameObject go) {
         return go != null && go.type == TYPE_MO_TRANSPORT;
     }

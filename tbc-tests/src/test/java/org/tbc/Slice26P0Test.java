@@ -54,6 +54,25 @@ class Slice26P0Test {
     }
 
     @Test
+    void tpSl26OpenLockChest() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Caster");
+        Player p = client.session().player();
+        org.tbc.world.entity.GameObject chest = new org.tbc.world.entity.GameObject();
+        chest.guid = 99;
+        chest.type = GameObjectUse.TYPE_CHEST;
+        chest.state = GameObjectUse.STATE_READY;
+        world.map(p.mapId, p.instanceId).gameObjects.put(chest.guid, chest);
+        client.clear();
+        WowBuffer use = new WowBuffer(8);
+        use.putU64(chest.guid);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, use.array());
+        assertEquals(GameObjectUse.STATE_ACTIVE, chest.state);
+        assertTrue(client.saw(Opcodes.SMSG_LOOT_RESPONSE));
+        assertEquals(99L, WowClientDouble.u64le(lastPayload(client, Opcodes.SMSG_LOOT_RESPONSE), 0));
+    }
+
+    @Test
     void tpSl26TalentWipeSpell() {
         World world = World.inMemory();
         WowClientDouble client = login(world, "Caster");

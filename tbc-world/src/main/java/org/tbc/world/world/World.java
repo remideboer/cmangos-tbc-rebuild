@@ -24,6 +24,7 @@ import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.persist.CharacterStore;
 import org.tbc.world.pvp.AbBattlefield;
 import org.tbc.world.pvp.AvBattlefield;
+import org.tbc.world.pvp.EyBattlefield;
 import org.tbc.world.pvp.OutdoorPvp;
 import org.tbc.world.script.ScriptRegistry;
 import org.tbc.world.session.WorldSession;
@@ -58,6 +59,7 @@ public final class World implements Runnable {
     public final GmCommands gm;
     public final AbBattlefield ab = new AbBattlefield();
     public final AvBattlefield av = new AvBattlefield();
+    public final EyBattlefield ey = new EyBattlefield();
     public final OutdoorPvp outdoorPvp = new OutdoorPvp();
     public final String motd;
     public final int realmId;

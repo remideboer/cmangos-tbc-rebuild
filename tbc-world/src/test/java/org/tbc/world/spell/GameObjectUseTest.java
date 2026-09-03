@@ -17,4 +17,15 @@ class GameObjectUseTest {
         assertEquals(GameObjectUse.STATE_ACTIVE, door.state);
         assertFalse(GameObjectUse.openDoor(door));
     }
+
+    @Test
+    void openLockChestReadyToActive() {
+        GameObject chest = new GameObject();
+        chest.type = GameObjectUse.TYPE_CHEST;
+        chest.state = GameObjectUse.STATE_READY;
+        assertTrue(GameObjectUse.openLock(chest));
+        assertEquals(GameObjectUse.STATE_ACTIVE, chest.state);
+        assertFalse(GameObjectUse.openLock(chest));
+        assertFalse(GameObjectUse.openLock(null));
+    }
 }

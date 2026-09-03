@@ -902,7 +902,17 @@ public final class WorldSession {
             // timer armed; WS on capture complete via tick
         }
         if (player.mapId == 566) {
-            player.auras.add(new org.tbc.world.entity.Unit.Aura(PvpObjectives.EY_FLAG_AURA, 0, 1));
+            boolean carrying = player.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.EY_FLAG_AURA);
+            if (!carrying) {
+                world.ey.pickupFlag(player);
+                if (world.ey.towersAlliance() <= 0) {
+                    world.ey.setTowersOwned(1);
+                }
+                flushWorldStates(world.ey.drainWorldStates());
+            } else {
+                world.ey.scoreFlagAtOwnedTower(player);
+                flushWorldStates(world.ey.drainWorldStates());
+            }
         }
         if (player.zoneId == 1377) {
             world.outdoorPvp.deliverSilithyst(player, 200, true);
@@ -910,6 +920,10 @@ public final class WorldSession {
         }
         if (guid == PvpObjectives.GO_EP_NORTHPASS) {
             world.outdoorPvp.captureNorthpass(true);
+            flushWorldStates(world.outdoorPvp.drainWorldStates());
+        }
+        if (guid == PvpObjectives.GO_ZM_EAST) {
+            world.outdoorPvp.captureZmEast(true);
             flushWorldStates(world.outdoorPvp.drainWorldStates());
         }
         GameMap map = world.map(player.mapId, player.instanceId);
@@ -923,6 +937,7 @@ public final class WorldSession {
             return;
         }
         if (go != null && GameObjectUse.isChest(go)) {
+            GameObjectUse.openLock(go);
             send(Opcodes.SMSG_LOOT_RESPONSE, world.combat.encodeLoot(guid, 0, 0));
             return;
         }

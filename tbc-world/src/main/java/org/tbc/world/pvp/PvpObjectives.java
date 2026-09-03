@@ -48,6 +48,14 @@ public final class PvpObjectives {
     public static final int WS_EP_NORTHPASS_H = 2373;
     public static final int WS_EP_NORTHPASS_N = 2352;
     public static final int GO_EP_NORTHPASS = 181899;
+    public static final int GO_ZM_EAST = 182523;
+    public static final int WS_ZM_EAST_A = 2558;
+    public static final int WS_ZM_EAST_H = 2559;
+    public static final int WS_ZM_EAST_N = 2560;
+    public static final int WS_EY_RES_A = 2749;
+    public static final int WS_EY_RES_H = 2750;
+    public static final int WS_EY_TOWERS_A = 2752;
+    public static final int WS_EY_TOWERS_H = 2753;
     public static final int HALAA_GUARDS = 15;
 
     public static int avCaptureMs(boolean snowfallFirstClaim) {

@@ -23,6 +23,8 @@ public final class ScriptRegistry {
         registerGruul();
         registerCurator();
         registerMagtheridon();
+        registerKarathress();
+        registerAlar();
         registerClassKeys();
     }
 
@@ -55,6 +57,22 @@ public final class ScriptRegistry {
         factories.put("boss_magtheridon", new BossScript("boss_magtheridon", 544, List.of(
                 new BossScript.Action("SPELL_BLASTNOVA", 30616, 0, true),
                 new BossScript.Action("SPELL_CLEAVE", 30619, 0, false)
+        )));
+    }
+
+    private void registerKarathress() {
+        // serpentshrine.md — SPELL_CATACLYSMIC_BOLT 38441 (TP-SL31-004)
+        factories.put("boss_fathomlord_karathress", new BossScript("boss_fathomlord_karathress", 548, List.of(
+                new BossScript.Action("SPELL_CATACLYSMIC_BOLT", 38441, 0, false),
+                new BossScript.Action("SPELL_ENRAGE", 24318, 0, true)
+        )));
+    }
+
+    private void registerAlar() {
+        // the_eye.md — SPELL_FLAME_BUFFET 34121 (TP-SL31-005)
+        factories.put("boss_alar", new BossScript("boss_alar", 550, List.of(
+                new BossScript.Action("SPELL_FLAME_BUFFET", 34121, 0, false),
+                new BossScript.Action("SPELL_FLAME_QUILLS", 34229, 0, false)
         )));
     }
 

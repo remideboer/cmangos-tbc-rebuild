@@ -75,6 +75,9 @@ class Slice27P0Test {
         assertEquals(MovementInfo.MOVEFLAG_ONTRANSPORT, p.movement.moveFlags & MovementInfo.MOVEFLAG_ONTRANSPORT);
         assertEquals(TRANSPORT, p.movement.transportGuid);
         assertEquals(1234, p.movement.tTime);
+        p.leaveMoTransport();
+        assertEquals(0, p.movement.moveFlags & MovementInfo.MOVEFLAG_ONTRANSPORT);
+        assertEquals(0, p.movement.transportGuid);
     }
 
     @Test
