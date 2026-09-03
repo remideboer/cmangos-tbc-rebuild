@@ -42,7 +42,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 24 AV / AB / EY | p0_junit | Wire: `Slice24P0Test` AB stables contested WS **1769** → occupied **1767** after 60s (`TP-SL24-002`); AV Snowfall timer **300000** + score WS **3127** (`001`); EY flag aura **34976** (`003`). Domain: `AbBattlefield`/`AvBattlefield`. |
 | 25 Outdoor PvP | p0_junit | Wire: `Slice25P0Test` Silithyst deliver WS **2313** + buff **30754**. Domain: TF lock WS **2767**; Halaa **15**/GY **993**/**33795**. |
 | 26 Spell algorithms | p0_junit | Wire: `Slice26P0Test` GO loot (`001`), door READY→ACTIVE + `SMSG_GAMEOBJECT_CUSTOM_ANIM` (`001` deepen), talent wipe **14867** (`002`), cancel channel (`003`). |
-| 27 Transports | p0_junit | Wire: `Slice27P0Test` ONTRANSPORT echo packed t_guid (`001`), FORCE_RUN_SPEED_ACK (`002`), cancel mount **78** (`003`). |
+| 27 Transports | p0_junit | Wire: ONTRANSPORT echo (`001`); board seeded TYPE_MO_TRANSPORT=15 → flags+t_guid (`001` runtime); FORCE_RUN_SPEED_ACK (`002`); cancel mount **78** (`003`). DB `transports.period` not loaded in-memory (no invent). |
 | 28 Misc packets | p0_junit | Wire: `Slice28P0Test` quest push guid (`001`), master loot `SMSG_ITEM_PUSH_RESULT` (`002`), GMTICKET **0x06** (`003`), LFG accept `SMSG_LFG_UPDATE` (`004`). |
 | 29 GM commands | p0_junit | `Slice29P0Test`: `.help`/`.dismount` SEC_PLAYER; `.appear` LowerSecurity; SQL overlay. |
 | 30 ScriptDevAI registry | p0_junit | `Slice30P0Test`: `boss_gruul` Growth **36300**; missing ScriptName fallback. |

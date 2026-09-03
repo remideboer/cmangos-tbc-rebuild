@@ -906,6 +906,10 @@ public final class WorldSession {
         }
         GameMap map = world.map(player.mapId, player.instanceId);
         org.tbc.world.entity.GameObject go = map.gameObjects.get(guid);
+        if (go != null && GameObjectUse.isMoTransport(go)) {
+            player.boardMoTransport(go);
+            return;
+        }
         if (go != null && GameObjectUse.openDoor(go)) {
             GameObjectUse.sendCustomAnim(this::send, guid, 0);
             return;

@@ -58,6 +58,23 @@ class Slice27P0Test {
     }
 
     @Test
+    void tpSl27BoardMoTransportRuntime() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Mounter");
+        Player p = client.session().player();
+        org.tbc.world.entity.GameObject boat = new org.tbc.world.entity.GameObject();
+        boat.guid = TRANSPORT;
+        boat.type = org.tbc.world.spell.GameObjectUse.TYPE_MO_TRANSPORT;
+        world.map(p.mapId, p.instanceId).gameObjects.put(boat.guid, boat);
+        client.clear();
+        WowBuffer use = new WowBuffer(8);
+        use.putU64(TRANSPORT);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, use.array());
+        assertEquals(MovementInfo.MOVEFLAG_ONTRANSPORT, p.movement.moveFlags & MovementInfo.MOVEFLAG_ONTRANSPORT);
+        assertEquals(TRANSPORT, p.movement.transportGuid);
+    }
+
+    @Test
     void tpSl27ForceRunSpeedAck() {
         World world = World.inMemory();
         WowClientDouble client = login(world, ACC_A, "Mounter");

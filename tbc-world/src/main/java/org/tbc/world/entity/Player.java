@@ -296,6 +296,29 @@ public final class Player extends Unit {
         taxiPath = 0;
     }
 
+    /**
+     * Board an MO transport (movement.md type 15). Sets MOVEFLAG_ONTRANSPORT + t_guid.
+     * In-memory worlds must seed the GO; DB {@code transports.period} is not loaded here.
+     */
+    public void boardMoTransport(GameObject transport) {
+        if (!org.tbc.world.spell.GameObjectUse.isMoTransport(transport)) {
+            return;
+        }
+        movement.moveFlags |= org.tbc.world.net.wow8606.MovementInfo.MOVEFLAG_ONTRANSPORT;
+        movement.transportGuid = transport.guid;
+        movement.tx = 0;
+        movement.ty = 0;
+        movement.tz = 0;
+        movement.to = 0;
+        movement.tTime = 0;
+    }
+
+    public void leaveMoTransport() {
+        movement.moveFlags &= ~org.tbc.world.net.wow8606.MovementInfo.MOVEFLAG_ONTRANSPORT;
+        movement.transportGuid = 0;
+        movement.tTime = 0;
+    }
+
     public boolean taxiKnown(int node) {
         if (node < 1) {
             return false;

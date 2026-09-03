@@ -13,6 +13,8 @@ import java.util.function.BiConsumer;
 public final class GameObjectUse {
     public static final int TYPE_DOOR = 0;
     public static final int TYPE_CHEST = 3;
+    /** movement.md GAMEOBJECT_TYPE_MO_TRANSPORT */
+    public static final int TYPE_MO_TRANSPORT = 15;
     public static final int STATE_ACTIVE = 0;
     public static final int STATE_READY = 1;
 
@@ -32,6 +34,10 @@ public final class GameObjectUse {
 
     public static boolean isChest(GameObject go) {
         return go != null && go.type == TYPE_CHEST;
+    }
+
+    public static boolean isMoTransport(GameObject go) {
+        return go != null && go.type == TYPE_MO_TRANSPORT;
     }
 
     public static void sendCustomAnim(BiConsumer<Integer, byte[]> send, long guid, int animId) {
