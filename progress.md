@@ -46,7 +46,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 28 Misc packets | p0_junit | Wire: `Slice28P0Test` quest push guid (`001`), master loot `SMSG_ITEM_PUSH_RESULT` (`002`), GMTICKET **0x06** (`003`), LFG accept `SMSG_LFG_UPDATE` (`004`). |
 | 29 GM commands | p0_junit | `Slice29P0Test`: `.help`/`.dismount` SEC_PLAYER; `.appear` LowerSecurity; SQL overlay. |
 | 30 ScriptDevAI registry | p0_junit | `Slice30P0Test`: `boss_gruul` Growth **36300**; missing ScriptName fallback. |
-| 31 TBC raids | p0_junit | `SpecFilesP0Test` Karazhan–Sunwell + ZA files |
+| 31 TBC raids | p0_junit | `SpecFilesP0Test` Karazhan–Sunwell + ZA files. P1 deepen: `Slice31P0Test` `boss_curator` Hateful Bolt **30383** / 15s (`TP-SL31-002`). Not raid `done`. |
 | 32 TBC 5-mans | p0_junit | Spec file existence for HFC/CF/Auch/TK/CoT |
 | 33 Classic raids | p0_junit | MC/BWL/AQ/Naxx/ZG/Onyxia + `world-remaining.md` |
 | 34 Class scripts | p0_junit | Execute **5308→20647**; UA **30108**; spec grep |

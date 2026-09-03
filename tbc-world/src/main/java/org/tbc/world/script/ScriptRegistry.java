@@ -21,6 +21,7 @@ public final class ScriptRegistry {
             known.add(n);
         }
         registerGruul();
+        registerCurator();
         registerClassKeys();
     }
 
@@ -37,6 +38,14 @@ public final class ScriptRegistry {
                 new BossScript.Action("SPELL_ARCING_SMASH", 39144, 8_000, false),
                 new BossScript.Action("SPELL_MIGHTY_BLOW", 33230, 15_000, false),
                 new BossScript.Action("SPELL_WHIRLWIND", 33238, 30_000, true)
+        )));
+    }
+
+    private void registerCurator() {
+        // karazhan.md — CURATOR_ACTION_HATEFUL_BOLT 15000u / SPELL_HATEFUL_BOLT 30383 (TP-SL31-002)
+        factories.put("boss_curator", new BossScript("boss_curator", 532, List.of(
+                new BossScript.Action("SPELL_HATEFUL_BOLT", 30383, 15_000, false),
+                new BossScript.Action("SPELL_ASTRAL_FLARE", 30236, 11_000, false)
         )));
     }
 
