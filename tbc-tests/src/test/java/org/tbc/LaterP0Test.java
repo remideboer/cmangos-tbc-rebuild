@@ -32,21 +32,9 @@ class LaterP0Test {
             new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86");
 
     @Test
-    void tpSl14SwapTrainerTaxiWeather() {
+    void tpSl14TrainerTaxiWeather() {
         Ctx c = loginOne("Swapper");
         Player p = c.client.session().player();
-        Item a = new Item(c.world.nextItemGuid(), 25);
-        a.slot = 30;
-        Item b = new Item(c.world.nextItemGuid(), 25);
-        b.slot = 31;
-        p.items.put((int) a.guid, a);
-        p.items.put((int) b.guid, b);
-        WowBuffer swap = new WowBuffer(2);
-        swap.putU8(30);
-        swap.putU8(31);
-        c.client.handle(c.world, Opcodes.CMSG_SWAP_INV_ITEM, swap.array());
-        assertEquals(31, a.slot);
-        assertEquals(30, b.slot);
         c.client.clear();
         WowBuffer buy = new WowBuffer(12);
         buy.putU64(0);

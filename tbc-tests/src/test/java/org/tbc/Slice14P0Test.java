@@ -1,0 +1,123 @@
+package org.tbc;
+
+import org.tbc.bdd.WowClientDouble;
+import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Item;
+import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.world.World;
+import org.junit.jupiter.api.Test;
+
+import java.util.zip.Inflater;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/** TP-SL14-* from packet files, one criterion per method. */
+class Slice14P0Test {
+    private static final World.Account ACC =
+            new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
+
+    @Test
+    void tpSl14SwapInvItem() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Swapper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int src = p.firstFreeBagSlot();
+        Item first = new Item(world.nextItemGuid(), 25);
+        first.slot = src;
+        p.items.put((int) first.guid, first);
+        int dst = p.firstFreeBagSlot();
+        Item second = new Item(world.nextItemGuid(), 159);
+        second.slot = dst;
+        p.items.put((int) first.guid, first);
+        p.items.put((int) second.guid, second);
+        p.setGuid(invSlotField(first.slot), UpdateBuilder.itemGuid(first));
+        p.setGuid(invSlotField(second.slot), UpdateBuilder.itemGuid(second));
+        int srcSlot = first.slot;
+        int dstSlot = second.slot;
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(2);
+        swap.putU8(srcSlot);
+        swap.putU8(dstSlot);
+        client.handle(world, Opcodes.CMSG_SWAP_INV_ITEM, swap.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        long atSrc = guidAt(update, invSlotField(srcSlot));
+        long atDst = guidAt(update, invSlotField(dstSlot));
+        assertEquals(UpdateBuilder.itemGuid(second), atSrc);
+        assertEquals(UpdateBuilder.itemGuid(first), atDst);
+    }
+
+    private static int invSlotField(int slot) {
+        return UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + slot * 2;
+    }
+
+    private static byte[] lastValuesUpdate(WowClientDouble client) throws Exception {
+        for (int i = client.opcodes.size() - 1; i >= 0; i--) {
+            int op = client.opcodes.get(i);
+            if (op == Opcodes.SMSG_UPDATE_OBJECT) {
+                return client.payloads.get(i);
+            }
+            if (op == Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT) {
+                return inflate(client.payloads.get(i));
+            }
+        }
+        throw new AssertionError("no SMSG_UPDATE_OBJECT after swap");
+    }
+
+    private static byte[] inflate(byte[] compressed) throws Exception {
+        int size = WowClientDouble.u32le(compressed, 0);
+        Inflater inf = new Inflater();
+        inf.setInput(compressed, 4, compressed.length - 4);
+        byte[] out = new byte[size];
+        inf.inflate(out);
+        inf.end();
+        return out;
+    }
+
+    private static long guidAt(byte[] payload, int field) {
+        WowBuffer b = new WowBuffer(payload);
+        b.getU32();
+        b.getU8();
+        assertEquals(UpdateBuilder.UPDATETYPE_VALUES, b.getU8());
+        b.getPackedGuid();
+        int nblocks = b.getU8();
+        int[] mask = new int[nblocks];
+        for (int i = 0; i < nblocks; i++) {
+            mask[i] = b.getU32();
+        }
+        int written = 0;
+        long low = 0;
+        long high = 0;
+        boolean sawLow = false;
+        boolean sawHigh = false;
+        for (int i = 0; i < nblocks * 32; i++) {
+            if ((mask[i / 32] & (1 << (i % 32))) == 0) {
+                continue;
+            }
+            int v = b.getU32();
+            written++;
+            if (i == field) {
+                low = v & 0xFFFFFFFFL;
+                sawLow = true;
+            }
+            if (i == field + 1) {
+                high = v & 0xFFFFFFFFL;
+                sawHigh = true;
+            }
+        }
+        assertTrue(written > 0);
+        assertTrue(sawLow && sawHigh);
+        return low | (high << 32);
+    }
+}
