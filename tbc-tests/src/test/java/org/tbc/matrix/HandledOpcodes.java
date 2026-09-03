@@ -105,6 +105,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_LOOT_METHOD,
             Opcodes.MSG_RAID_READY_CHECK,
             Opcodes.CMSG_GUILD_CREATE,
+            Opcodes.CMSG_GUILD_BANKER_ACTIVATE,
             Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS,
             Opcodes.CMSG_GUILD_BANK_BUY_TAB,
             Opcodes.CMSG_AUCTION_LIST_ITEMS,

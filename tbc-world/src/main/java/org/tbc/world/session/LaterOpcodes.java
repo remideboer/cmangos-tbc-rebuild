@@ -138,18 +138,12 @@ public final class LaterOpcodes {
             GuildHandler.create(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_GUILD_BANKER_ACTIVATE) {
+            GuildHandler.bankerActivate(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS) {
-            if (p.guildBankItem != null) {
-                p.guildBankItem.slot = p.firstFreeBagSlot();
-                p.items.put((int) p.guildBankItem.guid, p.guildBankItem);
-                p.guildBankItem = null;
-            } else {
-                Item it = p.items.values().stream().findFirst().orElse(null);
-                if (it != null) {
-                    p.items.remove((int) it.guid);
-                    p.guildBankItem = it;
-                }
-            }
+            GuildHandler.swapItems(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_GUILD_BANK_BUY_TAB) {
@@ -164,10 +158,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_AUCTION_LIST_ITEMS) {
-            WowBuffer list = new WowBuffer(16);
-            list.putU32(1);
-            list.putU32(1);
-            s.send(Opcodes.SMSG_AUCTION_LIST_RESULT, list.array());
+            AuctionHandler.listItems(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_SET_LOOKING_FOR_GROUP) {

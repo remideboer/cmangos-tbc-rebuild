@@ -1,6 +1,7 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 
@@ -42,5 +43,88 @@ public final class GuildHandler {
         r.putCString("");
         r.putCString("");
         s.send(Opcodes.SMSG_GUILD_ROSTER, r.array());
+    }
+
+    public static void bankerActivate(WorldSession s, WowBuffer in) {
+        if (in.remaining() >= 8) {
+            in.getU64();
+        }
+        if (in.remaining() > 0) {
+            in.getU8();
+        }
+        Player p = s.player();
+        if (p.guildId == 0) {
+            return;
+        }
+        WowBuffer list = new WowBuffer(32);
+        list.putU64(0);
+        list.putU8(0);
+        list.putU32(0);
+        list.putU8(1);
+        list.putU8(1);
+        list.putCString("Tab");
+        list.putCString("");
+        list.putU8(0);
+        s.send(Opcodes.SMSG_GUILD_BANK_LIST, list.array());
+    }
+
+    public static void swapItems(WorldSession s, WowBuffer in) {
+        if (in.remaining() < 9) {
+            return;
+        }
+        in.getU64();
+        int bankToBank = in.getU8();
+        if (bankToBank != 0 || in.remaining() < 14) {
+            return;
+        }
+        int tab = in.getU8();
+        int slot = in.getU8();
+        in.getU32();
+        int autoStore = in.getU8();
+        if (autoStore != 0) {
+            return;
+        }
+        int bag = in.getU8();
+        int playerSlot = in.getU8();
+        int toChar = in.getU8();
+        Player p = s.player();
+        if (toChar == 0) {
+            Item it = p.itemAt(bag, playerSlot);
+            if (it == null) {
+                return;
+            }
+            p.items.remove((int) it.guid);
+            p.guildBankItem = it;
+            sendBankSlot(s, tab, slot, it.entry);
+        } else {
+            Item it = p.guildBankItem;
+            if (it == null) {
+                return;
+            }
+            p.guildBankItem = null;
+            it.bag = bag;
+            it.slot = playerSlot;
+            p.items.put((int) it.guid, it);
+            sendBankSlot(s, tab, slot, 0);
+        }
+    }
+
+    static void sendBankSlot(WorldSession s, int tab, int slot, int entry) {
+        WowBuffer list = new WowBuffer(48);
+        list.putU64(0);
+        list.putU8(tab);
+        list.putU32(0);
+        list.putU8(0);
+        list.putU8(1);
+        list.putU8(slot);
+        list.putU32(entry);
+        if (entry != 0) {
+            list.putU32(0);
+            list.putU8(1);
+            list.putU32(0);
+            list.putU8(0);
+            list.putU8(0);
+        }
+        s.send(Opcodes.SMSG_GUILD_BANK_LIST, list.array());
     }
 }

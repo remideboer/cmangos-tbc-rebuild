@@ -52,17 +52,6 @@ class LaterP0Test {
         create.putCString("TestGuild");
         c.a.handle(c.world, Opcodes.CMSG_GUILD_CREATE, create.array());
         assertTrue(c.a.saw(Opcodes.SMSG_GUILD_ROSTER));
-        Item bank = new Item(c.world.nextItemGuid(), 25);
-        bank.slot = 33;
-        c.a.session().player().items.put((int) bank.guid, bank);
-        c.a.handle(c.world, Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS, new byte[0]);
-        assertEquals(bank.guid, c.a.session().player().guildBankItem.guid);
-        c.a.handle(c.world, Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS, new byte[0]);
-        assertTrue(c.a.session().player().items.containsKey((int) bank.guid));
-        c.a.clear();
-        c.a.handle(c.world, Opcodes.CMSG_AUCTION_LIST_ITEMS, new byte[8]);
-        assertTrue(c.a.saw(Opcodes.SMSG_AUCTION_LIST_RESULT));
-        assertTrue(WowClientDouble.u32le(c.a.payload(Opcodes.SMSG_AUCTION_LIST_RESULT), 4) >= 1);
     }
 
     @Test

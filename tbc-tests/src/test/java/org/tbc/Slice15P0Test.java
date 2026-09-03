@@ -4,6 +4,7 @@ import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.loot.GroupLoot;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -123,6 +124,114 @@ class Slice15P0Test {
         assertEquals(p.level, r.getU8());
         assertEquals(p.clazz, r.getU8());
         assertEquals(p.gender, r.getU8());
+    }
+
+    @Test
+    void tpSl15GuildBankSwap() {
+        Pair g = loginTwo("Banker", "Mate");
+        Player p = g.a.session().player();
+        WowBuffer create = new WowBuffer(16);
+        create.putCString("BankGuild");
+        g.a.handle(g.world, Opcodes.CMSG_GUILD_CREATE, create.array());
+        Item it = new Item(g.world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        it.slot = p.firstFreeBagSlot();
+        p.items.put((int) it.guid, it);
+        int bagSlot = it.slot;
+        g.a.clear();
+        WowBuffer activate = new WowBuffer(9);
+        activate.putU64(1);
+        activate.putU8(0);
+        g.a.handle(g.world, Opcodes.CMSG_GUILD_BANKER_ACTIVATE, activate.array());
+        assertTrue(g.a.saw(Opcodes.SMSG_GUILD_BANK_LIST));
+        g.a.clear();
+        WowBuffer deposit = new WowBuffer(24);
+        deposit.putU64(1);
+        deposit.putU8(0);
+        deposit.putU8(0);
+        deposit.putU8(0);
+        deposit.putU32(Content.ITEM_WORN_SHORTSWORD);
+        deposit.putU8(0);
+        deposit.putU8(0);
+        deposit.putU8(bagSlot);
+        deposit.putU8(0);
+        deposit.putU32(0);
+        g.a.handle(g.world, Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS, deposit.array());
+        WowBuffer list = new WowBuffer(lastPayload(g.a, Opcodes.SMSG_GUILD_BANK_LIST));
+        list.getU64();
+        assertEquals(0, list.getU8());
+        list.getU32();
+        assertEquals(0, list.getU8());
+        assertEquals(1, list.getU8());
+        assertEquals(0, list.getU8());
+        assertEquals(Content.ITEM_WORN_SHORTSWORD, list.getU32());
+        assertTrue(p.items.values().stream().noneMatch(i -> i.guid == it.guid));
+        g.a.clear();
+        WowBuffer withdraw = new WowBuffer(24);
+        withdraw.putU64(1);
+        withdraw.putU8(0);
+        withdraw.putU8(0);
+        withdraw.putU8(0);
+        withdraw.putU32(Content.ITEM_WORN_SHORTSWORD);
+        withdraw.putU8(0);
+        withdraw.putU8(0);
+        withdraw.putU8(p.firstFreeBagSlot() < 0 ? 23 : p.firstFreeBagSlot());
+        withdraw.putU8(1);
+        withdraw.putU32(0);
+        g.a.handle(g.world, Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS, withdraw.array());
+        assertTrue(p.items.containsKey((int) it.guid));
+    }
+
+    @Test
+    void tpSl15AuctionListResult() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC_A);
+        Player created = world.characters.create(ACC_A.id(), "Bidder", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature ah = find(world, Content.NPC_AUCTIONEER_CHILTON);
+        p.relocate(ah.x, ah.y, ah.z, ah.o);
+        client.clear();
+        WowBuffer search = new WowBuffer(48);
+        search.putU64(ah.guid);
+        search.putU32(0);
+        search.putCString("Worn");
+        search.putU8(0);
+        search.putU8(0);
+        search.putU32(0xFFFFFFFF);
+        search.putU32(0xFFFFFFFF);
+        search.putU32(0xFFFFFFFF);
+        search.putU32(0xFFFFFFFF);
+        search.putU8(0);
+        search.putU8(0);
+        search.putU8(0);
+        client.handle(world, Opcodes.CMSG_AUCTION_LIST_ITEMS, search.array());
+        WowBuffer out = new WowBuffer(lastPayload(client, Opcodes.SMSG_AUCTION_LIST_RESULT));
+        int count = out.getU32();
+        assertEquals(1, count);
+        assertEquals(1, out.getU32());
+        assertEquals(Content.ITEM_WORN_SHORTSWORD, out.getU32());
+        for (int i = 0; i < 6; i++) {
+            out.getU32();
+            out.getU32();
+            out.getU32();
+        }
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU64();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU64();
+        out.getU32();
+        int total = out.getU32();
+        int delay = out.getU32();
+        assertTrue(total >= 1);
+        assertEquals(Content.AUCTION_LIST_DELAY_MS, delay);
     }
 
     private static Pair loginTwo(String aName, String bName) {
