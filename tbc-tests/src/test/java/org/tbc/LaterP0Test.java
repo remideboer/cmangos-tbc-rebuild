@@ -55,36 +55,7 @@ class LaterP0Test {
     }
 
     @Test
-    void tpSl16ArenaHellfireLfgWsgFlag() {
-        Ctx c = loginOne("Pvper");
-        c.client.clear();
-        c.client.handle(c.world, Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA, new byte[16]);
-        assertEquals(2, WowClientDouble.u32le(c.client.payload(Opcodes.SMSG_BATTLEFIELD_STATUS), 17));
-        c.client.battlefieldPort(c.world, 1);
-        c.client.worldportAck(c.world);
-        assertEquals(562, c.client.session().player().mapId);
-        c.world.teleport(c.client.session().player(), 530, 0, 0, 0, 0);
-        c.client.clear();
-        WowBuffer go = new WowBuffer(8);
-        go.putU64(1);
-        c.client.handle(c.world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
-        assertTrue(c.client.saw(Opcodes.SMSG_UPDATE_WORLD_STATE));
-        assertEquals(1, c.client.session().worldStates2476);
-        assertEquals(1, c.client.session().worldStates2478);
-        c.client.clear();
-        c.client.handle(c.world, Opcodes.CMSG_SET_LOOKING_FOR_GROUP, new byte[8]);
-        c.client.handle(c.world, Opcodes.MSG_LOOKING_FOR_GROUP, new byte[8]);
-        assertTrue(c.client.saw(Opcodes.MSG_LOOKING_FOR_GROUP));
-        assertEquals(c.client.session().player().guid,
-                WowClientDouble.u64le(c.client.payload(Opcodes.MSG_LOOKING_FOR_GROUP), 4));
-        c.world.teleport(c.client.session().player(), 489, 0, 0, 0, 0);
-        c.client.clear();
-        c.client.handle(c.world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
-        assertTrue(c.client.session().player().auras.stream().anyMatch(a -> a.spellId() == 23333));
-    }
-
-    @Test
-    void tpSl17DeathRepopReclaimSpirit() {
+    void tpSl17RepopGhost() {
         Ctx c = loginOne("Ghost");
         Player p = c.client.session().player();
         c.client.clear();
@@ -95,11 +66,27 @@ class LaterP0Test {
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.GHOST_AURA));
         assertNotNull(p.corpse);
         assertTrue(c.client.saw(Opcodes.SMSG_DEATH_RELEASE_LOC));
+        assertEquals(p.mapId, WowClientDouble.u32le(c.client.payload(Opcodes.SMSG_DEATH_RELEASE_LOC), 0));
+    }
+
+    @Test
+    void tpSl17ReclaimHalfHp() {
+        Ctx c = loginOne("Ghost");
+        Player p = c.client.session().player();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        c.client.handle(c.world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
         WowBuffer reclaim = new WowBuffer(8);
         reclaim.putU64(p.guid);
         c.client.handle(c.world, Opcodes.CMSG_RECLAIM_CORPSE, reclaim.array());
         assertFalse(p.ghost);
         assertEquals(p.maxHealth() / 2, p.health());
+    }
+
+    @Test
+    void tpSl17SpiritHealerSickness() {
+        Ctx c = loginOne("Ghost");
+        Player p = c.client.session().player();
         p.ghost = true;
         p.level = 11;
         Item gear = new Item(c.world.nextItemGuid(), 25);

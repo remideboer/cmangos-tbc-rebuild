@@ -3,7 +3,7 @@
 Status: `not_started` | `in_progress` | `p0_junit` | `p0_client` | `done`
 
 `done` requires P0 pass. `skip` is not pass. See `spec/07-rebuild/test-plan.md`.
-JUnit: `mvn -f tbc-server/pom.xml test` (TP-INV, TP-NEG, SL01–03 P0, matrix, Gherkin slices 4–11, Slice14P0Test, Slice15P0Test, `LaterP0Test` 16–30, `SpecFilesP0Test` 31–34).
+JUnit: `mvn -f tbc-server/pom.xml test` (TP-INV, TP-NEG, SL01–03 P0, matrix, Gherkin slices 4–11, Slice14P0Test, Slice15P0Test, Slice16P0Test, `LaterP0Test` 15 leftover + 17–30, `SpecFilesP0Test` 31–34).
 
 Sidecar: `tbc-admin` is a Swing operator tool for `tbcrealmd.account` (create / role / password / delete). It is **not** a slice, **not** SOAP/RA, and **not** `p0_client`. Passwords are stored as SRP6 `v`/`s` only.
 
@@ -31,8 +31,8 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 13 Spell catalogs | p0_junit | `SpellEngine.knownEffect` + dummy/script no crash |
 | 14 Living world | p0_junit | Wire: `Slice14P0Test` swap VALUES (`TP-SL14-001`), Llane 911 Battle Shout **6673** (`002`), Dungar taxi `SMSG_MONSTER_MOVE` (`003`), Elwynn `game_weather` snapshot (`004`). Not `p0_client`. |
 | 15 Social leftover | p0_junit | Wire: `Slice15P0Test` NBG roll timeout 60000 (`TP-SL15-001`), raid `GROUP_LIST` + ready-check requester guid (`002`), roster gender (`003`), guild bank `SMSG_GUILD_BANK_LIST` (`004`), Chilton 8670 `BuildAuctionInfo` + delay 300 (`005`). Not `p0_client`. |
-| 16 PvP leftover | p0_junit | Arena map **562**; Hellfire WS **2476/2478**; LFG list; WSG flag aura **23333** |
-| 17 Death | p0_junit | Repop ghost **8326** + corpse + `SMSG_DEATH_RELEASE_LOC`; reclaim 50%; spirit healer **15007** |
+| 16 PvP leftover | p0_junit | Wire: `Slice16P0Test` arena `SMSG_NEW_WORLD` ∈ {559,562,572} (`001`), Hellfire WS **2480**/2476/2478 (`002`), LFG packed-guid list (`003`), WSG WS **1545** + aura **23333** (`004`). Not `p0_client`. |
+| 17 Death | p0_junit | `LaterP0Test`: repop `SMSG_DEATH_RELEASE_LOC` map + ghost **8326**; reclaim 50%; spirit healer **15007** |
 | 18 Pets | p0_junit | `SMSG_PET_SPELLS`; stable **0x08/0x09**; warlock dismiss vs hunter; totem destroy |
 | 19 Channels | p0_junit | Join YOU_JOINED **0x02**; list GUIDs; text emote; voice ignored |
 | 20 Items leftover | p0_junit | Sell buyback slot **74**; socket enchant; repair gold |
@@ -50,3 +50,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 32 TBC 5-mans | p0_junit | Spec file existence for HFC/CF/Auch/TK/CoT |
 | 33 Classic raids | p0_junit | MC/BWL/AQ/Naxx/ZG/Onyxia + `world-remaining.md` |
 | 34 Class scripts | p0_junit | Execute **5308→20647**; UA **30108**; spec grep |
+
+## Loop B — official 8606 two-client lab
+
+Started after Loop A wire oracles for slices 14–16. GitHub Actions runs `mvn test` only; it does not launch `Wow.exe`. Next lab click: two 8606 clients for `TP-SL04-003` (observer `MSG_MOVE_HEARTBEAT`) and `TP-SL04-005` (other-player create + name query). Until that lab, slice 4 stays `p0_client` not `done`. Do not tick `p0_client` on later slices from JUnit alone.

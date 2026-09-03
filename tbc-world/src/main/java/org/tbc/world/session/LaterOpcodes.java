@@ -162,14 +162,11 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_SET_LOOKING_FOR_GROUP) {
-            p.looking = true;
+            LfgHandler.setLooking(s);
             return true;
         }
         if (opcode == Opcodes.MSG_LOOKING_FOR_GROUP) {
-            WowBuffer list = new WowBuffer(16);
-            list.putU32(1);
-            list.putU64(p.guid);
-            s.send(Opcodes.MSG_LOOKING_FOR_GROUP, list.array());
+            LfgHandler.list(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_PET_ACTION) {

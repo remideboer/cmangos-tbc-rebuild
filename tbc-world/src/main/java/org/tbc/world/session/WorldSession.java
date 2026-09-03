@@ -906,6 +906,7 @@ public final class WorldSession {
         if (player.mapId == 530) {
             worldStates2476 = 1;
             worldStates2478 = 1;
+            sendWs(2480, 1);
             sendWs(2476, 1);
             sendWs(2478, 1);
         }
