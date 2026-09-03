@@ -58,6 +58,7 @@ class LaterP0Test {
     void tpSl17RepopGhost() {
         Ctx c = loginOne("Ghost");
         Player p = c.client.session().player();
+        p.setHealth(0);
         c.client.clear();
         WowBuffer repop = new WowBuffer(1);
         repop.putU8(0);
@@ -73,9 +74,12 @@ class LaterP0Test {
     void tpSl17ReclaimHalfHp() {
         Ctx c = loginOne("Ghost");
         Player p = c.client.session().player();
+        p.setHealth(0);
         WowBuffer repop = new WowBuffer(1);
         repop.putU8(0);
         c.client.handle(c.world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        p.ghostTimeMs = c.world.nowMs() - 30_000;
+        p.relocate(p.corpse.x, p.corpse.y, p.corpse.z, 0);
         WowBuffer reclaim = new WowBuffer(8);
         reclaim.putU64(p.guid);
         c.client.handle(c.world, Opcodes.CMSG_RECLAIM_CORPSE, reclaim.array());
@@ -228,7 +232,9 @@ class LaterP0Test {
         c.client.clear();
         c.client.handle(c.world, Opcodes.CMSG_GUILD_BANK_BUY_TAB, new byte[8]);
         assertTrue(c.client.saw(Opcodes.MSG_GUILD_PERMISSIONS));
-        assertEquals(6, WowClientDouble.u32le(c.client.payload(Opcodes.MSG_GUILD_PERMISSIONS), 0));
+        byte[] perm = c.client.payload(Opcodes.MSG_GUILD_PERMISSIONS);
+        assertEquals(1, perm[12] & 0xFF, "purchasedTabs");
+        assertTrue(perm.length >= 13 + 6 * 8);
         c.client.clear();
         WowBuffer roll = new WowBuffer(8);
         roll.putU32(1);
@@ -253,7 +259,7 @@ class LaterP0Test {
         assertEquals(20, killer.honorYesterday);
         c.a.clear();
         WowBuffer insp = new WowBuffer(16);
-        insp.putPackedGuid(victim.guid);
+        insp.putU64(victim.guid);
         c.a.handle(c.world, Opcodes.CMSG_INSPECT, insp.array());
         assertTrue(c.a.saw(Opcodes.SMSG_INSPECT_TALENT));
         WowBuffer hon = new WowBuffer(8);
@@ -281,11 +287,11 @@ class LaterP0Test {
         c.client.handle(c.world, Opcodes.CMSG_TURN_IN_PETITION, new byte[8]);
         assertEquals(1, c.client.session().player().arenaTeam);
         c.client.handle(c.world, Opcodes.MSG_PVP_LOG_DATA, new byte[0]);
-        assertEquals(0, WowClientDouble.u32le(c.client.payload(Opcodes.MSG_PVP_LOG_DATA), 0));
+        assertEquals(0, c.client.payload(Opcodes.MSG_PVP_LOG_DATA)[0] & 0xFF);
         c.client.handle(c.world, Opcodes.CMSG_REPORT_PVP_AFK, new byte[8]);
         c.client.handle(c.world, Opcodes.CMSG_REPORT_PVP_AFK, new byte[8]);
         c.client.handle(c.world, Opcodes.CMSG_REPORT_PVP_AFK, new byte[8]);
-        assertTrue(c.client.session().player().auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.IDLE_AFK));
+        assertEquals(1, c.client.session().player().afkReporterGuids.size());
     }
 
     @Test

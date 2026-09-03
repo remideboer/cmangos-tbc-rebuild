@@ -3,7 +3,7 @@
 Status: `not_started` | `in_progress` | `p0_junit` | `p0_client` | `done`
 
 `done` requires P0 pass. `skip` is not pass. See `spec/07-rebuild/test-plan.md`.
-JUnit: `mvn -f tbc-server/pom.xml test` (TP-INV, TP-NEG, SL01–03 P0, matrix, Gherkin slices 4–11, Slice14P0Test, Slice15P0Test, Slice16P0Test, `LaterP0Test` 15 leftover + 17–30, `SpecFilesP0Test` 31–34).
+JUnit: `mvn -f tbc-server/pom.xml test` (TP-INV, TP-NEG, SL01–03 P0, matrix, Gherkin slices 4–11, Slice14P0Test–Slice23P0Test, Slice26P0Test–Slice30P0Test, `PvpObjectivesTest` 24–25, `LaterP0Test` leftover, `SpecFilesP0Test` 31–34).
 
 Sidecar: `tbc-admin` is a Swing operator tool for `tbcrealmd.account` (create / role / password / delete). It is **not** a slice, **not** SOAP/RA, and **not** `p0_client`. Passwords are stored as SRP6 `v`/`s` only.
 
@@ -32,20 +32,20 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 14 Living world | p0_junit | Wire: `Slice14P0Test` swap VALUES (`TP-SL14-001`), Llane 911 Battle Shout **6673** (`002`), Dungar taxi `SMSG_MONSTER_MOVE` (`003`), Elwynn `game_weather` snapshot (`004`). Not `p0_client`. |
 | 15 Social leftover | p0_junit | Wire: `Slice15P0Test` NBG roll timeout 60000 (`TP-SL15-001`), raid `GROUP_LIST` + ready-check requester guid (`002`), roster gender (`003`), guild bank `SMSG_GUILD_BANK_LIST` (`004`), Chilton 8670 `BuildAuctionInfo` + delay 300 (`005`). Not `p0_client`. |
 | 16 PvP leftover | p0_junit | Wire: `Slice16P0Test` arena `SMSG_NEW_WORLD` ∈ {559,562,572} (`001`), Hellfire WS **2480**/2476/2478 (`002`), LFG packed-guid list (`003`), WSG WS **1545** + aura **23333** (`004`). Not `p0_client`. |
-| 17 Death | p0_junit | `LaterP0Test`: repop `SMSG_DEATH_RELEASE_LOC` map + ghost **8326**; reclaim 50%; spirit healer **15007** |
-| 18 Pets | p0_junit | `SMSG_PET_SPELLS`; stable **0x08/0x09**; warlock dismiss vs hunter; totem destroy |
-| 19 Channels | p0_junit | Join YOU_JOINED **0x02**; list GUIDs; text emote; voice ignored |
-| 20 Items leftover | p0_junit | Sell buyback slot **74**; socket enchant; repair gold |
-| 21 Guild leftover | p0_junit | Guild query name; bank tab + 6 permissions; roll + ping |
-| 22 Honor / inspect / duel | p0_junit | Honor cap **75000** + midnight roll; inspect packed; duel **3000** ms + OOB |
-| 23 Arena teams | p0_junit | Petition turn-in; PvP log type 0; AFK aura **43680** |
-| 24 AV / AB / EY | p0_junit | Spec timers **240000/300000**; AB tick table; EY points `{75,85,100,500}` |
-| 25 Outdoor PvP | p0_junit | Silithyst **200**/ **30754**; TF lock **33377**; Halaa **15**/GY **993**/**33795** |
-| 26 Spell algorithms | p0_junit | GO loot; talent wipe **14867**; cancel channelling |
-| 27 Transports | p0_junit | `MOVEFLAG_ONTRANSPORT`; FORCE_RUN_SPEED_ACK; cancel mount **78** |
-| 28 Misc packets | p0_junit | Push quest; master loot give; GMTICKET HASTEXT **0x06**; LFG accept |
-| 29 GM commands | p0_junit | `.help`/`.dismount` SEC_PLAYER; `.die` SEC_ADMIN; `.appear` + LowerSecurity; overlay |
-| 30 ScriptDevAI registry | p0_junit | `boss_gruul` Growth **36300** / 30 s; missing name log |
+| 17 Death | p0_junit | Wire: `Slice17P0Test` GY `SMSG_DEATH_RELEASE_LOC` + delay 30000 (`001`), reclaim 50% no sickness (`002`), spirit healer **15007** + 25% durability (`003`). Not `p0_client`. |
+| 18 Pets | p0_junit | Wire: `Slice18P0Test` `SMSG_PET_SPELLS` pet guid (`001`), stable **0x0A/0x08/0x09** (`002`), warlock dismiss vs hunter (`003`), totem `SMSG_DESTROY_OBJECT` (`004`). |
+| 19 Channels | p0_junit | Wire: `Slice19P0Test` YOU_JOINED **0x02** + channelId (`001`), list raw guid (`002`), text emote (`003`), voice ignored (`004`). |
+| 20 Items leftover | p0_junit | Wire: `Slice20P0Test` buyback slot **74** VALUES (`001`), socket bonus vs meta **25890** (`002`), repair coinage (`003`). |
+| 21 Guild leftover | p0_junit | Wire: `Slice21P0Test` guild query name (`001`), `MSG_GUILD_PERMISSIONS` 6 tab pairs (`002`), roll + ping guid (`003`). |
+| 22 Honor / inspect / duel | p0_junit | Wire: `Slice22P0Test` `SMSG_PVP_CREDIT` + cap 75000 (`001`), inspect packed + 0x3D (`002`), duel **3000** + OOB (`003`). |
+| 23 Arena teams | p0_junit | Wire: `Slice23P0Test` arena roster personalRating (`001`), PvP log type 0 (`002`), AFK **43680** from 3 unique reporters (`003`). |
+| 24 AV / AB / EY | p0_junit | `PvpObjectivesTest`: AV 240000/300000; AB tick + WS **1776/1777**; EY `{75,85,100,500}` + aura **34976**. |
+| 25 Outdoor PvP | p0_junit | `PvpObjectivesTest`: Silithyst **200**/WS **2313**; TF lock + **33377**; Halaa **15**/GY **993**/**33795**. |
+| 26 Spell algorithms | p0_junit | Wire: `Slice26P0Test` GO loot (`001`), talent wipe `SMSG_LEARNED_SPELL` **14867** (`002`), cancel channel `SMSG_SPELL_FAILURE` (`003`). |
+| 27 Transports | p0_junit | Wire: `Slice27P0Test` ONTRANSPORT echo packed t_guid (`001`), FORCE_RUN_SPEED_ACK (`002`), cancel mount **78** (`003`). |
+| 28 Misc packets | p0_junit | Wire: `Slice28P0Test` quest push guid (`001`), master loot `SMSG_ITEM_PUSH_RESULT` (`002`), GMTICKET **0x06** (`003`), LFG accept `SMSG_LFG_UPDATE` (`004`). |
+| 29 GM commands | p0_junit | `Slice29P0Test`: `.help`/`.dismount` SEC_PLAYER; `.appear` LowerSecurity; SQL overlay. |
+| 30 ScriptDevAI registry | p0_junit | `Slice30P0Test`: `boss_gruul` Growth **36300**; missing ScriptName fallback. |
 | 31 TBC raids | p0_junit | `SpecFilesP0Test` Karazhan–Sunwell + ZA files |
 | 32 TBC 5-mans | p0_junit | Spec file existence for HFC/CF/Auch/TK/CoT |
 | 33 Classic raids | p0_junit | MC/BWL/AQ/Naxx/ZG/Onyxia + `world-remaining.md` |

@@ -3,7 +3,6 @@ package org.tbc.world.session;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Group;
 import org.tbc.world.entity.Item;
-import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -106,20 +105,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_TEXT_EMOTE) {
-            int emote = in.remaining() >= 4 ? in.getU32() : 0;
-            int num = in.remaining() >= 4 ? in.getU32() : 0;
-            long target = in.remaining() >= 8 ? in.getU64() : 0;
-            WowBuffer out = new WowBuffer(32);
-            out.putU64(p.guid);
-            out.putU32(emote);
-            out.putU32(num);
-            out.putU32(1);
-            out.putU8(0);
-            s.send(Opcodes.SMSG_TEXT_EMOTE, out.array());
-            Player other = world.playerByGuid(target);
-            if (other != null && other.session != null) {
-                other.session.send(Opcodes.SMSG_TEXT_EMOTE, out.array());
-            }
+            ChannelHandler.textEmote(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_LOOT_METHOD) {
@@ -147,14 +133,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_GUILD_BANK_BUY_TAB) {
-            p.money = Math.max(0, p.money - 100000);
-            p.guildBankTabs++;
-            WowBuffer perm = new WowBuffer(4 + 6 * 4);
-            perm.putU32(6);
-            for (int i = 0; i < 6; i++) {
-                perm.putU32(0xFFFF);
-            }
-            s.send(Opcodes.MSG_GUILD_PERMISSIONS, perm.array());
+            GuildHandler.buyTab(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_AUCTION_LIST_ITEMS) {
@@ -170,135 +149,88 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_PET_ACTION) {
-            if (in.remaining() >= 8) {
-                in.getU64();
-            }
-            int data = in.remaining() >= 4 ? in.getU32() : 0;
-            int cmd = data & 0xFFFFFF;
-            int type = (data >>> 24) & 0xFF;
-            if (p.pet == null) {
-                p.pet = new Pet();
-                p.pet.summoned = true;
-                p.pet.name = "Pet";
-            }
-            if (type == 0x07 && cmd == 3 && p.clazz != 3) {
-                p.pet = null;
-            }
-            if (p.pet != null) {
-                s.send(Opcodes.SMSG_PET_SPELLS, new byte[20]);
-            }
+            PetHandler.action(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_PET_ABANDON) {
-            if (p.clazz != 3) {
-                p.pet = null;
-            }
+            PetHandler.abandon(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_TOTEM_DESTROYED) {
-            int slot = in.remaining() > 0 ? in.getU8() : 0;
-            if (slot >= 0 && slot < p.totems.length) {
-                p.totems[slot] = 0;
-            }
+            PetHandler.destroyTotem(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_CHANNEL_LIST) {
-            String name = in.remaining() > 0 ? in.getCString() : "";
-            WowBuffer list = new WowBuffer(32);
-            list.putU8(0);
-            list.putCString(name);
-            list.putU8(0);
-            list.putU32(1);
-            list.putU64(p.guid);
-            list.putU8(0);
-            s.send(Opcodes.SMSG_CHANNEL_LIST, list.array());
+            ChannelHandler.list(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_STABLE_PET) {
-            s.send(Opcodes.SMSG_STABLE_RESULT, new byte[]{0x08});
+            PetHandler.stablePet(s);
             return true;
         }
         if (opcode == Opcodes.CMSG_UNSTABLE_PET) {
-            s.send(Opcodes.SMSG_STABLE_RESULT, new byte[]{0x09});
+            PetHandler.unstablePet(s);
             return true;
         }
         if (opcode == Opcodes.CMSG_BUY_STABLE_SLOT) {
-            s.send(Opcodes.SMSG_STABLE_RESULT, new byte[]{0x08});
+            PetHandler.buyStableSlot(s);
             return true;
         }
         if (opcode == Opcodes.CMSG_SELL_ITEM) {
-            if (in.remaining() >= 8) {
-                in.getU64();
-            }
-            long item = in.remaining() >= 8 ? in.getU64() : 0;
-            Item it = p.items.remove((int) item);
-            if (it != null) {
-                it.slot = 74;
-                p.buyback.put(74, it);
-                p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_BUYBACK_PRICE_1, 1);
-            }
+            InventoryHandler.sellItem(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_BUYBACK_ITEM) {
-            if (in.remaining() >= 8) {
-                in.getU64();
-            }
-            int slot = in.remaining() >= 4 ? in.getU32() : 74;
-            Item it = p.buyback.remove(slot);
-            if (it != null) {
-                int bag = p.firstFreeBagSlot();
-                it.slot = bag < 0 ? 23 : bag;
-                p.items.put((int) it.guid, it);
-            }
+            InventoryHandler.buybackItem(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_REPAIR_ITEM) {
-            p.money = Math.max(0, p.money - 1);
-            for (Item it : p.items.values()) {
-                it.durability = 100;
-            }
+            InventoryHandler.repairItem(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_SOCKET_GEMS) {
-            long itemGuid = in.remaining() >= 8 ? in.getU64() : 0;
-            Item it = p.items.get((int) itemGuid);
-            if (it == null) {
-                it = p.items.values().stream().findFirst().orElse(null);
-            }
-            if (it != null) {
-                it.enchant = 1;
-            }
+            InventoryHandler.socketGems(s, in);
             return true;
         }
         if (opcode == Opcodes.MSG_RANDOM_ROLL) {
-            int min = in.remaining() >= 4 ? in.getU32() : 1;
-            int max = in.remaining() >= 4 ? in.getU32() : 100;
-            WowBuffer roll = new WowBuffer(16);
-            roll.putU32(min);
-            roll.putU32(max);
-            roll.putU32(min);
-            roll.putU64(p.guid);
-            s.send(Opcodes.MSG_RANDOM_ROLL, roll.array());
+            GroupHandler.randomRoll(s, in);
             return true;
         }
         if (opcode == Opcodes.MSG_MINIMAP_PING) {
-            s.send(Opcodes.MSG_MINIMAP_PING, in.remainingBytes());
+            GroupHandler.minimapPing(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_REPORT_PVP_AFK) {
-            p.afkReports++;
-            if (p.afkReports >= 3) {
-                p.auras.add(new Unit.Aura(PvpObjectives.IDLE_AFK, 0, 1));
+            long target = in.remaining() >= 8 ? in.getU64() : 0;
+            Player victim = target != 0 ? world.playerByGuid(target) : p;
+            if (victim == null) {
+                victim = p;
+            }
+            victim.afkReporterGuids.add(p.guid);
+            victim.afkReports = victim.afkReporterGuids.size();
+            if (victim.afkReporterGuids.size() >= 3) {
+                victim.auras.add(new Unit.Aura(PvpObjectives.IDLE_AFK, 0, 1));
             }
             return true;
         }
         if (opcode == Opcodes.MSG_TALENT_WIPE_CONFIRM) {
             p.auras.add(new Unit.Aura(PvpObjectives.TALENT_WIPE, 0, 1));
-            s.send(Opcodes.MSG_TALENT_WIPE_CONFIRM, new byte[0]);
+            WowBuffer learned = new WowBuffer(4);
+            learned.putU32(PvpObjectives.TALENT_WIPE);
+            s.send(Opcodes.SMSG_LEARNED_SPELL, learned.array());
+            WowBuffer confirm = new WowBuffer(12);
+            confirm.putU64(in.remaining() >= 8 ? in.getU64() : 0);
+            confirm.putU32(0);
+            s.send(Opcodes.MSG_TALENT_WIPE_CONFIRM, confirm.array());
             return true;
         }
         if (opcode == Opcodes.CMSG_CANCEL_CHANNELLING) {
             p.channeling = false;
+            WowBuffer fail = new WowBuffer(12);
+            fail.putPackedGuid(p.guid);
+            fail.putU32(in.remaining() >= 4 ? in.getU32() : 0);
+            fail.putU8(0);
+            s.send(Opcodes.SMSG_SPELL_FAILURE, fail.array());
             return true;
         }
         if (opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
@@ -323,6 +255,10 @@ public final class LaterOpcodes {
         }
         if (opcode == Opcodes.CMSG_PUSHQUESTTOPARTY) {
             int q = in.remaining() >= 4 ? in.getU32() : 0;
+            WowBuffer result = new WowBuffer(9);
+            result.putU64(p.guid);
+            result.putU8(0);
+            s.send(Opcodes.MSG_QUEST_PUSH_RESULT, result.array());
             if (p.group != null) {
                 for (Player m : p.group.members) {
                     if (m != p && m.session != null) {
@@ -332,7 +268,6 @@ public final class LaterOpcodes {
                     }
                 }
             }
-            s.send(Opcodes.MSG_QUEST_PUSH_RESULT, new byte[4]);
             return true;
         }
         if (opcode == Opcodes.CMSG_LOOT_MASTER_GIVE) {
@@ -350,6 +285,21 @@ public final class LaterOpcodes {
                 int bag = t.firstFreeBagSlot();
                 given.slot = bag < 0 ? 23 : bag;
                 t.items.put((int) given.guid, given);
+                WowBuffer push = new WowBuffer(48);
+                push.putU64(t.guid);
+                push.putU32(0);
+                push.putU32(0);
+                push.putU32(1);
+                push.putU8(0);
+                push.putU32(given.slot);
+                push.putU32(25);
+                push.putU32(0);
+                push.putU32(0);
+                push.putU32(1);
+                push.putU32(1);
+                if (t.session != null) {
+                    t.session.send(Opcodes.SMSG_ITEM_PUSH_RESULT, push.array());
+                }
             }
             return true;
         }
@@ -358,23 +308,45 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_GMTICKET_GETTICKET) {
-            WowBuffer t = new WowBuffer(16);
+            WowBuffer t = new WowBuffer(32);
             t.putU32(0x06);
             t.putCString(s.lastTicket == null ? "" : s.lastTicket);
+            t.putU8(0);
+            t.putFloat(0);
+            t.putFloat(0);
+            t.putFloat(0);
+            t.putU8(0);
+            t.putU8(0);
             s.send(Opcodes.SMSG_GMTICKET_GETTICKET, t.array());
             return true;
         }
         if (opcode == Opcodes.CMSG_ACCEPT_LFG_MATCH) {
+            LfgHandler.acceptMatch(s);
             return true;
         }
         if (opcode == Opcodes.CMSG_TURN_IN_PETITION) {
             p.arenaTeam = 1;
-            s.send(Opcodes.SMSG_PETITION_SIGN_RESULTS, new byte[4]);
+            WowBuffer roster = new WowBuffer(48);
+            roster.putU32(1);
+            roster.putU32(1);
+            roster.putU32(2);
+            roster.putU64(p.guid);
+            roster.putU8(1);
+            roster.putCString(p.name);
+            roster.putU32(0);
+            roster.putU8(p.level);
+            roster.putU8(p.clazz);
+            roster.putU32(0);
+            roster.putU32(0);
+            roster.putU32(0);
+            roster.putU32(0);
+            roster.putU32(0);
+            s.send(Opcodes.SMSG_ARENA_TEAM_ROSTER, roster.array());
             return true;
         }
         if (opcode == Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE
                 || opcode == Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE) {
-            spiritHealer(p);
+            DeathHandler.spiritHealer(s, world);
             return true;
         }
         if (opcode == Opcodes.MSG_INSPECT_HONOR_STATS) {
@@ -393,17 +365,5 @@ public final class LaterOpcodes {
             return false;
         }
         return false;
-    }
-
-    static void spiritHealer(Player p) {
-        p.ghost = false;
-        int max = p.maxHealth() == 0 ? 100 : p.maxHealth();
-        p.setHealth(max / 2);
-        for (Item it : p.items.values()) {
-            it.durability = (int) (it.durability * 0.75);
-        }
-        if (p.level >= 11) {
-            p.auras.add(new Unit.Aura(PvpObjectives.SICKNESS, 0, 1));
-        }
     }
 }

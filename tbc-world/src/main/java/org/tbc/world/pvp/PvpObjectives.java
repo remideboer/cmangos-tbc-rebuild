@@ -26,6 +26,10 @@ public final class PvpObjectives {
     public static final int WS_WSG_H = 1546;
     public static final int WS_HF_TOWER_A = 2476;
     public static final int WS_HF_TOWER_H = 2478;
+    public static final int WS_AB_RES_A = 1776;
+    public static final int WS_AB_RES_H = 1777;
+    public static final int WS_AB_BLACKSMITH_A = 1782;
+    public static final int WS_AB_BLACKSMITH_H = 1783;
     public static final int[] EY_FLAG_POINTS = {75, 85, 100, 500};
     public static final int TIMER_TF_LOCK_MS = 6 * 60 * 60 * 1000;
     public static final int WS_TF_LOCK_A = 2767;

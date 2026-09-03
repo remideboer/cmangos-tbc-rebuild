@@ -40,6 +40,8 @@ public final class Player extends Unit {
     public float bindX, bindY, bindZ;
     public boolean online;
     public boolean ghost;
+    public long ghostTimeMs;
+    public final java.util.Set<Long> afkReporterGuids = new java.util.HashSet<>();
     public long logoutAtMs;
     public boolean logoutRequest;
     public int restFlags;

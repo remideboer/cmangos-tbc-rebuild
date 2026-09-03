@@ -32,4 +32,12 @@ public final class LfgHandler {
         list.putU32(0);
         s.send(Opcodes.MSG_LOOKING_FOR_GROUP, list.array());
     }
+
+    public static void acceptMatch(WorldSession s) {
+        WowBuffer u = new WowBuffer(8);
+        u.putU8(1);
+        u.putU8(1);
+        u.putU8(0);
+        s.send(Opcodes.SMSG_LFG_UPDATE, u.array());
+    }
 }

@@ -83,6 +83,9 @@ public final class UpdateBuilder {
             v[UpdateFields.ITEM_FIELD_DURABILITY] = it.durability;
             v[UpdateFields.ITEM_FIELD_MAXDURABILITY] = Math.max(it.durability, 1);
         }
+        if (it.enchant != 0) {
+            v[UpdateFields.ITEM_FIELD_ENCHANTMENT_1_1 + 5 * 3] = it.enchant;
+        }
         WowBuffer block = new WowBuffer(256);
         block.putU8(UPDATETYPE_CREATE_OBJECT);
         block.putPackedGuid(guid);

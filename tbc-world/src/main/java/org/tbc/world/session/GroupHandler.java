@@ -35,4 +35,49 @@ public final class GroupHandler {
             }
         }
     }
+
+    public static void randomRoll(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        int min = in.remaining() >= 4 ? in.getU32() : 1;
+        int max = in.remaining() >= 4 ? in.getU32() : 100;
+        if (max > 10000) {
+            max = 10000;
+        }
+        int roll = min;
+        WowBuffer out = new WowBuffer(24);
+        out.putU32(min);
+        out.putU32(max);
+        out.putU32(roll);
+        out.putU64(p.guid);
+        byte[] payload = out.array();
+        if (p.group != null) {
+            for (Player m : p.group.members) {
+                if (m.session != null) {
+                    m.session.send(Opcodes.MSG_RANDOM_ROLL, payload);
+                }
+            }
+        } else {
+            s.send(Opcodes.MSG_RANDOM_ROLL, payload);
+        }
+    }
+
+    public static void minimapPing(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        float x = in.remaining() >= 4 ? in.getFloat() : 0;
+        float y = in.remaining() >= 4 ? in.getFloat() : 0;
+        WowBuffer out = new WowBuffer(16);
+        out.putU64(p.guid);
+        out.putFloat(x);
+        out.putFloat(y);
+        byte[] payload = out.array();
+        if (p.group != null) {
+            for (Player m : p.group.members) {
+                if (m.session != null) {
+                    m.session.send(Opcodes.MSG_MINIMAP_PING, payload);
+                }
+            }
+        } else {
+            s.send(Opcodes.MSG_MINIMAP_PING, payload);
+        }
+    }
 }

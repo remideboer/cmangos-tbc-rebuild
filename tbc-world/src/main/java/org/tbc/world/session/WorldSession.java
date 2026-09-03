@@ -267,15 +267,15 @@ public final class WorldSession {
             case Opcodes.MSG_AUCTION_HELLO -> handleAuctionHello(world, in);
             case Opcodes.CMSG_BATTLEMASTER_JOIN -> handleBgJoin(world, 489);
             case Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA -> handleBgJoin(world, 562);
-            case Opcodes.CMSG_REPOP_REQUEST -> handleRepop(world);
-            case Opcodes.CMSG_RECLAIM_CORPSE -> handleReclaim(world, in);
+            case Opcodes.CMSG_REPOP_REQUEST -> DeathHandler.repop(this, world);
+            case Opcodes.CMSG_RECLAIM_CORPSE -> DeathHandler.reclaim(this, world, in);
             case Opcodes.CMSG_SELF_RES -> {
                 player.setHealth(player.maxHealth());
                 player.ghost = false;
             }
             case Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE ->
                     org.tbc.world.session.LaterOpcodes.handle(this, world, opcode, in);
-            case Opcodes.CMSG_JOIN_CHANNEL -> handleJoinChannel(in);
+            case Opcodes.CMSG_JOIN_CHANNEL -> ChannelHandler.join(this, in);
             case Opcodes.CMSG_BUY_ITEM -> handleBuy(world, in);
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
             case Opcodes.CMSG_LEARN_TALENT -> handleTalent(in);
@@ -290,7 +290,7 @@ public final class WorldSession {
             case Opcodes.CMSG_TOGGLE_PVP -> player.pvpFlagged = !player.pvpFlagged;
             case Opcodes.CMSG_OPEN_ITEM -> {
             }
-            case Opcodes.MSG_PVP_LOG_DATA -> send(Opcodes.MSG_PVP_LOG_DATA, u32(0));
+            case Opcodes.MSG_PVP_LOG_DATA -> sendPvpLog();
             default -> handleRest(world, opcode, in);
         }
     }
@@ -815,52 +815,6 @@ public final class WorldSession {
         send(Opcodes.SMSG_BATTLEFIELD_STATUS, st.array());
     }
 
-    private void handleRepop(World world) {
-        player.ghost = true;
-        player.setHealth(1);
-        org.tbc.world.entity.Corpse corpse = new org.tbc.world.entity.Corpse();
-        corpse.ownerGuid = player.guid;
-        corpse.mapId = player.mapId;
-        corpse.relocate(player.x, player.y, player.z, player.o);
-        player.corpse = corpse;
-        player.auras.add(new org.tbc.world.entity.Unit.Aura(org.tbc.world.pvp.PvpObjectives.GHOST_AURA, 0, 1));
-        WowBuffer loc = new WowBuffer(16);
-        loc.putU32(player.mapId);
-        loc.putFloat(player.x);
-        loc.putFloat(player.y);
-        loc.putFloat(player.z);
-        send(Opcodes.SMSG_DEATH_RELEASE_LOC, loc.array());
-        send(Opcodes.MSG_CORPSE_QUERY, u32(1));
-    }
-
-    private void handleReclaim(World world, WowBuffer in) {
-        in.getU64();
-        player.ghost = false;
-        player.setHealth(player.maxHealth() == 0 ? 50 : player.maxHealth() / 2);
-    }
-
-    private void handleJoinChannel(WowBuffer in) {
-        in.getU32();
-        in.getU8();
-        in.getU8();
-        String name = in.getCString();
-        if (in.remaining() > 0) {
-            in.getCString();
-        }
-        channels.add(name);
-        WowBuffer n = new WowBuffer(32);
-        n.putU8(2);
-        n.putCString(name);
-        send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
-        WowBuffer list = new WowBuffer(16);
-        list.putU8(1);
-        list.putCString(name);
-        list.putU8(0);
-        list.putU32(1);
-        list.putU64(player.guid);
-        send(Opcodes.SMSG_CHANNEL_LIST, list.array());
-    }
-
     private void handleBuy(World world, WowBuffer in) {
         world.content.buy(player, world.map(player.mapId, player.instanceId), in, false, world.nextItemGuid(), this::send);
     }
@@ -926,10 +880,13 @@ public final class WorldSession {
     }
 
     private void handleInspect(WowBuffer in) {
-        long guid = in.getPackedGuid();
-        WowBuffer out = new WowBuffer(16);
+        long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        WowBuffer out = new WowBuffer(80);
         out.putPackedGuid(guid);
-        out.putU32(0);
+        out.putU32(0x3D);
+        for (int i = 0; i < 61; i++) {
+            out.putU8(0);
+        }
         send(Opcodes.SMSG_INSPECT_TALENT, out.array());
     }
 
@@ -940,6 +897,17 @@ public final class WorldSession {
         if (player.duelOpponent != null && player.duelOpponent.session != null) {
             player.duelOpponent.session.send(Opcodes.SMSG_DUEL_COUNTDOWN, cd.array());
         }
+    }
+
+    private void sendPvpLog() {
+        WowBuffer log = new WowBuffer(16);
+        log.putU8(0);
+        log.putU8(1);
+        log.putU8(2);
+        log.putU32(0);
+        log.putU32(0);
+        log.putU32(0);
+        send(Opcodes.MSG_PVP_LOG_DATA, log.array());
     }
 
     private void system(String msg) {

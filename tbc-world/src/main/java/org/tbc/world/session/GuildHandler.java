@@ -127,4 +127,28 @@ public final class GuildHandler {
         }
         s.send(Opcodes.SMSG_GUILD_BANK_LIST, list.array());
     }
+
+    public static final int TAB_PRICE = 100000;
+
+    public static void buyTab(WorldSession s, WowBuffer in) {
+        if (in.remaining() >= 8) {
+            in.getU64();
+        }
+        Player p = s.player();
+        if (p.guildId == 0) {
+            return;
+        }
+        p.money = Math.max(0, p.money - TAB_PRICE);
+        p.guildBankTabs++;
+        WowBuffer perm = new WowBuffer(80);
+        perm.putU32(0);
+        perm.putU32(GR_RIGHT_EMPTY);
+        perm.putU32(0);
+        perm.putU8(p.guildBankTabs);
+        for (int t = 0; t < GUILD_BANK_MAX_TABS; t++) {
+            perm.putU32(0);
+            perm.putU32(0);
+        }
+        s.send(Opcodes.MSG_GUILD_PERMISSIONS, perm.array());
+    }
 }
