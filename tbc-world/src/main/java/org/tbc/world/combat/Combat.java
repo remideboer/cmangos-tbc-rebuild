@@ -1,6 +1,7 @@
 package org.tbc.world.combat;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.ai.EventAi;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 
@@ -47,6 +48,10 @@ public final class Combat {
     }
 
     public MeleeTable.Result swing(Player p, Creature c, long nowMs) {
+        return swing(p, c, nowMs, EventAi.NOOP);
+    }
+
+    public MeleeTable.Result swing(Player p, Creature c, long nowMs, EventAi.SpellCast deathCast) {
         if (!c.alive() || c.evading) {
             return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
         }
@@ -64,6 +69,9 @@ public final class Combat {
             c.lootable = true;
             c.victim = 0;
             stopAttack(p);
+            if (c.eventAi != null) {
+                c.eventAi.onDeath(c, p, deathCast == null ? EventAi.NOOP : deathCast);
+            }
         }
         return r;
     }
@@ -82,6 +90,10 @@ public final class Combat {
     }
 
     public void evade(Creature c) {
+        evade(c, EventAi.NOOP);
+    }
+
+    public void evade(Creature c, EventAi.SpellCast cast) {
         c.evading = true;
         c.inCombat = false;
         c.victim = 0;
@@ -92,6 +104,11 @@ public final class Combat {
         c.setHealth(c.maxHealth());
         c.relocate(c.spawnX, c.spawnY, c.spawnZ, c.spawnO);
         c.evading = false;
+        if (c.eventAi != null) {
+            EventAi.SpellCast sink = cast == null ? EventAi.NOOP : cast;
+            c.eventAi.onEvade(c, sink);
+            c.eventAi.onReachedHome(c, sink);
+        }
     }
 
     public byte[] lootResponse(Player p, Creature c) {

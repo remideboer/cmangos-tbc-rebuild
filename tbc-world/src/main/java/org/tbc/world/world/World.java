@@ -8,6 +8,7 @@ import org.tbc.common.DbPool;
 import org.tbc.common.Sha1;
 import org.tbc.common.Srp6;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.ai.EventAi;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.combat.MeleeTable;
 import org.tbc.world.content.Content;
@@ -28,6 +29,7 @@ import org.tbc.world.pvp.EyBattlefield;
 import org.tbc.world.pvp.OutdoorPvp;
 import org.tbc.world.script.ScriptRegistry;
 import org.tbc.world.session.WorldSession;
+import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.spell.SpellEngine;
 
 import java.nio.charset.StandardCharsets;
@@ -277,7 +279,8 @@ public final class World implements Runnable {
     }
 
     public void meleeHit(Player p, Creature c) {
-        MeleeTable.Result r = combat.swing(p, c, nowMs());
+        GameMap hitMap = map(p.mapId, p.instanceId);
+        MeleeTable.Result r = combat.swing(p, c, nowMs(), (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
         if (r.damage() > 0) {
             p.rewardRageFromHit(r.damage(), r.outcome() == MeleeTable.Outcome.CRIT);
         }
@@ -308,14 +311,19 @@ public final class World implements Runnable {
         }
         for (GameMap m : maps.values()) {
             for (Creature c : m.creatures.values()) {
-                if (!c.inCombat && c.script == null) {
+                if (!c.inCombat && c.script == null && c.eventAi == null) {
                     continue;
                 }
+                EventAi.SpellCast sink = (cr, t, spell) -> sendEventAiCast(m, cr, t, spell);
                 if (c.inCombat) {
                     Player victim = m.players.get(c.victim);
                     if (combat.shouldEvade(c, victim, nowMs())) {
-                        combat.evade(c);
+                        combat.evade(c, sink);
                     }
+                }
+                if (c.eventAi != null) {
+                    Player victim = m.players.get(c.victim);
+                    c.eventAi.update(c, victim, diff, sink, () -> combat.evade(c, sink));
                 }
                 if (c.script != null && c.inCombat) {
                     Unit victim = m.players.values().stream().findFirst().orElse(null);
@@ -349,6 +357,19 @@ public final class World implements Runnable {
                     Thread.currentThread().interrupt();
                     break;
                 }
+            }
+        }
+    }
+
+    private void sendEventAiCast(GameMap m, Creature cr, Unit t, int spell) {
+        SpellCastTargets tgt = new SpellCastTargets();
+        long hit = t == null ? cr.guid : t.guid;
+        byte[] start = spells.encodeStart(cr.guid, spell, 1, tgt);
+        byte[] go = spells.encodeGo(cr.guid, hit, spell, nowMs(), tgt);
+        for (Player pl : m.players.values()) {
+            if (pl.session != null) {
+                pl.session.send(Opcodes.SMSG_SPELL_START, start);
+                pl.session.send(Opcodes.SMSG_SPELL_GO, go);
             }
         }
     }

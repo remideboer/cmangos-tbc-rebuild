@@ -1,9 +1,13 @@
 package org.tbc.world.combat;
 
+import org.tbc.world.ai.EventAi;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -130,6 +134,56 @@ class CombatTest {
         assertEquals(9, rel.length);
         assertNotNull(combat.encodeAttackStart(1, 2));
         assertNotNull(combat.encodeLoot(2, 0, 0));
+    }
+
+    @Test
+    void swingWhenEventAiShouldFireDeathCastAtKiller() {
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_DEATH, 0, 100, 0, 0, 0, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_HOSTILE), EventAi.Action.none(), EventAi.Action.none())));
+        c.setHealth(1);
+        List<Integer> casts = new ArrayList<>();
+        List<Long> targets = new ArrayList<>();
+        combat.swing(p, c, 1, (cr, t, id) -> {
+            casts.add(id);
+            targets.add(t.guid);
+        });
+        assertFalse(c.alive());
+        assertEquals(List.of(7164), casts);
+        assertEquals(p.guid, targets.get(0));
+    }
+
+    @Test
+    void swingWhenEventAiAndNullDeathCastShouldStillKill() {
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_DEATH, 0, 100, 0, 0, 0, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        c.setHealth(1);
+        combat.swing(p, c, 1, null);
+        assertFalse(c.alive());
+    }
+
+    @Test
+    void evadeWhenEventAiShouldFireEvadeAndReachedHome() {
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(
+                new EventAi.Script(EventAi.EVENT_EVADE, 0, 100, 0, 0, 0, 0, 0,
+                        EventAi.Action.cast(133, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none()),
+                new EventAi.Script(EventAi.EVENT_REACHED_HOME, 0, 100, 0, 0, 0, 0, 0,
+                        EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        List<Integer> casts = new ArrayList<>();
+        combat.evade(c, (cr, t, id) -> casts.add(id));
+        assertEquals(List.of(133, 7164), casts);
+        assertFalse(c.inCombat);
+    }
+
+    @Test
+    void evadeWhenEventAiAndNullCastShouldReset() {
+        c.eventAi = new EventAi();
+        combat.startAttack(p, c, 10);
+        combat.evade(c, null);
+        assertFalse(c.inCombat);
+        assertEquals(c.maxHealth(), c.health());
     }
 
     private static long guidAt(byte[] p) {

@@ -817,7 +817,7 @@ public final class ObjectMgr {
         }
         if (entry == 103) {
             c.eventAi = new org.tbc.world.ai.EventAi();
-            c.eventAi.rows.add(new org.tbc.world.ai.EventAi.Row(4, 100, 11, 7164, 0, 0));
+            c.eventAi.load(java.util.List.of(org.tbc.world.ai.EventAi.Script.aggroCast(7164)));
         }
         return c;
     }

@@ -1,0 +1,66 @@
+package org.tbc;
+
+import org.tbc.bdd.WowClientDouble;
+import org.tbc.world.ai.EventAi;
+import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.world.World;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/** EventAI catalog deepen: TIMER_IN_COMBAT / TIMER_OOC over World.tick. Keep TP-SL11-001 Gherkin. */
+class Slice11EventAiTest {
+    private static final World.Account ACC =
+            new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
+
+    @Test
+    void timerInCombatWhenWindowElapsedShouldSendSpellGo() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Timer");
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(EventAi.Script.timerInCombat(0, 1000, 7164, EventAi.TARGET_SELF)));
+        world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x, c.y, c.z, c.o);
+        client.attackSwing(world, c.guid);
+        client.clear();
+        world.tick(501);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
+    }
+
+    @Test
+    void timerOocWhenWorldTickShouldSendSpellGo() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Ooc");
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(EventAi.Script.timerOoc(0, 1000, 7164, EventAi.TARGET_SELF)));
+        world.map(p.mapId, p.instanceId).add(c);
+        client.clear();
+        world.tick(501);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
+    }
+
+    private static WowClientDouble login(World world, String name) {
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        return client;
+    }
+
+    private static int spellId(byte[] p) {
+        int off = WowClientDouble.skipPackedGuid(p, 0);
+        off = WowClientDouble.skipPackedGuid(p, off);
+        return WowClientDouble.u32le(p, off);
+    }
+}
