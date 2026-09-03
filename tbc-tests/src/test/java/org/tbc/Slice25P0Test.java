@@ -49,6 +49,26 @@ class Slice25P0Test {
     }
 
     @Test
+    void tpSl25TerokkarFiveTowersLockWorldState() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "TfLock", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        client.clear();
+        for (long goId : PvpObjectives.GO_TF_TOWERS) {
+            WowBuffer go = new WowBuffer(8);
+            go.putU64(goId);
+            client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        }
+        assertTrue(hasWorldState(client, PvpObjectives.WS_TF_LOCK_A, 1));
+        assertTrue(hasWorldState(client, PvpObjectives.WS_TF_COUNT_A, 5));
+        assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.TEROKKAR_BLESSING));
+        assertEquals(PvpObjectives.TIMER_TF_LOCK_MS, world.outdoorPvp.terokkarLockMs);
+    }
+
+    @Test
     void tpSl25HalaaBannerWorldState() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();

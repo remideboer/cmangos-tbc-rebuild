@@ -11,6 +11,8 @@ public final class OutdoorPvp {
     public int halaaGuards;
     public int halaaGy;
     public long terokkarLockMs;
+    private final java.util.Set<Long> tfAlliance = new java.util.HashSet<>();
+    private final java.util.Set<Long> tfHorde = new java.util.HashSet<>();
     private final java.util.ArrayDeque<int[]> pendingWs = new java.util.ArrayDeque<>();
 
     public void deliverSilithyst(Player p, int n) {
@@ -34,10 +36,43 @@ public final class OutdoorPvp {
     }
 
     public void lockTerokkar(Player p) {
+        lockTerokkar(p, true);
+    }
+
+    public void lockTerokkar(Player p, boolean alliance) {
         terokkarLockMs = PvpObjectives.TIMER_TF_LOCK_MS;
         p.auras.add(new Unit.Aura(PvpObjectives.TEROKKAR_BLESSING, 0, 1));
-        emit(PvpObjectives.WS_TF_LOCK_A, 1);
-        emit(PvpObjectives.WS_TF_LOCK_H, 0);
+        if (alliance) {
+            emit(PvpObjectives.WS_TF_LOCK_A, 1);
+            emit(PvpObjectives.WS_TF_LOCK_H, 0);
+        } else {
+            emit(PvpObjectives.WS_TF_LOCK_A, 0);
+            emit(PvpObjectives.WS_TF_LOCK_H, 1);
+        }
+    }
+
+    /** Own a Terokkar tower GO; five Alliance or Horde towers lock the zone (TP-SL25-002). */
+    public void captureTfTower(Player p, long goEntry, boolean alliance) {
+        if (!PvpObjectives.isTfTower(goEntry)) {
+            return;
+        }
+        if (alliance) {
+            if (!tfAlliance.add(goEntry)) {
+                return;
+            }
+            emit(PvpObjectives.WS_TF_COUNT_A, tfAlliance.size());
+            if (tfAlliance.size() >= 5) {
+                lockTerokkar(p, true);
+            }
+        } else {
+            if (!tfHorde.add(goEntry)) {
+                return;
+            }
+            emit(PvpObjectives.WS_TF_COUNT_H, tfHorde.size());
+            if (tfHorde.size() >= 5) {
+                lockTerokkar(p, false);
+            }
+        }
     }
 
     public void captureHalaa(Player p) {

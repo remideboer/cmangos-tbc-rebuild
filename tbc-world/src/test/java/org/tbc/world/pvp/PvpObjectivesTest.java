@@ -70,6 +70,23 @@ class PvpObjectivesTest {
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.TEROKKAR_BLESSING));
         var ws = zone.drainWorldStates();
         assertTrue(ws.stream().anyMatch(u -> u[0] == PvpObjectives.WS_TF_LOCK_A && u[1] == 1));
+        zone.lockTerokkar(p, false);
+        ws = zone.drainWorldStates();
+        assertTrue(ws.stream().anyMatch(u -> u[0] == PvpObjectives.WS_TF_LOCK_H && u[1] == 1));
+        OutdoorPvp towers = new OutdoorPvp();
+        Player cap = new Player();
+        towers.captureTfTower(cap, 1, true);
+        assertEquals(0, towers.terokkarLockMs);
+        for (long go : PvpObjectives.GO_TF_TOWERS) {
+            towers.captureTfTower(cap, go, true);
+            towers.captureTfTower(cap, go, true);
+        }
+        assertEquals(PvpObjectives.TIMER_TF_LOCK_MS, towers.terokkarLockMs);
+        OutdoorPvp horde = new OutdoorPvp();
+        for (long go : PvpObjectives.GO_TF_TOWERS) {
+            horde.captureTfTower(cap, go, false);
+        }
+        assertEquals(PvpObjectives.TIMER_TF_LOCK_MS, horde.terokkarLockMs);
     }
 
     @Test

@@ -40,7 +40,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 22 Honor / inspect / duel | p0_junit | Wire: `Slice22P0Test` `SMSG_PVP_CREDIT` + cap 75000 (`001`), inspect packed + 0x3D (`002`), duel **3000** + OOB (`003`). |
 | 23 Arena teams | p0_junit | Wire: `Slice23P0Test` arena roster personalRating (`001`), PvP log type 0 (`002`), AFK **43680** from 3 unique reporters (`003`). |
 | 24 AV / AB / EY | p0_junit | AB stables/blacksmith WS; EY pickup + score **75** → WS **2749** (`TP-SL24-003`); AV Snowfall. |
-| 25 Outdoor PvP | p0_junit | Silithyst; Northpass; ZM East **182523**; Halaa banner **182210** WS **2673**/2671 + buff **33795** (`TP-SL25-003`); TF lock domain. |
+| 25 Outdoor PvP | p0_junit | Silithyst; Northpass; ZM East; Halaa **182210** WS **2673**; TF five towers lock WS **2767** + **33377** (`TP-SL25-002`). |
 | 26 Spell algorithms | p0_junit | Door anim; chest open-lock → ACTIVE + loot; energize; talent wipe; cancel channel. |
 | 27 Transports | p0_junit | Board MO + pathProgress; `leaveMoTransport`; ONTRANSPORT echo; ACK; mount. |
 | 28 Misc packets | p0_junit | Wire: `Slice28P0Test` quest push guid (`001`), master loot `SMSG_ITEM_PUSH_RESULT` (`002`), GMTICKET **0x06** (`003`), LFG accept `SMSG_LFG_UPDATE` (`004`). |

@@ -930,6 +930,10 @@ public final class WorldSession {
             world.outdoorPvp.captureHalaa(player, true);
             flushWorldStates(world.outdoorPvp.drainWorldStates());
         }
+        if (PvpObjectives.isTfTower(guid)) {
+            world.outdoorPvp.captureTfTower(player, guid, true);
+            flushWorldStates(world.outdoorPvp.drainWorldStates());
+        }
         GameMap map = world.map(player.mapId, player.instanceId);
         org.tbc.world.entity.GameObject go = map.gameObjects.get(guid);
         if (go != null && GameObjectUse.isMoTransport(go)) {

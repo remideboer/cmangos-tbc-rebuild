@@ -44,6 +44,10 @@ public final class PvpObjectives {
     public static final int TIMER_TF_LOCK_MS = 6 * 60 * 60 * 1000;
     public static final int WS_TF_LOCK_A = 2767;
     public static final int WS_TF_LOCK_H = 2768;
+    public static final int WS_TF_COUNT_A = 2621;
+    public static final int WS_TF_COUNT_H = 2622;
+    /** outdoor-pvp.md Terokkar towers West/North/East/SE/South */
+    public static final long[] GO_TF_TOWERS = {183104, 183411, 183412, 183413, 183414};
     public static final int WS_EP_NORTHPASS_A = 2372;
     public static final int WS_EP_NORTHPASS_H = 2373;
     public static final int WS_EP_NORTHPASS_N = 2352;
@@ -87,6 +91,15 @@ public final class PvpObjectives {
             i = EY_FLAG_POINTS.length - 1;
         }
         return EY_FLAG_POINTS[i];
+    }
+
+    public static boolean isTfTower(long guid) {
+        for (long id : GO_TF_TOWERS) {
+            if (id == guid) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private PvpObjectives() {}
