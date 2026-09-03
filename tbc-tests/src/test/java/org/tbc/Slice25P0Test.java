@@ -8,6 +8,7 @@ import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL25-001 deepen — Silithyst deliver emits WS 2313 + buff 30754. */
@@ -45,6 +46,25 @@ class Slice25P0Test {
         client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
         assertTrue(hasWorldState(client, PvpObjectives.WS_EP_NORTHPASS_A, 1));
         assertTrue(hasWorldState(client, PvpObjectives.WS_EP_NORTHPASS_N, 0));
+    }
+
+    @Test
+    void tpSl25HalaaBannerWorldState() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Halaa", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        client.clear();
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(PvpObjectives.GO_HALAA_BANNER);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_HALAA_A, 1));
+        assertTrue(hasWorldState(client, PvpObjectives.WS_HALAA_N, 0));
+        assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.HALAA_BUFF));
+        assertEquals(PvpObjectives.HALAA_GY, world.outdoorPvp.halaaGy);
+        assertEquals(PvpObjectives.HALAA_GUARDS, world.outdoorPvp.halaaGuards);
     }
 
     @Test

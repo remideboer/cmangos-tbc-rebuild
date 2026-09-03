@@ -57,6 +57,11 @@ public final class PvpObjectives {
     public static final int WS_EY_TOWERS_A = 2752;
     public static final int WS_EY_TOWERS_H = 2753;
     public static final int HALAA_GUARDS = 15;
+    public static final int GO_HALAA_BANNER = 182210;
+    /** outdoor-pvp.md Nagrand controlled A/H/N */
+    public static final int WS_HALAA_A = 2673;
+    public static final int WS_HALAA_H = 2672;
+    public static final int WS_HALAA_N = 2671;
 
     public static int avCaptureMs(boolean snowfallFirstClaim) {
         return snowfallFirstClaim ? AV_SNOWFALL_MS : AV_CAP_MS;

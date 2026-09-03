@@ -41,9 +41,23 @@ public final class OutdoorPvp {
     }
 
     public void captureHalaa(Player p) {
+        captureHalaa(p, true);
+    }
+
+    /** Banner GO 182210 — WS A/H/N 2673/2672/2671, 15 guards, GY 993, buff 33795 (TP-SL25-003). */
+    public void captureHalaa(Player p, boolean alliance) {
         halaaGuards = PvpObjectives.HALAA_GUARDS;
         halaaGy = PvpObjectives.HALAA_GY;
         p.auras.add(new Unit.Aura(PvpObjectives.HALAA_BUFF, 0, 1));
+        if (alliance) {
+            emit(PvpObjectives.WS_HALAA_A, 1);
+            emit(PvpObjectives.WS_HALAA_H, 0);
+            emit(PvpObjectives.WS_HALAA_N, 0);
+        } else {
+            emit(PvpObjectives.WS_HALAA_A, 0);
+            emit(PvpObjectives.WS_HALAA_H, 1);
+            emit(PvpObjectives.WS_HALAA_N, 0);
+        }
     }
 
     /** Eastern Plaguelands Northpass tower GO 181899 — WS A/H/N 2372/2373/2352. */

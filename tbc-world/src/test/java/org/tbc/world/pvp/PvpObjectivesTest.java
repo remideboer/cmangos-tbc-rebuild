@@ -80,5 +80,10 @@ class PvpObjectivesTest {
         assertEquals(15, zone.halaaGuards);
         assertEquals(993, zone.halaaGy);
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.HALAA_BUFF));
+        var ws = zone.drainWorldStates();
+        assertTrue(ws.stream().anyMatch(u -> u[0] == PvpObjectives.WS_HALAA_A && u[1] == 1));
+        zone.captureHalaa(p, false);
+        ws = zone.drainWorldStates();
+        assertTrue(ws.stream().anyMatch(u -> u[0] == PvpObjectives.WS_HALAA_H && u[1] == 1));
     }
 }

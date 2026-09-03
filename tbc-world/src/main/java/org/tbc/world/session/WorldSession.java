@@ -926,6 +926,10 @@ public final class WorldSession {
             world.outdoorPvp.captureZmEast(true);
             flushWorldStates(world.outdoorPvp.drainWorldStates());
         }
+        if (guid == PvpObjectives.GO_HALAA_BANNER) {
+            world.outdoorPvp.captureHalaa(player, true);
+            flushWorldStates(world.outdoorPvp.drainWorldStates());
+        }
         GameMap map = world.map(player.mapId, player.instanceId);
         org.tbc.world.entity.GameObject go = map.gameObjects.get(guid);
         if (go != null && GameObjectUse.isMoTransport(go)) {
