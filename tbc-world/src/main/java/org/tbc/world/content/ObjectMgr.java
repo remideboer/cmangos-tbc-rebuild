@@ -192,9 +192,11 @@ public final class ObjectMgr {
     public final Map<Integer, List<Integer>> questInvolved = new HashMap<>();
     public record TrainerSpell(int spell, int cost, int reqLevel) {}
     public record TaxiHop(int from, int to, int cost, float x, float y, float z) {}
+    public record ZoneWeather(int zone, int state, float grade) {}
     public final Map<Integer, List<TrainerSpell>> trainerSpells = new HashMap<>();
     public final Map<Integer, Integer> trainerClass = new HashMap<>();
     public final Map<Long, TaxiHop> taxiPaths = new HashMap<>();
+    public final Map<Integer, ZoneWeather> weather = new HashMap<>();
     public final AtomicInteger nextCreatureLow = new AtomicInteger(1_000_000);
     public final AtomicInteger nextItemLow = new AtomicInteger(1);
 
@@ -228,6 +230,11 @@ public final class ObjectMgr {
             loadItems(c);
             loadGameObjects(c);
             loadPageTexts(c);
+            try {
+                loadWeather(c);
+            } catch (Exception e) {
+                log.debug("game_weather load skipped: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.warn("ObjectMgr SQL load failed, using defaults: {}", e.getMessage());
             seedDefaults();
@@ -493,6 +500,16 @@ public final class ObjectMgr {
         }
     }
 
+    private void loadWeather(Connection c) throws Exception {
+        try (PreparedStatement ps = c.prepareStatement("SELECT zone FROM game_weather");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                int zone = rs.getInt(1);
+                weather.put(zone, new ZoneWeather(zone, Content.WEATHER_STATE_FINE, 0f));
+            }
+        }
+    }
+
     private void seedDefaults() {
         createInfo.put(key(1, 1), new CreateInfo(1, 1, 0, 12, -8949.95f, -132.493f, 83.5312f, 0f));
         createInfo.put(key(2, 1), new CreateInfo(2, 1, 1, 14, -618.518f, -4251.67f, 38.718f, 0f));
@@ -517,6 +534,7 @@ public final class ObjectMgr {
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_FLIGHTMASTER, "", "", 0));
         taxiPaths.put(taxiKey(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE),
                 new TaxiHop(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE, 0, -4821.13f, -1152.4f, 502.295f));
+        weather.put(Content.ZONE_ELWYNN, new ZoneWeather(Content.ZONE_ELWYNN, Content.WEATHER_STATE_FINE, 0f));
         quests.put(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
                 0, "Speak with Marshal McBride.", "Speak with Marshal McBride."));
         vendorItems.put(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
@@ -550,6 +568,7 @@ public final class ObjectMgr {
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_FLIGHTMASTER, "", "", 0));
         taxiPaths.putIfAbsent(taxiKey(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE),
                 new TaxiHop(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE, 0, -4821.13f, -1152.4f, 502.295f));
+        weather.putIfAbsent(Content.ZONE_ELWYNN, new ZoneWeather(Content.ZONE_ELWYNN, Content.WEATHER_STATE_FINE, 0f));
     }
 
     public static long taxiKey(int from, int to) {

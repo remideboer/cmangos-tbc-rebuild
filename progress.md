@@ -3,7 +3,7 @@
 Status: `not_started` | `in_progress` | `p0_junit` | `p0_client` | `done`
 
 `done` requires P0 pass. `skip` is not pass. See `spec/07-rebuild/test-plan.md`.
-JUnit: `mvn -f tbc-server/pom.xml test` (TP-INV, TP-NEG, SL01–03 P0, matrix, Gherkin slices 4–11, `LaterP0Test` 14–30, `SpecFilesP0Test` 31–34).
+JUnit: `mvn -f tbc-server/pom.xml test` (TP-INV, TP-NEG, SL01–03 P0, matrix, Gherkin slices 4–11, Slice14P0Test + `LaterP0Test` 15–30, `SpecFilesP0Test` 31–34).
 
 Sidecar: `tbc-admin` is a Swing operator tool for `tbcrealmd.account` (create / role / password / delete). It is **not** a slice, **not** SOAP/RA, and **not** `p0_client`. Passwords are stored as SRP6 `v`/`s` only.
 
@@ -29,7 +29,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 11 EventAI | p0_junit | Gherkin Garrick **103** spell **7164**; missing ScriptName log. **Not `p0_client`.** |
 | 12 Combat math | p0_junit | `MeleeTableTest` 5% miss/dodge/parry/block; no glance L1 vs L1 |
 | 13 Spell catalogs | p0_junit | `SpellEngine.knownEffect` + dummy/script no crash |
-| 14 Living world | p0_junit | `LaterP0Test`: swap, trainer buy, taxi path, `SMSG_WEATHER` |
+| 14 Living world | p0_junit | Wire: `Slice14P0Test` swap VALUES (`TP-SL14-001`), Llane 911 Battle Shout **6673** (`002`), Dungar taxi `SMSG_MONSTER_MOVE` (`003`), Elwynn `game_weather` snapshot (`004`). Not `p0_client`. |
 | 15 Social leftover | p0_junit | Rolls, raid convert, guild create/roster gender, guild bank swap, AH list count |
 | 16 PvP leftover | p0_junit | Arena map **562**; Hellfire WS **2476/2478**; LFG list; WSG flag aura **23333** |
 | 17 Death | p0_junit | Repop ghost **8326** + corpse + `SMSG_DEATH_RELEASE_LOC`; reclaim 50%; spirit healer **15007** |

@@ -3,6 +3,7 @@ package org.tbc;
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
+import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -112,6 +113,22 @@ class Slice14P0Test {
         assertEquals(Content.ERR_TAXIOK, WowClientDouble.u32le(client.payload(Opcodes.SMSG_ACTIVATETAXIREPLY), 0));
         WowBuffer move = new WowBuffer(lastPayload(client, Opcodes.SMSG_MONSTER_MOVE));
         assertEquals(p.guid, move.getPackedGuid());
+    }
+
+    @Test
+    void tpSl14Weather() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Rain", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        ObjectMgr.ZoneWeather row = world.objectMgr.weather.get(p.zoneId);
+        assertNotNull(row);
+        byte[] payload = lastPayload(client, Opcodes.SMSG_WEATHER);
+        assertEquals(row.state(), WowClientDouble.u32le(payload, 0));
+        assertEquals(row.grade(), WowClientDouble.floatle(payload, 4), 0.001f);
+        assertEquals(Content.WEATHER_INSTANT_SMOOTH, payload[8] & 0xFF);
     }
 
     private static int invSlotField(int slot) {

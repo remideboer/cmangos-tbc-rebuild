@@ -525,11 +525,7 @@ public final class WorldSession {
         p.online = true;
         p.firstSaveAtMs = world.nowMs() + Math.min(60_000, world.saveIntervalMs);
         p.nextTimeSyncMs = world.nowMs() + 5_000;
-        WowBuffer weather = new WowBuffer(8);
-        weather.putU32(0);
-        weather.putFloat(0);
-        weather.putU8(0);
-        send(Opcodes.SMSG_WEATHER, weather.array());
+        WeatherHandler.sendSnapshot(this, world, p.zoneId);
     }
 
     private void handleMove(World world, int opcode, WowBuffer in, boolean ack) {

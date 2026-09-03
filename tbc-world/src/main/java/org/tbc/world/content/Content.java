@@ -39,6 +39,9 @@ public final class Content {
     public static final int TAXI_IRONFORGE = 6;
     public static final int ERR_TAXIOK = 0;
     public static final int ERR_TAXINOTVISITED = 6;
+    public static final int ZONE_ELWYNN = 12;
+    public static final int WEATHER_STATE_FINE = 0;
+    public static final int WEATHER_INSTANT_SMOOTH = 0;
     public static final int BACKPACK_START = 23;
     public static final int BACKPACK_END = 39;
 
