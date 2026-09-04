@@ -69,6 +69,24 @@ public class CombatSteps {
         client.attackSwing(world, kobold.guid);
     }
 
+    @Then("SMSG_ATTACKSTART includes the creature attacking the player")
+    public void creatureAttackStart() {
+        long playerGuid = client.session().player().guid;
+        boolean saw = false;
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKSTART) {
+                continue;
+            }
+            byte[] p = client.payloads.get(i);
+            assertTrue(p.length >= 16);
+            if (WowClientDouble.u64le(p, 0) == kobold.guid
+                    && WowClientDouble.u64le(p, 8) == playerGuid) {
+                saw = true;
+            }
+        }
+        assertTrue(saw);
+    }
+
     @When("{int} ms elapse on the combat session")
     public void elapseCombatSession(int ms) {
         client.clear();

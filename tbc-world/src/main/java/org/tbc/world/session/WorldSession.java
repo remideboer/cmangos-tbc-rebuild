@@ -764,6 +764,7 @@ public final class WorldSession {
             c.script.aggro();
         }
         send(Opcodes.SMSG_ATTACKSTART, world.combat.encodeAttackStart(player.guid, guid));
+        send(Opcodes.SMSG_ATTACKSTART, world.combat.encodeAttackStart(c.guid, player.guid));
         if (player.distance2d(c) > Combat.meleeRange(player)) {
             send(Opcodes.SMSG_ATTACKSWING_NOTINRANGE, new byte[0]);
             return;

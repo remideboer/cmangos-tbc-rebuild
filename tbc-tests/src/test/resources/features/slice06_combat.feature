@@ -19,6 +19,11 @@ Feature: Slice 6 melee combat and loot
     When the player runs past the 30 yard leash
     Then the kobold is at spawn with full health and an empty threat list
 
+  @tp-sl06-003
+  Scenario: Creature starts auto-attack when the player swings
+    When the player starts auto-attack
+    Then SMSG_ATTACKSTART includes the creature attacking the player
+
   @negative
   Scenario: Living creature has no loot window
     When the player loots the living kobold
