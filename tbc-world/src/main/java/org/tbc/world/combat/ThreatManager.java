@@ -20,4 +20,16 @@ public final class ThreatManager {
     public void reset() {
         byGuid.clear();
     }
+
+    public long highestGuid() {
+        long guid = 0;
+        float best = Float.NEGATIVE_INFINITY;
+        for (Map.Entry<Long, Float> e : byGuid.entrySet()) {
+            if (e.getValue() > best) {
+                best = e.getValue();
+                guid = e.getKey();
+            }
+        }
+        return guid;
+    }
 }

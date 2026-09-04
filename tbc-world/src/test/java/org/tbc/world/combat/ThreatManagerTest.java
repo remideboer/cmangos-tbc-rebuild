@@ -22,4 +22,20 @@ class ThreatManagerTest {
         assertEquals(0f, tm.threatOf(a));
         assertEquals(0f, tm.threatOf(b));
     }
+
+    @Test
+    void highestGuidWhenTwoAttackersShouldReturnTheGreaterThreat() {
+        ThreatManager tm = new ThreatManager();
+        Player a = new Player();
+        a.guid = 1;
+        Player b = new Player();
+        b.guid = 2;
+        tm.add(a, 1);
+        tm.add(b, 5);
+        assertEquals(2L, tm.highestGuid());
+        tm.add(a, 10);
+        assertEquals(1L, tm.highestGuid());
+        tm.reset();
+        assertEquals(0L, tm.highestGuid());
+    }
 }
