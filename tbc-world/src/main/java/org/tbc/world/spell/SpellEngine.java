@@ -180,6 +180,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_HEAL) {
             int heal = Math.max(1, (sp.minDmg + sp.maxDmg) / 2);
+            if (caster instanceof Player player
+                    && missRoll.getAsDouble() < player.getFloat(UpdateFields.PLAYER_SPELL_CRIT_PERCENTAGE1) / 100.0) {
+                heal += heal / 2;
+            }
             target.setHealth(target.health() + heal);
             return 0;
         }

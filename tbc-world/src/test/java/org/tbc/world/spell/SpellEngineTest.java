@@ -159,6 +159,10 @@ class SpellEngineTest {
         engine.cast(p, map, 0, 2050, 1, empty(), this::capture);
         assertEquals(50, p.health());
         assertEquals(80, p.power());
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        p.setHealth(40);
+        engine.apply(c, p, engine.info(2050));
+        assertEquals(52, p.health());
         ops.clear();
         engine.cast(p, map, 0, 30108, 1, unitTarget(c.guid), this::capture);
         assertEquals(1, c.auras.size());
@@ -212,6 +216,16 @@ class SpellEngineTest {
         assertEquals(5, log.getU32());
         assertEquals(0, log.getU32());
         assertEquals(0, log.getU32());
+    }
+
+    @Test
+    void applyWhenLesserHealCritsShouldHealOneAndAHalfTimes() {
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        p.setHealth(40);
+        p.setFloat(UpdateFields.PLAYER_SPELL_CRIT_PERCENTAGE1, 5f);
+        SpellEngine crit = new SpellEngine(() -> 0.0);
+        crit.apply(p, p, crit.info(2050));
+        assertEquals(58, p.health());
     }
 
     @Test
