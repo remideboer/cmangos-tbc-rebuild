@@ -305,6 +305,39 @@ public final class InventoryHandler {
         s.send(Opcodes.SMSG_READ_ITEM_OK, ok.array());
     }
 
+    /** gift_bag, gift_slot, item_bag, item_slot. Consume 1 wrapper; ITEM_DYNFLAG_WRAPPED. inventory.md */
+    public static void wrapItem(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 4) {
+            return;
+        }
+        int giftBag = in.getU8();
+        int giftSlot = in.getU8();
+        int itemBag = in.getU8();
+        int itemSlot = in.getU8();
+        if (giftBag != 0 || itemBag != 0) {
+            return;
+        }
+        Item paper = p.itemAt(giftBag, giftSlot);
+        Item gift = p.itemAt(itemBag, itemSlot);
+        if (paper == null || gift == null || paper == gift) {
+            return;
+        }
+        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(paper.entry);
+        if (t == null || (t.flags & Content.ITEM_FLAG_IS_WRAPPER) == 0 || t.stackable <= 1) {
+            return;
+        }
+        p.items.remove((int) paper.guid);
+        gift.flags = Content.ITEM_DYNFLAG_WRAPPED;
+        int paperField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + giftSlot * 2;
+        int itemField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + itemSlot * 2;
+        p.setGuid(paperField, 0);
+        p.setGuid(itemField, UpdateBuilder.itemGuid(gift));
+        var pkt = UpdateBuilder.maybeCompress(
+                UpdateBuilder.values(p, paperField, paperField + 1, itemField, itemField + 1));
+        s.send(pkt.opcode(), pkt.payload());
+    }
+
     public static final int BUYBACK_SLOT_START = 74;
     public static final int BONUS_ENCHANTMENT_SLOT = 5;
     public static final int ENCHANT_SLOT_FIELDS = 3;

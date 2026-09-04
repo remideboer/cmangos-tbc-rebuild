@@ -12,6 +12,7 @@ public final class Item {
     public int inventoryType;
     public int enchant;
     public int quality;
+    public int flags;
     public boolean soulbound;
 
     public Item(long guid, int entry) {

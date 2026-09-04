@@ -58,6 +58,10 @@ public final class LaterOpcodes {
             InventoryHandler.readItem(s, world, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_WRAP_ITEM) {
+            InventoryHandler.wrapItem(s, world, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
             InventoryHandler.swapItem(s, in);
             return true;

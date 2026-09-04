@@ -49,6 +49,12 @@ public final class Content {
     public static final int PAGE_TEXT_STALVAN_CRILLIAN = 16;
     /** locales_item 6351 Dented Crate / Venture Co. supplies. */
     public static final int ITEM_DENTED_CRATE = 6351;
+    /** locales_item 5042 Red Ribboned Wrapping Paper. */
+    public static final int ITEM_RED_RIBBONED_WRAPPING_PAPER = 5042;
+    /** ItemPrototype.h ITEM_FLAG_IS_WRAPPER; named in inventory.md. */
+    public static final int ITEM_FLAG_IS_WRAPPER = 0x00000200;
+    /** Item.h ITEM_DYNFLAG_WRAPPED; named in inventory.md. */
+    public static final int ITEM_DYNFLAG_WRAPPED = 0x00000008;
     public static final int SPELL_BATTLE_SHOUT = 6673;
     public static final int TRAINER_SPELL_BATTLE_SHOUT_COST = 200;
     public static final int TAXI_STORMWIND = 2;
