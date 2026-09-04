@@ -66,13 +66,25 @@ public final class Combat {
         return swing(p, c, nowMs, EventAi.NOOP);
     }
 
+    public MeleeTable.Result swingOffhand(Player p, Creature c, long nowMs) {
+        return swing(p, c, nowMs, EventAi.NOOP, true);
+    }
+
     public MeleeTable.Result swing(Player p, Creature c, long nowMs, EventAi.SpellCast deathCast) {
+        return swing(p, c, nowMs, deathCast, false);
+    }
+
+    public MeleeTable.Result swing(Player p, Creature c, long nowMs, EventAi.SpellCast deathCast, boolean offhand) {
         if (!c.alive()) {
             return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
         }
-        int bonus = p.queuedNextMeleeBonus();
-        MeleeTable.Result r = table.rollOne(p, c, meleeMin(p) + bonus, meleeMax(p) + bonus);
-        p.consumeNextMeleeSwing();
+        int min = offhand ? offhandMin(p) : meleeMin(p);
+        int max = offhand ? offhandMax(p) : meleeMax(p);
+        int bonus = offhand ? 0 : p.queuedNextMeleeBonus();
+        MeleeTable.Result r = table.rollOne(p, c, min + bonus, max + bonus);
+        if (!offhand) {
+            p.consumeNextMeleeSwing();
+        }
         if (r.damage() > 0) {
             c.setHealth(c.health() - r.damage());
             c.threat += r.threat();
@@ -125,6 +137,14 @@ public final class Combat {
 
     private static int meleeMax(Unit attacker) {
         return Math.round(attacker.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
+    }
+
+    private static int offhandMin(Unit attacker) {
+        return Math.round(attacker.getFloat(UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE));
+    }
+
+    private static int offhandMax(Unit attacker) {
+        return Math.round(attacker.getFloat(UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE));
     }
 
     public boolean shouldEvade(Creature c, Player victim, long nowMs) {

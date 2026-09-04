@@ -134,6 +134,16 @@ class CombatTest {
     }
 
     @Test
+    void swingOffhandWhenOffhandDamageFieldsSetShouldRollThatRangeWithoutConsumingNextMelee() {
+        p.setFloat(UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE, 7f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE, 7f);
+        p.queueNextMeleeSwing(2);
+        assertEquals(7, combat.swingOffhand(p, c, 1).damage());
+        assertTrue(p.hasNextMeleeSwingQueued());
+        assertEquals(35, c.health());
+    }
+
+    @Test
     void evadeResetsAndBlocksLoot() {
         combat.startAttack(p, c, 10);
         c.setHealth(10);
