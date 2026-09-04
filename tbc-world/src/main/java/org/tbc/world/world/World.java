@@ -35,6 +35,7 @@ import org.tbc.world.script.ScriptRegistry;
 import org.tbc.world.session.WorldSession;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.spell.SpellEngine;
+import org.tbc.world.events.GameEventMgr;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -67,6 +68,7 @@ public final class World implements Runnable {
     public final AvBattlefield av = new AvBattlefield();
     public final EyBattlefield ey = new EyBattlefield();
     public final OutdoorPvp outdoorPvp = new OutdoorPvp();
+    public final GameEventMgr events = new GameEventMgr();
     public final String motd;
     public final int realmId;
     public final int instantLogout;

@@ -27,6 +27,8 @@ public final class Content {
     public static final int UNIT_NPC_FLAG_BANKER = 0x00020000;
     public static final int NPC_AUCTIONEER_CHILTON = 8670;
     public static final int NPC_OLIVIA_BURNSIDE = 2455;
+    public static final int GAME_EVENT_MIDSUMMER = 1;
+    public static final int NPC_LUMA_SKYMOTHER = 25697;
     public static final int AUCTION_LIST_DELAY_MS = 300;
     public static final int EQUIP_ERR_NOT_ENOUGH_MONEY = 29;
     public static final int QUEST_STATE_COMPLETE = 0x1;
