@@ -190,6 +190,7 @@ public final class ObjectMgr {
     public final Map<Integer, GameObjectTemplate> gameObjects = new HashMap<>();
     public final Map<Integer, PageText> pageTexts = new HashMap<>();
     public final List<Spawn> spawns = new ArrayList<>();
+    public final List<Spawn> goSpawns = new ArrayList<>();
     public final Map<Integer, List<Spawn>> eventCreatures = new HashMap<>();
     public final Map<Integer, List<Spawn>> eventGameObjects = new HashMap<>();
     public record AreaTrigger(int id, int map, float x, float y, float z, float o) {}
@@ -235,6 +236,11 @@ public final class ObjectMgr {
                 loadSpawns(c);
             } catch (Exception e) {
                 log.warn("creature spawn load failed: {}", e.getMessage());
+            }
+            try {
+                loadGoSpawns(c);
+            } catch (Exception e) {
+                log.warn("gameobject spawn load failed: {}", e.getMessage());
             }
             try {
                 loadEventCreatures(c);
@@ -427,6 +433,34 @@ public final class ObjectMgr {
                             rs.getFloat(4), rs.getFloat(5), rs.getFloat(6), rs.getFloat(7)));
                 }
                 log.info("loaded {} creature spawns", spawns.size());
+                return;
+            } catch (Exception e) {
+                last = e;
+            }
+        }
+        if (last != null) {
+            throw last;
+        }
+    }
+
+    private void loadGoSpawns(Connection c) throws Exception {
+        String cols = "g.guid, g.id, g.map, g.position_x, g.position_y, g.position_z, g.orientation";
+        String join = " FROM gameobject g LEFT OUTER JOIN game_event_gameobject geg ON g.guid = geg.guid AND geg.`event` > 0";
+        String[] sqls = {
+                "SELECT " + cols + join + " WHERE g.map IN (0, 1) AND geg.guid IS NULL LIMIT 80000",
+                "SELECT " + cols + join + " WHERE geg.guid IS NULL LIMIT 80000",
+                "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM gameobject "
+                        + "WHERE map IN (0, 1) LIMIT 80000",
+                "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM gameobject LIMIT 80000"
+        };
+        Exception last = null;
+        for (String sql : sqls) {
+            try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    goSpawns.add(new Spawn(rs.getInt(1), rs.getInt(2), rs.getInt(3),
+                            rs.getFloat(4), rs.getFloat(5), rs.getFloat(6), rs.getFloat(7)));
+                }
+                log.info("loaded {} gameobject spawns", goSpawns.size());
                 return;
             } catch (Exception e) {
                 last = e;

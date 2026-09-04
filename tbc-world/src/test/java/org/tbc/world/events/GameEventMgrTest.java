@@ -110,6 +110,35 @@ class GameEventMgrTest {
     }
 
     @Test
+    void loadWhenSqlContinentGameObjectShouldSpawnIceStone() throws Exception {
+        String url = "jdbc:h2:mem:go_cont_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "go-continent-test")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE gameobject (
+                          guid INT PRIMARY KEY,
+                          id INT,
+                          map INT,
+                          position_x FLOAT,
+                          position_y FLOAT,
+                          position_z FLOAT,
+                          orientation FLOAT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO gameobject (guid, id, map, position_x, position_y, position_z, orientation)
+                        VALUES (5470020, 187882, 0, -69.9045, -162.245, -2.36656, 2.42601)
+                        """);
+            }
+            World world = new World(null, null, worldDb, null);
+            GameObject stone = findGo(world, 0, Content.GO_ICE_STONE);
+            assertNotNull(stone);
+            assertEquals(5470020, (int) stone.guid);
+        }
+    }
+
+    @Test
     void startWhenMidsummerHasOnlyGameObjectsShouldSpawnIceStone() {
         World world = World.inMemory();
         world.objectMgr.eventCreatures.remove(Content.GAME_EVENT_MIDSUMMER);
@@ -188,7 +217,11 @@ class GameEventMgrTest {
     }
 
     private static GameObject findGo(World world, int entry) {
-        for (GameObject go : world.map(547, 0).gameObjects.values()) {
+        return findGo(world, 547, entry);
+    }
+
+    private static GameObject findGo(World world, int map, int entry) {
+        for (GameObject go : world.map(map, 0).gameObjects.values()) {
             if (go.entry == entry) {
                 return go;
             }

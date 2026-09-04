@@ -140,6 +140,17 @@ public final class World implements Runnable {
             }
             log.info("instantiated {} creature spawns", n);
         }
+        if (!objectMgr.goSpawns.isEmpty()) {
+            int n = 0;
+            for (ObjectMgr.Spawn s : objectMgr.goSpawns) {
+                if (worldDb != null && s.map() != 0 && s.map() != 1) {
+                    continue;
+                }
+                map(s.map(), 0).add(objectMgr.spawnGameObject(s));
+                n++;
+            }
+            log.info("instantiated {} gameobject spawns", n);
+        }
         Creature gruul = objectMgr.spawnCreature(19044, 565, 0, 0, 0, 0, scripts);
         gruul.scriptName = "boss_gruul";
         FactorySelector.selectAI(gruul, scripts);
