@@ -4,6 +4,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.ai.EventAi;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 
 /** Auto-attack, evade, corpse loot. Packets: combat-log.md, loot.md. */
 public final class Combat {
@@ -37,6 +38,9 @@ public final class Combat {
         c.inCombat = true;
         c.victim = p.guid;
         c.lastHitMs = nowMs;
+        c.lastMeleeMs = nowMs;
+        int swing = c.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME);
+        c.meleeCooldownMs = swing > 0 ? swing : 2000;
         if (c.combatStartMs == 0) {
             c.combatStartMs = nowMs;
         }
@@ -71,6 +75,30 @@ public final class Combat {
             stopAttack(p);
             if (c.eventAi != null) {
                 c.eventAi.onDeath(c, p, deathCast == null ? EventAi.NOOP : deathCast);
+            }
+        }
+        return r;
+    }
+
+    public MeleeTable.Result swing(Creature attacker, Player victim, long nowMs) {
+        return swing(attacker, victim, nowMs, EventAi.NOOP);
+    }
+
+    public MeleeTable.Result swing(Creature attacker, Player victim, long nowMs, EventAi.SpellCast killCast) {
+        if (!victim.alive() || attacker.evading) {
+            return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
+        }
+        MeleeTable.Result r = table.rollOne(attacker, victim, 1, 3);
+        if (r.damage() > 0) {
+            victim.setHealth(victim.health() - r.damage());
+            attacker.lastHitMs = nowMs;
+        }
+        if (!victim.alive()) {
+            attacker.inCombat = false;
+            attacker.victim = 0;
+            stopAttack(victim);
+            if (attacker.eventAi != null) {
+                attacker.eventAi.onKill(attacker, victim, killCast == null ? EventAi.NOOP : killCast);
             }
         }
         return r;
@@ -121,7 +149,7 @@ public final class Combat {
         return encodeLoot(c.guid, 0, 0);
     }
 
-    public byte[] encodeAttack(Player p, Creature c, MeleeTable.Result r) {
+    public byte[] encodeAttack(Unit attacker, Unit victim, MeleeTable.Result r) {
         int hitInfo = HITINFO_NORMALSWING2;
         int victimState = VICTIM_NORMAL;
         switch (r.outcome()) {
@@ -141,8 +169,8 @@ public final class Combat {
         }
         WowBuffer b = new WowBuffer(64);
         b.putU32(hitInfo);
-        b.putPackedGuid(p.guid);
-        b.putPackedGuid(c.guid);
+        b.putPackedGuid(attacker.guid);
+        b.putPackedGuid(victim.guid);
         b.putU32(r.damage());
         b.putU8(1);
         b.putU32(1);

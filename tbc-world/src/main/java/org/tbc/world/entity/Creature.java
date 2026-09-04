@@ -1,24 +1,36 @@
 package org.tbc.world.entity;
 
 import org.tbc.world.ai.EventAi;
+import org.tbc.world.ai.UnitAI;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.script.BossScript;
 
 public final class Creature extends Unit {
     public static final int TYPEMASK_UNIT = 0x0009;
+    /** C++ CREATURE_EXTRA_FLAG_GUARD */
+    public static final int CREATURE_EXTRA_FLAG_GUARD = 0x00000400;
     public int spawnId;
     public int respawnDelayMs = 300_000;
     public long respawnAtMs;
     public float spawnX, spawnY, spawnZ, spawnO;
     public int npcFlags;
+    public String aiName = "";
+    public UnitAI ai;
     public EventAi eventAi;
     public BossScript script;
+    public boolean pet;
+    public boolean playerControlledPet;
+    public boolean charmer;
+    public boolean temporarySummon;
+    public boolean totem;
+    public int extraFlags;
     public boolean evading;
     public long evadeHomeAtMs;
     public long taggedBy;
     public boolean lootable;
     public long combatStartMs;
     public long lastHitMs;
+    public int meleeCooldownMs;
 
     public Creature() {
         super(UpdateFields.UNIT_END, TYPEID_UNIT);

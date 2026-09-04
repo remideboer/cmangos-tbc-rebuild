@@ -812,11 +812,11 @@ public final class ObjectMgr {
         c.applyTemplate(entry, t.name(), t.display(), t.faction(), t.hp(), t.level());
         c.npcFlags = t.npcFlags();
         c.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_NPC_FLAGS, t.npcFlags());
-        if (scripts != null && t.scriptName() != null && !t.scriptName().isEmpty()) {
-            c.script = scripts.create(t.scriptName());
-        }
+        org.tbc.world.ai.FactorySelector.selectAI(c, scripts);
         if (entry == 103) {
-            c.eventAi = new org.tbc.world.ai.EventAi();
+            if (c.eventAi == null) {
+                c.eventAi = new org.tbc.world.ai.EventAi();
+            }
             c.eventAi.load(java.util.List.of(org.tbc.world.ai.EventAi.Script.aggroCast(7164)));
         }
         return c;

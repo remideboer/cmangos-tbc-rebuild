@@ -9,6 +9,8 @@ import org.tbc.common.Sha1;
 import org.tbc.common.Srp6;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.ai.EventAi;
+import org.tbc.world.ai.FactorySelector;
+import org.tbc.world.ai.ScriptedCreatureAI;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.combat.MeleeTable;
 import org.tbc.world.content.Content;
@@ -135,7 +137,7 @@ public final class World implements Runnable {
         }
         Creature gruul = objectMgr.spawnCreature(19044, 565, 0, 0, 0, 0, scripts);
         gruul.scriptName = "boss_gruul";
-        gruul.script = scripts.create("boss_gruul");
+        FactorySelector.selectAI(gruul, scripts);
         map(565, 0).add(gruul);
     }
 
@@ -299,6 +301,35 @@ public final class World implements Runnable {
         }
     }
 
+    public void creatureMeleeHit(Creature c, Player p) {
+        GameMap hitMap = map(p.mapId, p.instanceId);
+        MeleeTable.Result r = combat.swing(c, p, nowMs(), (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
+        if (p.session != null) {
+            p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(c, p, r));
+            var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_HEALTH));
+            p.session.send(hp.opcode(), hp.payload());
+            if (!p.alive()) {
+                p.session.send(Opcodes.SMSG_ATTACKSTOP, combat.encodeAttackStop(c.guid, p.guid, false));
+            }
+        }
+    }
+
+    private void creatureMeleeIfReady(Creature c, Player victim, int diff) {
+        if (c.ai == null || !c.ai.meleeEnabled() || victim == null || !victim.alive() || !c.alive() || c.evading) {
+            return;
+        }
+        c.meleeCooldownMs -= diff;
+        if (c.meleeCooldownMs > 0) {
+            return;
+        }
+        int swing = c.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
+        c.meleeCooldownMs = swing > 0 ? swing : 2000;
+        if (c.distance2d(victim) > WorldSession.MELEE_RANGE) {
+            return;
+        }
+        creatureMeleeHit(c, victim);
+    }
+
     public void tick(int diff) {
         nowMs.set(System.currentTimeMillis());
         WorldSession add;
@@ -321,17 +352,22 @@ public final class World implements Runnable {
                         combat.evade(c, sink);
                     }
                 }
-                if (c.eventAi != null) {
-                    Player victim = m.players.get(c.victim);
+                Player victim = m.players.get(c.victim);
+                if (c.ai != null) {
+                    c.ai.update(c, victim, diff, sink, () -> combat.evade(c, sink));
+                } else if (c.eventAi != null) {
                     c.eventAi.update(c, victim, diff, sink, () -> combat.evade(c, sink));
                 }
-                if (c.script != null && c.inCombat) {
-                    Unit victim = m.players.values().stream().findFirst().orElse(null);
-                    c.script.update(c, victim, diff, (cr, t, spell) -> {
+                if (c.script != null && c.inCombat && !(c.ai instanceof ScriptedCreatureAI)) {
+                    Unit scriptVictim = m.players.values().stream().findFirst().orElse(null);
+                    c.script.update(c, scriptVictim, diff, (cr, t, spell) -> {
                         if (t != null && spell == 36300) {
                             t.auras.add(new Unit.Aura(36300, 30_000, t.auras.size() + 1));
                         }
                     });
+                }
+                if (c.inCombat) {
+                    creatureMeleeIfReady(c, victim, diff);
                 }
             }
         }

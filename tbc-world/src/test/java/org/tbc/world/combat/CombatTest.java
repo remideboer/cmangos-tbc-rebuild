@@ -186,6 +186,78 @@ class CombatTest {
         assertEquals(c.maxHealth(), c.health());
     }
 
+    @Test
+    void swingWhenCreatureHitsPlayerShouldReduceHealth() {
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        p.setHealth(100);
+        c.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME, 0);
+        combat.startAttack(p, c, 1000);
+        assertEquals(2000, c.meleeCooldownMs);
+        MeleeTable.Result r = combat.swing(c, p, 3000);
+        assertEquals(MeleeTable.Outcome.HIT, r.outcome());
+        assertEquals(99, p.health());
+        assertEquals(1000, c.lastMeleeMs);
+    }
+
+    @Test
+    void swingWhenCreatureShouldSkipDeadPlayerAndEvading() {
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        p.setHealth(0);
+        assertEquals(0, combat.swing(c, p, 1).damage());
+        p.setHealth(100);
+        c.evading = true;
+        assertEquals(0, combat.swing(c, p, 1).damage());
+        assertEquals(100, p.health());
+    }
+
+    @Test
+    void swingWhenCreatureMissShouldNotChangePlayerHealth() {
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        p.setHealth(100);
+        Combat miss = new Combat(new MeleeTable(() -> 0.01d, (a, b) -> 1));
+        miss.swing(c, p, 5);
+        assertEquals(100, p.health());
+    }
+
+    @Test
+    void swingWhenCreatureKillsPlayerShouldClearCombat() {
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 1);
+        p.setHealth(1);
+        combat.startAttack(p, c, 10);
+        MeleeTable.Result r = combat.swing(c, p, 20);
+        assertEquals(MeleeTable.Outcome.HIT, r.outcome());
+        assertFalse(p.alive());
+        assertFalse(p.inCombat);
+        assertFalse(c.inCombat);
+        assertEquals(0, c.victim);
+    }
+
+    @Test
+    void swingWhenCreatureKillsPlayerShouldFireKillCast() {
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 1);
+        p.setHealth(1);
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_KILL, 0, 100, EventAi.EFLAG_REPEATABLE, 0, 0, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        List<Integer> casts = new ArrayList<>();
+        combat.swing(c, p, 20, (cr, t, id) -> casts.add(id));
+        assertFalse(p.alive());
+        assertEquals(List.of(7164), casts);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 1);
+        p.setHealth(1);
+        combat.swing(c, p, 21, null);
+        assertFalse(p.alive());
+    }
+
+    @Test
+    void encodeAttackWhenCreatureAttackerShouldPackCreatureGuid() {
+        byte[] pkt = combat.encodeAttack(c, p, new MeleeTable.Result(MeleeTable.Outcome.HIT, 2, 2));
+        assertTrue(pkt.length > 8);
+        int mask = pkt[4] & 0xFF;
+        assertEquals(1, mask & 1, "packed guid low byte of creature guid 2");
+        assertEquals(2, pkt[5] & 0xFF);
+    }
+
     private static long guidAt(byte[] p) {
         long lo = (p[0] & 0xFFL) | ((p[1] & 0xFFL) << 8) | ((p[2] & 0xFFL) << 16) | ((p[3] & 0xFFL) << 24);
         long hi = (p[4] & 0xFFL) | ((p[5] & 0xFFL) << 8) | ((p[6] & 0xFFL) << 16) | ((p[7] & 0xFFL) << 24);

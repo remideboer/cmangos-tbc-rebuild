@@ -2,6 +2,7 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.world.ai.EventAi;
+import org.tbc.world.ai.FactorySelector;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** EventAI catalog deepen: TIMER_IN_COMBAT / TIMER_OOC over World.tick. Keep TP-SL11-001 Gherkin. */
@@ -72,6 +74,39 @@ class Slice11EventAiTest {
         assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
     }
 
+    @Test
+    void meleeWhenEventAiInRangeAfterAttackTimeShouldSendCreatureAttackerState() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Melee");
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x, c.y, c.z, c.o);
+        client.attackSwing(world, c.guid);
+        client.clear();
+        world.tick(2000);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        byte[] pkt = client.payload(Opcodes.SMSG_ATTACKERSTATEUPDATE);
+        assertEquals(c.guid, packedGuid(pkt, 4));
+    }
+
+    @Test
+    void meleeWhenNullAiShouldNotSendCreatureAttackerState() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "NullMelee");
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        c.aiName = "NotARealAI";
+        c.eventAi = null;
+        FactorySelector.selectAI(c, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x, c.y, c.z, c.o);
+        client.attackSwing(world, c.guid);
+        client.clear();
+        world.tick(2000);
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);
@@ -84,5 +119,16 @@ class Slice11EventAiTest {
         int off = WowClientDouble.skipPackedGuid(p, 0);
         off = WowClientDouble.skipPackedGuid(p, off);
         return WowClientDouble.u32le(p, off);
+    }
+
+    private static long packedGuid(byte[] p, int off) {
+        int mask = p[off++] & 0xFF;
+        long g = 0;
+        for (int i = 0; i < 8; i++) {
+            if ((mask & (1 << i)) != 0) {
+                g |= (long) (p[off++] & 0xFF) << (8 * i);
+            }
+        }
+        return g;
     }
 }

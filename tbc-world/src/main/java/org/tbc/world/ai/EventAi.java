@@ -1,6 +1,7 @@
 package org.tbc.world.ai;
 
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateFields;
 
@@ -20,6 +21,7 @@ public final class EventAi {
     public static final int EVENT_HP = 2;
     public static final int EVENT_MANA = 3;
     public static final int EVENT_AGGRO = 4;
+    public static final int EVENT_KILL = 5;
     public static final int EVENT_DEATH = 6;
     public static final int EVENT_EVADE = 7;
     public static final int EVENT_SPELLHIT = 8;
@@ -227,6 +229,19 @@ public final class EventAi {
     public void onDeath(Creature c, Unit killer, SpellCast cast) {
         processImmediate(EVENT_DEATH, c, killer, killer, cast, null);
         inCombat = false;
+    }
+
+    public void onKill(Creature c, Unit victim, SpellCast cast) {
+        rememberFaction(c);
+        for (Holder h : holders) {
+            if (!h.enabled || h.script.eventType() != EVENT_KILL || h.timer > 0) {
+                continue;
+            }
+            if (h.script.param3() == 1 && !(victim instanceof Player)) {
+                continue;
+            }
+            processEvent(h, c, victim, victim, cast, null);
+        }
     }
 
     public void onSpellHit(Creature c, Unit caster, int spellId, int school, SpellCast cast) {
@@ -591,7 +606,7 @@ public final class EventAi {
 
     private void resetEvent(Holder h) {
         if (isTimerBased(h.script.eventType())) {
-            h.timer = h.script.param3();
+            h.timer = h.script.eventType() == EVENT_KILL ? h.script.param1() : h.script.param3();
         }
         if (isRepeatableType(h.script.eventType()) && (h.script.flags() & EFLAG_REPEATABLE) == 0) {
             h.enabled = false;
@@ -617,7 +632,7 @@ public final class EventAi {
     }
 
     private static boolean isTimerBased(int type) {
-        return isTimerExecuted(type) || type == EVENT_SPELLHIT;
+        return isTimerExecuted(type) || type == EVENT_SPELLHIT || type == EVENT_KILL;
     }
 
     private static boolean isRepeatableType(int type) {

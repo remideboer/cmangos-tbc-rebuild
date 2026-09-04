@@ -512,6 +512,43 @@ class EventAiTest {
         assertEquals(List.of(133), casts);
     }
 
+    @Test
+    void onKillWhenPlayerVictimShouldCast() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_KILL, 0, 100, EventAi.EFLAG_REPEATABLE, 0, 0, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        Player v = player();
+        List<Integer> casts = new ArrayList<>();
+        ai.onAggro(c, v, EventAi.NOOP);
+        ai.onKill(c, v, (cr, t, id) -> casts.add(id));
+        assertEquals(List.of(7164), casts);
+    }
+
+    @Test
+    void onKillWhenPlayerOnlyAndNonPlayerShouldSkip() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_KILL, 0, 100, EventAi.EFLAG_REPEATABLE, 0, 0, 1, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        List<Integer> casts = new ArrayList<>();
+        ai.onKill(creature(), creature(), (cr, t, id) -> casts.add(id));
+        assertTrue(casts.isEmpty());
+    }
+
+    @Test
+    void onKillWhenRepeatTimerRemainingShouldSkipSecondKill() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_KILL, 0, 100, EventAi.EFLAG_REPEATABLE, 10_000, 10_000, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        Player v = player();
+        List<Integer> casts = new ArrayList<>();
+        EventAi.SpellCast sink = (cr, t, id) -> casts.add(id);
+        ai.onKill(c, v, sink);
+        ai.onKill(c, v, sink);
+        assertEquals(List.of(7164), casts);
+    }
+
     private static Creature creature() {
         Creature c = new Creature();
         c.guid = 2;
