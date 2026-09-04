@@ -59,6 +59,26 @@ class MeleeTableTest {
         assertEquals(4, r.damage());
     }
 
+    @Test
+    void rollOneWhenNpcSkillDeficitAtLeast15ShouldCrushAt150Percent() {
+        Creature a = new Creature();
+        a.level = 4;
+        a.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 4);
+        Player v = new Player();
+        v.level = 1;
+        MeleeTable.Result r = table(0.30).rollOne(a, v, 2, 2);
+        assertEquals(MeleeTable.Outcome.CRUSH, r.outcome());
+        assertEquals(3, r.damage());
+        assertEquals(3, r.threat());
+        assertEquals(MeleeTable.Outcome.HIT, table(0.50).rollOne(a, v, 2, 2).outcome());
+        a.level = 1;
+        assertEquals(MeleeTable.Outcome.HIT, table(0.30).rollOne(a, v, 2, 2).outcome());
+        Creature other = new Creature();
+        other.level = 4;
+        a.level = 4;
+        assertEquals(MeleeTable.Outcome.HIT, table(0.30).rollOne(a, other, 2, 2).outcome());
+    }
+
     private static MeleeTable table(double r) {
         return new MeleeTable(() -> r, (min, max) -> min >= max ? min : min);
     }

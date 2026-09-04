@@ -70,6 +70,11 @@ public final class MeleeTable {
         if (r < acc) {
             return hit(Outcome.CRIT, weaponMin, weaponMax, 2);
         }
+        acc += crushChance(attacker, victim);
+        if (r < acc) {
+            int crush = damageRoll.applyAsInt(weaponMin, weaponMax) * 3 / 2;
+            return new Result(Outcome.CRUSH, crush, crush);
+        }
         int dmg = damageRoll.applyAsInt(weaponMin, weaponMax);
         return new Result(Outcome.HIT, dmg, dmg);
     }
@@ -101,5 +106,16 @@ public final class MeleeTable {
             pct = 100;
         }
         return pct / 100.0;
+    }
+
+    static double crushChance(Unit attacker, Unit victim) {
+        if (!(attacker instanceof Creature) || !(victim instanceof Player)) {
+            return 0;
+        }
+        int deficit = attacker.level * 5 - victim.level * 5;
+        if (deficit < 15) {
+            return 0;
+        }
+        return (2.0 * deficit - 15) / 100.0;
     }
 }
