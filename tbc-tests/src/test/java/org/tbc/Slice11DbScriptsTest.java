@@ -35,6 +35,29 @@ class Slice11DbScriptsTest {
         assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
     }
 
+    @Test
+    void deathWhenDbscriptDelay500ShouldSendSpellGoAfterTick() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "DelayCast");
+        Player p = client.session().player();
+        world.objectMgr.dbScriptStore.add(DbScriptStore.castSpell(DbScriptStore.CREATURE_DEATH, 6, 500, 7164));
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x, c.y, c.z, c.o);
+        c.setHealth(1);
+        client.clear();
+        for (int i = 0; i < 50 && c.alive(); i++) {
+            client.attackSwing(world, c.guid);
+        }
+        assertFalse(c.alive());
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
+        world.tick(499);
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
+        world.tick(1);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

@@ -391,6 +391,7 @@ public final class World implements Runnable {
                     }
                 }
             }
+            m.dbScripts.process(diff, (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
         }
     }
 
