@@ -215,6 +215,13 @@ class MeleeTableTest {
         MeleeTable.Result yellow = table(0.85).rollOne(a, v, 100, 100);
         assertEquals(MeleeTable.Outcome.GLANCE, yellow.outcome());
         assertEquals(1, yellow.damage());
+        Player mage = new Player();
+        mage.level = 11;
+        mage.clazz = Player.CLASS_MAGE;
+        MeleeTable.Result caster = table(0.22).rollOne(mage, v, 100, 100);
+        assertEquals(MeleeTable.Outcome.GLANCE, caster.outcome());
+        assertEquals(60, caster.damage());
+        assertEquals(60, caster.threat());
     }
 
     @Test

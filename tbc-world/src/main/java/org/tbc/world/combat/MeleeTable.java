@@ -199,14 +199,18 @@ public final class MeleeTable {
         return pct / 100.0;
     }
 
-    /** Non-caster glance: roll multiplier between lowEnd and highEnd (combat-and-threat.md). */
+    /** Glance: roll multiplier between lowEnd and highEnd. Casters 0.9/0.6; others 1.2/1.3. */
     int glanceDamage(int raw, Unit attacker, Unit victim) {
         int difference = victim.level * 5 - attacker.level * 5;
         if (difference < 0) {
             return raw;
         }
-        float highEnd = Math.min(Math.max(1.2f - 0.03f * difference, 0.20f), 0.99f);
-        float lowEnd = Math.min(Math.max(1.3f - 0.05f * difference, 0.01f), Math.min(0.91f, highEnd));
+        boolean caster = ((Player) attacker).isWandUser();
+        float baseHighEnd = caster ? 0.9f : 1.2f;
+        float baseLowEnd = caster ? 0.6f : 1.3f;
+        float maxLowEnd = caster ? 0.6f : 0.91f;
+        float highEnd = Math.min(Math.max(baseHighEnd - 0.03f * difference, 0.20f), 0.99f);
+        float lowEnd = Math.min(Math.max(baseLowEnd - 0.05f * difference, 0.01f), Math.min(maxLowEnd, highEnd));
         int lo = (int) (lowEnd * 100);
         int hi = (int) (highEnd * 100);
         int hundredths = damageRoll.applyAsInt(lo, hi);
