@@ -169,6 +169,34 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenWandUserBelow30ShouldGlanceAtLevelPlusDefenseMinusSkill() {
+        Creature v = new Creature();
+        v.level = 29;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 29);
+        Player mage = new Player();
+        mage.level = 29;
+        mage.clazz = Player.CLASS_MAGE;
+        assertEquals(MeleeTable.Outcome.GLANCE, table(0.35).rollOne(mage, v, 2, 2).outcome());
+        Player priest = new Player();
+        priest.level = 29;
+        priest.clazz = Player.CLASS_PRIEST;
+        assertEquals(MeleeTable.Outcome.GLANCE, table(0.35).rollOne(priest, v, 2, 2).outcome());
+        Player warlock = new Player();
+        warlock.level = 29;
+        warlock.clazz = Player.CLASS_WARLOCK;
+        assertEquals(MeleeTable.Outcome.GLANCE, table(0.35).rollOne(warlock, v, 2, 2).outcome());
+        Player warrior = new Player();
+        warrior.level = 29;
+        warrior.clazz = 1;
+        assertEquals(MeleeTable.Outcome.HIT, table(0.35).rollOne(warrior, v, 2, 2).outcome());
+        mage.level = 30;
+        Creature v30 = new Creature();
+        v30.level = 30;
+        v30.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 30);
+        assertEquals(MeleeTable.Outcome.HIT, table(0.35).rollOne(mage, v30, 2, 2).outcome());
+    }
+
+    @Test
     void rollOneWhenGlanceShouldScaleDamageBetweenLowAndHighEnds() {
         Player a = new Player();
         a.level = 11;

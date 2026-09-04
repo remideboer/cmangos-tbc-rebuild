@@ -21,6 +21,10 @@ public final class Player extends Unit {
     public static final int MAX_VISIBLE_ITEM_OFFSET = 16;
     public static final int POWER_RAGE = 1;
     public static final int POWER_RAGE_MAX = 1000;
+    /** ChrClasses.dbc. CLASSMASK_WAND_USERS in SharedDefines.h. spec/03-protocol/enums.md */
+    public static final int CLASS_PRIEST = 5;
+    public static final int CLASS_MAGE = 8;
+    public static final int CLASS_WARLOCK = 9;
 
     public WorldSession session;
     public int accountId;
@@ -199,6 +203,10 @@ public final class Player extends Unit {
         public boolean accepted;
         public int gold;
         public final Item[] slots = new Item[7];
+    }
+
+    public boolean isWandUser() {
+        return clazz == CLASS_PRIEST || clazz == CLASS_MAGE || clazz == CLASS_WARLOCK;
     }
 
     public boolean hasOffhandWeapon() {

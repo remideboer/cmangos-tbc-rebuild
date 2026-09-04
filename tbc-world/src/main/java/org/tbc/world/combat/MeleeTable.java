@@ -174,9 +174,9 @@ public final class MeleeTable {
         return pct / 100.0;
     }
 
-    /** Player vs NPC level > 10: 10 + (defense − capped weapon skill) percent. */
+    /** Player vs NPC level > 10: 10 + (defense − skill), or wand-user below 30: level + (defense − skill). */
     static double glanceChance(Unit attacker, Unit victim) {
-        if (!(attacker instanceof Player)) {
+        if (!(attacker instanceof Player p)) {
             return 0;
         }
         if (!(victim instanceof Creature)) {
@@ -185,9 +185,11 @@ public final class MeleeTable {
         if (victim.level <= 10) {
             return 0;
         }
-        int skill = attacker.level * 5;
+        int skill = p.level * 5;
         int defense = victim.level * 5;
-        double pct = 10.0 + (defense - skill);
+        double pct = p.isWandUser() && p.level < 30
+                ? p.level + (defense - skill)
+                : 10.0 + (defense - skill);
         if (pct < 0) {
             pct = 0;
         }
