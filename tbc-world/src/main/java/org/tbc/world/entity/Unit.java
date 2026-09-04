@@ -16,6 +16,8 @@ public class Unit extends Entity {
     public static final int UPDATEFLAG_LIVING = 0x20;
     public static final int UPDATEFLAG_HAS_POSITION = 0x40;
     public static final int PLAYER_CREATE_FLAGS = UPDATEFLAG_SELF | UPDATEFLAG_HIGHGUID | UPDATEFLAG_LIVING | UPDATEFLAG_HAS_POSITION;
+    public static final int UNIT_STAND_STATE_STAND = 0;
+    public static final int UNIT_STAND_STATE_SIT = 1;
 
     public MovementInfo movement = new MovementInfo();
     public long victim;
@@ -70,6 +72,27 @@ public class Unit extends Entity {
 
     public boolean alive() {
         return health() > 0;
+    }
+
+    public void sit() {
+        setStandState(UNIT_STAND_STATE_SIT);
+    }
+
+    public void stand() {
+        setStandState(UNIT_STAND_STATE_STAND);
+    }
+
+    public boolean isStanding() {
+        return standState() == UNIT_STAND_STATE_STAND;
+    }
+
+    private int standState() {
+        return getInt(UpdateFields.UNIT_FIELD_BYTES_1) & 0xFF;
+    }
+
+    private void setStandState(int state) {
+        int bytes = getInt(UpdateFields.UNIT_FIELD_BYTES_1);
+        setInt(UpdateFields.UNIT_FIELD_BYTES_1, (bytes & ~0xFF) | (state & 0xFF));
     }
 
     public record Aura(int spellId, int durationMs, int stacks) {}

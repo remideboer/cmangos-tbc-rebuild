@@ -47,6 +47,9 @@ public final class MeleeTable {
         if (r < acc) {
             return miss();
         }
+        if (victim instanceof Player && !victim.isStanding()) {
+            return hit(Outcome.CRIT, weaponMin, weaponMax, 2);
+        }
         acc += 0.05;
         if (r < acc) {
             return new Result(Outcome.DODGE, 0, 0);

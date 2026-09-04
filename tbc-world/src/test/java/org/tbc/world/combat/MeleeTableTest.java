@@ -94,6 +94,23 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenSittingPlayerShouldForceRemainingTableToCrit() {
+        Creature a = new Creature();
+        a.level = 1;
+        a.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        Player v = new Player();
+        v.level = 1;
+        v.setHealth(100);
+        v.sit();
+        assertEquals(MeleeTable.Outcome.MISS, table(0.01).rollOne(a, v, 2, 2).outcome());
+        MeleeTable.Result r = table(0.06).rollOne(a, v, 2, 2);
+        assertEquals(MeleeTable.Outcome.CRIT, r.outcome());
+        assertEquals(4, r.damage());
+        v.stand();
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.06).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
     void rollOneWhenCreatureShouldUseFivePercentBaseCrit() {
         Creature a = new Creature();
         a.level = 1;
