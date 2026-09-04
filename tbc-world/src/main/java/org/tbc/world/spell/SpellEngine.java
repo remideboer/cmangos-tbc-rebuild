@@ -205,6 +205,13 @@ public final class SpellEngine {
             createItem(target, sp.misc(), count, guid);
             return 0;
         }
+        if (sp.effect == EFFECT_TRIGGER_SPELL) {
+            SpellInfo nested = info(sp.misc());
+            if (nested == null) {
+                return 0;
+            }
+            return apply(caster, target, nested);
+        }
         if (sp.effect == EFFECT_DUMMY || sp.effect == EFFECT_SCRIPT) {
             catalogDummy(sp.effect);
             if (sp.id == ClassScripts.SPELL_EXECUTE) {
