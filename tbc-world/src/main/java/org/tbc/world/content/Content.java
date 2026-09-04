@@ -30,6 +30,7 @@ public final class Content {
     public static final int GAME_EVENT_MIDSUMMER = 1;
     public static final int NPC_LUMA_SKYMOTHER = 25697;
     public static final int GO_ICE_STONE = 187882;
+    public static final int GO_ICE_BLOCK = 188067;
     public static final int AUCTION_LIST_DELAY_MS = 300;
     public static final int EQUIP_ERR_NOT_ENOUGH_MONEY = 29;
     public static final int QUEST_STATE_COMPLETE = 0x1;

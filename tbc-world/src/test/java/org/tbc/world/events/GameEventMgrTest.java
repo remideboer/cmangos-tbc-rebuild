@@ -126,6 +126,44 @@ class GameEventMgrTest {
         assertNull(findGo(world, Content.GO_ICE_STONE));
     }
 
+    @Test
+    void startWhenSqlGameEventGameobjectShouldSpawnIceBlock() throws Exception {
+        String url = "jdbc:h2:mem:gego_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "event-go-test")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE gameobject (
+                          guid INT PRIMARY KEY,
+                          id INT,
+                          map INT,
+                          position_x FLOAT,
+                          position_y FLOAT,
+                          position_z FLOAT,
+                          orientation FLOAT
+                        )
+                        """);
+                st.execute("""
+                        CREATE TABLE game_event_gameobject (
+                          guid INT,
+                          event SMALLINT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO gameobject (guid, id, map, position_x, position_y, position_z, orientation)
+                        VALUES (5470021, 188067, 547, -83.5253, -172.181, -3.81652, 0.017452)
+                        """);
+                st.execute("INSERT INTO game_event_gameobject (guid, event) VALUES (5470021, 1)");
+            }
+            World world = new World(null, null, worldDb, null);
+            assertNull(findGo(world, Content.GO_ICE_BLOCK));
+            world.events.start(world, Content.GAME_EVENT_MIDSUMMER);
+            GameObject block = findGo(world, Content.GO_ICE_BLOCK);
+            assertNotNull(block);
+            assertEquals(5470021, (int) block.guid);
+        }
+    }
+
     private static Creature find(World world, int entry) {
         return find(world, 547, entry);
     }

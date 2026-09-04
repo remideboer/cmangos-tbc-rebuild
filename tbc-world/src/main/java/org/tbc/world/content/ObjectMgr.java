@@ -241,6 +241,11 @@ public final class ObjectMgr {
             } catch (Exception e) {
                 log.debug("game_event_creature load skipped: {}", e.getMessage());
             }
+            try {
+                loadEventGameObjects(c);
+            } catch (Exception e) {
+                log.debug("game_event_gameobject load skipped: {}", e.getMessage());
+            }
             loadQuests(c);
             loadAreaTriggers(c);
             loadItems(c);
@@ -446,6 +451,23 @@ public final class ObjectMgr {
                                 rs.getFloat(5), rs.getFloat(6), rs.getFloat(7), rs.getFloat(8)));
             }
             log.info("loaded game_event_creature for {} events", eventCreatures.size());
+        }
+    }
+
+    private void loadEventGameObjects(Connection c) throws Exception {
+        String sql = "SELECT geg.`event`, g.guid, g.id, g.map, g.position_x, g.position_y, g.position_z, g.orientation "
+                + "FROM game_event_gameobject geg INNER JOIN gameobject g ON g.guid = geg.guid";
+        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                int eventId = rs.getInt(1);
+                if (eventId <= 0) {
+                    continue;
+                }
+                eventGameObjects.computeIfAbsent(eventId, k -> new ArrayList<>()).add(
+                        new Spawn(rs.getInt(2), rs.getInt(3), rs.getInt(4),
+                                rs.getFloat(5), rs.getFloat(6), rs.getFloat(7), rs.getFloat(8)));
+            }
+            log.info("loaded game_event_gameobject for {} events", eventGameObjects.size());
         }
     }
 
