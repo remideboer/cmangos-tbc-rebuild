@@ -71,6 +71,18 @@ class CombatTest {
     }
 
     @Test
+    void swingWhenSecondPlayerHasMoreThreatShouldRetargetVictim() {
+        combat.startAttack(p, c, 1000);
+        combat.swing(p, c, 1002);
+        Player other = new Player();
+        other.guid = 3;
+        other.level = 1;
+        combat.swing(other, c, 1003);
+        combat.swing(other, c, 1004);
+        assertEquals(other.guid, c.victim);
+    }
+
+    @Test
     void swingSkipsDeadAndEvading() {
         c.setHealth(0);
         assertEquals(0, combat.swing(p, c, 1).damage());

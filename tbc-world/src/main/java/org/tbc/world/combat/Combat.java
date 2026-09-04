@@ -70,6 +70,7 @@ public final class Combat {
             c.setHealth(c.health() - r.damage());
             c.threat += r.threat();
             c.threatManager.add(p, r.threat());
+            c.victim = c.threatManager.highestGuid();
             c.lastHitMs = nowMs;
             if (c.taggedBy == 0) {
                 c.taggedBy = p.guid;
