@@ -58,7 +58,7 @@ public final class MeleeTable {
         if (r < acc) {
             return new Result(Outcome.PARRY, 0, 0);
         }
-        acc += blockChance(victim);
+        acc += blockChance(attacker, victim);
         if (r < acc) {
             return new Result(Outcome.BLOCK, 0, 0);
         }
@@ -126,8 +126,8 @@ public final class MeleeTable {
         return skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6);
     }
 
-    static double blockChance(Unit victim) {
-        return avoidChance(victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE);
+    static double blockChance(Unit attacker, Unit victim) {
+        return skillAvoid(attacker, victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE, 0.0, 0.0);
     }
 
     /** Base then (defense − skill) × factor. NPC positive difference: dodge 0.1; parry 0.1 or 0.6 if > 10. */
@@ -144,18 +144,6 @@ public final class MeleeTable {
         pct += difference * factor;
         if (pct < 0) {
             pct = 0;
-        }
-        if (pct > 100) {
-            pct = 100;
-        }
-        return pct / 100.0;
-    }
-
-    /** Creatures +5; players use the rating field with no extra +5. Base < 0.005 → incapable. */
-    static double avoidChance(Unit victim, int playerField) {
-        double pct = victim instanceof Player ? victim.getFloat(playerField) : 5.0;
-        if (pct < 0.005) {
-            return 0;
         }
         if (pct > 100) {
             pct = 100;

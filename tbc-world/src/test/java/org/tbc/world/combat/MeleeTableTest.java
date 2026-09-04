@@ -61,7 +61,7 @@ class MeleeTableTest {
         assertEquals(MeleeTable.Outcome.MISS, table(0.99).rollOne(a, v, 2, 2).outcome());
         a.level = 60;
         v.level = 1;
-        assertEquals(MeleeTable.Outcome.BLOCK, table(0.01).rollOne(a, v, 2, 2).outcome());
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.01).rollOne(a, v, 2, 2).outcome());
         a.level = 1;
         v.level = 3;
         assertEquals(MeleeTable.Outcome.HIT, table(0.50).rollOne(a, v, 2, 2).outcome());
@@ -81,6 +81,19 @@ class MeleeTableTest {
         a.level = 20;
         v.level = 11;
         assertEquals(MeleeTable.Outcome.PARRY, table(0.07).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
+    void rollOneWhenAttackerSkillBeatsNpcDefenseShouldNotAddBlockBonus() {
+        Player a = new Player();
+        a.level = 60;
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.01).rollOne(a, v, 2, 2).outcome());
+        a.level = 1;
+        v.level = 4;
+        assertEquals(MeleeTable.Outcome.BLOCK, table(0.32).rollOne(a, v, 2, 2).outcome());
     }
 
     @Test
