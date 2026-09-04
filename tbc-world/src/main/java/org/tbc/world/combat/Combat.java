@@ -16,6 +16,7 @@ public final class Combat {
     public static final int HITINFO_BLOCK = 0x00000800;
     public static final int HITINFO_GLANCING = 0x00004000;
     public static final int HITINFO_CRUSHING = 0x00008000;
+    public static final int HITINFO_NOACTION = 0x00010000;
     public static final int VICTIM_UNAFFECTED = 0;
     public static final int VICTIM_NORMAL = 1;
     public static final int VICTIM_DODGE = 2;
@@ -162,6 +163,10 @@ public final class Combat {
     }
 
     public byte[] encodeAttack(Unit attacker, Unit victim, MeleeTable.Result r) {
+        return encodeAttack(attacker, victim, r, false);
+    }
+
+    public byte[] encodeAttack(Unit attacker, Unit victim, MeleeTable.Result r, boolean spellSwing) {
         int hitInfo = HITINFO_NORMALSWING2;
         int victimState = VICTIM_NORMAL;
         switch (r.outcome()) {
@@ -180,6 +185,9 @@ public final class Combat {
             case CRUSH -> hitInfo |= HITINFO_CRUSHING;
             default -> {
             }
+        }
+        if (spellSwing) {
+            hitInfo |= HITINFO_NOACTION;
         }
         WowBuffer b = new WowBuffer(64);
         b.putU32(hitInfo);

@@ -105,6 +105,12 @@ class CombatTest {
     }
 
     @Test
+    void encodeAttackWhenSpellSwingShouldSetHitInfoNoAction() {
+        byte[] pkt = combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.HIT, 3, 3), true);
+        assertEquals(Combat.HITINFO_NORMALSWING2 | Combat.HITINFO_NOACTION, u32le(pkt));
+    }
+
+    @Test
     void swingWhenNextMeleeBonusShouldAddToWeaponRange() {
         p.queueNextMeleeSwing(2);
         assertEquals(3, combat.swing(p, c, 1).damage());
