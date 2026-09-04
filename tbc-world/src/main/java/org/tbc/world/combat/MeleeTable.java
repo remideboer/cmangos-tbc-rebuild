@@ -43,7 +43,7 @@ public final class MeleeTable {
 
     public Result rollOne(Unit attacker, Unit victim, int weaponMin, int weaponMax) {
         double r = unitRoll.getAsDouble();
-        double acc = 0.05;
+        double acc = missChance(attacker, victim);
         if (r < acc) {
             return miss();
         }
@@ -89,6 +89,31 @@ public final class MeleeTable {
 
     private static Result miss() {
         return new Result(Outcome.MISS, 0, 0);
+    }
+
+    /** Base 5%. Vs NPC, defense − skill: ≤10 at 0.1 each; above that leftover at 0.2+0.4. */
+    static double missChance(Unit attacker, Unit victim) {
+        double pct = 5.0;
+        int difference = victim.level * 5 - attacker.level * 5;
+        if (victim instanceof Creature) {
+            if (difference > 10) {
+                pct += 1.0;
+                int leftover = difference - 10;
+                pct += leftover * 0.2;
+                pct += leftover * 0.4;
+            } else if (difference > 0) {
+                pct += difference * 0.1;
+            } else {
+                pct += difference * 0.04;
+            }
+        }
+        if (pct < 0) {
+            pct = 0;
+        }
+        if (pct > 100) {
+            pct = 100;
+        }
+        return pct / 100.0;
     }
 
     static double dodgeChance(Unit victim) {
