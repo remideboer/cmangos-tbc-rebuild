@@ -54,7 +54,11 @@ public final class SpellEngine {
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_DUMMY, EFFECT_SCRIPT);
 
-    public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {}
+    public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
+        public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
+            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, 0);
+        }
+    }
 
     private final Map<Integer, SpellInfo> spells = new HashMap<>();
     private final DoubleSupplier missRoll;
@@ -189,6 +193,10 @@ public final class SpellEngine {
             addHonor(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
+        if (sp.effect == EFFECT_LEARN_SPELL) {
+            learnSpell(target, sp.misc());
+            return 0;
+        }
         if (sp.effect == EFFECT_DUMMY || sp.effect == EFFECT_SCRIPT) {
             catalogDummy(sp.effect);
             if (sp.id == ClassScripts.SPELL_EXECUTE) {
@@ -204,6 +212,16 @@ public final class SpellEngine {
             return;
         }
         target.setPower(target.power() + amount);
+    }
+
+    /** Effect 36 — add TriggerSpell / misc to the player's book (spells-and-auras.md). */
+    public void learnSpell(Unit target, int spellId) {
+        if (!(target instanceof Player p) || spellId <= 0) {
+            return;
+        }
+        if (!p.spells.contains(spellId)) {
+            p.spells.add(spellId);
+        }
     }
 
     /** Effect 45 — add honor points from damage (spell-algorithms.md). */
