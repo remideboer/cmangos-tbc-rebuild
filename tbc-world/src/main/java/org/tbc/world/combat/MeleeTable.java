@@ -106,6 +106,8 @@ public final class MeleeTable {
             } else {
                 pct += difference * 0.04;
             }
+        } else {
+            pct += difference * 0.04;
         }
         if (pct < 0) {
             pct = 0;

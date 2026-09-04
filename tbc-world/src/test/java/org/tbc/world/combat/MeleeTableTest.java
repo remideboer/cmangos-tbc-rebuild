@@ -68,6 +68,20 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenPlayerDefenseExceedsWeaponSkillShouldRaiseMissAtFourHundredths() {
+        Creature a = new Creature();
+        a.level = 1;
+        a.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        Player v = new Player();
+        v.level = 11;
+        v.setHealth(100);
+        assertEquals(MeleeTable.Outcome.MISS, table(0.06).rollOne(a, v, 2, 2).outcome());
+        a.level = 4;
+        v.level = 1;
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.048).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
     void rollOneWhenPlayerHasFivePercentCritShouldCritAndDoubleDamage() {
         Player a = new Player();
         a.level = 1;
@@ -103,7 +117,7 @@ class MeleeTableTest {
         npc.level = 1;
         Player defender = new Player();
         defender.level = 11;
-        assertEquals(MeleeTable.Outcome.CRIT, table(0.06).rollOne(npc, defender, 2, 2).outcome());
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.08).rollOne(npc, defender, 2, 2).outcome());
         Player other = new Player();
         other.level = 11;
         assertEquals(MeleeTable.Outcome.HIT, table(0.22).rollOne(a, other, 2, 2).outcome());
