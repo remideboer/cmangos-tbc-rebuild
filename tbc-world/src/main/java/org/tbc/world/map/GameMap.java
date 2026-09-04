@@ -45,6 +45,10 @@ public final class GameMap {
         gameObjects.put(go.guid, go);
     }
 
+    public void remove(GameObject go) {
+        gameObjects.remove(go.guid);
+    }
+
     public void remove(Creature c) {
         creatures.remove(c.guid);
         Map<Long, Creature> cell = cells.get(cellKey(c.x, c.y));

@@ -117,6 +117,15 @@ class GameEventMgrTest {
         assertNotNull(findGo(world, Content.GO_ICE_STONE));
     }
 
+    @Test
+    void stopWhenMidsummerShouldDespawnIceStone() {
+        World world = World.inMemory();
+        world.events.start(world, Content.GAME_EVENT_MIDSUMMER);
+        assertNotNull(findGo(world, Content.GO_ICE_STONE));
+        world.events.stop(world, Content.GAME_EVENT_MIDSUMMER);
+        assertNull(findGo(world, Content.GO_ICE_STONE));
+    }
+
     private static Creature find(World world, int entry) {
         return find(world, 547, entry);
     }
