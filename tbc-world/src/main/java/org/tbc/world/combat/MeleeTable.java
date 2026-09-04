@@ -60,7 +60,13 @@ public final class MeleeTable {
         }
         acc += blockChance(attacker, victim);
         if (r < acc) {
-            return new Result(Outcome.BLOCK, 0, 0);
+            int raw = damageRoll.applyAsInt(weaponMin, weaponMax);
+            int shield = victim instanceof Player p ? p.getInt(UpdateFields.PLAYER_SHIELD_BLOCK) : 0;
+            int dmg = raw - shield;
+            if (dmg < 0) {
+                dmg = 0;
+            }
+            return new Result(Outcome.BLOCK, dmg, dmg);
         }
         acc += glanceChance(attacker, victim);
         if (r < acc) {

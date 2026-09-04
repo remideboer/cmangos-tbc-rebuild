@@ -281,6 +281,26 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenBlockShouldSubtractShieldBlockValue() {
+        Creature a = new Creature();
+        a.level = 1;
+        a.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        Player v = new Player();
+        v.level = 1;
+        v.setFloat(UpdateFields.PLAYER_BLOCK_PERCENTAGE, 5f);
+        v.setInt(UpdateFields.PLAYER_SHIELD_BLOCK, 4);
+        MeleeTable.Result partial = table(0.06).rollOne(a, v, 10, 10);
+        assertEquals(MeleeTable.Outcome.BLOCK, partial.outcome());
+        assertEquals(6, partial.damage());
+        assertEquals(6, partial.threat());
+        v.setInt(UpdateFields.PLAYER_SHIELD_BLOCK, 20);
+        MeleeTable.Result full = table(0.06).rollOne(a, v, 10, 10);
+        assertEquals(MeleeTable.Outcome.BLOCK, full.outcome());
+        assertEquals(0, full.damage());
+        assertEquals(0, full.threat());
+    }
+
+    @Test
     void rollOneWhenSittingPlayerShouldForceRemainingTableToCrit() {
         Creature a = new Creature();
         a.level = 1;
