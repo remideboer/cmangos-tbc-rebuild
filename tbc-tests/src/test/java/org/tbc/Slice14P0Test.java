@@ -144,6 +144,33 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14AutobankItem() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Depositor", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int src = p.firstFreeBagSlot();
+        Item sword = new Item(world.nextItemGuid(), 25);
+        sword.slot = src;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer bank = new WowBuffer(2);
+        bank.putU8(0);
+        bank.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOBANK_ITEM, bank.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        assertEquals(0L, guidAt(update, invSlotField(src)));
+        assertEquals(UpdateBuilder.itemGuid(sword), guidAt(update, invSlotField(Player.BANK_SLOT_ITEM_START)));
+    }
+
+    @Test
     void tpSl14TrainerBuySpell() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();

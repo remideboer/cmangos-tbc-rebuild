@@ -18,6 +18,8 @@ public final class Player extends Unit {
     public static final int EQUIPMENT_SLOT_OFFHAND = 16;
     public static final int INVENTORY_SLOT_ITEM_START = 23;
     public static final int INVENTORY_SLOT_ITEM_END = 39;
+    public static final int BANK_SLOT_ITEM_START = 39;
+    public static final int BANK_SLOT_ITEM_END = 67;
     public static final int MAX_VISIBLE_ITEM_OFFSET = 16;
     public static final int POWER_RAGE = 1;
     public static final int POWER_RAGE_MAX = 1000;
@@ -187,6 +189,15 @@ public final class Player extends Unit {
 
     public int firstFreeBagSlot() {
         for (int s = INVENTORY_SLOT_ITEM_START; s < INVENTORY_SLOT_ITEM_END; s++) {
+            if (itemAt(0, s) == null) {
+                return s;
+            }
+        }
+        return -1;
+    }
+
+    public int firstFreeBankSlot() {
+        for (int s = BANK_SLOT_ITEM_START; s < BANK_SLOT_ITEM_END; s++) {
             if (itemAt(0, s) == null) {
                 return s;
             }
