@@ -1,5 +1,6 @@
 package org.tbc.world.map;
 
+import org.tbc.world.ai.DbScriptEngine;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Player;
@@ -17,6 +18,7 @@ public final class GameMap {
     public final Map<Long, Player> players = new ConcurrentHashMap<>();
     public final Map<Long, Creature> creatures = new ConcurrentHashMap<>();
     public final Map<Long, GameObject> gameObjects = new ConcurrentHashMap<>();
+    public final DbScriptEngine dbScripts = new DbScriptEngine();
     public static final double VISIBILITY = 90.0;
     private static final float CELL = 100f;
     private final Map<Long, Map<Long, Creature>> cells = new ConcurrentHashMap<>();

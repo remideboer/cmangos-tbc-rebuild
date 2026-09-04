@@ -8,6 +8,7 @@ import org.tbc.common.DbPool;
 import org.tbc.common.Sha1;
 import org.tbc.common.Srp6;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.ai.DbScriptStore;
 import org.tbc.world.ai.EventAi;
 import org.tbc.world.ai.FactorySelector;
 import org.tbc.world.ai.ScriptedCreatureAI;
@@ -300,6 +301,10 @@ public final class World implements Runnable {
                 p.session.send(Opcodes.SMSG_ATTACKSTOP, combat.encodeAttackStop(p.guid, c.guid, false));
             }
         }
+        if (!c.alive()) {
+            hitMap.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, c.entry, c, p,
+                    (src, tgt, spell) -> sendDbScriptCast(hitMap, src, tgt, spell));
+        }
     }
 
     public void creatureMeleeHit(Creature c, Player p) {
@@ -410,6 +415,12 @@ public final class World implements Runnable {
                     break;
                 }
             }
+        }
+    }
+
+    private void sendDbScriptCast(GameMap m, Unit src, Unit t, int spell) {
+        if (src instanceof Creature cr) {
+            sendEventAiCast(m, cr, t, spell);
         }
     }
 
