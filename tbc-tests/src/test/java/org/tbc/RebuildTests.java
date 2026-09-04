@@ -545,9 +545,11 @@ class SliceTests {
         p.setPower(150);
         clear(sink);
         s.handle(w, Opcodes.CMSG_CAST_SPELL, cast.array());
-        assertTrue(sink.opcodes.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertTrue(sink.opcodes.contains(Opcodes.SMSG_SPELL_GO));
+        assertFalse(sink.opcodes.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
         assertFalse(sink.opcodes.contains(Opcodes.SMSG_CAST_RESULT));
-        assertTrue(kobold.health() < hp);
+        assertEquals(hp, kobold.health());
+        assertTrue(p.hasNextMeleeSwingQueued());
         assertEquals(0, p.power());
         p.relocate(kobold.x + 40f, kobold.y, kobold.z, kobold.o);
         clear(sink);

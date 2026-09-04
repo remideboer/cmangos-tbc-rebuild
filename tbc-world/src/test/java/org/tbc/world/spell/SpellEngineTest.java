@@ -62,6 +62,19 @@ class SpellEngineTest {
     }
 
     @Test
+    void castWhenHeroicStrike78ShouldQueueNextMeleeWithoutDamageLog() {
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setPower(200);
+        int hp = c.health();
+        engine.cast(p, map, 0, 78, 1, unitTarget(c.guid), this::capture);
+        assertTrue(p.hasNextMeleeSwingQueued());
+        assertEquals(hp, c.health());
+        assertEquals(50, p.power());
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+    }
+
+    @Test
     void castFailuresAndIgnores() {
         engine.cast(p, map, 0, 0, 1, empty(), this::capture);
         engine.cast(p, map, 0, 9, 1, empty(), this::capture);
@@ -111,8 +124,10 @@ class SpellEngineTest {
         p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
         p.setPower(200);
         engine.cast(p, map, 0, 78, 1, unitTarget(c.guid), this::capture);
-        assertTrue(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertTrue(p.hasNextMeleeSwingQueued());
+        assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
         assertEquals(50, p.power());
+        engine.apply(p, c, engine.info(78));
         engine.apply(p, c, engine.info(ClassScripts.SPELL_EXECUTE));
         engine.apply(p, p, new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_SCRIPT, 0, 0, 0, 0, 0, 0f));
         engine.apply(p, p, new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));

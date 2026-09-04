@@ -125,7 +125,12 @@ public final class SpellEngine {
                     UpdateBuilder.values(caster, UpdateFields.UNIT_FIELD_POWER1 + caster.powerType));
             send.accept(pwr.opcode(), pwr.payload());
         }
-        int dmg = apply(caster, target, sp);
+        int dmg = 0;
+        if (sp.id == 78) {
+            caster.queueNextMeleeSwing();
+        } else {
+            dmg = apply(caster, target, sp);
+        }
         send.accept(Opcodes.SMSG_SPELL_GO, encodeGo(caster.guid, target.guid, sp.id, nowMs, targets));
         if (dmg > 0) {
             send.accept(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG, encodeDamageLog(target.guid, caster.guid, sp, dmg));
