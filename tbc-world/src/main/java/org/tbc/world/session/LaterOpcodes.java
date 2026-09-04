@@ -62,6 +62,10 @@ public final class LaterOpcodes {
             InventoryHandler.wrapItem(s, world, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_CANCEL_TEMP_ENCHANTMENT) {
+            InventoryHandler.cancelTempEnchantment(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
             InventoryHandler.swapItem(s, in);
             return true;

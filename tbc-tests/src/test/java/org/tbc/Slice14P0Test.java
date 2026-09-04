@@ -491,6 +491,30 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14CancelTempEnchantment() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Enchanter", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        sword.tempEnchant = 1;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(Player.EQUIPMENT_SLOT_MAINHAND), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer cancel = new WowBuffer(4);
+        cancel.putU32(Player.EQUIPMENT_SLOT_MAINHAND);
+        client.handle(world, Opcodes.CMSG_CANCEL_TEMP_ENCHANTMENT, cancel.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        assertEquals(0, sword.tempEnchant);
+    }
+
+    @Test
     void tpSl14OpenWrappedItemUnwraps() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();

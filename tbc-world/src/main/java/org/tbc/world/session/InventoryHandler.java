@@ -343,7 +343,25 @@ public final class InventoryHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** eslot uint32, bag 0 equipment. Clears TEMP_ENCHANTMENT_SLOT. No reply. inventory.md */
+    public static void cancelTempEnchantment(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 4) {
+            return;
+        }
+        int eslot = in.getU32();
+        if (eslot >= Player.INVENTORY_SLOT_BAG_START) {
+            return;
+        }
+        Item it = p.itemAt(0, eslot);
+        if (it == null || it.tempEnchant == 0) {
+            return;
+        }
+        it.tempEnchant = 0;
+    }
+
     public static final int BUYBACK_SLOT_START = 74;
+    public static final int TEMP_ENCHANTMENT_SLOT = 1;
     public static final int BONUS_ENCHANTMENT_SLOT = 5;
     public static final int ENCHANT_SLOT_FIELDS = 3;
     public static final int META_GEM_SKYFIRE = 25890;

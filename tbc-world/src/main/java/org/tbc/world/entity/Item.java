@@ -11,6 +11,7 @@ public final class Item {
     public int displayId;
     public int inventoryType;
     public int enchant;
+    public int tempEnchant;
     public int quality;
     public int flags;
     public boolean soulbound;
