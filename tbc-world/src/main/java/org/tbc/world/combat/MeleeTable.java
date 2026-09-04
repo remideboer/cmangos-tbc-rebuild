@@ -59,11 +59,9 @@ public final class MeleeTable {
         if (r < acc) {
             return new Result(Outcome.BLOCK, 0, 0);
         }
-        if (victim.level > 10) {
-            acc += 0.10;
-            if (r < acc) {
-                return hit(Outcome.GLANCE, weaponMin, weaponMax, 1);
-            }
+        acc += glanceChance(attacker, victim);
+        if (r < acc) {
+            return hit(Outcome.GLANCE, weaponMin, weaponMax, 1);
         }
         double crit = critChance(attacker, victim);
         acc += crit;
@@ -99,6 +97,29 @@ public final class MeleeTable {
         } else {
             pct += 0.04 * (skill - defense);
         }
+        if (pct < 0) {
+            pct = 0;
+        }
+        if (pct > 100) {
+            pct = 100;
+        }
+        return pct / 100.0;
+    }
+
+    /** Player vs NPC level > 10: 10 + (defense − capped weapon skill) percent. */
+    static double glanceChance(Unit attacker, Unit victim) {
+        if (!(attacker instanceof Player)) {
+            return 0;
+        }
+        if (!(victim instanceof Creature)) {
+            return 0;
+        }
+        if (victim.level <= 10) {
+            return 0;
+        }
+        int skill = attacker.level * 5;
+        int defense = victim.level * 5;
+        double pct = 10.0 + (defense - skill);
         if (pct < 0) {
             pct = 0;
         }

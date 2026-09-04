@@ -20,6 +20,7 @@ class MeleeTableTest {
         assertEquals(MeleeTable.Outcome.PARRY, table(0.11).rollOne(a, v, 1, 3).outcome());
         assertEquals(MeleeTable.Outcome.BLOCK, table(0.16).rollOne(a, v, 1, 3).outcome());
         assertEquals(MeleeTable.Outcome.HIT, table(0.50).rollOne(a, v, 2, 2).outcome());
+        a.level = 11;
         v.level = 11;
         assertEquals(MeleeTable.Outcome.GLANCE, table(0.22).rollOne(a, v, 1, 3).outcome());
         assertEquals(MeleeTable.Outcome.HIT, table(0.50).rollOne(a, v, 1, 3).outcome());
@@ -44,6 +45,31 @@ class MeleeTableTest {
         assertEquals(MeleeTable.Outcome.HIT, table(0.50).rollOne(a, v, 2, 2).outcome());
         a.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_CRIT_PERCENTAGE, 200f);
         assertEquals(MeleeTable.Outcome.CRIT, table(0.22).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
+    void rollOneWhenPlayerVsNpcAboveLevel10ShouldGlanceAtTenPlusDefenseMinusSkill() {
+        Player a = new Player();
+        a.level = 1;
+        Creature v = new Creature();
+        v.level = 11;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 11);
+        assertEquals(MeleeTable.Outcome.GLANCE, table(0.22).rollOne(a, v, 2, 2).outcome());
+        assertEquals(MeleeTable.Outcome.GLANCE, table(0.50).rollOne(a, v, 2, 2).outcome());
+        assertEquals(MeleeTable.Outcome.HIT, table(0.81).rollOne(a, v, 2, 2).outcome());
+        v.level = 60;
+        assertEquals(MeleeTable.Outcome.GLANCE, table(0.99).rollOne(a, v, 2, 2).outcome());
+        a.level = 20;
+        v.level = 11;
+        assertEquals(MeleeTable.Outcome.HIT, table(0.50).rollOne(a, v, 2, 2).outcome());
+        Creature npc = new Creature();
+        npc.level = 1;
+        Player defender = new Player();
+        defender.level = 11;
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.22).rollOne(npc, defender, 2, 2).outcome());
+        Player other = new Player();
+        other.level = 11;
+        assertEquals(MeleeTable.Outcome.HIT, table(0.22).rollOne(a, other, 2, 2).outcome());
     }
 
     @Test
