@@ -41,6 +41,14 @@ public final class GameMap {
         cells.computeIfAbsent(cellKey(c.x, c.y), k -> new ConcurrentHashMap<>()).put(c.guid, c);
     }
 
+    public void remove(Creature c) {
+        creatures.remove(c.guid);
+        Map<Long, Creature> cell = cells.get(cellKey(c.x, c.y));
+        if (cell != null) {
+            cell.remove(c.guid);
+        }
+    }
+
     public List<Player> nearbyPlayers(Unit u, double range) {
         List<Player> out = new ArrayList<>();
         for (Player p : players.values()) {
