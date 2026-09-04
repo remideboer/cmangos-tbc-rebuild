@@ -63,6 +63,42 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14SwapItem() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "BagSwapper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int src = p.firstFreeBagSlot();
+        Item first = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        first.slot = src;
+        p.items.put((int) first.guid, first);
+        int dst = p.firstFreeBagSlot();
+        Item second = new Item(world.nextItemGuid(), 159);
+        second.slot = dst;
+        p.items.put((int) second.guid, second);
+        p.setGuid(invSlotField(first.slot), UpdateBuilder.itemGuid(first));
+        p.setGuid(invSlotField(second.slot), UpdateBuilder.itemGuid(second));
+        int srcSlot = first.slot;
+        int dstSlot = second.slot;
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(4);
+        swap.putU8(0);
+        swap.putU8(dstSlot);
+        swap.putU8(0);
+        swap.putU8(srcSlot);
+        client.handle(world, Opcodes.CMSG_SWAP_ITEM, swap.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        assertEquals(UpdateBuilder.itemGuid(second), guidAt(update, invSlotField(srcSlot)));
+        assertEquals(UpdateBuilder.itemGuid(first), guidAt(update, invSlotField(dstSlot)));
+    }
+
+    @Test
     void tpSl14DestroyItem() throws Exception {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();

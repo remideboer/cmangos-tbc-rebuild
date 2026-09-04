@@ -47,23 +47,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
-            if (in.remaining() < 4) {
-                return true;
-            }
-            int db = in.getU8();
-            int ds = in.getU8();
-            int sb = in.getU8();
-            int ss = in.getU8();
-            Item a = p.itemAt(sb, ss);
-            Item b = p.itemAt(db, ds);
-            if (a != null) {
-                a.bag = db;
-                a.slot = ds;
-            }
-            if (b != null) {
-                b.bag = sb;
-                b.slot = ss;
-            }
+            InventoryHandler.swapItem(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_RESET_INSTANCES) {

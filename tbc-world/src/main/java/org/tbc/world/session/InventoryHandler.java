@@ -43,6 +43,41 @@ public final class InventoryHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** dstbag, dstslot, srcbag, srcslot. Same pos: ignore. inventory.md */
+    public static void swapItem(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 4) {
+            return;
+        }
+        int dstBag = in.getU8();
+        int dstSlot = in.getU8();
+        int srcBag = in.getU8();
+        int srcSlot = in.getU8();
+        if (srcBag == dstBag && srcSlot == dstSlot) {
+            return;
+        }
+        Item a = p.itemAt(srcBag, srcSlot);
+        Item b = p.itemAt(dstBag, dstSlot);
+        if (a != null) {
+            a.bag = dstBag;
+            a.slot = dstSlot;
+        }
+        if (b != null) {
+            b.bag = srcBag;
+            b.slot = srcSlot;
+        }
+        if (srcBag != 0 || dstBag != 0) {
+            return;
+        }
+        int srcField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + srcSlot * 2;
+        int dstField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + dstSlot * 2;
+        p.setGuid(srcField, b == null ? 0 : UpdateBuilder.itemGuid(b));
+        p.setGuid(dstField, a == null ? 0 : UpdateBuilder.itemGuid(a));
+        var pkt = UpdateBuilder.maybeCompress(
+                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
+        s.send(pkt.opcode(), pkt.payload());
+    }
+
     /** bag, slot, count (0 = whole stack). Layout: spec/03-protocol/packets/inventory.md */
     public static void destroyItem(WorldSession s, WowBuffer in) {
         Player p = s.player();
