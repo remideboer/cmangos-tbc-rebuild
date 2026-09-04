@@ -345,6 +345,38 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14ReadItem() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Reader", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        ObjectMgr.ItemTemplate letterTpl = new ObjectMgr.ItemTemplate();
+        letterTpl.entry = Content.ITEM_DUSTY_UNSENT_LETTER;
+        letterTpl.pageText = Content.PAGE_TEXT_STALVAN_CRILLIAN;
+        world.objectMgr.items.put(letterTpl.entry, letterTpl);
+
+        int slot = p.firstFreeBagSlot();
+        Item letter = new Item(world.nextItemGuid(), Content.ITEM_DUSTY_UNSENT_LETTER);
+        letter.slot = slot;
+        p.items.put((int) letter.guid, letter);
+        p.setGuid(invSlotField(slot), UpdateBuilder.itemGuid(letter));
+
+        client.clear();
+        WowBuffer read = new WowBuffer(2);
+        read.putU8(0);
+        read.putU8(slot);
+        client.handle(world, Opcodes.CMSG_READ_ITEM, read.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_READ_ITEM_OK));
+        assertFalse(client.saw(Opcodes.SMSG_READ_ITEM_FAILED));
+        WowBuffer ok = new WowBuffer(client.payload(Opcodes.SMSG_READ_ITEM_OK));
+        assertEquals(UpdateBuilder.itemGuid(letter), ok.getU64());
+    }
+
+    @Test
     void tpSl14SetAmmo() throws Exception {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();

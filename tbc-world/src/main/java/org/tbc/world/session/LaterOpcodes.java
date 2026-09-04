@@ -54,6 +54,10 @@ public final class LaterOpcodes {
             InventoryHandler.setAmmo(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_READ_ITEM) {
+            InventoryHandler.readItem(s, world, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
             InventoryHandler.swapItem(s, in);
             return true;

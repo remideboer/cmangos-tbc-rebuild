@@ -44,6 +44,9 @@ public final class Content {
     public static final int ITEM_WORN_SHORTSWORD = 25;
     public static final int ITEM_ROUGH_ARROW = 2512;
     public static final int ITEM_SMALL_BROWN_POUCH = 4496;
+    /** locales_item 889; PageText 16 is locales_page_text (Stalvan to Crillian). */
+    public static final int ITEM_DUSTY_UNSENT_LETTER = 889;
+    public static final int PAGE_TEXT_STALVAN_CRILLIAN = 16;
     public static final int SPELL_BATTLE_SHOUT = 6673;
     public static final int TRAINER_SPELL_BATTLE_SHOUT_COST = 200;
     public static final int TAXI_STORMWIND = 2;

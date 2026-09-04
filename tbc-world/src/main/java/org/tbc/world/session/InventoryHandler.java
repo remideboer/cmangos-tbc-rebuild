@@ -284,6 +284,27 @@ public final class InventoryHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** bag, slot. PageText → SMSG_READ_ITEM_OK raw guid. inventory.md */
+    public static void readItem(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 2) {
+            return;
+        }
+        int bag = in.getU8();
+        int slot = in.getU8();
+        Item it = p.itemAt(bag, slot);
+        if (it == null) {
+            return;
+        }
+        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(it.entry);
+        if (t == null || t.pageText == 0) {
+            return;
+        }
+        WowBuffer ok = new WowBuffer(8);
+        ok.putU64(UpdateBuilder.itemGuid(it));
+        s.send(Opcodes.SMSG_READ_ITEM_OK, ok.array());
+    }
+
     public static final int BUYBACK_SLOT_START = 74;
     public static final int BONUS_ENCHANTMENT_SLOT = 5;
     public static final int ENCHANT_SLOT_FIELDS = 3;

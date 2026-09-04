@@ -103,6 +103,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_AUTOEQUIP_ITEM,
             Opcodes.CMSG_AUTOSTORE_BAG_ITEM,
             Opcodes.CMSG_SET_AMMO,
+            Opcodes.CMSG_READ_ITEM,
             Opcodes.CMSG_AREATRIGGER,
             Opcodes.CMSG_RESET_INSTANCES,
             Opcodes.CMSG_BATTLEFIELD_PORT,
