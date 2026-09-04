@@ -293,11 +293,13 @@ class MeleeTableTest {
         assertEquals(MeleeTable.Outcome.BLOCK, partial.outcome());
         assertEquals(6, partial.damage());
         assertEquals(6, partial.threat());
+        assertEquals(4, partial.blocked());
         v.setInt(UpdateFields.PLAYER_SHIELD_BLOCK, 20);
         MeleeTable.Result full = table(0.06).rollOne(a, v, 10, 10);
         assertEquals(MeleeTable.Outcome.BLOCK, full.outcome());
         assertEquals(0, full.damage());
         assertEquals(0, full.threat());
+        assertEquals(10, full.blocked());
     }
 
     @Test

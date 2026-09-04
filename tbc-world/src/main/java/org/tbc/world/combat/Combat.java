@@ -194,7 +194,7 @@ public final class Combat {
         b.putU32(victimState);
         b.putU32(0);
         b.putU32(0);
-        b.putU32(0);
+        b.putU32(r.blocked());
         return b.array();
     }
 

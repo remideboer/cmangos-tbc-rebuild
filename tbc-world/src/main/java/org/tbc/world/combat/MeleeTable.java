@@ -16,7 +16,11 @@ import java.util.function.IntBinaryOperator;
 public final class MeleeTable {
     public enum Outcome { HIT, MISS, DODGE, PARRY, BLOCK, GLANCE, CRIT, CRUSH }
 
-    public record Result(Outcome outcome, int damage, int threat) {}
+    public record Result(Outcome outcome, int damage, int threat, int blocked) {
+        public Result(Outcome outcome, int damage, int threat) {
+            this(outcome, damage, threat, 0);
+        }
+    }
 
     public static final MeleeTable DEFAULT = new MeleeTable();
 
@@ -66,7 +70,7 @@ public final class MeleeTable {
             if (dmg < 0) {
                 dmg = 0;
             }
-            return new Result(Outcome.BLOCK, dmg, dmg);
+            return new Result(Outcome.BLOCK, dmg, dmg, raw - dmg);
         }
         acc += glanceChance(attacker, victim);
         if (r < acc) {

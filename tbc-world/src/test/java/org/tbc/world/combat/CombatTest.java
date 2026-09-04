@@ -1,5 +1,6 @@
 package org.tbc.world.combat;
 
+import org.tbc.common.WowBuffer;
 import org.tbc.world.ai.EventAi;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
@@ -314,6 +315,26 @@ class CombatTest {
     void encodeAttackWhenCrushShouldSetHitInfoCrushing() {
         byte[] pkt = combat.encodeAttack(c, p, new MeleeTable.Result(MeleeTable.Outcome.CRUSH, 3, 3));
         assertEquals(Combat.HITINFO_NORMALSWING2 | Combat.HITINFO_CRUSHING, u32le(pkt));
+    }
+
+    @Test
+    void encodeAttackWhenBlockShouldWriteBlockedAmount() {
+        byte[] pkt = combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.BLOCK, 6, 6, 4));
+        WowBuffer b = new WowBuffer(pkt);
+        b.getU32();
+        b.getPackedGuid();
+        b.getPackedGuid();
+        b.getU32();
+        b.getU8();
+        b.getU32();
+        b.getFloat();
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        assertEquals(4, b.getU32());
     }
 
     private static int u32le(byte[] p) {
