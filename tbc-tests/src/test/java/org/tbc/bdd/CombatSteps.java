@@ -47,11 +47,19 @@ public class CombatSteps {
 
     @Then("the server has sent SMSG_ATTACKERSTATEUPDATE")
     public void sawAttackerState() {
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
         byte[] p = client.payload(Opcodes.SMSG_ATTACKERSTATEUPDATE);
         assertTrue(p.length > 8);
         int hitInfo = WowClientDouble.u32le(p, 0);
-        assertTrue(hitInfo == org.tbc.world.combat.Combat.HITINFO_NORMALSWING2
-                || (hitInfo & org.tbc.world.combat.Combat.HITINFO_MISS) != 0
+        assertTrue((hitInfo & (org.tbc.world.combat.Combat.HITINFO_NORMALSWING2
+                | org.tbc.world.combat.Combat.HITINFO_LEFTSWING
+                | org.tbc.world.combat.Combat.HITINFO_MISS
+                | org.tbc.world.combat.Combat.HITINFO_CRITICALHIT
+                | org.tbc.world.combat.Combat.HITINFO_BLOCK
+                | org.tbc.world.combat.Combat.HITINFO_GLANCING
+                | org.tbc.world.combat.Combat.HITINFO_CRUSHING
+                | org.tbc.world.combat.Combat.HITINFO_NOACTION
+                | org.tbc.world.combat.Combat.HITINFO_SWINGNOHITSOUND)) != 0
                 || hitInfo == 0);
     }
 

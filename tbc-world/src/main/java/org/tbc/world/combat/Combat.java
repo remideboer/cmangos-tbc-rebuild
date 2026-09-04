@@ -207,7 +207,7 @@ public final class Combat {
         int victimState = VICTIM_NORMAL;
         switch (r.outcome()) {
             case MISS -> {
-                hitInfo = HITINFO_MISS;
+                hitInfo |= HITINFO_MISS;
                 victimState = VICTIM_UNAFFECTED;
             }
             case DODGE -> victimState = VICTIM_DODGE;
