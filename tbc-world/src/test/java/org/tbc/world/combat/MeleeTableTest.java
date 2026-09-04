@@ -66,7 +66,7 @@ class MeleeTableTest {
         npc.level = 1;
         Player defender = new Player();
         defender.level = 11;
-        assertEquals(MeleeTable.Outcome.CRIT, table(0.22).rollOne(npc, defender, 2, 2).outcome());
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.06).rollOne(npc, defender, 2, 2).outcome());
         Player other = new Player();
         other.level = 11;
         assertEquals(MeleeTable.Outcome.HIT, table(0.22).rollOne(a, other, 2, 2).outcome());
@@ -94,6 +94,30 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenPlayerVictimHasNoAvoidRatingShouldSkipDodgeParryBlock() {
+        Creature a = new Creature();
+        a.level = 1;
+        a.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        Player v = new Player();
+        v.level = 1;
+        v.setHealth(100);
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.06).rollOne(a, v, 2, 2).outcome());
+        v.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_DODGE_PERCENTAGE, 5f);
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.06).rollOne(a, v, 2, 2).outcome());
+        v.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_DODGE_PERCENTAGE, 0f);
+        v.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_PARRY_PERCENTAGE, 5f);
+        assertEquals(MeleeTable.Outcome.PARRY, table(0.06).rollOne(a, v, 2, 2).outcome());
+        v.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_PARRY_PERCENTAGE, 0f);
+        v.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_BLOCK_PERCENTAGE, 5f);
+        assertEquals(MeleeTable.Outcome.BLOCK, table(0.06).rollOne(a, v, 2, 2).outcome());
+        v.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_DODGE_PERCENTAGE, 200f);
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.06).rollOne(a, v, 2, 2).outcome());
+        v.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.004f);
+        v.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_BLOCK_PERCENTAGE, 0f);
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.06).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
     void rollOneWhenSittingPlayerShouldForceRemainingTableToCrit() {
         Creature a = new Creature();
         a.level = 1;
@@ -107,6 +131,7 @@ class MeleeTableTest {
         assertEquals(MeleeTable.Outcome.CRIT, r.outcome());
         assertEquals(4, r.damage());
         v.stand();
+        v.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_DODGE_PERCENTAGE, 5f);
         assertEquals(MeleeTable.Outcome.DODGE, table(0.06).rollOne(a, v, 2, 2).outcome());
     }
 
@@ -118,7 +143,7 @@ class MeleeTableTest {
         Player v = new Player();
         v.level = 1;
         v.setHealth(100);
-        MeleeTable.Result r = table(0.22).rollOne(a, v, 2, 2);
+        MeleeTable.Result r = table(0.06).rollOne(a, v, 2, 2);
         assertEquals(MeleeTable.Outcome.CRIT, r.outcome());
         assertEquals(4, r.damage());
     }
@@ -130,7 +155,7 @@ class MeleeTableTest {
         a.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 4);
         Player v = new Player();
         v.level = 1;
-        MeleeTable.Result r = table(0.30).rollOne(a, v, 2, 2);
+        MeleeTable.Result r = table(0.22).rollOne(a, v, 2, 2);
         assertEquals(MeleeTable.Outcome.CRUSH, r.outcome());
         assertEquals(3, r.damage());
         assertEquals(3, r.threat());

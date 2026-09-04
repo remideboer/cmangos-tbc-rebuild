@@ -50,15 +50,15 @@ public final class MeleeTable {
         if (victim instanceof Player && !victim.isStanding()) {
             return hit(Outcome.CRIT, weaponMin, weaponMax, 2);
         }
-        acc += 0.05;
+        acc += dodgeChance(victim);
         if (r < acc) {
             return new Result(Outcome.DODGE, 0, 0);
         }
-        acc += 0.05;
+        acc += parryChance(victim);
         if (r < acc) {
             return new Result(Outcome.PARRY, 0, 0);
         }
-        acc += 0.05;
+        acc += blockChance(victim);
         if (r < acc) {
             return new Result(Outcome.BLOCK, 0, 0);
         }
@@ -89,6 +89,30 @@ public final class MeleeTable {
 
     private static Result miss() {
         return new Result(Outcome.MISS, 0, 0);
+    }
+
+    static double dodgeChance(Unit victim) {
+        return avoidChance(victim, UpdateFields.PLAYER_DODGE_PERCENTAGE);
+    }
+
+    static double parryChance(Unit victim) {
+        return avoidChance(victim, UpdateFields.PLAYER_PARRY_PERCENTAGE);
+    }
+
+    static double blockChance(Unit victim) {
+        return avoidChance(victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE);
+    }
+
+    /** Creatures +5; players use the rating field with no extra +5. Base < 0.005 → incapable. */
+    static double avoidChance(Unit victim, int playerField) {
+        double pct = victim instanceof Player ? victim.getFloat(playerField) : 5.0;
+        if (pct < 0.005) {
+            return 0;
+        }
+        if (pct > 100) {
+            pct = 100;
+        }
+        return pct / 100.0;
     }
 
     static double critChance(Unit attacker, Unit victim) {
