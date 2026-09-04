@@ -15,6 +15,7 @@ public final class Combat {
     public static final int HITINFO_CRITICALHIT = 0x00000080;
     public static final int HITINFO_BLOCK = 0x00000800;
     public static final int HITINFO_GLANCING = 0x00004000;
+    public static final int HITINFO_CRUSHING = 0x00008000;
     public static final int VICTIM_UNAFFECTED = 0;
     public static final int VICTIM_NORMAL = 1;
     public static final int VICTIM_DODGE = 2;
@@ -170,6 +171,8 @@ public final class Combat {
                 victimState = VICTIM_BLOCKS;
             }
             case GLANCE -> hitInfo |= HITINFO_GLANCING;
+            case CRIT -> hitInfo |= HITINFO_CRITICALHIT;
+            case CRUSH -> hitInfo |= HITINFO_CRUSHING;
             default -> {
             }
         }

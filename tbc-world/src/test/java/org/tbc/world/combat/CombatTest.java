@@ -124,6 +124,7 @@ class CombatTest {
         combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.BLOCK, 0, 0));
         combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.GLANCE, 1, 1));
         combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.CRIT, 4, 4));
+        combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.CRUSH, 3, 3));
         byte[] stop = combat.encodeAttackStop(1, 2, true);
         assertTrue(stop.length > 2);
         byte[] live = combat.encodeAttackStop(1, 2, false);
@@ -269,6 +270,22 @@ class CombatTest {
         int mask = pkt[4] & 0xFF;
         assertEquals(1, mask & 1, "packed guid low byte of creature guid 2");
         assertEquals(2, pkt[5] & 0xFF);
+    }
+
+    @Test
+    void encodeAttackWhenCritShouldSetHitInfoCriticalHit() {
+        byte[] pkt = combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.CRIT, 4, 4));
+        assertEquals(Combat.HITINFO_NORMALSWING2 | Combat.HITINFO_CRITICALHIT, u32le(pkt));
+    }
+
+    @Test
+    void encodeAttackWhenCrushShouldSetHitInfoCrushing() {
+        byte[] pkt = combat.encodeAttack(c, p, new MeleeTable.Result(MeleeTable.Outcome.CRUSH, 3, 3));
+        assertEquals(Combat.HITINFO_NORMALSWING2 | Combat.HITINFO_CRUSHING, u32le(pkt));
+    }
+
+    private static int u32le(byte[] p) {
+        return (p[0] & 0xFF) | ((p[1] & 0xFF) << 8) | ((p[2] & 0xFF) << 16) | ((p[3] & 0xFF) << 24);
     }
 
     private static long guidAt(byte[] p) {
