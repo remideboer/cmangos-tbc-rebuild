@@ -2,6 +2,7 @@ package org.tbc.world.ai;
 
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,20 +18,42 @@ public final class EventAi {
     public static final int EVENT_TIMER_IN_COMBAT = 0;
     public static final int EVENT_TIMER_OOC = 1;
     public static final int EVENT_HP = 2;
+    public static final int EVENT_MANA = 3;
     public static final int EVENT_AGGRO = 4;
     public static final int EVENT_DEATH = 6;
     public static final int EVENT_EVADE = 7;
+    public static final int EVENT_SPELLHIT = 8;
     public static final int EVENT_SPAWNED = 11;
+    public static final int EVENT_TARGET_HP = 12;
+    public static final int EVENT_TARGET_MANA = 18;
     public static final int EVENT_REACHED_HOME = 21;
+    public static final int EVENT_AURA = 23;
+    public static final int EVENT_TARGET_AURA = 24;
+    public static final int EVENT_MISSING_AURA = 27;
+    public static final int EVENT_TARGET_MISSING_AURA = 28;
+    public static final int EVENT_TIMER_GENERIC = 29;
 
     public static final int ACTION_NONE = 0;
+    public static final int ACTION_SET_FACTION = 2;
     public static final int ACTION_CAST = 11;
+    public static final int ACTION_THREAT_SINGLE = 13;
+    public static final int ACTION_THREAT_ALL_PCT = 14;
+    public static final int ACTION_SET_UNIT_FLAG = 18;
+    public static final int ACTION_REMOVE_UNIT_FLAG = 19;
     public static final int ACTION_SET_PHASE = 22;
     public static final int ACTION_INC_PHASE = 23;
     public static final int ACTION_EVADE = 24;
+    public static final int ACTION_RANDOM_PHASE = 30;
+    public static final int ACTION_RANDOM_PHASE_RANGE = 31;
+    public static final int ACTION_DIE = 37;
 
     public static final int TARGET_SELF = 0;
     public static final int TARGET_HOSTILE = 1;
+    public static final int TARGET_INVOKER = 6;
+    public static final int TARGET_NONE = 15;
+
+    public static final int CAST_FORCE_TARGET_SELF = 16;
+    public static final int CAST_AURA_NOT_PRESENT = 32;
 
     public static final int EFLAG_REPEATABLE = 1;
     public static final int EFLAG_RANDOM_ACTION = 32;
@@ -58,6 +81,42 @@ public final class EventAi {
 
         public static Action evade() {
             return new Action(ACTION_EVADE, 0, 0, 0);
+        }
+
+        public static Action setFaction(int factionId) {
+            return new Action(ACTION_SET_FACTION, factionId, 0, 0);
+        }
+
+        public static Action threatSingle(int threat, int target, boolean direct) {
+            return new Action(ACTION_THREAT_SINGLE, threat, target, direct ? 1 : 0);
+        }
+
+        public static Action threatAllPct(int percent) {
+            return new Action(ACTION_THREAT_ALL_PCT, percent, 0, 0);
+        }
+
+        public static Action setUnitFlag(int flags) {
+            return new Action(ACTION_SET_UNIT_FLAG, flags, TARGET_SELF, 0);
+        }
+
+        public static Action removeUnitFlag(int flags) {
+            return new Action(ACTION_REMOVE_UNIT_FLAG, flags, TARGET_SELF, 0);
+        }
+
+        public static Action randomPhase(int a, int b, int c) {
+            return new Action(ACTION_RANDOM_PHASE, a, b, c);
+        }
+
+        public static Action randomPhaseRange(int min, int max) {
+            return new Action(ACTION_RANDOM_PHASE_RANGE, min, max, 0);
+        }
+
+        public static Action die() {
+            return new Action(ACTION_DIE, 0, 0, 0);
+        }
+
+        public static Action cast(int spellId, int target, int castFlags) {
+            return new Action(ACTION_CAST, spellId, target, castFlags);
         }
     }
 
@@ -100,6 +159,12 @@ public final class EventAi {
                     initMin, initMin, repeatMin, repeatMin,
                     Action.cast(spellId, target), Action.none(), Action.none());
         }
+
+        public static Script timerGeneric(int initMin, int repeatMin, int spellId, int target) {
+            return new Script(EVENT_TIMER_GENERIC, 0, 100, EFLAG_REPEATABLE,
+                    initMin, initMin, repeatMin, repeatMin,
+                    Action.cast(spellId, target), Action.none(), Action.none());
+        }
     }
 
     private static final class Holder {
@@ -116,6 +181,7 @@ public final class EventAi {
     private final List<Holder> holders = new ArrayList<>();
     private boolean inCombat;
     private int phase;
+    private int spawnFaction = -1;
     private int eventUpdateTime = EVENT_UPDATE_TIME;
     private int eventDiff;
 
@@ -143,26 +209,44 @@ public final class EventAi {
     }
 
     public void onSpawned(Creature c, SpellCast cast) {
-        processImmediate(EVENT_SPAWNED, c, null, cast, null);
+        rememberFaction(c);
+        processImmediate(EVENT_SPAWNED, c, null, null, cast, null);
     }
 
     public void onAggro(Creature c, Unit victim, SpellCast cast) {
+        rememberFaction(c);
         inCombat = true;
         for (Holder h : holders) {
             if (h.script.eventType() == EVENT_TIMER_IN_COMBAT) {
                 h.timer = h.script.param1();
             }
         }
-        processImmediate(EVENT_AGGRO, c, victim, cast, null);
+        processImmediate(EVENT_AGGRO, c, victim, victim, cast, null);
     }
 
     public void onDeath(Creature c, Unit killer, SpellCast cast) {
-        processImmediate(EVENT_DEATH, c, killer, cast, null);
+        processImmediate(EVENT_DEATH, c, killer, killer, cast, null);
         inCombat = false;
     }
 
+    public void onSpellHit(Creature c, Unit caster, int spellId, int school, SpellCast cast) {
+        rememberFaction(c);
+        for (Holder h : holders) {
+            if (!h.enabled || h.script.eventType() != EVENT_SPELLHIT || h.timer > 0) {
+                continue;
+            }
+            if (h.script.param1() != 0 && h.script.param1() != spellId) {
+                continue;
+            }
+            if (h.script.param2() != 0 && (school & h.script.param2()) == 0) {
+                continue;
+            }
+            processEvent(h, c, caster, caster, cast, null);
+        }
+    }
+
     public void onEvade(Creature c, SpellCast cast) {
-        processImmediate(EVENT_EVADE, c, null, cast, null);
+        processImmediate(EVENT_EVADE, c, null, null, cast, null);
         inCombat = false;
         for (Holder h : holders) {
             if (h.script.eventType() == EVENT_TIMER_OOC) {
@@ -173,7 +257,7 @@ public final class EventAi {
     }
 
     public void onReachedHome(Creature c, SpellCast cast) {
-        processImmediate(EVENT_REACHED_HOME, c, null, cast, null);
+        processImmediate(EVENT_REACHED_HOME, c, null, null, cast, null);
     }
 
     public void update(Creature c, Unit victim, int diffMs, SpellCast cast) {
@@ -181,6 +265,7 @@ public final class EventAi {
     }
 
     public void update(Creature c, Unit victim, int diffMs, SpellCast cast, Runnable evadeAction) {
+        rememberFaction(c);
         if (diffMs <= 0) {
             return;
         }
@@ -201,7 +286,7 @@ public final class EventAi {
                     }
                 }
                 if (h.timer == 0 && isTimerExecuted(h.script.eventType())) {
-                    processEvent(h, c, victim, cast, evadeAction);
+                    processEvent(h, c, victim, victim, cast, evadeAction);
                 }
             }
             eventDiff = 0;
@@ -215,6 +300,7 @@ public final class EventAi {
     public void reset() {
         inCombat = false;
         phase = 0;
+        spawnFaction = -1;
         eventUpdateTime = EVENT_UPDATE_TIME;
         eventDiff = 0;
         for (Holder h : holders) {
@@ -223,15 +309,16 @@ public final class EventAi {
         }
     }
 
-    private void processImmediate(int eventType, Creature c, Unit victim, SpellCast cast, Runnable evadeAction) {
+    private void processImmediate(int eventType, Creature c, Unit victim, Unit invoker, SpellCast cast, Runnable evadeAction) {
+        rememberFaction(c);
         for (Holder h : holders) {
             if (h.enabled && h.script.eventType() == eventType) {
-                processEvent(h, c, victim, cast, evadeAction);
+                processEvent(h, c, victim, invoker, cast, evadeAction);
             }
         }
     }
 
-    private void processEvent(Holder h, Creature c, Unit victim, SpellCast cast, Runnable evadeAction) {
+    private void processEvent(Holder h, Creature c, Unit victim, Unit invoker, SpellCast cast, Runnable evadeAction) {
         if (!h.enabled) {
             return;
         }
@@ -254,12 +341,12 @@ public final class EventAi {
         }
         boolean success;
         if ((h.script.flags() & EFLAG_RANDOM_ACTION) != 0) {
-            success = processRandomAction(h, c, victim, cast, evadeAction);
+            success = processRandomAction(h, c, victim, invoker, cast, evadeAction);
         } else {
-            success = processAction(h.script.a1(), c, victim, cast, evadeAction);
+            success = processAction(h.script.a1(), c, victim, invoker, cast, evadeAction);
             if ((h.script.flags() & EFLAG_COMBAT_ACTION) == 0 || success) {
-                processAction(h.script.a2(), c, victim, cast, evadeAction);
-                processAction(h.script.a3(), c, victim, cast, evadeAction);
+                processAction(h.script.a2(), c, victim, invoker, cast, evadeAction);
+                processAction(h.script.a3(), c, victim, invoker, cast, evadeAction);
             }
         }
         if (success || (h.script.flags() & EFLAG_COMBAT_ACTION) == 0) {
@@ -275,17 +362,37 @@ public final class EventAi {
         if (type == EVENT_TIMER_OOC) {
             return !inCombat;
         }
+        if (type == EVENT_TIMER_GENERIC) {
+            return true;
+        }
         if (type == EVENT_HP) {
-            if (!inCombat || c == null || c.maxHealth() <= 0) {
-                return false;
-            }
-            int pct = (c.health() * 100) / c.maxHealth();
-            return pct <= h.script.param1() && pct >= h.script.param2();
+            return inCombat && inPercentBand(c, h.script.param1(), h.script.param2());
+        }
+        if (type == EVENT_MANA) {
+            return inCombat && inPowerBand(c, h.script.param1(), h.script.param2());
+        }
+        if (type == EVENT_TARGET_HP) {
+            return inCombat && inPercentBand(victim, h.script.param1(), h.script.param2());
+        }
+        if (type == EVENT_TARGET_MANA) {
+            return inCombat && inPowerBand(victim, h.script.param1(), h.script.param2());
+        }
+        if (type == EVENT_AURA) {
+            return auraStacks(c, h.script.param1()) >= Math.max(1, h.script.param2());
+        }
+        if (type == EVENT_MISSING_AURA) {
+            return auraStacks(c, h.script.param1()) < Math.max(1, h.script.param2());
+        }
+        if (type == EVENT_TARGET_AURA) {
+            return inCombat && auraStacks(victim, h.script.param1()) >= Math.max(1, h.script.param2());
+        }
+        if (type == EVENT_TARGET_MISSING_AURA) {
+            return inCombat && auraStacks(victim, h.script.param1()) < Math.max(1, h.script.param2());
         }
         return true;
     }
 
-    private boolean processRandomAction(Holder h, Creature c, Unit victim, SpellCast cast, Runnable evadeAction) {
+    private boolean processRandomAction(Holder h, Creature c, Unit victim, Unit invoker, SpellCast cast, Runnable evadeAction) {
         int count = 0;
         for (int i = 0; i < MAX_ACTIONS; i++) {
             if (h.script.action(i).type() != ACTION_NONE) {
@@ -307,27 +414,19 @@ public final class EventAi {
                 continue;
             }
             if (seen == pick) {
-                return processAction(a, c, victim, cast, evadeAction);
+                return processAction(a, c, victim, invoker, cast, evadeAction);
             }
             seen++;
         }
         return false;
     }
 
-    private boolean processAction(Action a, Creature c, Unit victim, SpellCast cast, Runnable evadeAction) {
+    private boolean processAction(Action a, Creature c, Unit victim, Unit invoker, SpellCast cast, Runnable evadeAction) {
         if (a == null || a.type() == ACTION_NONE) {
             return false;
         }
         if (a.type() == ACTION_CAST) {
-            if (a.param1() == 0 || cast == null) {
-                return false;
-            }
-            Unit t = a.param2() == TARGET_HOSTILE ? victim : c;
-            if (t == null) {
-                return false;
-            }
-            cast.cast(c, t, a.param1());
-            return true;
+            return processCast(a, c, victim, invoker, cast);
         }
         if (a.type() == ACTION_SET_PHASE) {
             phase = clampPhase(a.param1());
@@ -344,7 +443,150 @@ public final class EventAi {
             }
             return true;
         }
+        if (a.type() == ACTION_SET_FACTION) {
+            return processSetFaction(c, a.param1());
+        }
+        if (a.type() == ACTION_THREAT_SINGLE) {
+            if (c == null) {
+                return false;
+            }
+            if (a.param3() != 0) {
+                c.threat += a.param1();
+            } else {
+                c.threat = c.threat * (100 + a.param1()) / 100;
+            }
+            return true;
+        }
+        if (a.type() == ACTION_THREAT_ALL_PCT) {
+            if (c == null) {
+                return false;
+            }
+            c.threat = c.threat * (100 + a.param1()) / 100;
+            return true;
+        }
+        if (a.type() == ACTION_SET_UNIT_FLAG) {
+            Unit t = a.param2() == TARGET_HOSTILE ? victim : c;
+            if (t == null) {
+                return false;
+            }
+            t.setInt(UpdateFields.UNIT_FIELD_FLAGS, t.getInt(UpdateFields.UNIT_FIELD_FLAGS) | a.param1());
+            return true;
+        }
+        if (a.type() == ACTION_REMOVE_UNIT_FLAG) {
+            Unit t = a.param2() == TARGET_HOSTILE ? victim : c;
+            if (t == null) {
+                return false;
+            }
+            t.setInt(UpdateFields.UNIT_FIELD_FLAGS, t.getInt(UpdateFields.UNIT_FIELD_FLAGS) & ~a.param1());
+            return true;
+        }
+        if (a.type() == ACTION_RANDOM_PHASE) {
+            int rnd = urand.getAsInt();
+            if (rnd < 0) {
+                rnd = -rnd;
+            }
+            int which = rnd % 3;
+            int next = which == 0 ? a.param1() : which == 1 ? a.param2() : a.param3();
+            phase = clampPhase(next);
+            return true;
+        }
+        if (a.type() == ACTION_RANDOM_PHASE_RANGE) {
+            if (a.param2() <= a.param1()) {
+                return false;
+            }
+            int rnd = urand.getAsInt();
+            if (rnd < 0) {
+                rnd = -rnd;
+            }
+            int span = a.param2() - a.param1() + 1;
+            phase = clampPhase(a.param1() + rnd % span);
+            return true;
+        }
+        if (a.type() == ACTION_DIE) {
+            if (c == null || !c.alive()) {
+                return false;
+            }
+            c.setHealth(0);
+            return true;
+        }
         return false;
+    }
+
+    private boolean processCast(Action a, Creature c, Unit victim, Unit invoker, SpellCast cast) {
+        if (a.param1() == 0 || cast == null) {
+            return false;
+        }
+        Unit t = resolveCastTarget(a.param2(), a.param3(), c, victim, invoker);
+        if (t == null) {
+            return false;
+        }
+        if ((a.param3() & CAST_AURA_NOT_PRESENT) != 0 && auraStacks(t, a.param1()) > 0) {
+            return false;
+        }
+        cast.cast(c, t, a.param1());
+        return true;
+    }
+
+    private static Unit resolveCastTarget(int targetType, int castFlags, Creature c, Unit victim, Unit invoker) {
+        if ((castFlags & CAST_FORCE_TARGET_SELF) != 0 || targetType == TARGET_SELF) {
+            return c;
+        }
+        if (targetType == TARGET_NONE) {
+            return null;
+        }
+        if (targetType == TARGET_HOSTILE) {
+            return victim;
+        }
+        if (targetType == TARGET_INVOKER) {
+            return invoker != null ? invoker : victim;
+        }
+        return c;
+    }
+
+    private boolean processSetFaction(Creature c, int factionId) {
+        if (c == null) {
+            return false;
+        }
+        rememberFaction(c);
+        int next = factionId == 0 ? spawnFaction : factionId;
+        c.faction = next;
+        c.setInt(UpdateFields.UNIT_FIELD_FACTIONTEMPLATE, next);
+        return true;
+    }
+
+    private void rememberFaction(Creature c) {
+        if (c != null && spawnFaction < 0) {
+            spawnFaction = c.faction;
+        }
+    }
+
+    private static boolean inPercentBand(Unit u, int maxPct, int minPct) {
+        if (u == null || u.maxHealth() <= 0) {
+            return false;
+        }
+        int pct = (u.health() * 100) / u.maxHealth();
+        return pct <= maxPct && pct >= minPct;
+    }
+
+    private static boolean inPowerBand(Unit u, int maxPct, int minPct) {
+        if (u == null || u.maxPower() <= 0) {
+            return false;
+        }
+        int pct = (u.power() * 100) / u.maxPower();
+        return pct <= maxPct && pct >= minPct;
+    }
+
+    private static int auraStacks(Unit u, int spellId) {
+        if (u == null) {
+            return 0;
+        }
+        int n = 0;
+        for (Unit.Aura a : u.auras) {
+            if (a.spellId() == spellId) {
+                n += Math.max(1, a.stacks());
+            }
+        }
+        return n;
     }
 
     private void resetEvent(Holder h) {
@@ -360,18 +602,22 @@ public final class EventAi {
     }
 
     private static int initialTimer(Script s) {
-        if (s.eventType() == EVENT_TIMER_IN_COMBAT || s.eventType() == EVENT_TIMER_OOC) {
+        if (s.eventType() == EVENT_TIMER_IN_COMBAT || s.eventType() == EVENT_TIMER_OOC
+                || s.eventType() == EVENT_TIMER_GENERIC) {
             return s.param1();
         }
         return 0;
     }
 
     private static boolean isTimerExecuted(int type) {
-        return type == EVENT_TIMER_IN_COMBAT || type == EVENT_TIMER_OOC || type == EVENT_HP;
+        return type == EVENT_TIMER_IN_COMBAT || type == EVENT_TIMER_OOC || type == EVENT_TIMER_GENERIC
+                || type == EVENT_HP || type == EVENT_MANA || type == EVENT_TARGET_HP || type == EVENT_TARGET_MANA
+                || type == EVENT_AURA || type == EVENT_TARGET_AURA || type == EVENT_MISSING_AURA
+                || type == EVENT_TARGET_MISSING_AURA;
     }
 
     private static boolean isTimerBased(int type) {
-        return isTimerExecuted(type);
+        return isTimerExecuted(type) || type == EVENT_SPELLHIT;
     }
 
     private static boolean isRepeatableType(int type) {

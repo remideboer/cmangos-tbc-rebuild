@@ -5,6 +5,7 @@ import org.tbc.world.ai.EventAi;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -46,6 +47,27 @@ class Slice11EventAiTest {
         world.map(p.mapId, p.instanceId).add(c);
         client.clear();
         world.tick(501);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
+    }
+
+    @Test
+    void spellHitWhenFireballShouldSendEventAiSpellGo() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Hit");
+        Player p = client.session().player();
+        p.spells.add(SpellEngine.FIREBALL);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER1, 100);
+        p.setPower(100);
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_SPELLHIT, 0, 100, EventAi.EFLAG_REPEATABLE,
+                SpellEngine.FIREBALL, 0, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x, c.y, c.z, c.o);
+        client.clear();
+        client.castSpell(world, SpellEngine.FIREBALL, 1, c.guid);
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
         assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
     }

@@ -91,32 +91,32 @@ public final class SpellEngine {
         return Codes.SMSG_CAST_RESULT;
     }
 
-    public void cast(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
+    public boolean cast(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
                      BiConsumer<Integer, byte[]> send) {
         if (spellId == 0) {
-            return;
+            return false;
         }
         SpellInfo sp = info(spellId);
         if (sp == null) {
-            return;
+            return false;
         }
         if (!caster.spells.contains(spellId) && spellId != LOGINEFFECT) {
             sendFail(send, spellId, SPELL_FAILED_NOT_KNOWN, castCount);
-            return;
+            return false;
         }
         SpellCastTargets targets = SpellCastTargets.read(rest);
         Unit target = resolve(caster, map, targets.unitGuid);
         if (target == null) {
             sendFail(send, spellId, SPELL_FAILED_BAD_TARGETS, castCount);
-            return;
+            return false;
         }
         if (outOfRange(caster, target, sp)) {
             sendFail(send, spellId, SPELL_FAILED_OUT_OF_RANGE, castCount);
-            return;
+            return false;
         }
         if (sp.mana > 0 && caster.power() < sp.mana) {
             sendFail(send, spellId, SPELL_FAILED_NO_POWER, castCount);
-            return;
+            return false;
         }
         send.accept(Opcodes.SMSG_SPELL_START, encodeStart(caster.guid, sp.id, castCount, targets));
         if (sp.mana > 0) {
@@ -132,6 +132,7 @@ public final class SpellEngine {
             var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
             send.accept(hp.opcode(), hp.payload());
         }
+        return true;
     }
 
     public int apply(Unit caster, Unit target, SpellInfo sp) {
@@ -189,7 +190,7 @@ public final class SpellEngine {
         return target != caster && sp.maxRange > 0 && caster.distance2d(target) > sp.maxRange;
     }
 
-    static Unit resolve(Player caster, GameMap map, long guid) {
+    public static Unit resolve(Player caster, GameMap map, long guid) {
         if (guid == 0 || guid == caster.guid) {
             return caster;
         }

@@ -795,8 +795,25 @@ public final class WorldSession {
         }
         int spellId = in.getU32();
         int castCount = in.remaining() > 0 ? in.getU8() : 0;
-        world.spells.cast(player, world.map(player.mapId, player.instanceId), world.nowMs(),
-                spellId, castCount, in, this::send);
+        GameMap map = world.map(player.mapId, player.instanceId);
+        byte[] rest = in.remainingBytes();
+        boolean hit = world.spells.cast(player, map, world.nowMs(), spellId, castCount, new WowBuffer(rest), this::send);
+        if (!hit) {
+            return;
+        }
+        org.tbc.world.spell.SpellCastTargets targets = org.tbc.world.spell.SpellCastTargets.read(new WowBuffer(rest));
+        org.tbc.world.entity.Unit unit = org.tbc.world.spell.SpellEngine.resolve(player, map, targets.unitGuid);
+        if (!(unit instanceof Creature cr) || cr.eventAi == null) {
+            return;
+        }
+        var sp = world.spells.info(spellId);
+        int school = sp == null ? 0 : sp.school();
+        cr.eventAi.onSpellHit(cr, player, spellId, school, (caster, t, id) -> {
+            org.tbc.world.spell.SpellCastTargets tgt = new org.tbc.world.spell.SpellCastTargets();
+            send(Opcodes.SMSG_SPELL_START, world.spells.encodeStart(caster.guid, id, 1, tgt));
+            send(Opcodes.SMSG_SPELL_GO, world.spells.encodeGo(
+                    caster.guid, t == null ? caster.guid : t.guid, id, world.nowMs(), tgt));
+        });
     }
 
     private void handleGossip(World world, WowBuffer in) {
