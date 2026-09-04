@@ -210,7 +210,12 @@ public final class ObjectMgr {
     public final AtomicInteger nextCreatureLow = new AtomicInteger(1_000_000);
     public final AtomicInteger nextItemLow = new AtomicInteger(1);
 
-    public record Spawn(int guid, int entry, int map, float x, float y, float z, float o) {}
+    public record Spawn(int guid, int entry, int map, float x, float y, float z, float o,
+            float spawnDist, int movementType) {
+        public Spawn(int guid, int entry, int map, float x, float y, float z, float o) {
+            this(guid, entry, map, x, y, z, o, 0f, 0);
+        }
+    }
 
     public void load(DbPool world, ScriptRegistry scripts) {
         load(world, scripts, null);
@@ -417,8 +422,11 @@ public final class ObjectMgr {
 
     private void loadSpawns(Connection c) throws Exception {
         String cols = "c.guid, c.id, c.map, c.position_x, c.position_y, c.position_z, c.orientation";
+        String motionCols = cols + ", c.spawndist, c.MovementType";
         String join = " FROM creature c LEFT OUTER JOIN game_event_creature gec ON c.guid = gec.guid AND gec.`event` > 0";
         String[] sqls = {
+                "SELECT " + motionCols + join + " WHERE c.map IN (0, 1) AND gec.guid IS NULL LIMIT 80000",
+                "SELECT " + motionCols + join + " WHERE gec.guid IS NULL LIMIT 80000",
                 "SELECT " + cols + join + " WHERE c.map IN (0, 1) AND gec.guid IS NULL LIMIT 80000",
                 "SELECT " + cols + join + " WHERE gec.guid IS NULL LIMIT 80000",
                 "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM creature "
@@ -428,9 +436,13 @@ public final class ObjectMgr {
         Exception last = null;
         for (String sql : sqls) {
             try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+                boolean motion = sql.contains("spawndist");
                 while (rs.next()) {
+                    float spawnDist = motion ? rs.getFloat(8) : 0f;
+                    int movementType = motion ? rs.getInt(9) : 0;
                     spawns.add(new Spawn(rs.getInt(1), rs.getInt(2), rs.getInt(3),
-                            rs.getFloat(4), rs.getFloat(5), rs.getFloat(6), rs.getFloat(7)));
+                            rs.getFloat(4), rs.getFloat(5), rs.getFloat(6), rs.getFloat(7),
+                            spawnDist, movementType));
                 }
                 log.info("loaded {} creature spawns", spawns.size());
                 return;
@@ -927,6 +939,9 @@ public final class ObjectMgr {
             c.guid = Guid.HIGH_CREATURE | (s.guid() & 0xFFFFFFFFL);
             c.setGuid(org.tbc.world.net.wow8606.UpdateFields.OBJECT_FIELD_GUID, c.guid);
         }
+        c.spawnDist = s.spawnDist();
+        c.movementType = s.movementType();
+        c.startOocMotion();
         return c;
     }
 

@@ -36,6 +36,8 @@ public final class Creature extends Unit {
     public final MotionMaster motion = new MotionMaster();
     public final ThreatManager threatManager = new ThreatManager();
     public boolean combatMovement = true;
+    public int movementType;
+    public float spawnDist;
 
     public Creature() {
         super(UpdateFields.UNIT_END, TYPEID_UNIT);
@@ -63,5 +65,11 @@ public final class Creature extends Unit {
         double dx = px - spawnX;
         double dy = py - spawnY;
         return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    public void startOocMotion() {
+        if (movementType == MotionMaster.RANDOM && spawnDist > 0) {
+            motion.moveRandom(spawnDist);
+        }
     }
 }

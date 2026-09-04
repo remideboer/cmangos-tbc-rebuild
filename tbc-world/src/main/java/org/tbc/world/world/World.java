@@ -11,6 +11,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.ai.DbScriptStore;
 import org.tbc.world.ai.EventAi;
 import org.tbc.world.ai.FactorySelector;
+import org.tbc.world.ai.MotionMaster;
 import org.tbc.world.ai.ScriptedCreatureAI;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.combat.MeleeTable;
@@ -372,7 +373,8 @@ public final class World implements Runnable {
         }
         for (GameMap m : maps.values()) {
             for (Creature c : m.creatures.values()) {
-                if (!c.inCombat && c.script == null && c.eventAi == null) {
+                if (!c.inCombat && c.script == null && c.eventAi == null
+                        && c.motion.type() != MotionMaster.RANDOM) {
                     continue;
                 }
                 EventAi.SpellCast sink = (cr, t, spell) -> sendEventAiCast(m, cr, t, spell);
@@ -380,13 +382,20 @@ public final class World implements Runnable {
                     Player victim = m.players.get(c.victim);
                     if (combat.shouldEvade(c, victim, nowMs())) {
                         combat.evade(c, sink);
+                        c.startOocMotion();
                     }
                 }
                 Player victim = m.players.get(c.victim);
                 if (c.ai != null) {
-                    c.ai.update(c, victim, diff, sink, () -> combat.evade(c, sink));
+                    c.ai.update(c, victim, diff, sink, () -> {
+                        combat.evade(c, sink);
+                        c.startOocMotion();
+                    });
                 } else if (c.eventAi != null) {
-                    c.eventAi.update(c, victim, diff, sink, () -> combat.evade(c, sink));
+                    c.eventAi.update(c, victim, diff, sink, () -> {
+                        combat.evade(c, sink);
+                        c.startOocMotion();
+                    });
                 }
                 if (c.script != null && c.inCombat && !(c.ai instanceof ScriptedCreatureAI)) {
                     Unit scriptVictim = m.players.values().stream().findFirst().orElse(null);
@@ -396,7 +405,7 @@ public final class World implements Runnable {
                         }
                     });
                 }
-                if (c.inCombat) {
+                if (c.inCombat || c.motion.type() == MotionMaster.RANDOM) {
                     byte[] spline = c.motion.update(c, diff);
                     if (spline != null) {
                         for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
@@ -405,6 +414,8 @@ public final class World implements Runnable {
                             }
                         }
                     }
+                }
+                if (c.inCombat) {
                     creatureMeleeIfReady(c, victim, diff);
                 }
                 if (!c.inCombat && c.eventAi != null && c.eventAi.hasOocLos()) {

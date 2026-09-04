@@ -8,6 +8,7 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
+import org.tbc.common.WowBuffer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -20,6 +21,7 @@ public class ContentSteps {
     private World world;
     private WowClientDouble client;
     private long lastNpc;
+    private Creature wanderKobold;
 
     @Given("a logged-in character in Elwynn")
     public void loggedInElwynn() {
@@ -33,6 +35,42 @@ public class ContentSteps {
     @Given("the player has {int} copper")
     public void hasCopper(int copper) {
         client.session().player().setMoney(copper);
+    }
+
+    @Given("Kobold Vermin {int} has MovementType {int} and spawndist {int}")
+    public void koboldRandomMotion(int entry, int movementType, int spawnDist) {
+        wanderKobold = find(entry);
+        Player p = client.session().player();
+        p.relocate(wanderKobold.x, wanderKobold.y, wanderKobold.z, wanderKobold.o);
+        wanderKobold.movementType = movementType;
+        wanderKobold.spawnDist = spawnDist;
+        int[] n = {0};
+        wanderKobold.motion.rng(() -> n[0]++ == 0 ? 0.0 : 1.0);
+        wanderKobold.startOocMotion();
+    }
+
+    @When("one second elapses out of combat")
+    public void oneSecondOoc() {
+        client.clear();
+        world.tick(1000);
+    }
+
+    @Then("SMSG_MONSTER_MOVE is a walk spline for that kobold within spawn distance")
+    public void wanderSpline() {
+        assertTrue(client.saw(Opcodes.SMSG_MONSTER_MOVE));
+        WowBuffer move = new WowBuffer(client.payload(Opcodes.SMSG_MONSTER_MOVE));
+        assertEquals(wanderKobold.guid, move.getPackedGuid());
+        move.getFloat();
+        move.getFloat();
+        move.getFloat();
+        move.getU32();
+        move.getU8();
+        move.getU32();
+        move.getU32();
+        move.getU32();
+        float destX = move.getFloat();
+        float destY = move.getFloat();
+        assertTrue(wanderKobold.spawnDistance2d(destX, destY) <= wanderKobold.spawnDist + 0.01f);
     }
 
     @When("the player enters Goldshire")

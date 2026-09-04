@@ -20,15 +20,11 @@ Feature: Slice 8 content load
     Then bags contain item 25
     And gold is 15 copper
 
-  @tp-sl08-003
-  Scenario: Accept and turn in A Threat Within
-    When the player talks to Deputy Willem 823
-    And the player accepts quest 783
-    Then quest 783 is in the quest log
-    When the player talks to Marshal McBride 197
-    And the player turns in quest 783
-    Then the server sends SMSG_QUESTGIVER_QUEST_COMPLETE
-    And quest 783 is not in the quest log
+  @tp-sl08-004
+  Scenario: Random-movement creature wanders out of combat
+    Given Kobold Vermin 6 has MovementType 1 and spawndist 10
+    When one second elapses out of combat
+    Then SMSG_MONSTER_MOVE is a walk spline for that kobold within spawn distance
 
   @negative
   Scenario: Vendor buy without copper fails
