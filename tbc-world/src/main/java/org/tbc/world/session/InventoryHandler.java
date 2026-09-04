@@ -138,7 +138,7 @@ public final class InventoryHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
-    /** srcbag, srcslot. Bank pos → inventory. inventory.md */
+    /** srcbag, srcslot. Bank pos → inventory; else → bank. inventory.md */
     public static void autostoreBankItem(WorldSession s, WowBuffer in) {
         Player p = s.player();
         if (in.remaining() < 2) {
@@ -146,11 +146,16 @@ public final class InventoryHandler {
         }
         int srcBag = in.getU8();
         int srcSlot = in.getU8();
-        if (srcBag != 0 || srcSlot < Player.BANK_SLOT_ITEM_START || srcSlot >= Player.BANK_SLOT_ITEM_END) {
+        if (srcBag != 0) {
             return;
         }
+        int dst;
+        if (srcSlot >= Player.BANK_SLOT_ITEM_START && srcSlot < Player.BANK_SLOT_ITEM_END) {
+            dst = p.firstFreeBagSlot();
+        } else {
+            dst = p.firstFreeBankSlot();
+        }
         Item it = p.itemAt(srcBag, srcSlot);
-        int dst = p.firstFreeBagSlot();
         if (it == null || dst < 0) {
             return;
         }
