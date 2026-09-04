@@ -26,6 +26,10 @@ public final class LaterOpcodes {
             InventoryHandler.destroyItem(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_SPLIT_ITEM) {
+            InventoryHandler.splitItem(s, world, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
             if (in.remaining() < 4) {
                 return true;

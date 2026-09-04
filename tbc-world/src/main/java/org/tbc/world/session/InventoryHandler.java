@@ -1,10 +1,12 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.world.World;
 
 /** Bag 0 swap. Layout: spec/03-protocol/packets/inventory.md */
 public final class InventoryHandler {
@@ -54,6 +56,39 @@ public final class InventoryHandler {
         int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
         p.setGuid(field, 0);
         var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+        s.send(pkt.opcode(), pkt.payload());
+    }
+
+    /** srcbag, srcslot, dstbag, dstslot, count. count 0 or same pos: ignore. inventory.md */
+    public static void splitItem(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 5) {
+            return;
+        }
+        int srcBag = in.getU8();
+        int srcSlot = in.getU8();
+        int dstBag = in.getU8();
+        int dstSlot = in.getU8();
+        int count = in.getU8();
+        if (count == 0 || srcBag != 0 || dstBag != 0 || srcSlot == dstSlot) {
+            return;
+        }
+        Item src = p.itemAt(srcBag, srcSlot);
+        if (src == null || src.count <= count || p.itemAt(dstBag, dstSlot) != null) {
+            return;
+        }
+        src.count -= count;
+        Item split = new Item(world.nextItemGuid(), src.entry);
+        split.ownerGuid = Guid.low(p.guid);
+        split.bag = dstBag;
+        split.slot = dstSlot;
+        split.count = count;
+        p.items.put((int) split.guid, split);
+        int dstField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + dstSlot * 2;
+        p.setGuid(dstField, UpdateBuilder.itemGuid(split));
+        var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(split, p.guid));
+        s.send(created.opcode(), created.payload());
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, dstField, dstField + 1));
         s.send(pkt.opcode(), pkt.payload());
     }
 

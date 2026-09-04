@@ -90,6 +90,39 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14SplitItem() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Splitter", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int src = p.firstFreeBagSlot();
+        Item stack = new Item(world.nextItemGuid(), 25);
+        stack.slot = src;
+        stack.count = 2;
+        p.items.put((int) stack.guid, stack);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(stack));
+        int dst = p.firstFreeBagSlot();
+
+        client.clear();
+        WowBuffer split = new WowBuffer(5);
+        split.putU8(0);
+        split.putU8(src);
+        split.putU8(0);
+        split.putU8(dst);
+        split.putU8(1);
+        client.handle(world, Opcodes.CMSG_SPLIT_ITEM, split.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        Item splitOff = p.itemAt(0, dst);
+        assertNotNull(splitOff);
+        assertEquals(UpdateBuilder.itemGuid(splitOff), guidAt(update, invSlotField(dst)));
+    }
+
+    @Test
     void tpSl14TrainerBuySpell() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();
