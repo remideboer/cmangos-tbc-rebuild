@@ -138,6 +138,32 @@ public final class InventoryHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** srcbag, srcslot. Bank pos → inventory. inventory.md */
+    public static void autostoreBankItem(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 2) {
+            return;
+        }
+        int srcBag = in.getU8();
+        int srcSlot = in.getU8();
+        if (srcBag != 0 || srcSlot < Player.BANK_SLOT_ITEM_START || srcSlot >= Player.BANK_SLOT_ITEM_END) {
+            return;
+        }
+        Item it = p.itemAt(srcBag, srcSlot);
+        int dst = p.firstFreeBagSlot();
+        if (it == null || dst < 0) {
+            return;
+        }
+        int srcField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + srcSlot * 2;
+        int dstField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + dst * 2;
+        it.slot = dst;
+        p.setGuid(srcField, 0);
+        p.setGuid(dstField, UpdateBuilder.itemGuid(it));
+        var pkt = UpdateBuilder.maybeCompress(
+                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
+        s.send(pkt.opcode(), pkt.payload());
+    }
+
     public static final int BUYBACK_SLOT_START = 74;
     public static final int BONUS_ENCHANTMENT_SLOT = 5;
     public static final int ENCHANT_SLOT_FIELDS = 3;

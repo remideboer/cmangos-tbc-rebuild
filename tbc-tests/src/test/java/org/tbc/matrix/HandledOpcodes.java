@@ -99,6 +99,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_SPLIT_ITEM,
             Opcodes.CMSG_BANKER_ACTIVATE,
             Opcodes.CMSG_AUTOBANK_ITEM,
+            Opcodes.CMSG_AUTOSTORE_BANK_ITEM,
             Opcodes.CMSG_AREATRIGGER,
             Opcodes.CMSG_RESET_INSTANCES,
             Opcodes.CMSG_BATTLEFIELD_PORT,

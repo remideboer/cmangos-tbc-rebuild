@@ -38,6 +38,10 @@ public final class LaterOpcodes {
             InventoryHandler.autobankItem(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_AUTOSTORE_BANK_ITEM) {
+            InventoryHandler.autostoreBankItem(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
             if (in.remaining() < 4) {
                 return true;
