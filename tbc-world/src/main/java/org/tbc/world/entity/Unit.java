@@ -35,6 +35,8 @@ public class Unit extends Entity {
         super(valueCount, typeId);
         updateFlags = UPDATEFLAG_HIGHGUID | UPDATEFLAG_LIVING | UPDATEFLAG_HAS_POSITION;
         setFloat(UpdateFields.OBJECT_FIELD_SCALE_X, 1.0f);
+        setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 1.0f);
+        setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 3.0f);
     }
 
     @Override

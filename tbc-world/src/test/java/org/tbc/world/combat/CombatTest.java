@@ -4,6 +4,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.ai.EventAi;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -116,6 +117,14 @@ class CombatTest {
         p.queueNextMeleeSwing(2);
         assertEquals(3, combat.swing(p, c, 1).damage());
         assertEquals(39, c.health());
+    }
+
+    @Test
+    void swingWhenWeaponDamageFieldsSetShouldRollThatRange() {
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 10f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 10f);
+        assertEquals(10, combat.swing(p, c, 1).damage());
+        assertEquals(32, c.health());
     }
 
     @Test

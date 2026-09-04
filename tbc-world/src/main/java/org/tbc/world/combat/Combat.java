@@ -5,6 +5,7 @@ import org.tbc.world.ai.EventAi;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.net.wow8606.UpdateFields;
 
 /** Auto-attack, evade, corpse loot. Packets: combat-log.md, loot.md. */
 public final class Combat {
@@ -69,7 +70,7 @@ public final class Combat {
             return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
         }
         int bonus = p.queuedNextMeleeBonus();
-        MeleeTable.Result r = table.rollOne(p, c, 1 + bonus, 3 + bonus);
+        MeleeTable.Result r = table.rollOne(p, c, meleeMin(p) + bonus, meleeMax(p) + bonus);
         p.consumeNextMeleeSwing();
         if (r.damage() > 0) {
             c.setHealth(c.health() - r.damage());
@@ -101,7 +102,7 @@ public final class Combat {
         if (!victim.alive() || attacker.evading) {
             return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
         }
-        MeleeTable.Result r = table.rollOne(attacker, victim, 1, 3);
+        MeleeTable.Result r = table.rollOne(attacker, victim, meleeMin(attacker), meleeMax(attacker));
         if (r.damage() > 0) {
             victim.setHealth(victim.health() - r.damage());
             attacker.lastHitMs = nowMs;
@@ -115,6 +116,14 @@ public final class Combat {
             }
         }
         return r;
+    }
+
+    private static int meleeMin(Unit attacker) {
+        return Math.round(attacker.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
+    }
+
+    private static int meleeMax(Unit attacker) {
+        return Math.round(attacker.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
     }
 
     public boolean shouldEvade(Creature c, Player victim, long nowMs) {
