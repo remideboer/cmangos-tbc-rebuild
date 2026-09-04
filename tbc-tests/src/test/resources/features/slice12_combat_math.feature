@@ -23,3 +23,9 @@ Feature: Slice 12 offhand auto-attack timer
     Then no SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
     When 1 ms elapse on the combat session
     Then a SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
+
+    Scenario: Melee range includes UNIT_FIELD_COMBATREACH
+    And the player's combat reach is 2 yards
+    When the attacker is 6 yards from the kobold
+    And the player starts auto-attack
+    Then the server has sent SMSG_ATTACKERSTATEUPDATE

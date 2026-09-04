@@ -10,6 +10,7 @@ import org.tbc.world.net.wow8606.UpdateFields;
 /** Auto-attack, evade, corpse loot. Packets: combat-log.md, loot.md. */
 public final class Combat {
     public static final float LEASH_RADIUS = 30f;
+    public static final float ATTACK_DISTANCE = 5f;
     public static final int PURSUIT_MS = 15_000;
     public static final int HITINFO_NORMALSWING2 = 0x00000002;
     public static final int HITINFO_LEFTSWING = 0x00000004;
@@ -36,6 +37,11 @@ public final class Combat {
 
     public Combat(MeleeTable table) {
         this.table = table;
+    }
+
+    /** ATTACK_DISTANCE + UNIT_FIELD_COMBATREACH. spec/05-domain/combat-and-threat.md */
+    public static float meleeRange(Unit attacker) {
+        return ATTACK_DISTANCE + attacker.getFloat(UpdateFields.UNIT_FIELD_COMBATREACH);
     }
 
     public void startAttack(Player p, Creature c, long nowMs) {

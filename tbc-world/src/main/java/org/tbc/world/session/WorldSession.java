@@ -6,6 +6,7 @@ import org.tbc.common.Codes;
 import org.tbc.common.Srp6;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.ChrStatic;
+import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -161,7 +162,7 @@ public final class WorldSession {
 
     private Creature meleeTarget(World world) {
         GameMap map = world.map(player.mapId, player.instanceId);
-        for (Creature c : map.nearbyCreatures(player, MELEE_RANGE)) {
+        for (Creature c : map.nearbyCreatures(player, Combat.meleeRange(player))) {
             if (c.victim == player.guid || player.victim == c.guid) {
                 return c;
             }
@@ -765,7 +766,7 @@ public final class WorldSession {
             c.script.aggro();
         }
         send(Opcodes.SMSG_ATTACKSTART, world.combat.encodeAttackStart(player.guid, guid));
-        if (player.distance2d(c) > MELEE_RANGE) {
+        if (player.distance2d(c) > Combat.meleeRange(player)) {
             send(Opcodes.SMSG_ATTACKSWING_NOTINRANGE, new byte[0]);
             return;
         }

@@ -1,11 +1,11 @@
 package org.tbc.world.ai;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.session.TaxiHandler;
-import org.tbc.world.session.WorldSession;
 
 /** Straight-line chase. spec/05-domain/movement-and-pathfinding.md PathFinder fallback. */
 public final class MotionMaster {
@@ -34,7 +34,7 @@ public final class MotionMaster {
             return null;
         }
         double dist = c.distance2d(target);
-        float stop = WorldSession.MELEE_RANGE;
+        float stop = Combat.meleeRange(c);
         if (dist <= stop) {
             return null;
         }

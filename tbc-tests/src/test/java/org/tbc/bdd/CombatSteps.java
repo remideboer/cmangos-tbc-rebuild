@@ -51,6 +51,18 @@ public class CombatSteps {
                 org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, ms);
     }
 
+    @And("the player's combat reach is {int} yards")
+    public void setCombatReach(int yards) {
+        client.session().player().setFloat(
+                org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_COMBATREACH, yards);
+    }
+
+    @When("the attacker is {int} yards from the kobold")
+    public void attackerYardsFromKobold(int yards) {
+        Player p = client.session().player();
+        p.relocate(kobold.x + yards, kobold.y, kobold.z, kobold.o);
+    }
+
     @When("the player starts auto-attack")
     public void startAutoAttack() {
         client.clear();

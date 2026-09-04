@@ -330,6 +330,13 @@ class CombatTest {
     }
 
     @Test
+    void meleeRangeWhenCombatReachSetShouldAddAttackDistance() {
+        assertEquals(5f, Combat.meleeRange(p), 1e-6f);
+        p.setFloat(UpdateFields.UNIT_FIELD_COMBATREACH, 2f);
+        assertEquals(7f, Combat.meleeRange(p), 1e-6f);
+    }
+
+    @Test
     void startAttackWhenCombatMovementShouldChaseVictim() {
         combat.startAttack(p, c, 10);
         assertEquals(org.tbc.world.ai.MotionMaster.CHASE, c.motion.type());
