@@ -29,6 +29,36 @@ class MeleeTableTest {
         assertNotNull(MeleeTable.roll(a, v, 2, 2));
     }
 
+    @Test
+    void rollOneWhenPlayerHasFivePercentCritShouldCritAndDoubleDamage() {
+        Player a = new Player();
+        a.level = 1;
+        a.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_CRIT_PERCENTAGE, 5f);
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        MeleeTable.Result r = table(0.22).rollOne(a, v, 2, 2);
+        assertEquals(MeleeTable.Outcome.CRIT, r.outcome());
+        assertEquals(4, r.damage());
+        assertEquals(4, r.threat());
+        assertEquals(MeleeTable.Outcome.HIT, table(0.50).rollOne(a, v, 2, 2).outcome());
+        a.setFloat(org.tbc.world.net.wow8606.UpdateFields.PLAYER_CRIT_PERCENTAGE, 200f);
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.22).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
+    void rollOneWhenCreatureShouldUseFivePercentBaseCrit() {
+        Creature a = new Creature();
+        a.level = 1;
+        a.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        Player v = new Player();
+        v.level = 1;
+        v.setHealth(100);
+        MeleeTable.Result r = table(0.22).rollOne(a, v, 2, 2);
+        assertEquals(MeleeTable.Outcome.CRIT, r.outcome());
+        assertEquals(4, r.damage());
+    }
+
     private static MeleeTable table(double r) {
         return new MeleeTable(() -> r, (min, max) -> min >= max ? min : min);
     }

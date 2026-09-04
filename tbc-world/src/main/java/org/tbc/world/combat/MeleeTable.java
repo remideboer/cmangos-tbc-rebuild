@@ -1,6 +1,9 @@
 package org.tbc.world.combat;
 
+import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.DoubleSupplier;
@@ -42,7 +45,7 @@ public final class MeleeTable {
         double r = unitRoll.getAsDouble();
         double acc = 0.05;
         if (r < acc) {
-            return new Result(Outcome.MISS, 0, 0);
+            return miss();
         }
         acc += 0.05;
         if (r < acc) {
@@ -59,11 +62,44 @@ public final class MeleeTable {
         if (victim.level > 10) {
             acc += 0.10;
             if (r < acc) {
-                int dmg = damageRoll.applyAsInt(weaponMin, weaponMax);
-                return new Result(Outcome.GLANCE, dmg, dmg);
+                return hit(Outcome.GLANCE, weaponMin, weaponMax, 1);
             }
+        }
+        double crit = critChance(attacker, victim);
+        acc += crit;
+        if (r < acc) {
+            return hit(Outcome.CRIT, weaponMin, weaponMax, 2);
         }
         int dmg = damageRoll.applyAsInt(weaponMin, weaponMax);
         return new Result(Outcome.HIT, dmg, dmg);
+    }
+
+    private Result hit(Outcome outcome, int weaponMin, int weaponMax, int mul) {
+        int dmg = damageRoll.applyAsInt(weaponMin, weaponMax) * mul;
+        return new Result(outcome, dmg, dmg);
+    }
+
+    private static Result miss() {
+        return new Result(Outcome.MISS, 0, 0);
+    }
+
+    static double critChance(Unit attacker, Unit victim) {
+        double pct = attacker instanceof Player
+                ? attacker.getFloat(UpdateFields.PLAYER_CRIT_PERCENTAGE)
+                : 5.0;
+        int skill = attacker.level * 5;
+        int defense = victim.level * 5;
+        if (victim instanceof Creature) {
+            pct += 0.2 * (skill - defense);
+        } else {
+            pct += 0.04 * (skill - defense);
+        }
+        if (pct < 0) {
+            pct = 0;
+        }
+        if (pct > 100) {
+            pct = 100;
+        }
+        return pct / 100.0;
     }
 }
