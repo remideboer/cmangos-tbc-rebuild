@@ -129,7 +129,7 @@ public final class WorldSession {
             send(Opcodes.SMSG_TIME_SYNC_REQ, b.array());
             player.nextTimeSyncMs = world.nowMs() + 10_000;
         }
-        if (player.inCombat && player.lastMeleeMs + 2000 <= world.nowMs()) {
+        if (player.inCombat && player.lastMeleeMs + swingDelayMs(false) <= world.nowMs()) {
             Creature c = meleeTarget(world);
             if (c != null) {
                 world.meleeHit(player, c);
@@ -137,7 +137,7 @@ public final class WorldSession {
             }
         }
         if (player.inCombat && player.hasOffhandWeapon()
-                && player.lastOffhandMeleeMs + 2000 <= world.nowMs()) {
+                && player.lastOffhandMeleeMs + swingDelayMs(true) <= world.nowMs()) {
             Creature c = meleeTarget(world);
             if (c != null) {
                 world.meleeHitOffhand(player, c);
@@ -152,6 +152,11 @@ public final class WorldSession {
             world.av.advance(world.nowMs());
             flushWorldStates(world.av.drainWorldStates());
         }
+    }
+
+    private int swingDelayMs(boolean offhand) {
+        int delay = player.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME + (offhand ? 1 : 0));
+        return delay > 0 ? delay : 2000;
     }
 
     private Creature meleeTarget(World world) {

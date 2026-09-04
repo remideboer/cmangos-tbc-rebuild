@@ -14,3 +14,12 @@ Feature: Slice 12 offhand auto-attack timer
     Then no SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
     When 1 ms elapse on the combat session
     Then a SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
+
+  Scenario: Offhand timer uses UNIT_FIELD_BASEATTACKTIME plus one
+    And the player's offhand attack time is 500 ms
+    When the player starts auto-attack
+    Then no SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
+    When 499 ms elapse on the combat session
+    Then no SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
+    When 1 ms elapse on the combat session
+    Then a SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING

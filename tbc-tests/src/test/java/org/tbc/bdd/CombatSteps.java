@@ -45,6 +45,12 @@ public class CombatSteps {
         assertTrue(p.hasOffhandWeapon());
     }
 
+    @And("the player's offhand attack time is {int} ms")
+    public void setOffhandAttackTime(int ms) {
+        client.session().player().setInt(
+                org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, ms);
+    }
+
     @When("the player starts auto-attack")
     public void startAutoAttack() {
         client.clear();
