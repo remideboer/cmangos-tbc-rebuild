@@ -98,6 +98,19 @@ class Slice26P0Test {
         assertTrue(client.saw(Opcodes.SMSG_SPELL_FAILURE));
     }
 
+    @Test
+    void tpSl26CancelAura() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Caster");
+        Player p = client.session().player();
+        p.auras.add(new org.tbc.world.entity.Unit.Aura(org.tbc.world.script.ClassScripts.SPELL_UNSTABLE_AFFLICTION, 30_000, 1));
+        client.clear();
+        WowBuffer cancel = new WowBuffer(4);
+        cancel.putU32(org.tbc.world.script.ClassScripts.SPELL_UNSTABLE_AFFLICTION);
+        client.handle(world, Opcodes.CMSG_CANCEL_AURA, cancel.array());
+        assertTrue(p.auras.stream().noneMatch(a -> a.spellId() == org.tbc.world.script.ClassScripts.SPELL_UNSTABLE_AFFLICTION));
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

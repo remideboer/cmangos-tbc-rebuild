@@ -123,6 +123,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_REPORT_PVP_AFK,
             Opcodes.MSG_TALENT_WIPE_CONFIRM,
             Opcodes.CMSG_CANCEL_CHANNELLING,
+            Opcodes.CMSG_CANCEL_AURA,
             Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK,
             Opcodes.CMSG_CANCEL_MOUNT_AURA,
             Opcodes.CMSG_PUSHQUESTTOPARTY,

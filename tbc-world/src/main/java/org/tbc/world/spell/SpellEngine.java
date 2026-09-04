@@ -281,6 +281,14 @@ public final class SpellEngine {
         }
     }
 
+    /** CMSG_CANCEL_AURA — unapply auras of this spell id (spell.md). */
+    public void cancelAura(Unit target, int spellId) {
+        if (target == null || spellId <= 0) {
+            return;
+        }
+        target.auras.removeIf(a -> a.spellId() == spellId);
+    }
+
     /** Effect 45 — add honor points from damage (spell-algorithms.md). */
     public void addHonor(Unit target, int amount) {
         if (!(target instanceof Player p) || amount <= 0) {

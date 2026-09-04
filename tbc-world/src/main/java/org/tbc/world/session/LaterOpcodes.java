@@ -233,6 +233,11 @@ public final class LaterOpcodes {
             s.send(Opcodes.SMSG_SPELL_FAILURE, fail.array());
             return true;
         }
+        if (opcode == Opcodes.CMSG_CANCEL_AURA) {
+            int spell = in.remaining() >= 4 ? in.getU32() : 0;
+            world.spells.cancelAura(p, spell);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
             if (in.remaining() > 0) {
                 in.getPackedGuid();
