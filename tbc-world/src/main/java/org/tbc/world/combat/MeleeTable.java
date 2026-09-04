@@ -50,11 +50,11 @@ public final class MeleeTable {
         if (victim instanceof Player && !victim.isStanding()) {
             return hit(Outcome.CRIT, weaponMin, weaponMax, 2);
         }
-        acc += dodgeChance(victim);
+        acc += dodgeChance(attacker, victim);
         if (r < acc) {
             return new Result(Outcome.DODGE, 0, 0);
         }
-        acc += parryChance(victim);
+        acc += parryChance(attacker, victim);
         if (r < acc) {
             return new Result(Outcome.PARRY, 0, 0);
         }
@@ -118,16 +118,37 @@ public final class MeleeTable {
         return pct / 100.0;
     }
 
-    static double dodgeChance(Unit victim) {
-        return avoidChance(victim, UpdateFields.PLAYER_DODGE_PERCENTAGE);
+    static double dodgeChance(Unit attacker, Unit victim) {
+        return skillAvoid(attacker, victim, UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.1, 0.1);
     }
 
-    static double parryChance(Unit victim) {
-        return avoidChance(victim, UpdateFields.PLAYER_PARRY_PERCENTAGE);
+    static double parryChance(Unit attacker, Unit victim) {
+        return skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6);
     }
 
     static double blockChance(Unit victim) {
         return avoidChance(victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE);
+    }
+
+    /** Base then (defense − skill) × factor. NPC positive difference: dodge 0.1; parry 0.1 or 0.6 if > 10. */
+    static double skillAvoid(Unit attacker, Unit victim, int playerField, double npcPos, double npcHigh) {
+        double pct = victim instanceof Player ? victim.getFloat(playerField) : 5.0;
+        if (pct < 0.005) {
+            return 0;
+        }
+        int difference = victim.level * 5 - attacker.level * 5;
+        double factor = 0.04;
+        if (victim instanceof Creature && difference > 0) {
+            factor = difference > 10 ? npcHigh : npcPos;
+        }
+        pct += difference * factor;
+        if (pct < 0) {
+            pct = 0;
+        }
+        if (pct > 100) {
+            pct = 100;
+        }
+        return pct / 100.0;
     }
 
     /** Creatures +5; players use the rating field with no extra +5. Base < 0.005 → incapable. */
