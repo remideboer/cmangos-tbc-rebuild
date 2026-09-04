@@ -357,6 +357,10 @@ public final class InventoryHandler {
         if (it == null) {
             return;
         }
+        if ((it.flags & Content.ITEM_DYNFLAG_WRAPPED) != 0) {
+            it.flags = 0;
+            return;
+        }
         WowBuffer loot = new WowBuffer(16);
         loot.putU64(UpdateBuilder.itemGuid(it));
         loot.putU8(LOOT_PICKPOCKETING);

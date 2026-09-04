@@ -448,6 +448,33 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14OpenWrappedItemUnwraps() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Unwrapper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int slot = p.firstFreeBagSlot();
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = slot;
+        sword.flags = Content.ITEM_DYNFLAG_WRAPPED;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(slot), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer open = new WowBuffer(2);
+        open.putU8(0);
+        open.putU8(slot);
+        client.handle(world, Opcodes.CMSG_OPEN_ITEM, open.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_LOOT_RESPONSE));
+        assertEquals(0, sword.flags);
+        assertEquals(Content.ITEM_WORN_SHORTSWORD, sword.entry);
+    }
+
+    @Test
     void tpSl14SetAmmo() throws Exception {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();
