@@ -113,6 +113,12 @@ class CombatTest {
     }
 
     @Test
+    void encodeAttackWhenOffhandShouldSetHitInfoLeftSwing() {
+        byte[] pkt = combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.HIT, 2, 2), false, true);
+        assertEquals(Combat.HITINFO_LEFTSWING, u32le(pkt));
+    }
+
+    @Test
     void swingWhenNextMeleeBonusShouldAddToWeaponRange() {
         p.queueNextMeleeSwing(2);
         assertEquals(3, combat.swing(p, c, 1).damage());

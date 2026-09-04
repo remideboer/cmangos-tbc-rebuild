@@ -12,6 +12,7 @@ public final class Combat {
     public static final float LEASH_RADIUS = 30f;
     public static final int PURSUIT_MS = 15_000;
     public static final int HITINFO_NORMALSWING2 = 0x00000002;
+    public static final int HITINFO_LEFTSWING = 0x00000004;
     public static final int HITINFO_MISS = 0x00000010;
     public static final int HITINFO_CRITICALHIT = 0x00000080;
     public static final int HITINFO_BLOCK = 0x00000800;
@@ -178,7 +179,11 @@ public final class Combat {
     }
 
     public byte[] encodeAttack(Unit attacker, Unit victim, MeleeTable.Result r, boolean spellSwing) {
-        int hitInfo = HITINFO_NORMALSWING2;
+        return encodeAttack(attacker, victim, r, spellSwing, false);
+    }
+
+    public byte[] encodeAttack(Unit attacker, Unit victim, MeleeTable.Result r, boolean spellSwing, boolean leftSwing) {
+        int hitInfo = leftSwing ? HITINFO_LEFTSWING : HITINFO_NORMALSWING2;
         int victimState = VICTIM_NORMAL;
         switch (r.outcome()) {
             case MISS -> {
