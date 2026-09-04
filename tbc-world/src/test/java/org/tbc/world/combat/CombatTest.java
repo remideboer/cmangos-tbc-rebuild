@@ -89,6 +89,7 @@ class CombatTest {
         assertEquals(0, combat.swing(p, c, 1).damage());
         c.setHealth(42);
         c.evading = true;
+        assertEquals(MeleeTable.Outcome.EVADE, combat.swing(p, c, 1).outcome());
         assertEquals(0, combat.swing(p, c, 1).damage());
         assertEquals(42, c.health());
     }
@@ -171,6 +172,7 @@ class CombatTest {
         combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.GLANCE, 1, 1));
         combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.CRIT, 4, 4));
         combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.CRUSH, 3, 3));
+        combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.EVADE, 0, 0));
         byte[] stop = combat.encodeAttackStop(1, 2, true);
         assertTrue(stop.length > 2);
         byte[] live = combat.encodeAttackStop(1, 2, false);
@@ -328,6 +330,24 @@ class CombatTest {
     void encodeAttackWhenCrushShouldSetHitInfoCrushing() {
         byte[] pkt = combat.encodeAttack(c, p, new MeleeTable.Result(MeleeTable.Outcome.CRUSH, 3, 3));
         assertEquals(Combat.HITINFO_NORMALSWING2 | Combat.HITINFO_CRUSHING, u32le(pkt));
+    }
+
+    @Test
+    void encodeAttackWhenEvadeShouldSetVictimStateEvades() {
+        byte[] pkt = combat.encodeAttack(p, c, new MeleeTable.Result(MeleeTable.Outcome.EVADE, 0, 0));
+        assertEquals(Combat.HITINFO_NORMALSWING2 | Combat.HITINFO_MISS | Combat.HITINFO_SWINGNOHITSOUND, u32le(pkt));
+        WowBuffer b = new WowBuffer(pkt);
+        b.getU32();
+        b.getPackedGuid();
+        b.getPackedGuid();
+        b.getU32();
+        b.getU8();
+        b.getU32();
+        b.getFloat();
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        assertEquals(Combat.VICTIM_EVADES, b.getU32());
     }
 
     @Test

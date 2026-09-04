@@ -14,7 +14,7 @@ import java.util.function.IntBinaryOperator;
  * L1 vs same-level creature: miss 5%, dodge/parry/block 5% each; no glance (victim level ≤ 10).
  */
 public final class MeleeTable {
-    public enum Outcome { HIT, MISS, DODGE, PARRY, BLOCK, GLANCE, CRIT, CRUSH }
+    public enum Outcome { HIT, MISS, DODGE, PARRY, BLOCK, GLANCE, CRIT, CRUSH, EVADE }
 
     public record Result(Outcome outcome, int damage, int threat, int blocked) {
         public Result(Outcome outcome, int damage, int threat) {
@@ -46,6 +46,9 @@ public final class MeleeTable {
     }
 
     public Result rollOne(Unit attacker, Unit victim, int weaponMin, int weaponMax) {
+        if (victim instanceof Creature creature && creature.evading) {
+            return new Result(Outcome.EVADE, 0, 0);
+        }
         double r = unitRoll.getAsDouble();
         double acc = missChance(attacker, victim);
         if (r < acc) {

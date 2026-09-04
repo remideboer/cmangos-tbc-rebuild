@@ -17,11 +17,13 @@ public final class Combat {
     public static final int HITINFO_GLANCING = 0x00004000;
     public static final int HITINFO_CRUSHING = 0x00008000;
     public static final int HITINFO_NOACTION = 0x00010000;
+    public static final int HITINFO_SWINGNOHITSOUND = 0x00080000;
     public static final int VICTIM_UNAFFECTED = 0;
     public static final int VICTIM_NORMAL = 1;
     public static final int VICTIM_DODGE = 2;
     public static final int VICTIM_PARRY = 3;
     public static final int VICTIM_BLOCKS = 5;
+    public static final int VICTIM_EVADES = 6;
     public static final int LOOT_CORPSE = 1;
 
     private final MeleeTable table;
@@ -63,7 +65,7 @@ public final class Combat {
     }
 
     public MeleeTable.Result swing(Player p, Creature c, long nowMs, EventAi.SpellCast deathCast) {
-        if (!c.alive() || c.evading) {
+        if (!c.alive()) {
             return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
         }
         int bonus = p.queuedNextMeleeBonus();
@@ -183,6 +185,10 @@ public final class Combat {
             case GLANCE -> hitInfo |= HITINFO_GLANCING;
             case CRIT -> hitInfo |= HITINFO_CRITICALHIT;
             case CRUSH -> hitInfo |= HITINFO_CRUSHING;
+            case EVADE -> {
+                hitInfo |= HITINFO_MISS | HITINFO_SWINGNOHITSOUND;
+                victimState = VICTIM_EVADES;
+            }
             default -> {
             }
         }

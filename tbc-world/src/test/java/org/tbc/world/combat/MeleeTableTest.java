@@ -353,6 +353,20 @@ class MeleeTableTest {
         assertEquals(MeleeTable.Outcome.HIT, table(0.30).rollOne(a, other, 2, 2).outcome());
     }
 
+    @Test
+    void rollOneWhenVictimIsEvadingShouldReturnEvade() {
+        Player a = new Player();
+        a.level = 1;
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        v.evading = true;
+        MeleeTable.Result r = table(0.99).rollOne(a, v, 2, 2);
+        assertEquals(MeleeTable.Outcome.EVADE, r.outcome());
+        assertEquals(0, r.damage());
+        assertEquals(0, r.threat());
+    }
+
     private static MeleeTable table(double r) {
         return new MeleeTable(() -> r, (min, max) -> min >= max ? min : min);
     }
