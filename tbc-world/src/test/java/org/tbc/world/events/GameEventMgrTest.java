@@ -3,6 +3,7 @@ package org.tbc.world.events;
 import org.tbc.common.DbPool;
 import org.tbc.world.content.Content;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.GameObject;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -108,6 +109,14 @@ class GameEventMgrTest {
         }
     }
 
+    @Test
+    void startWhenMidsummerShouldSpawnIceStone() {
+        World world = World.inMemory();
+        assertNull(findGo(world, Content.GO_ICE_STONE));
+        world.events.start(world, Content.GAME_EVENT_MIDSUMMER);
+        assertNotNull(findGo(world, Content.GO_ICE_STONE));
+    }
+
     private static Creature find(World world, int entry) {
         return find(world, 547, entry);
     }
@@ -116,6 +125,15 @@ class GameEventMgrTest {
         for (Creature c : world.map(map, 0).creatures.values()) {
             if (c.entry == entry) {
                 return c;
+            }
+        }
+        return null;
+    }
+
+    private static GameObject findGo(World world, int entry) {
+        for (GameObject go : world.map(547, 0).gameObjects.values()) {
+            if (go.entry == entry) {
+                return go;
             }
         }
         return null;

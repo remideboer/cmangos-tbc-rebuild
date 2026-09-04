@@ -41,6 +41,10 @@ public final class GameMap {
         cells.computeIfAbsent(cellKey(c.x, c.y), k -> new ConcurrentHashMap<>()).put(c.guid, c);
     }
 
+    public void add(GameObject go) {
+        gameObjects.put(go.guid, go);
+    }
+
     public void remove(Creature c) {
         creatures.remove(c.guid);
         Map<Long, Creature> cell = cells.get(cellKey(c.x, c.y));

@@ -6,6 +6,7 @@ import org.tbc.common.DbPool;
 import org.tbc.world.ai.DbScriptStore;
 import org.tbc.world.ai.EventAiStore;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -190,6 +191,7 @@ public final class ObjectMgr {
     public final Map<Integer, PageText> pageTexts = new HashMap<>();
     public final List<Spawn> spawns = new ArrayList<>();
     public final Map<Integer, List<Spawn>> eventCreatures = new HashMap<>();
+    public final Map<Integer, List<Spawn>> eventGameObjects = new HashMap<>();
     public record AreaTrigger(int id, int map, float x, float y, float z, float o) {}
     public final Map<Integer, AreaTrigger> areaTriggers = new HashMap<>();
     public final Map<Integer, List<Integer>> vendorItems = new HashMap<>();
@@ -598,6 +600,10 @@ public final class ObjectMgr {
             eventCreatures.put(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
                     new Spawn(11, Content.NPC_LUMA_SKYMOTHER, 547, -92.45719f, -110.6642f, -2.866759f, 2.408554f))));
         }
+        if (!eventGameObjects.containsKey(Content.GAME_EVENT_MIDSUMMER)) {
+            eventGameObjects.put(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
+                    new Spawn(5470020, Content.GO_ICE_STONE, 547, -69.9045f, -162.245f, -2.36656f, 2.42601f))));
+        }
     }
 
     private void seedQueryDefaults() {
@@ -628,6 +634,8 @@ public final class ObjectMgr {
         weather.putIfAbsent(Content.ZONE_ELWYNN, new ZoneWeather(Content.ZONE_ELWYNN, Content.WEATHER_STATE_FINE, 0f));
         eventCreatures.putIfAbsent(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
                 new Spawn(11, Content.NPC_LUMA_SKYMOTHER, 547, -92.45719f, -110.6642f, -2.866759f, 2.408554f))));
+        eventGameObjects.putIfAbsent(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
+                new Spawn(5470020, Content.GO_ICE_STONE, 547, -69.9045f, -162.245f, -2.36656f, 2.42601f))));
     }
 
     public static long taxiKey(int from, int to) {
@@ -854,6 +862,22 @@ public final class ObjectMgr {
             c.setGuid(org.tbc.world.net.wow8606.UpdateFields.OBJECT_FIELD_GUID, c.guid);
         }
         return c;
+    }
+
+    public GameObject spawnGameObject(Spawn s) {
+        GameObject go = new GameObject();
+        go.guid = Guid.HIGH_GAMEOBJECT | (s.guid() & 0xFFFFFFFFL);
+        go.entry = s.entry();
+        go.mapId = s.map();
+        go.relocate(s.x(), s.y(), s.z(), s.o());
+        go.setGuid(org.tbc.world.net.wow8606.UpdateFields.OBJECT_FIELD_GUID, go.guid);
+        GameObjectTemplate t = gameObjects.get(s.entry());
+        if (t != null) {
+            go.type = t.type;
+            go.displayId = t.displayId;
+            go.name = t.name;
+        }
+        return go;
     }
 
     private Creature spawnCreature(int entry, int spawnId, int map, float x, float y, float z, float o,

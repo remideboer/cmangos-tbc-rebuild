@@ -32,6 +32,12 @@ public final class GameEventMgr {
             live.add(c);
         }
         spawned.put(eventId, live);
+        List<ObjectMgr.Spawn> gos = world.objectMgr.eventGameObjects.get(eventId);
+        if (gos != null) {
+            for (ObjectMgr.Spawn s : gos) {
+                world.map(s.map(), 0).add(world.objectMgr.spawnGameObject(s));
+            }
+        }
     }
 
     public void stop(World world, int eventId) {
