@@ -250,6 +250,19 @@ class CombatTest {
     }
 
     @Test
+    void startAttackWhenCombatMovementShouldChaseVictim() {
+        combat.startAttack(p, c, 10);
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, c.motion.type());
+    }
+
+    @Test
+    void startAttackWhenCombatMovementDisabledShouldStayIdle() {
+        c.combatMovement = false;
+        combat.startAttack(p, c, 10);
+        assertEquals(org.tbc.world.ai.MotionMaster.IDLE, c.motion.type());
+    }
+
+    @Test
     void encodeAttackWhenCreatureAttackerShouldPackCreatureGuid() {
         byte[] pkt = combat.encodeAttack(c, p, new MeleeTable.Result(MeleeTable.Outcome.HIT, 2, 2));
         assertTrue(pkt.length > 8);

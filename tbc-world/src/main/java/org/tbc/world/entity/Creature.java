@@ -1,6 +1,7 @@
 package org.tbc.world.entity;
 
 import org.tbc.world.ai.EventAi;
+import org.tbc.world.ai.MotionMaster;
 import org.tbc.world.ai.UnitAI;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.script.BossScript;
@@ -31,6 +32,8 @@ public final class Creature extends Unit {
     public long combatStartMs;
     public long lastHitMs;
     public int meleeCooldownMs;
+    public final MotionMaster motion = new MotionMaster();
+    public boolean combatMovement = true;
 
     public Creature() {
         super(UpdateFields.UNIT_END, TYPEID_UNIT);

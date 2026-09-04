@@ -44,6 +44,11 @@ public final class Combat {
         if (c.combatStartMs == 0) {
             c.combatStartMs = nowMs;
         }
+        if (c.combatMovement) {
+            c.motion.moveChase(p);
+        } else {
+            c.motion.moveIdle();
+        }
     }
 
     public void stopAttack(Player p) {
@@ -131,6 +136,7 @@ public final class Combat {
         c.combatStartMs = 0;
         c.setHealth(c.maxHealth());
         c.relocate(c.spawnX, c.spawnY, c.spawnZ, c.spawnO);
+        c.motion.moveIdle();
         c.evading = false;
         if (c.eventAi != null) {
             EventAi.SpellCast sink = cast == null ? EventAi.NOOP : cast;

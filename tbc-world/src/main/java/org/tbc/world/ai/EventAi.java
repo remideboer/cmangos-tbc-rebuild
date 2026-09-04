@@ -3,6 +3,7 @@ package org.tbc.world.ai;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.map.LineOfSight;
 import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.ArrayList;
@@ -25,6 +26,8 @@ public final class EventAi {
     public static final int EVENT_DEATH = 6;
     public static final int EVENT_EVADE = 7;
     public static final int EVENT_SPELLHIT = 8;
+    public static final int EVENT_RANGE = 9;
+    public static final int EVENT_OOC_LOS = 10;
     public static final int EVENT_SPAWNED = 11;
     public static final int EVENT_TARGET_HP = 12;
     public static final int EVENT_TARGET_MANA = 18;
@@ -42,6 +45,7 @@ public final class EventAi {
     public static final int ACTION_THREAT_ALL_PCT = 14;
     public static final int ACTION_SET_UNIT_FLAG = 18;
     public static final int ACTION_REMOVE_UNIT_FLAG = 19;
+    public static final int ACTION_COMBAT_MOVEMENT = 21;
     public static final int ACTION_SET_PHASE = 22;
     public static final int ACTION_INC_PHASE = 23;
     public static final int ACTION_EVADE = 24;
@@ -132,9 +136,17 @@ public final class EventAi {
             int param2,
             int param3,
             int param4,
+            int param5,
+            int param6,
             Action a1,
             Action a2,
             Action a3) {
+        public Script(int eventType, int inversePhaseMask, int chance, int flags,
+                int param1, int param2, int param3, int param4,
+                Action a1, Action a2, Action a3) {
+            this(eventType, inversePhaseMask, chance, flags, param1, param2, param3, param4, 0, 0, a1, a2, a3);
+        }
+
         public Action action(int i) {
             if (i <= 0) {
                 return a1;
@@ -186,6 +198,7 @@ public final class EventAi {
     private int spawnFaction = -1;
     private int eventUpdateTime = EVENT_UPDATE_TIME;
     private int eventDiff;
+    private boolean hasOocLos;
 
     public EventAi() {
         this(() -> ThreadLocalRandom.current().nextInt());
@@ -197,6 +210,7 @@ public final class EventAi {
 
     public void load(List<Script> scripts) {
         holders.clear();
+        hasOocLos = false;
         if (scripts == null) {
             return;
         }
@@ -207,7 +221,14 @@ public final class EventAi {
             Holder h = new Holder(s);
             h.timer = initialTimer(s);
             holders.add(h);
+            if (s.eventType() == EVENT_OOC_LOS) {
+                hasOocLos = true;
+            }
         }
+    }
+
+    public boolean hasOocLos() {
+        return hasOocLos;
     }
 
     public void onSpawned(Creature c, SpellCast cast) {
@@ -257,6 +278,39 @@ public final class EventAi {
                 continue;
             }
             processEvent(h, c, caster, caster, cast, null);
+        }
+    }
+
+    public void onOocLos(Creature c, Unit who, SpellCast cast) {
+        if (inCombat || who == null || c == null) {
+            return;
+        }
+        rememberFaction(c);
+        for (Holder h : holders) {
+            if (!h.enabled || h.script.eventType() != EVENT_OOC_LOS || h.timer > 0) {
+                continue;
+            }
+            if (h.script.param6() != 0) {
+                continue;
+            }
+            if (h.script.param5() != 0 && !(who instanceof Player)) {
+                continue;
+            }
+            boolean hostile = c.faction != who.faction;
+            if (h.script.param1() == 0) {
+                if (!hostile) {
+                    continue;
+                }
+            } else if (hostile) {
+                continue;
+            }
+            if (c.distance2d(who) > h.script.param2()) {
+                continue;
+            }
+            if (!LineOfSight.clear(c, who)) {
+                continue;
+            }
+            processEvent(h, c, who, who, cast, null);
         }
     }
 
@@ -404,6 +458,13 @@ public final class EventAi {
         if (type == EVENT_TARGET_MISSING_AURA) {
             return inCombat && auraStacks(victim, h.script.param1()) < Math.max(1, h.script.param2());
         }
+        if (type == EVENT_RANGE) {
+            if (!inCombat || c == null || victim == null) {
+                return false;
+            }
+            double d = c.distance2d(victim);
+            return d >= h.script.param1() && d <= h.script.param2();
+        }
         return true;
     }
 
@@ -524,6 +585,16 @@ public final class EventAi {
             c.setHealth(0);
             return true;
         }
+        if (a.type() == ACTION_COMBAT_MOVEMENT) {
+            if (c == null) {
+                return false;
+            }
+            c.combatMovement = a.param1() != 0;
+            if (!c.combatMovement) {
+                c.motion.moveIdle();
+            }
+            return true;
+        }
         return false;
     }
 
@@ -628,11 +699,11 @@ public final class EventAi {
         return type == EVENT_TIMER_IN_COMBAT || type == EVENT_TIMER_OOC || type == EVENT_TIMER_GENERIC
                 || type == EVENT_HP || type == EVENT_MANA || type == EVENT_TARGET_HP || type == EVENT_TARGET_MANA
                 || type == EVENT_AURA || type == EVENT_TARGET_AURA || type == EVENT_MISSING_AURA
-                || type == EVENT_TARGET_MISSING_AURA;
+                || type == EVENT_TARGET_MISSING_AURA || type == EVENT_RANGE;
     }
 
     private static boolean isTimerBased(int type) {
-        return isTimerExecuted(type) || type == EVENT_SPELLHIT || type == EVENT_KILL;
+        return isTimerExecuted(type) || type == EVENT_SPELLHIT || type == EVENT_KILL || type == EVENT_OOC_LOS;
     }
 
     private static boolean isRepeatableType(int type) {

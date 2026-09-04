@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EventAiTest {
@@ -547,6 +548,131 @@ class EventAiTest {
         ai.onKill(c, v, sink);
         ai.onKill(c, v, sink);
         assertEquals(List.of(7164), casts);
+    }
+
+    @Test
+    void processActionWhenCombatMovementZeroShouldIdle() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_AGGRO, 0, 100, 0, 0, 0, 0, 0,
+                new EventAi.Action(EventAi.ACTION_COMBAT_MOVEMENT, 0, 0, 0), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        Player v = player();
+        c.motion.moveChase(v);
+        ai.onAggro(c, v, EventAi.NOOP);
+        assertFalse(c.combatMovement);
+        assertEquals(MotionMaster.IDLE, c.motion.type());
+    }
+
+    @Test
+    void updateRangeWhenVictimInBandShouldCastAfter500msWindow() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_RANGE, 0, 100, EventAi.EFLAG_REPEATABLE, 5, 15, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        Player v = player();
+        c.relocate(0, 0, 0, 0);
+        v.relocate(10, 0, 0, 0);
+        List<Integer> casts = new ArrayList<>();
+        ai.onAggro(c, v, EventAi.NOOP);
+        ai.update(c, v, 499, (cr, t, id) -> casts.add(id));
+        assertTrue(casts.isEmpty());
+        ai.update(c, v, 2, (cr, t, id) -> casts.add(id));
+        assertEquals(List.of(7164), casts);
+    }
+
+    @Test
+    void updateRangeWhenVictimOutsideBandShouldNotCast() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_RANGE, 0, 100, EventAi.EFLAG_REPEATABLE, 5, 15, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        Player v = player();
+        c.relocate(0, 0, 0, 0);
+        v.relocate(20, 0, 0, 0);
+        List<Integer> casts = new ArrayList<>();
+        ai.onAggro(c, v, EventAi.NOOP);
+        ai.update(c, v, 501, (cr, t, id) -> casts.add(id));
+        assertTrue(casts.isEmpty());
+    }
+
+    @Test
+    void onOocLosWhenHostilePlayerInRangeShouldCast() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_OOC_LOS, 0, 100, EventAi.EFLAG_REPEATABLE, 0, 10, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        c.faction = 7;
+        Player v = player();
+        v.faction = 1;
+        c.relocate(0, 0, 0, 0);
+        v.relocate(5, 0, 0, 0);
+        List<Integer> casts = new ArrayList<>();
+        ai.onOocLos(c, v, (cr, t, id) -> casts.add(id));
+        assertEquals(List.of(7164), casts);
+        ai.onAggro(c, v, EventAi.NOOP);
+        casts.clear();
+        ai.onOocLos(c, v, (cr, t, id) -> casts.add(id));
+        assertTrue(casts.isEmpty());
+    }
+
+    @Test
+    void onOocLosWhenNoHostileAndSameFactionShouldCast() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_OOC_LOS, 0, 100, 0, 1, 10, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        c.faction = 7;
+        Player v = player();
+        v.faction = 7;
+        c.relocate(0, 0, 0, 0);
+        v.relocate(5, 0, 0, 0);
+        List<Integer> casts = new ArrayList<>();
+        ai.onOocLos(c, v, (cr, t, id) -> casts.add(id));
+        assertEquals(List.of(7164), casts);
+    }
+
+    @Test
+    void processActionWhenCombatMovementNonzeroShouldAllowChase() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_AGGRO, 0, 100, 0, 0, 0, 0, 0,
+                new EventAi.Action(EventAi.ACTION_COMBAT_MOVEMENT, 1, 0, 0), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        c.combatMovement = false;
+        ai.onAggro(c, player(), EventAi.NOOP);
+        assertTrue(c.combatMovement);
+    }
+
+    @Test
+    void onOocLosWhenPlayerOnlyAndNonPlayerShouldSkip() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_OOC_LOS, 0, 100, 0, 0, 10, 0, 0, 1, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        c.faction = 7;
+        Creature other = creature();
+        other.guid = 3;
+        other.faction = 1;
+        c.relocate(0, 0, 0, 0);
+        other.relocate(5, 0, 0, 0);
+        List<Integer> casts = new ArrayList<>();
+        ai.onOocLos(c, other, (cr, t, id) -> casts.add(id));
+        assertTrue(casts.isEmpty());
+    }
+
+    @Test
+    void onOocLosWhenConditionIdShouldSkip() {
+        EventAi ai = new EventAi();
+        ai.load(List.of(new EventAi.Script(EventAi.EVENT_OOC_LOS, 0, 100, 0, 0, 10, 0, 0, 0, 1,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        Creature c = creature();
+        c.faction = 7;
+        Player v = player();
+        v.faction = 1;
+        c.relocate(0, 0, 0, 0);
+        v.relocate(5, 0, 0, 0);
+        List<Integer> casts = new ArrayList<>();
+        ai.onOocLos(c, v, (cr, t, id) -> casts.add(id));
+        assertTrue(casts.isEmpty());
     }
 
     private static Creature creature() {

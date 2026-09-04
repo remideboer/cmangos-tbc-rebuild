@@ -1,11 +1,13 @@
 package org.tbc;
 
+import org.tbc.common.WowBuffer;
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.world.ai.EventAi;
 import org.tbc.world.ai.FactorySelector;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.session.WorldSession;
 import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
@@ -105,6 +107,45 @@ class Slice11EventAiTest {
         client.clear();
         world.tick(2000);
         assertFalse(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+    }
+
+    @Test
+    void meleeWhenEventAiOutOfRangeShouldChaseThenSendCreatureAttackerState() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Chase");
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x + 20, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        client.attackSwing(world, c.guid);
+        client.clear();
+        world.tick(1000);
+        assertTrue(client.saw(Opcodes.SMSG_MONSTER_MOVE));
+        WowBuffer move = new WowBuffer(client.payload(Opcodes.SMSG_MONSTER_MOVE));
+        assertEquals(c.guid, move.getPackedGuid());
+        assertTrue(c.distance2d(p) > WorldSession.MELEE_RANGE);
+        world.tick(2000);
+        assertTrue(c.distance2d(p) <= WorldSession.MELEE_RANGE + 0.01f);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        assertEquals(c.guid, packedGuid(client.payload(Opcodes.SMSG_ATTACKERSTATEUPDATE), 4));
+    }
+
+    @Test
+    void oocLosWhenPlayerEntersRangeShouldSendSpellGo() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Los");
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x + 15, p.y, p.z, p.o, world.scripts);
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_OOC_LOS, 0, 100, 0, 0, 10, 0, 0,
+                EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        world.map(p.mapId, p.instanceId).add(c);
+        client.clear();
+        world.tick(50);
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
+        p.relocate(c.x + 5, c.y, c.z, c.o);
+        world.tick(50);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
     }
 
     private static WowClientDouble login(World world, String name) {

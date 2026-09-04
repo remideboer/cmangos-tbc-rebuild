@@ -3,6 +3,7 @@ package org.tbc.world.content;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tbc.common.DbPool;
+import org.tbc.world.ai.EventAiStore;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
@@ -174,6 +175,7 @@ public final class ObjectMgr {
     }
 
     public final Map<Long, CreateInfo> createInfo = new HashMap<>();
+    public final EventAiStore eventAiStore = new EventAiStore();
     public final Map<Integer, List<Integer>> createSpells = new HashMap<>();
     public final Map<Integer, int[]> createActions = new HashMap<>();
     public final Map<Integer, List<CreateItem>> createItems = new HashMap<>();
@@ -222,6 +224,7 @@ public final class ObjectMgr {
                 log.warn("playercreateinfo load failed: {}", e.getMessage());
             }
             loadCreatures(c);
+            eventAiStore.load(c);
             try {
                 loadSpawns(c);
             } catch (Exception e) {
@@ -796,6 +799,20 @@ public final class ObjectMgr {
     }
 
     public Creature spawnCreature(int entry, int map, float x, float y, float z, float o, ScriptRegistry scripts) {
+        return spawnCreature(entry, 0, map, x, y, z, o, scripts);
+    }
+
+    public Creature spawnCreature(Spawn s, ScriptRegistry scripts) {
+        Creature c = spawnCreature(s.entry(), s.guid(), s.map(), s.x(), s.y(), s.z(), s.o(), scripts);
+        if (s.guid() > 0) {
+            c.guid = Guid.HIGH_CREATURE | (s.guid() & 0xFFFFFFFFL);
+            c.setGuid(org.tbc.world.net.wow8606.UpdateFields.OBJECT_FIELD_GUID, c.guid);
+        }
+        return c;
+    }
+
+    private Creature spawnCreature(int entry, int spawnId, int map, float x, float y, float z, float o,
+            ScriptRegistry scripts) {
         CreatureTemplate t = creatures.get(entry);
         if (t == null) {
             t = new CreatureTemplate(entry, "Creature", 10045, 7, 100, 1, 0, "", "", 0);
@@ -803,6 +820,7 @@ public final class ObjectMgr {
         Creature c = new Creature();
         c.guid = Guid.HIGH_CREATURE | (nextCreatureLow.getAndIncrement() & 0xFFFFFFL);
         c.mapId = map;
+        c.spawnId = Math.max(0, spawnId);
         c.relocate(x, y, z, o);
         c.spawnX = x;
         c.spawnY = y;
@@ -813,21 +831,17 @@ public final class ObjectMgr {
         c.npcFlags = t.npcFlags();
         c.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_NPC_FLAGS, t.npcFlags());
         org.tbc.world.ai.FactorySelector.selectAI(c, scripts);
-        if (entry == 103) {
+        java.util.List<org.tbc.world.ai.EventAi.Script> rows = eventAiStore.scriptsFor(entry, c.spawnId);
+        if (!rows.isEmpty()) {
+            if (c.eventAi == null) {
+                c.eventAi = new org.tbc.world.ai.EventAi();
+            }
+            c.eventAi.load(rows);
+        } else if (entry == 103) {
             if (c.eventAi == null) {
                 c.eventAi = new org.tbc.world.ai.EventAi();
             }
             c.eventAi.load(java.util.List.of(org.tbc.world.ai.EventAi.Script.aggroCast(7164)));
-        }
-        return c;
-    }
-
-    public Creature spawnCreature(Spawn s, ScriptRegistry scripts) {
-        Creature c = spawnCreature(s.entry(), s.map(), s.x(), s.y(), s.z(), s.o(), scripts);
-        if (s.guid() > 0) {
-            c.guid = Guid.HIGH_CREATURE | (s.guid() & 0xFFFFFFFFL);
-            c.spawnId = s.guid();
-            c.setGuid(org.tbc.world.net.wow8606.UpdateFields.OBJECT_FIELD_GUID, c.guid);
         }
         return c;
     }

@@ -21,6 +21,7 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.gm.GmCommands;
 import org.tbc.world.map.GameMap;
+import org.tbc.world.map.LineOfSight;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -367,7 +368,22 @@ public final class World implements Runnable {
                     });
                 }
                 if (c.inCombat) {
+                    byte[] spline = c.motion.update(c, diff);
+                    if (spline != null) {
+                        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+                            if (pl.session != null) {
+                                pl.session.send(Opcodes.SMSG_MONSTER_MOVE, spline);
+                            }
+                        }
+                    }
                     creatureMeleeIfReady(c, victim, diff);
+                }
+                if (!c.inCombat && c.eventAi != null && c.eventAi.hasOocLos()) {
+                    for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+                        if (LineOfSight.clear(c, pl)) {
+                            c.eventAi.onOocLos(c, pl, sink);
+                        }
+                    }
                 }
             }
         }
