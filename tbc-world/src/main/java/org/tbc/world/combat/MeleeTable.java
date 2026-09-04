@@ -85,7 +85,7 @@ public final class MeleeTable {
             int dmg = glanceDamage(raw, attacker, victim);
             return new Result(Outcome.GLANCE, dmg, dmg);
         }
-        double crit = critChance(attacker, victim);
+        double crit = critChance(attacker, victim, offhand);
         acc += crit;
         if (r < acc) {
             return hit(Outcome.CRIT, weaponMin, weaponMax, 2);
@@ -184,9 +184,11 @@ public final class MeleeTable {
         return pct / 100.0;
     }
 
-    static double critChance(Unit attacker, Unit victim) {
+    static double critChance(Unit attacker, Unit victim, boolean offhand) {
         double pct = attacker instanceof Player
-                ? attacker.getFloat(UpdateFields.PLAYER_CRIT_PERCENTAGE)
+                ? attacker.getFloat(offhand
+                        ? UpdateFields.PLAYER_OFFHAND_CRIT_PERCENTAGE
+                        : UpdateFields.PLAYER_CRIT_PERCENTAGE)
                 : 5.0;
         int skill = attacker.level * 5;
         int defense = victim.level * 5;

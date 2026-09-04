@@ -186,6 +186,20 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenOffhandShouldUseOffhandCritPercentage() {
+        Player a = new Player();
+        a.level = 1;
+        a.setFloat(UpdateFields.PLAYER_CRIT_PERCENTAGE, 5f);
+        a.setFloat(UpdateFields.PLAYER_OFFHAND_CRIT_PERCENTAGE, 0f);
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        assertEquals(MeleeTable.Outcome.HIT, table(0.22).rollOne(a, v, 2, 2, true).outcome());
+        a.setFloat(UpdateFields.PLAYER_OFFHAND_CRIT_PERCENTAGE, 5f);
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.22).rollOne(a, v, 2, 2, true).outcome());
+    }
+
+    @Test
     void rollOneWhenPlayerVsNpcAboveLevel10ShouldGlanceAtTenPlusDefenseMinusSkill() {
         Player a = new Player();
         a.level = 1;
