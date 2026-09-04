@@ -234,6 +234,11 @@ public final class ObjectMgr {
             } catch (Exception e) {
                 log.warn("creature spawn load failed: {}", e.getMessage());
             }
+            try {
+                loadEventCreatures(c);
+            } catch (Exception e) {
+                log.debug("game_event_creature load skipped: {}", e.getMessage());
+            }
             loadQuests(c);
             loadAreaTriggers(c);
             loadItems(c);
@@ -418,6 +423,23 @@ public final class ObjectMgr {
         }
         if (last != null) {
             throw last;
+        }
+    }
+
+    private void loadEventCreatures(Connection c) throws Exception {
+        String sql = "SELECT gec.`event`, c.guid, c.id, c.map, c.position_x, c.position_y, c.position_z, c.orientation "
+                + "FROM game_event_creature gec INNER JOIN creature c ON c.guid = gec.guid";
+        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                int eventId = rs.getInt(1);
+                if (eventId <= 0) {
+                    continue;
+                }
+                eventCreatures.computeIfAbsent(eventId, k -> new ArrayList<>()).add(
+                        new Spawn(rs.getInt(2), rs.getInt(3), rs.getInt(4),
+                                rs.getFloat(5), rs.getFloat(6), rs.getFloat(7), rs.getFloat(8)));
+            }
+            log.info("loaded game_event_creature for {} events", eventCreatures.size());
         }
     }
 
