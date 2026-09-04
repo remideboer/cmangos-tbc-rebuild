@@ -311,6 +311,9 @@ public final class InventoryHandler {
         if (in.remaining() < 4) {
             return;
         }
+        if (p.channeling) {
+            return;
+        }
         int giftBag = in.getU8();
         int giftSlot = in.getU8();
         int itemBag = in.getU8();
