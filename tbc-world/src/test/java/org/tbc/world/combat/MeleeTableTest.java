@@ -1,6 +1,7 @@
 package org.tbc.world.combat;
 
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.junit.jupiter.api.Test;
 
@@ -65,6 +66,20 @@ class MeleeTableTest {
         a.level = 1;
         v.level = 3;
         assertEquals(MeleeTable.Outcome.HIT, table(0.50).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
+    void rollOneWhenPlayerHasOffhandWeaponShouldAddNineteenPercentMiss() {
+        Player a = new Player();
+        a.level = 1;
+        Item off = new Item(1, 25);
+        off.slot = Player.EQUIPMENT_SLOT_OFFHAND;
+        a.items.put(1, off);
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        assertEquals(MeleeTable.Outcome.MISS, table(0.06).rollOne(a, v, 2, 2).outcome());
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.26).rollOne(a, v, 2, 2).outcome());
     }
 
     @Test

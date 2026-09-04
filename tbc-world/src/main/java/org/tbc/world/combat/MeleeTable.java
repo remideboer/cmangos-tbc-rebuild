@@ -94,6 +94,9 @@ public final class MeleeTable {
     /** Base 5%. Vs NPC, defense − skill: ≤10 at 0.1 each; above that leftover at 0.2+0.4. */
     static double missChance(Unit attacker, Unit victim) {
         double pct = 5.0;
+        if (attacker instanceof Player p && p.hasOffhandWeapon()) {
+            pct += 19.0;
+        }
         int difference = victim.level * 5 - attacker.level * 5;
         if (victim instanceof Creature) {
             if (difference > 10) {

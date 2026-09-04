@@ -14,6 +14,8 @@ public final class Player extends Unit {
     public static final int REST_STATE_NORMAL = 0x02;
     public static final int PLAYER_CONTROLLED_DEBUFF_LIMIT = 40;
     public static final int EQUIPMENT_SLOT_END = 19;
+    public static final int EQUIPMENT_SLOT_MAINHAND = 15;
+    public static final int EQUIPMENT_SLOT_OFFHAND = 16;
     public static final int INVENTORY_SLOT_ITEM_START = 23;
     public static final int INVENTORY_SLOT_ITEM_END = 39;
     public static final int MAX_VISIBLE_ITEM_OFFSET = 16;
@@ -197,6 +199,15 @@ public final class Player extends Unit {
         public boolean accepted;
         public int gold;
         public final Item[] slots = new Item[7];
+    }
+
+    public boolean hasOffhandWeapon() {
+        for (Item it : items.values()) {
+            if (it.bag == 0 && it.slot == EQUIPMENT_SLOT_OFFHAND) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void applyEquippedVisuals() {
