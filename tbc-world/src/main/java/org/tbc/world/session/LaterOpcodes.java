@@ -46,6 +46,10 @@ public final class LaterOpcodes {
             InventoryHandler.autoequipItem(s, world, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_AUTOSTORE_BAG_ITEM) {
+            InventoryHandler.autostoreBagItem(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
             InventoryHandler.swapItem(s, in);
             return true;
