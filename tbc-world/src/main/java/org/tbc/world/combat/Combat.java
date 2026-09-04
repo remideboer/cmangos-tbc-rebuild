@@ -65,7 +65,8 @@ public final class Combat {
         if (!c.alive() || c.evading) {
             return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
         }
-        MeleeTable.Result r = table.rollOne(p, c, 1, 3);
+        int bonus = p.queuedNextMeleeBonus();
+        MeleeTable.Result r = table.rollOne(p, c, 1 + bonus, 3 + bonus);
         p.consumeNextMeleeSwing();
         if (r.damage() > 0) {
             c.setHealth(c.health() - r.damage());

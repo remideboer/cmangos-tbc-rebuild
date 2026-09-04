@@ -94,6 +94,7 @@ public final class Player extends Unit {
     public boolean looking;
     public boolean channeling;
     public boolean nextMeleeSwingQueued;
+    private int nextMeleeBonus;
     public int afkReports;
     public int arenaTeam;
     public int arenaTeamId2, arenaTeamId3, arenaTeamId5;
@@ -220,15 +221,27 @@ public final class Player extends Unit {
     }
 
     public void queueNextMeleeSwing() {
+        queueNextMeleeSwing(0);
+    }
+
+    public void queueNextMeleeSwing(int bonusDamage) {
         nextMeleeSwingQueued = true;
+        nextMeleeBonus = bonusDamage;
     }
 
     public boolean hasNextMeleeSwingQueued() {
         return nextMeleeSwingQueued;
     }
 
-    public void consumeNextMeleeSwing() {
+    public int consumeNextMeleeSwing() {
+        int bonus = nextMeleeBonus;
         nextMeleeSwingQueued = false;
+        nextMeleeBonus = 0;
+        return bonus;
+    }
+
+    public int queuedNextMeleeBonus() {
+        return nextMeleeSwingQueued ? nextMeleeBonus : 0;
     }
 
     public void applyEquippedVisuals() {

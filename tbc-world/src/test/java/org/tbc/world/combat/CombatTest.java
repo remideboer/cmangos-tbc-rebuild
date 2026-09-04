@@ -105,6 +105,13 @@ class CombatTest {
     }
 
     @Test
+    void swingWhenNextMeleeBonusShouldAddToWeaponRange() {
+        p.queueNextMeleeSwing(2);
+        assertEquals(3, combat.swing(p, c, 1).damage());
+        assertEquals(39, c.health());
+    }
+
+    @Test
     void evadeResetsAndBlocksLoot() {
         combat.startAttack(p, c, 10);
         c.setHealth(10);
