@@ -328,8 +328,7 @@ public final class WorldSession {
             case Opcodes.CMSG_INSPECT -> handleInspect(in);
             case Opcodes.CMSG_DUEL_ACCEPTED -> handleDuel(world);
             case Opcodes.CMSG_TOGGLE_PVP -> player.pvpFlagged = !player.pvpFlagged;
-            case Opcodes.CMSG_OPEN_ITEM -> {
-            }
+            case Opcodes.CMSG_OPEN_ITEM -> InventoryHandler.openItem(this, in);
             case Opcodes.MSG_PVP_LOG_DATA -> sendPvpLog();
             default -> handleRest(world, opcode, in);
         }

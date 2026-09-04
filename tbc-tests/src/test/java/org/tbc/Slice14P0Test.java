@@ -377,6 +377,35 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14OpenItem() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Opener", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int slot = p.firstFreeBagSlot();
+        Item crate = new Item(world.nextItemGuid(), Content.ITEM_DENTED_CRATE);
+        crate.slot = slot;
+        p.items.put((int) crate.guid, crate);
+        p.setGuid(invSlotField(slot), UpdateBuilder.itemGuid(crate));
+
+        client.clear();
+        WowBuffer open = new WowBuffer(2);
+        open.putU8(0);
+        open.putU8(slot);
+        client.handle(world, Opcodes.CMSG_OPEN_ITEM, open.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_LOOT_RESPONSE));
+        WowBuffer loot = new WowBuffer(client.payload(Opcodes.SMSG_LOOT_RESPONSE));
+        assertEquals(UpdateBuilder.itemGuid(crate), loot.getU64());
+        assertEquals(2, loot.getU8());
+        assertEquals(0, loot.getU32());
+        assertEquals(0, loot.getU8());
+    }
+
+    @Test
     void tpSl14SetAmmo() throws Exception {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();

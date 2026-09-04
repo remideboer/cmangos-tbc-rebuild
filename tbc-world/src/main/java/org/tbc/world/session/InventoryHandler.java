@@ -309,6 +309,28 @@ public final class InventoryHandler {
     public static final int BONUS_ENCHANTMENT_SLOT = 5;
     public static final int ENCHANT_SLOT_FIELDS = 3;
     public static final int META_GEM_SKYFIRE = 25890;
+    /** loot.md clientLootType for item open / pickpocket / skin. */
+    public static final int LOOT_PICKPOCKETING = 2;
+
+    /** bag, slot. Non-wrapped → SMSG_LOOT_RESPONSE pickpocketing. inventory.md */
+    public static void openItem(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 2) {
+            return;
+        }
+        int bag = in.getU8();
+        int slot = in.getU8();
+        Item it = p.itemAt(bag, slot);
+        if (it == null) {
+            return;
+        }
+        WowBuffer loot = new WowBuffer(16);
+        loot.putU64(UpdateBuilder.itemGuid(it));
+        loot.putU8(LOOT_PICKPOCKETING);
+        loot.putU32(0);
+        loot.putU8(0);
+        s.send(Opcodes.SMSG_LOOT_RESPONSE, loot.array());
+    }
 
     public static void sellItem(WorldSession s, WowBuffer in) {
         Player p = s.player();

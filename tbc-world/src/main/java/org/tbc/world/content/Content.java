@@ -47,6 +47,8 @@ public final class Content {
     /** locales_item 889; PageText 16 is locales_page_text (Stalvan to Crillian). */
     public static final int ITEM_DUSTY_UNSENT_LETTER = 889;
     public static final int PAGE_TEXT_STALVAN_CRILLIAN = 16;
+    /** locales_item 6351 Dented Crate / Venture Co. supplies. */
+    public static final int ITEM_DENTED_CRATE = 6351;
     public static final int SPELL_BATTLE_SHOUT = 6673;
     public static final int TRAINER_SPELL_BATTLE_SHOUT_COST = 200;
     public static final int TAXI_STORMWIND = 2;
