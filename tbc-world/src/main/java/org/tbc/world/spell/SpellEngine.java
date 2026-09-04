@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.tbc.common.Codes;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Guid;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.map.GameMap;
@@ -197,6 +199,12 @@ public final class SpellEngine {
             learnSpell(target, sp.misc());
             return 0;
         }
+        if (sp.effect == EFFECT_CREATE_ITEM) {
+            int count = Math.max(0, (sp.minDmg + sp.maxDmg) / 2);
+            long guid = target instanceof Player p ? p.items.size() + 1L : 0;
+            createItem(target, sp.misc(), count, guid);
+            return 0;
+        }
         if (sp.effect == EFFECT_DUMMY || sp.effect == EFFECT_SCRIPT) {
             catalogDummy(sp.effect);
             if (sp.id == ClassScripts.SPELL_EXECUTE) {
@@ -212,6 +220,48 @@ public final class SpellEngine {
             return;
         }
         target.setPower(target.power() + amount);
+    }
+
+    /** Effect 24 — add item id × count from damage; SMSG_ITEM_PUSH_RESULT created=1. */
+    public Item createItem(Unit target, int itemId, int count, long itemGuid) {
+        return createItem(target, itemId, count, itemGuid, null);
+    }
+
+    public Item createItem(Unit target, int itemId, int count, long itemGuid, BiConsumer<Integer, byte[]> send) {
+        if (!(target instanceof Player p) || itemId <= 0 || count <= 0 || itemGuid == 0) {
+            return null;
+        }
+        int slot = p.firstFreeBagSlot();
+        if (slot < 0) {
+            return null;
+        }
+        Item it = new Item(itemGuid, itemId);
+        it.ownerGuid = Guid.low(p.guid);
+        it.bag = 0;
+        it.slot = slot;
+        it.count = count;
+        p.items.put(Guid.low(it.guid), it);
+        p.dirty = true;
+        if (send != null) {
+            send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodeCreateItemPush(p, it, count));
+        }
+        return it;
+    }
+
+    byte[] encodeCreateItemPush(Player p, Item it, int count) {
+        WowBuffer b = new WowBuffer(48);
+        b.putU64(p.guid);
+        b.putU32(0);
+        b.putU32(1);
+        b.putU32(1);
+        b.putU8(it.bag);
+        b.putU32(it.slot);
+        b.putU32(it.entry);
+        b.putU32(0);
+        b.putU32(0);
+        b.putU32(count);
+        b.putU32(count);
+        return b.array();
     }
 
     /** Effect 36 — add TriggerSpell / misc to the player's book (spells-and-auras.md). */
