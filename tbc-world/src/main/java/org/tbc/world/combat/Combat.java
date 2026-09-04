@@ -81,7 +81,7 @@ public final class Combat {
         int min = offhand ? offhandMin(p) : meleeMin(p);
         int max = offhand ? offhandMax(p) : meleeMax(p);
         int bonus = offhand ? 0 : p.queuedNextMeleeBonus();
-        MeleeTable.Result r = table.rollOne(p, c, min + bonus, max + bonus);
+        MeleeTable.Result r = table.rollOne(p, c, min + bonus, max + bonus, offhand);
         if (!offhand) {
             p.consumeNextMeleeSwing();
         }

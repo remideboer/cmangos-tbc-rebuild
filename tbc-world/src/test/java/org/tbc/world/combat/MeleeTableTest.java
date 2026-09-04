@@ -112,6 +112,20 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenOffhandShouldSubtractOffhandExpertiseFromDodgeAndParry() {
+        Player a = new Player();
+        a.level = 1;
+        a.setInt(UpdateFields.PLAYER_EXPERTISE, 20);
+        a.setInt(UpdateFields.PLAYER_OFFHAND_EXPERTISE, 0);
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.06).rollOne(a, v, 2, 2, true).outcome());
+        a.setInt(UpdateFields.PLAYER_OFFHAND_EXPERTISE, 20);
+        assertEquals(MeleeTable.Outcome.BLOCK, table(0.06).rollOne(a, v, 2, 2, true).outcome());
+    }
+
+    @Test
     void rollOneWhenNpcDefenseExceedsSkillShouldRaiseDodgeAtPointOnePerPoint() {
         Player a = new Player();
         a.level = 1;

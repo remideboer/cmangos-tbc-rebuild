@@ -46,6 +46,10 @@ public final class MeleeTable {
     }
 
     public Result rollOne(Unit attacker, Unit victim, int weaponMin, int weaponMax) {
+        return rollOne(attacker, victim, weaponMin, weaponMax, false);
+    }
+
+    public Result rollOne(Unit attacker, Unit victim, int weaponMin, int weaponMax, boolean offhand) {
         if (victim instanceof Creature creature && creature.evading) {
             return new Result(Outcome.EVADE, 0, 0);
         }
@@ -57,11 +61,11 @@ public final class MeleeTable {
         if (victim instanceof Player && !victim.isStanding()) {
             return hit(Outcome.CRIT, weaponMin, weaponMax, 2);
         }
-        acc += dodgeChance(attacker, victim);
+        acc += dodgeChance(attacker, victim, offhand);
         if (r < acc) {
             return new Result(Outcome.DODGE, 0, 0);
         }
-        acc += parryChance(attacker, victim);
+        acc += parryChance(attacker, victim, offhand);
         if (r < acc) {
             return new Result(Outcome.PARRY, 0, 0);
         }
@@ -134,24 +138,25 @@ public final class MeleeTable {
         return pct / 100.0;
     }
 
-    static double dodgeChance(Unit attacker, Unit victim) {
-        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.1, 0.1), attacker);
+    static double dodgeChance(Unit attacker, Unit victim, boolean offhand) {
+        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.1, 0.1), attacker, offhand);
     }
 
-    static double parryChance(Unit attacker, Unit victim) {
-        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6), attacker);
+    static double parryChance(Unit attacker, Unit victim, boolean offhand) {
+        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6), attacker, offhand);
     }
 
     static double blockChance(Unit attacker, Unit victim) {
         return skillAvoid(attacker, victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE, 0.0, 0.0);
     }
 
-    /** PLAYER_EXPERTISE / 4 percent. spec/03-protocol/update-fields.yaml */
-    static double minusExpertise(double chance, Unit attacker) {
+    /** PLAYER_EXPERTISE / 4 percent; offhand uses PLAYER_OFFHAND_EXPERTISE. spec/03-protocol/update-fields.yaml */
+    static double minusExpertise(double chance, Unit attacker, boolean offhand) {
         if (!(attacker instanceof Player p)) {
             return chance;
         }
-        chance -= p.getInt(UpdateFields.PLAYER_EXPERTISE) * 0.25 / 100.0;
+        int field = offhand ? UpdateFields.PLAYER_OFFHAND_EXPERTISE : UpdateFields.PLAYER_EXPERTISE;
+        chance -= p.getInt(field) * 0.25 / 100.0;
         if (chance < 0) {
             return 0;
         }
