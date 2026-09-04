@@ -17,7 +17,9 @@ import org.tbc.world.script.ClassScripts;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
+import java.util.function.DoubleSupplier;
 
 /** CMSG_CAST_SPELL + SMSG_CAST_RESULT 0x130. SPELL_CAST_OK 0xFF is never sent. */
 public final class SpellEngine {
@@ -44,6 +46,8 @@ public final class SpellEngine {
     public static final int CAST_FLAG_UNKNOWN9 = 0x100;
     public static final int FIREBALL = 133;
     public static final int LOGINEFFECT = 836;
+    public static final int SPELL_MISS_MISS = 1;
+    private static final double MAGIC_MISS = 0.04;
 
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
@@ -53,8 +57,14 @@ public final class SpellEngine {
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {}
 
     private final Map<Integer, SpellInfo> spells = new HashMap<>();
+    private final DoubleSupplier missRoll;
 
     public SpellEngine() {
+        this(() -> ThreadLocalRandom.current().nextDouble());
+    }
+
+    public SpellEngine(DoubleSupplier missRoll) {
+        this.missRoll = missRoll;
         spells.put(78, new SpellInfo(78, EFFECT_WEAPON_DAMAGE, 0, 0, 150, 1, 3, 5f));
         spells.put(FIREBALL, new SpellInfo(FIREBALL, EFFECT_SCHOOL_DAMAGE, 0, 4, 30, 8, 12, 30f));
         spells.put(2050, new SpellInfo(2050, EFFECT_HEAL, 0, 1, 20, 10, 14, 0f));
@@ -62,6 +72,10 @@ public final class SpellEngine {
         spells.put(30108, new SpellInfo(30108, EFFECT_APPLY_AURA, 3, 5, 0, 0, 0, 30f));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
+    }
+
+    public static SpellEngine alwaysHit() {
+        return new SpellEngine(() -> 1.0);
     }
 
     public SpellInfo info(int id) {
@@ -131,17 +145,26 @@ public final class SpellEngine {
         } else {
             dmg = apply(caster, target, sp);
         }
-        send.accept(Opcodes.SMSG_SPELL_GO, encodeGo(caster.guid, target.guid, sp.id, nowMs, targets));
-        if (dmg > 0) {
-            send.accept(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG, encodeDamageLog(target.guid, caster.guid, sp, dmg));
-            var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
-            send.accept(hp.opcode(), hp.payload());
+        boolean schoolMiss = sp.effect == EFFECT_SCHOOL_DAMAGE && dmg == 0;
+        if (schoolMiss) {
+            send.accept(Opcodes.SMSG_SPELL_GO, encodeGo(caster.guid, target.guid, sp.id, nowMs, targets, SPELL_MISS_MISS));
+            send.accept(Opcodes.SMSG_SPELLLOGMISS, encodeSpellLogMiss(sp.id, caster.guid, target.guid));
+        } else {
+            send.accept(Opcodes.SMSG_SPELL_GO, encodeGo(caster.guid, target.guid, sp.id, nowMs, targets));
+            if (dmg > 0) {
+                send.accept(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG, encodeDamageLog(target.guid, caster.guid, sp, dmg));
+                var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
+                send.accept(hp.opcode(), hp.payload());
+            }
         }
         return true;
     }
 
     public int apply(Unit caster, Unit target, SpellInfo sp) {
         if (sp == null || target == null) {
+            return 0;
+        }
+        if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE || sp.effect == EFFECT_WEAPON_DAMAGE) {
@@ -219,16 +242,38 @@ public final class SpellEngine {
     }
 
     public byte[] encodeGo(long caster, long hit, int spellId, long nowMs, SpellCastTargets targets) {
+        return encodeGo(caster, hit, spellId, nowMs, targets, 0);
+    }
+
+    public byte[] encodeGo(long caster, long target, int spellId, long nowMs, SpellCastTargets targets, int missInfo) {
         WowBuffer b = new WowBuffer(80);
         b.putPackedGuid(caster);
         b.putPackedGuid(caster);
         b.putU32(spellId);
         b.putU16(CAST_FLAG_UNKNOWN9);
         b.putU32((int) nowMs);
-        b.putU8(1);
-        b.putU64(hit);
-        b.putU8(0);
+        if (missInfo == 0) {
+            b.putU8(1);
+            b.putU64(target);
+            b.putU8(0);
+        } else {
+            b.putU8(0);
+            b.putU8(1);
+            b.putU64(target);
+            b.putU8(missInfo);
+        }
         targets.write(b);
+        return b.array();
+    }
+
+    byte[] encodeSpellLogMiss(int spellId, long caster, long target) {
+        WowBuffer b = new WowBuffer(32);
+        b.putU32(spellId);
+        b.putU64(caster);
+        b.putU8(0);
+        b.putU32(1);
+        b.putU64(target);
+        b.putU8(SPELL_MISS_MISS);
         return b.array();
     }
 

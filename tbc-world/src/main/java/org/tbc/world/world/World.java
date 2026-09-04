@@ -60,7 +60,7 @@ public final class World implements Runnable {
     public final ObjectMgr objectMgr = new ObjectMgr();
     public final Content content = new Content(objectMgr);
     public final ScriptRegistry scripts = new ScriptRegistry();
-    public final SpellEngine spells = new SpellEngine();
+    public final SpellEngine spells;
     public final Combat combat = new Combat();
     public final GmCommands gm;
     public final AbBattlefield ab = new AbBattlefield();
@@ -85,6 +85,7 @@ public final class World implements Runnable {
 
     public World(Conf conf, DbPool login, DbPool worldDb, DbPool charsDb) {
         this.conf = conf;
+        this.spells = conf == null ? SpellEngine.alwaysHit() : new SpellEngine();
         this.login = login;
         this.worldDb = worldDb;
         this.charsDb = charsDb;

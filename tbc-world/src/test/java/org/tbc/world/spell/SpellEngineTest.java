@@ -11,7 +11,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,8 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SpellEngineTest {
-    private final SpellEngine engine = new SpellEngine();
+    private final SpellEngine engine = SpellEngine.alwaysHit();
     private final List<Integer> ops = new ArrayList<>();
+    private final Map<Integer, byte[]> last = new HashMap<>();
     private byte[] lastCastResult;
     private Player p;
     private Creature c;
@@ -29,6 +32,7 @@ class SpellEngineTest {
     @BeforeEach
     void setUp() {
         ops.clear();
+        last.clear();
         p = new Player();
         p.guid = 1;
         p.spells.add(SpellEngine.FIREBALL);
@@ -48,6 +52,43 @@ class SpellEngineTest {
         map = new GameMap(0, 0);
         map.add(p);
         map.add(c);
+    }
+
+    @Test
+    void castFireballWhenMagicMissShouldSendSpellLogMissWithoutDamage() {
+        SpellEngine miss = new SpellEngine(() -> 0.0);
+        int hp = c.health();
+        miss.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        assertEquals(70, p.power());
+        assertEquals(hp, c.health());
+        assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertTrue(ops.contains(Opcodes.SMSG_SPELLLOGMISS));
+        WowBuffer missLog = new WowBuffer(last.get(Opcodes.SMSG_SPELLLOGMISS));
+        assertEquals(SpellEngine.FIREBALL, missLog.getU32());
+        assertEquals(p.guid, missLog.getU64());
+        assertEquals(0, missLog.getU8());
+        assertEquals(1, missLog.getU32());
+        assertEquals(c.guid, missLog.getU64());
+        assertEquals(1, missLog.getU8());
+        WowBuffer go = new WowBuffer(last.get(Opcodes.SMSG_SPELL_GO));
+        go.getPackedGuid();
+        go.getPackedGuid();
+        assertEquals(SpellEngine.FIREBALL, go.getU32());
+        go.getU16();
+        go.getU32();
+        assertEquals(0, go.getU8());
+        assertEquals(1, go.getU8());
+        assertEquals(c.guid, go.getU64());
+        assertEquals(1, go.getU8());
+    }
+
+    @Test
+    void castFireballWhenMissRollAtFourPercentShouldDealDamage() {
+        SpellEngine atFloor = new SpellEngine(() -> 0.04);
+        atFloor.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        assertEquals(32, c.health());
+        assertTrue(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertFalse(ops.contains(Opcodes.SMSG_SPELLLOGMISS));
     }
 
     @Test
@@ -158,6 +199,7 @@ class SpellEngineTest {
 
     private void capture(int opcode, byte[] payload) {
         ops.add(opcode);
+        last.put(opcode, payload);
         if (opcode == Opcodes.SMSG_CAST_RESULT) {
             lastCastResult = payload;
         }

@@ -820,16 +820,21 @@ public final class WorldSession {
         int castCount = in.remaining() > 0 ? in.getU8() : 0;
         GameMap map = world.map(player.mapId, player.instanceId);
         byte[] rest = in.remainingBytes();
+        org.tbc.world.spell.SpellCastTargets targets = org.tbc.world.spell.SpellCastTargets.read(new WowBuffer(rest));
+        org.tbc.world.entity.Unit unit = org.tbc.world.spell.SpellEngine.resolve(player, map, targets.unitGuid);
+        int hpBefore = unit == null ? 0 : unit.health();
         boolean hit = world.spells.cast(player, map, world.nowMs(), spellId, castCount, new WowBuffer(rest), this::send);
         if (!hit) {
             return;
         }
-        org.tbc.world.spell.SpellCastTargets targets = org.tbc.world.spell.SpellCastTargets.read(new WowBuffer(rest));
-        org.tbc.world.entity.Unit unit = org.tbc.world.spell.SpellEngine.resolve(player, map, targets.unitGuid);
         if (!(unit instanceof Creature cr) || cr.eventAi == null) {
             return;
         }
         var sp = world.spells.info(spellId);
+        if (sp != null && sp.effect() == org.tbc.world.spell.SpellEngine.EFFECT_SCHOOL_DAMAGE
+                && unit.health() == hpBefore) {
+            return;
+        }
         int school = sp == null ? 0 : sp.school();
         cr.eventAi.onSpellHit(cr, player, spellId, school, (caster, t, id) -> {
             org.tbc.world.spell.SpellCastTargets tgt = new org.tbc.world.spell.SpellCastTargets();
