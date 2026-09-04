@@ -66,6 +66,7 @@ public final class Combat {
             return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
         }
         MeleeTable.Result r = table.rollOne(p, c, 1, 3);
+        p.consumeNextMeleeSwing();
         if (r.damage() > 0) {
             c.setHealth(c.health() - r.damage());
             c.threat += r.threat();

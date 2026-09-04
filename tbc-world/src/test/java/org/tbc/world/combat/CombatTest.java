@@ -93,6 +93,17 @@ class CombatTest {
     }
 
     @Test
+    void swingWhenNextMeleeQueuedShouldConsumeAfterTheRollNotWhenSkipped() {
+        p.queueNextMeleeSwing();
+        c.setHealth(0);
+        combat.swing(p, c, 1);
+        assertTrue(p.hasNextMeleeSwingQueued());
+        c.setHealth(42);
+        combat.swing(p, c, 2);
+        assertFalse(p.hasNextMeleeSwingQueued());
+    }
+
+    @Test
     void evadeResetsAndBlocksLoot() {
         combat.startAttack(p, c, 10);
         c.setHealth(10);

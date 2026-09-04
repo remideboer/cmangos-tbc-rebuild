@@ -227,6 +227,10 @@ public final class Player extends Unit {
         return nextMeleeSwingQueued;
     }
 
+    public void consumeNextMeleeSwing() {
+        nextMeleeSwingQueued = false;
+    }
+
     public void applyEquippedVisuals() {
         for (Item it : items.values()) {
             if (it.bag != 0 || it.slot < 0 || it.slot >= EQUIPMENT_SLOT_END) {
