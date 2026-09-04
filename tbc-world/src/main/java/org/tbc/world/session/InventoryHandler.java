@@ -332,6 +332,9 @@ public final class InventoryHandler {
         if ((gift.flags & Content.ITEM_DYNFLAG_WRAPPED) != 0) {
             return;
         }
+        if (gift.inventoryType == 18) {
+            return;
+        }
         ObjectMgr.ItemTemplate t = world.objectMgr.items.get(paper.entry);
         if (t == null || (t.flags & Content.ITEM_FLAG_IS_WRAPPER) == 0 || t.stackable <= 1) {
             return;
