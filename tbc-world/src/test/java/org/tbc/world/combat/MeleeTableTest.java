@@ -73,6 +73,27 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenGlanceShouldScaleDamageBetweenLowAndHighEnds() {
+        Player a = new Player();
+        a.level = 11;
+        Creature v = new Creature();
+        v.level = 11;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 11);
+        MeleeTable.Result same = table(0.22).rollOne(a, v, 100, 100);
+        assertEquals(MeleeTable.Outcome.GLANCE, same.outcome());
+        assertEquals(91, same.damage());
+        assertEquals(91, same.threat());
+        a.level = 12;
+        MeleeTable.Result skillAhead = table(0.22).rollOne(a, v, 100, 100);
+        assertEquals(MeleeTable.Outcome.GLANCE, skillAhead.outcome());
+        assertEquals(100, skillAhead.damage());
+        a.level = 1;
+        MeleeTable.Result yellow = table(0.22).rollOne(a, v, 100, 100);
+        assertEquals(MeleeTable.Outcome.GLANCE, yellow.outcome());
+        assertEquals(1, yellow.damage());
+    }
+
+    @Test
     void rollOneWhenCreatureShouldUseFivePercentBaseCrit() {
         Creature a = new Creature();
         a.level = 1;

@@ -61,7 +61,9 @@ public final class MeleeTable {
         }
         acc += glanceChance(attacker, victim);
         if (r < acc) {
-            return hit(Outcome.GLANCE, weaponMin, weaponMax, 1);
+            int raw = damageRoll.applyAsInt(weaponMin, weaponMax);
+            int dmg = glanceDamage(raw, attacker, victim);
+            return new Result(Outcome.GLANCE, dmg, dmg);
         }
         double crit = critChance(attacker, victim);
         acc += crit;
@@ -127,6 +129,20 @@ public final class MeleeTable {
             pct = 100;
         }
         return pct / 100.0;
+    }
+
+    /** Non-caster glance: roll multiplier between lowEnd and highEnd (combat-and-threat.md). */
+    int glanceDamage(int raw, Unit attacker, Unit victim) {
+        int difference = victim.level * 5 - attacker.level * 5;
+        if (difference < 0) {
+            return raw;
+        }
+        float highEnd = Math.min(Math.max(1.2f - 0.03f * difference, 0.20f), 0.99f);
+        float lowEnd = Math.min(Math.max(1.3f - 0.05f * difference, 0.01f), Math.min(0.91f, highEnd));
+        int lo = (int) (lowEnd * 100);
+        int hi = (int) (highEnd * 100);
+        int hundredths = damageRoll.applyAsInt(lo, hi);
+        return raw * hundredths / 100;
     }
 
     static double crushChance(Unit attacker, Unit victim) {
