@@ -1,9 +1,12 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
@@ -90,6 +93,23 @@ public final class InventoryHandler {
         s.send(created.opcode(), created.payload());
         var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, dstField, dstField + 1));
         s.send(pkt.opcode(), pkt.payload());
+    }
+
+    /** guid raw banker. Layout: spec/03-protocol/packets/inventory.md */
+    public static void bankerActivate(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Creature npc = Content.creature(world.map(p.mapId, p.instanceId), guid);
+        if (npc == null || Content.outOfRange(p, npc)
+                || (npc.npcFlags & Content.UNIT_NPC_FLAG_BANKER) == 0) {
+            return;
+        }
+        WowBuffer shown = new WowBuffer(8);
+        shown.putU64(guid);
+        s.send(Opcodes.SMSG_SHOW_BANK, shown.array());
     }
 
     public static final int BUYBACK_SLOT_START = 74;

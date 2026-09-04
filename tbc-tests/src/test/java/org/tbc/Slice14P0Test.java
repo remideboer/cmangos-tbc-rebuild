@@ -123,6 +123,27 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14ShowBank() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Banker", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature banker = find(world, Content.NPC_OLIVIA_BURNSIDE);
+        assertNotNull(banker);
+        p.relocate(banker.x, banker.y, banker.z, banker.o);
+        client.clear();
+        WowBuffer activate = new WowBuffer(8);
+        activate.putU64(banker.guid);
+        client.handle(world, Opcodes.CMSG_BANKER_ACTIVATE, activate.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_SHOW_BANK));
+        WowBuffer shown = new WowBuffer(client.payload(Opcodes.SMSG_SHOW_BANK));
+        assertEquals(banker.guid, shown.getU64());
+    }
+
+    @Test
     void tpSl14TrainerBuySpell() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();

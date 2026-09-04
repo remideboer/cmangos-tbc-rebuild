@@ -30,6 +30,10 @@ public final class LaterOpcodes {
             InventoryHandler.splitItem(s, world, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_BANKER_ACTIVATE) {
+            InventoryHandler.bankerActivate(s, world, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
             if (in.remaining() < 4) {
                 return true;
