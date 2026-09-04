@@ -403,7 +403,11 @@ public final class ObjectMgr {
     }
 
     private void loadSpawns(Connection c) throws Exception {
+        String cols = "c.guid, c.id, c.map, c.position_x, c.position_y, c.position_z, c.orientation";
+        String join = " FROM creature c LEFT OUTER JOIN game_event_creature gec ON c.guid = gec.guid AND gec.`event` > 0";
         String[] sqls = {
+                "SELECT " + cols + join + " WHERE c.map IN (0, 1) AND gec.guid IS NULL LIMIT 80000",
+                "SELECT " + cols + join + " WHERE gec.guid IS NULL LIMIT 80000",
                 "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM creature "
                         + "WHERE map IN (0, 1) LIMIT 80000",
                 "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM creature LIMIT 80000"

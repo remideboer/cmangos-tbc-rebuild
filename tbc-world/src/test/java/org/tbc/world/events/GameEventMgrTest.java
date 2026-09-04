@@ -70,8 +70,50 @@ class GameEventMgrTest {
         }
     }
 
+    @Test
+    void startWhenSqlEventCreatureOnContinentShouldStayHiddenUntilStart() throws Exception {
+        String url = "jdbc:h2:mem:gec_cont_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "event-continent-test")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE creature (
+                          guid INT PRIMARY KEY,
+                          id INT,
+                          map INT,
+                          position_x FLOAT,
+                          position_y FLOAT,
+                          position_z FLOAT,
+                          orientation FLOAT
+                        )
+                        """);
+                st.execute("""
+                        CREATE TABLE game_event_creature (
+                          guid INT,
+                          event SMALLINT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO creature (guid, id, map, position_x, position_y, position_z, orientation)
+                        VALUES (5470211, 25697, 0, -92.45719, -110.6642, -2.866759, 2.408554)
+                        """);
+                st.execute("INSERT INTO game_event_creature (guid, event) VALUES (5470211, 1)");
+            }
+            World world = new World(null, null, worldDb, null);
+            assertNull(find(world, 0, Content.NPC_LUMA_SKYMOTHER));
+            world.events.start(world, Content.GAME_EVENT_MIDSUMMER);
+            Creature luma = find(world, 0, Content.NPC_LUMA_SKYMOTHER);
+            assertNotNull(luma);
+            assertEquals(5470211, luma.spawnId);
+        }
+    }
+
     private static Creature find(World world, int entry) {
-        for (Creature c : world.map(547, 0).creatures.values()) {
+        return find(world, 547, entry);
+    }
+
+    private static Creature find(World world, int map, int entry) {
+        for (Creature c : world.map(map, 0).creatures.values()) {
             if (c.entry == entry) {
                 return c;
             }
