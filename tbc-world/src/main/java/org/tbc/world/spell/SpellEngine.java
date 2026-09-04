@@ -289,6 +289,37 @@ public final class SpellEngine {
         target.auras.removeIf(a -> a.spellId() == spellId);
     }
 
+    public static final int SPELL_AURA_PERIODIC_DAMAGE = 3;
+
+    /** Amplitude tick: PERIODIC_DAMAGE → SMSG_PERIODICAURALOG; damage = health delta. combat-log.md */
+    public void tickPeriodic(Unit caster, Unit target, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
+        if (caster == null || target == null || sp == null || send == null) {
+            return;
+        }
+        if (sp.aura != SPELL_AURA_PERIODIC_DAMAGE) {
+            return;
+        }
+        int dmg = (sp.minDmg + sp.maxDmg) / 2;
+        int before = target.health();
+        target.setHealth(before - dmg);
+        int dealt = before - target.health();
+        send.accept(Opcodes.SMSG_PERIODICAURALOG, encodePeriodicDamageLog(target.guid, caster.guid, sp, dealt));
+    }
+
+    byte[] encodePeriodicDamageLog(long target, long caster, SpellInfo sp, int damage) {
+        WowBuffer b = new WowBuffer(64);
+        b.putPackedGuid(target);
+        b.putPackedGuid(caster);
+        b.putU32(sp.id);
+        b.putU32(1);
+        b.putU32(SPELL_AURA_PERIODIC_DAMAGE);
+        b.putU32(damage);
+        b.putU32(sp.school);
+        b.putU32(0);
+        b.putU32(0);
+        return b.array();
+    }
+
     /** Effect 45 — add honor points from damage (spell-algorithms.md). */
     public void addHonor(Unit target, int amount) {
         if (!(target instanceof Player p) || amount <= 0) {

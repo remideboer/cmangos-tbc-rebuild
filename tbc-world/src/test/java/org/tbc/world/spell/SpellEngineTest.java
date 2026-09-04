@@ -197,6 +197,33 @@ class SpellEngineTest {
         assertTrue(SpellEngine.outOfRange(p, c, engine.info(SpellEngine.FIREBALL)));
     }
 
+    @Test
+    void tickPeriodicWhenUnstableAfflictionShouldSendPeriodicAuraLogMatchingHealthDelta() {
+        int hp = c.health();
+        engine.tickPeriodic(p, c, engine.info(30108), this::capture);
+        assertEquals(hp, c.health());
+        WowBuffer log = new WowBuffer(last.get(Opcodes.SMSG_PERIODICAURALOG));
+        assertEquals(c.guid, log.getPackedGuid());
+        assertEquals(p.guid, log.getPackedGuid());
+        assertEquals(30108, log.getU32());
+        assertEquals(1, log.getU32());
+        assertEquals(3, log.getU32());
+        assertEquals(0, log.getU32());
+        assertEquals(5, log.getU32());
+        assertEquals(0, log.getU32());
+        assertEquals(0, log.getU32());
+    }
+
+    @Test
+    void tickPeriodicWhenInvalidShouldIgnore() {
+        engine.tickPeriodic(null, c, engine.info(30108), this::capture);
+        engine.tickPeriodic(p, null, engine.info(30108), this::capture);
+        engine.tickPeriodic(p, c, null, this::capture);
+        engine.tickPeriodic(p, c, engine.info(30108), null);
+        engine.tickPeriodic(p, c, engine.info(36300), this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_PERIODICAURALOG));
+    }
+
     private void capture(int opcode, byte[] payload) {
         ops.add(opcode);
         last.put(opcode, payload);
