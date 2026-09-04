@@ -805,6 +805,16 @@ public final class ObjectMgr {
         addCreateItem(p, t, left, bagSlot, nextGuid);
     }
 
+    /** First free viable equipment slot, else the first viable slot (swap). */
+    public int destEquipSlot(Player p, int inventoryType) {
+        int free = firstFreeEquipSlot(p, inventoryType);
+        if (free >= 0) {
+            return free;
+        }
+        int[] slots = equipSlots(inventoryType);
+        return slots.length == 0 ? -1 : slots[0];
+    }
+
     private static void addCreateItem(Player p, ItemTemplate t, int count, int slot, LongSupplier nextGuid) {
         Item it = new Item(nextGuid.getAsLong(), t.entry);
         it.ownerGuid = Guid.low(p.guid);

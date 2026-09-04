@@ -226,6 +226,32 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14AutoequipItem() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Equipper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int src = p.firstFreeBagSlot();
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = src;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        assertEquals(UpdateBuilder.itemGuid(sword), guidAt(update, invSlotField(Player.EQUIPMENT_SLOT_MAINHAND)));
+    }
+
+    @Test
     void tpSl14TrainerBuySpell() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();

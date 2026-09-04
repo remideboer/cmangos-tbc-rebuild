@@ -2,6 +2,7 @@ package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
+import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
@@ -163,6 +164,41 @@ public final class InventoryHandler {
         int dstField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + dst * 2;
         it.slot = dst;
         p.setGuid(srcField, 0);
+        p.setGuid(dstField, UpdateBuilder.itemGuid(it));
+        var pkt = UpdateBuilder.maybeCompress(
+                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
+        s.send(pkt.opcode(), pkt.payload());
+    }
+
+    /** srcbag, srcslot. CanEquipItem then equip or swap. inventory.md */
+    public static void autoequipItem(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 2) {
+            return;
+        }
+        int srcBag = in.getU8();
+        int srcSlot = in.getU8();
+        if (srcBag != 0) {
+            return;
+        }
+        Item it = p.itemAt(srcBag, srcSlot);
+        if (it == null) {
+            return;
+        }
+        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(it.entry);
+        int invType = t != null ? t.inventoryType : it.inventoryType;
+        int dest = world.objectMgr.destEquipSlot(p, invType);
+        if (dest < 0 || dest == srcSlot) {
+            return;
+        }
+        Item occupied = p.itemAt(0, dest);
+        it.slot = dest;
+        if (occupied != null) {
+            occupied.slot = srcSlot;
+        }
+        int srcField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + srcSlot * 2;
+        int dstField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + dest * 2;
+        p.setGuid(srcField, occupied == null ? 0 : UpdateBuilder.itemGuid(occupied));
         p.setGuid(dstField, UpdateBuilder.itemGuid(it));
         var pkt = UpdateBuilder.maybeCompress(
                 UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
