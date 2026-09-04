@@ -110,6 +110,16 @@ class GameEventMgrTest {
     }
 
     @Test
+    void startWhenMidsummerHasOnlyGameObjectsShouldSpawnIceStone() {
+        World world = World.inMemory();
+        world.objectMgr.eventCreatures.remove(Content.GAME_EVENT_MIDSUMMER);
+        assertNull(find(world, Content.NPC_LUMA_SKYMOTHER));
+        world.events.start(world, Content.GAME_EVENT_MIDSUMMER);
+        assertNull(find(world, Content.NPC_LUMA_SKYMOTHER));
+        assertNotNull(findGo(world, Content.GO_ICE_STONE));
+    }
+
+    @Test
     void startWhenMidsummerShouldSpawnIceStone() {
         World world = World.inMemory();
         assertNull(findGo(world, Content.GO_ICE_STONE));

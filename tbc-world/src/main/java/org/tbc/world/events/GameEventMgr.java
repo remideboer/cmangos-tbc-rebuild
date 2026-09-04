@@ -23,18 +23,20 @@ public final class GameEventMgr {
             return;
         }
         List<ObjectMgr.Spawn> rows = world.objectMgr.eventCreatures.get(eventId);
-        if (rows == null) {
+        List<ObjectMgr.Spawn> goRows = world.objectMgr.eventGameObjects.get(eventId);
+        if (rows == null && goRows == null) {
             return;
         }
         active.add(eventId);
         List<Creature> live = new ArrayList<>();
-        for (ObjectMgr.Spawn s : rows) {
-            Creature c = world.objectMgr.spawnCreature(s, world.scripts);
-            world.map(s.map(), 0).add(c);
-            live.add(c);
+        if (rows != null) {
+            for (ObjectMgr.Spawn s : rows) {
+                Creature c = world.objectMgr.spawnCreature(s, world.scripts);
+                world.map(s.map(), 0).add(c);
+                live.add(c);
+            }
         }
         spawned.put(eventId, live);
-        List<ObjectMgr.Spawn> goRows = world.objectMgr.eventGameObjects.get(eventId);
         if (goRows != null) {
             List<GameObject> gos = new ArrayList<>();
             for (ObjectMgr.Spawn s : goRows) {
