@@ -93,6 +93,7 @@ public final class Player extends Unit {
     public int guildBankTabs;
     public boolean looking;
     public boolean channeling;
+    public boolean nextMeleeSwingQueued;
     public int afkReports;
     public int arenaTeam;
     public int arenaTeamId2, arenaTeamId3, arenaTeamId5;
@@ -216,6 +217,14 @@ public final class Player extends Unit {
             }
         }
         return false;
+    }
+
+    public void queueNextMeleeSwing() {
+        nextMeleeSwingQueued = true;
+    }
+
+    public boolean hasNextMeleeSwingQueued() {
+        return nextMeleeSwingQueued;
     }
 
     public void applyEquippedVisuals() {

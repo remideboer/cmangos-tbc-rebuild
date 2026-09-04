@@ -91,10 +91,10 @@ public final class MeleeTable {
         return new Result(Outcome.MISS, 0, 0);
     }
 
-    /** Base 5%. Vs NPC, defense − skill: ≤10 at 0.1 each; above that leftover at 0.2+0.4. */
+    /** Base 5%. Dual-wield white +19 unless a next-melee swing is queued. Vs NPC, defense − skill: ≤10 at 0.1 each; above that leftover at 0.2+0.4. */
     static double missChance(Unit attacker, Unit victim) {
         double pct = 5.0;
-        if (attacker instanceof Player p && p.hasOffhandWeapon()) {
+        if (attacker instanceof Player p && p.hasOffhandWeapon() && !p.hasNextMeleeSwingQueued()) {
             pct += 19.0;
         }
         int difference = victim.level * 5 - attacker.level * 5;

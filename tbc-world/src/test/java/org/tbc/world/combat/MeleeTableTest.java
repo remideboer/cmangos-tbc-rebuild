@@ -83,6 +83,20 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenNextMeleeSwingQueuedShouldSkipDualWieldMissPenalty() {
+        Player a = new Player();
+        a.level = 1;
+        Item off = new Item(1, 25);
+        off.slot = Player.EQUIPMENT_SLOT_OFFHAND;
+        a.items.put(1, off);
+        a.queueNextMeleeSwing();
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.06).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
     void rollOneWhenNpcDefenseExceedsSkillShouldRaiseDodgeAtPointOnePerPoint() {
         Player a = new Player();
         a.level = 1;
