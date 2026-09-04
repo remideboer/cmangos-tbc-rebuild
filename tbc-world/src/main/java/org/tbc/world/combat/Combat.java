@@ -69,6 +69,7 @@ public final class Combat {
         if (r.damage() > 0) {
             c.setHealth(c.health() - r.damage());
             c.threat += r.threat();
+            c.threatManager.add(p, r.threat());
             c.lastHitMs = nowMs;
             if (c.taggedBy == 0) {
                 c.taggedBy = p.guid;
@@ -132,6 +133,7 @@ public final class Combat {
         c.inCombat = false;
         c.victim = 0;
         c.threat = 0;
+        c.threatManager.reset();
         c.taggedBy = 0;
         c.lootable = false;
         c.combatStartMs = 0;

@@ -62,6 +62,15 @@ class CombatTest {
     }
 
     @Test
+    void swingWhenHitShouldAddWhiteMeleeThreatPerAttackerUntilEvade() {
+        combat.swing(p, c, 1002);
+        assertEquals(1f, c.threatManager.threatOf(p));
+        combat.evade(c);
+        assertEquals(0f, c.threatManager.threatOf(p));
+        assertEquals(0, c.threat);
+    }
+
+    @Test
     void swingSkipsDeadAndEvading() {
         c.setHealth(0);
         assertEquals(0, combat.swing(p, c, 1).damage());
