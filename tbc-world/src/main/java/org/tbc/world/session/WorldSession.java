@@ -130,13 +130,18 @@ public final class WorldSession {
             player.nextTimeSyncMs = world.nowMs() + 10_000;
         }
         if (player.inCombat && player.lastMeleeMs + 2000 <= world.nowMs()) {
-            GameMap map = world.map(player.mapId, player.instanceId);
-            for (Creature c : map.nearbyCreatures(player, MELEE_RANGE)) {
-                if (c.victim == player.guid || player.victim == c.guid) {
-                    world.meleeHit(player, c);
-                    player.lastMeleeMs = world.nowMs();
-                    break;
-                }
+            Creature c = meleeTarget(world);
+            if (c != null) {
+                world.meleeHit(player, c);
+                player.lastMeleeMs = world.nowMs();
+            }
+        }
+        if (player.inCombat && player.hasOffhandWeapon()
+                && player.lastOffhandMeleeMs + 2000 <= world.nowMs()) {
+            Creature c = meleeTarget(world);
+            if (c != null) {
+                world.meleeHitOffhand(player, c);
+                player.lastOffhandMeleeMs = world.nowMs();
             }
         }
         if (player.mapId == 529) {
@@ -147,6 +152,16 @@ public final class WorldSession {
             world.av.advance(world.nowMs());
             flushWorldStates(world.av.drainWorldStates());
         }
+    }
+
+    private Creature meleeTarget(World world) {
+        GameMap map = world.map(player.mapId, player.instanceId);
+        for (Creature c : map.nearbyCreatures(player, MELEE_RANGE)) {
+            if (c.victim == player.guid || player.victim == c.guid) {
+                return c;
+            }
+        }
+        return null;
     }
 
     private void flushWorldStates(java.util.List<int[]> updates) {
@@ -750,6 +765,8 @@ public final class WorldSession {
             return;
         }
         world.meleeHit(player, c);
+        player.lastMeleeMs = world.nowMs();
+        player.lastOffhandMeleeMs = world.nowMs();
     }
 
     private void handleSheath(WowBuffer in) {

@@ -4,7 +4,9 @@ import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
@@ -32,6 +34,38 @@ public class CombatSteps {
         Player p = client.session().player();
         p.relocate(kobold.x, kobold.y, kobold.z, kobold.o);
         world.map(p.mapId, p.instanceId).add(p);
+    }
+
+    @And("the player has an offhand weapon")
+    public void equipOffhandWeapon() {
+        Player p = client.session().player();
+        Item off = new Item(world.nextItemGuid(), 25);
+        off.slot = Player.EQUIPMENT_SLOT_OFFHAND;
+        p.items.put((int) off.guid, off);
+        assertTrue(p.hasOffhandWeapon());
+    }
+
+    @When("the player starts auto-attack")
+    public void startAutoAttack() {
+        client.clear();
+        client.attackSwing(world, kobold.guid);
+    }
+
+    @When("{int} ms elapse on the combat session")
+    public void elapseCombatSession(int ms) {
+        client.clear();
+        world.advanceMs(ms);
+        client.session().tick(world, ms);
+    }
+
+    @Then("no SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING")
+    public void noLeftSwing() {
+        assertFalse(sawLeftSwing());
+    }
+
+    @Then("a SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING")
+    public void hasLeftSwing() {
+        assertTrue(sawLeftSwing());
     }
 
     @When("the player auto-attacks until the kobold is dead")
@@ -150,6 +184,18 @@ public class CombatSteps {
         kobold.lastHitMs = world.nowMs() - org.tbc.world.combat.Combat.PURSUIT_MS - 1;
         client.clear();
         world.tick(50);
+    }
+
+    private boolean sawLeftSwing() {
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKERSTATEUPDATE) {
+                continue;
+            }
+            if ((WowClientDouble.u32le(client.payloads.get(i), 0) & Combat.HITINFO_LEFTSWING) != 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Creature find(int entry) {

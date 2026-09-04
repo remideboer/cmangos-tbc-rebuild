@@ -283,14 +283,23 @@ public final class World implements Runnable {
     }
 
     public void meleeHit(Player p, Creature c) {
+        applyMeleeHit(p, c, false);
+    }
+
+    public void meleeHitOffhand(Player p, Creature c) {
+        applyMeleeHit(p, c, true);
+    }
+
+    private void applyMeleeHit(Player p, Creature c, boolean offhand) {
         GameMap hitMap = map(p.mapId, p.instanceId);
-        boolean spellSwing = p.hasNextMeleeSwingQueued();
-        MeleeTable.Result r = combat.swing(p, c, nowMs(), (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
+        boolean spellSwing = !offhand && p.hasNextMeleeSwingQueued();
+        MeleeTable.Result r = combat.swing(p, c, nowMs(),
+                (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell), offhand);
         if (r.damage() > 0) {
             p.rewardRageFromHit(r.damage(), r.outcome() == MeleeTable.Outcome.CRIT);
         }
         if (p.session != null) {
-            p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(p, c, r, spellSwing));
+            p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(p, c, r, spellSwing, offhand));
             var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
             p.session.send(hp.opcode(), hp.payload());
             if (r.damage() > 0) {
