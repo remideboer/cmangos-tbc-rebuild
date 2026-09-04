@@ -3,6 +3,7 @@ package org.tbc.world.content;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tbc.common.DbPool;
+import org.tbc.world.ai.DbScriptStore;
 import org.tbc.world.ai.EventAiStore;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
@@ -176,6 +177,7 @@ public final class ObjectMgr {
 
     public final Map<Long, CreateInfo> createInfo = new HashMap<>();
     public final EventAiStore eventAiStore = new EventAiStore();
+    public final DbScriptStore dbScriptStore = new DbScriptStore();
     public final Map<Integer, List<Integer>> createSpells = new HashMap<>();
     public final Map<Integer, int[]> createActions = new HashMap<>();
     public final Map<Integer, List<CreateItem>> createItems = new HashMap<>();
@@ -225,6 +227,7 @@ public final class ObjectMgr {
             }
             loadCreatures(c);
             eventAiStore.load(c);
+            dbScriptStore.load(c);
             try {
                 loadSpawns(c);
             } catch (Exception e) {
