@@ -122,15 +122,27 @@ public final class MeleeTable {
     }
 
     static double dodgeChance(Unit attacker, Unit victim) {
-        return skillAvoid(attacker, victim, UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.1, 0.1);
+        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.1, 0.1), attacker);
     }
 
     static double parryChance(Unit attacker, Unit victim) {
-        return skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6);
+        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6), attacker);
     }
 
     static double blockChance(Unit attacker, Unit victim) {
         return skillAvoid(attacker, victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE, 0.0, 0.0);
+    }
+
+    /** PLAYER_EXPERTISE / 4 percent. spec/03-protocol/update-fields.yaml */
+    static double minusExpertise(double chance, Unit attacker) {
+        if (!(attacker instanceof Player p)) {
+            return chance;
+        }
+        chance -= p.getInt(UpdateFields.PLAYER_EXPERTISE) * 0.25 / 100.0;
+        if (chance < 0) {
+            return 0;
+        }
+        return chance;
     }
 
     /** Base then (defense − skill) × factor. NPC positive difference: dodge 0.1; parry 0.1 or 0.6 if > 10. */
