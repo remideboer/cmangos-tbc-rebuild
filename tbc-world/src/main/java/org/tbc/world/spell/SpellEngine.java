@@ -34,6 +34,7 @@ public final class SpellEngine {
     public static final int SPELL_CAST_OK = 0xFF;
     public static final int EFFECT_SCHOOL_DAMAGE = 2;
     public static final int EFFECT_HEAL = 10;
+    public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
     public static final int EFFECT_ENERGIZE = 30;
@@ -52,7 +53,7 @@ public final class SpellEngine {
     private static final double MAGIC_MISS = 0.04;
 
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
-            EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
+            EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_DUMMY, EFFECT_SCRIPT);
 
@@ -185,6 +186,10 @@ public final class SpellEngine {
                 heal += heal / 2;
             }
             target.setHealth(target.health() + heal);
+            return 0;
+        }
+        if (sp.effect == EFFECT_HEAL_MAX_HEALTH) {
+            target.setHealth(target.maxHealth());
             return 0;
         }
         if (sp.effect == EFFECT_APPLY_AURA) {
