@@ -72,6 +72,7 @@ class SpellEngineTest {
         assertEquals(50, p.power());
         assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
         assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertEquals(2, p.queuedNextMeleeBonus());
     }
 
     @Test

@@ -127,7 +127,7 @@ public final class SpellEngine {
         }
         int dmg = 0;
         if (sp.id == 78) {
-            caster.queueNextMeleeSwing();
+            caster.queueNextMeleeSwing(Math.max(1, (sp.minDmg + sp.maxDmg) / 2));
         } else {
             dmg = apply(caster, target, sp);
         }
