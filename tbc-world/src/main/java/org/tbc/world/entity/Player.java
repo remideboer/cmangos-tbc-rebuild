@@ -16,6 +16,8 @@ public final class Player extends Unit {
     public static final int EQUIPMENT_SLOT_END = 19;
     public static final int EQUIPMENT_SLOT_MAINHAND = 15;
     public static final int EQUIPMENT_SLOT_OFFHAND = 16;
+    public static final int INVENTORY_SLOT_BAG_START = 19;
+    public static final int INVENTORY_SLOT_BAG_END = 23;
     public static final int INVENTORY_SLOT_ITEM_START = 23;
     public static final int INVENTORY_SLOT_ITEM_END = 39;
     public static final int BANK_SLOT_ITEM_START = 39;

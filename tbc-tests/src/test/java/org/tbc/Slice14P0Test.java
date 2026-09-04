@@ -288,6 +288,34 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14AutoequipBagOpensContainer() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "BagEquipper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int src = p.firstFreeBagSlot();
+        Item pouch = new Item(world.nextItemGuid(), Content.ITEM_SMALL_BROWN_POUCH);
+        pouch.inventoryType = 18;
+        pouch.slot = src;
+        p.items.put((int) pouch.guid, pouch);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(pouch));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        assertTrue(client.saw(Opcodes.SMSG_OPEN_CONTAINER));
+        WowBuffer opened = new WowBuffer(client.payload(Opcodes.SMSG_OPEN_CONTAINER));
+        assertEquals(UpdateBuilder.itemGuid(pouch), opened.getU64());
+    }
+
+    @Test
     void tpSl14AutostoreBagItem() throws Exception {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();

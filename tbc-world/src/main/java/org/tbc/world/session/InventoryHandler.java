@@ -238,6 +238,11 @@ public final class InventoryHandler {
         var pkt = UpdateBuilder.maybeCompress(
                 UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
         s.send(pkt.opcode(), pkt.payload());
+        if (dest >= Player.INVENTORY_SLOT_BAG_START && dest < Player.INVENTORY_SLOT_BAG_END) {
+            WowBuffer opened = new WowBuffer(8);
+            opened.putU64(UpdateBuilder.itemGuid(it));
+            s.send(Opcodes.SMSG_OPEN_CONTAINER, opened.array());
+        }
     }
 
     /** srcbag, srcslot, dstbag. Store into a free slot of dstbag. inventory.md */
