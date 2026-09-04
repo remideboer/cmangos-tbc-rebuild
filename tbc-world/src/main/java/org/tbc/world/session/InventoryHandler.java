@@ -267,6 +267,18 @@ public final class InventoryHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** item uint32; 0 = clear. PLAYER_AMMO_ID. inventory.md */
+    public static void setAmmo(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 4) {
+            return;
+        }
+        int item = in.getU32();
+        p.setInt(UpdateFields.PLAYER_AMMO_ID, item);
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_AMMO_ID));
+        s.send(pkt.opcode(), pkt.payload());
+    }
+
     public static final int BUYBACK_SLOT_START = 74;
     public static final int BONUS_ENCHANTMENT_SLOT = 5;
     public static final int ENCHANT_SLOT_FIELDS = 3;

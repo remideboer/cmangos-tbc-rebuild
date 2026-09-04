@@ -42,6 +42,7 @@ public final class Content {
     public static final int NPC_LLANE_BESHERE = 911;
     public static final int NPC_DUNGAR_LONGDRINK = 352;
     public static final int ITEM_WORN_SHORTSWORD = 25;
+    public static final int ITEM_ROUGH_ARROW = 2512;
     public static final int SPELL_BATTLE_SHOUT = 6673;
     public static final int TRAINER_SPELL_BATTLE_SHOUT_COST = 200;
     public static final int TAXI_STORMWIND = 2;

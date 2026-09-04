@@ -50,6 +50,10 @@ public final class LaterOpcodes {
             InventoryHandler.autostoreBagItem(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_SET_AMMO) {
+            InventoryHandler.setAmmo(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
             InventoryHandler.swapItem(s, in);
             return true;

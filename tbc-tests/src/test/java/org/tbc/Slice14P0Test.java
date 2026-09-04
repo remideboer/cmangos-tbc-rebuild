@@ -317,6 +317,31 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14SetAmmo() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Archer", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int src = p.firstFreeBagSlot();
+        Item arrows = new Item(world.nextItemGuid(), Content.ITEM_ROUGH_ARROW);
+        arrows.slot = src;
+        p.items.put((int) arrows.guid, arrows);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(arrows));
+
+        client.clear();
+        WowBuffer ammo = new WowBuffer(4);
+        ammo.putU32(Content.ITEM_ROUGH_ARROW);
+        client.handle(world, Opcodes.CMSG_SET_AMMO, ammo.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        assertEquals(Content.ITEM_ROUGH_ARROW, intAt(update, UpdateFields.PLAYER_AMMO_ID));
+    }
+
+    @Test
     void tpSl14TrainerBuySpell() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();
@@ -446,6 +471,33 @@ class Slice14P0Test {
         assertTrue(written > 0);
         assertTrue(sawLow && sawHigh);
         return low | (high << 32);
+    }
+
+    private static int intAt(byte[] payload, int field) {
+        WowBuffer b = new WowBuffer(payload);
+        b.getU32();
+        b.getU8();
+        assertEquals(UpdateBuilder.UPDATETYPE_VALUES, b.getU8());
+        b.getPackedGuid();
+        int nblocks = b.getU8();
+        int[] mask = new int[nblocks];
+        for (int i = 0; i < nblocks; i++) {
+            mask[i] = b.getU32();
+        }
+        boolean saw = false;
+        int value = 0;
+        for (int i = 0; i < nblocks * 32; i++) {
+            if ((mask[i / 32] & (1 << (i % 32))) == 0) {
+                continue;
+            }
+            int v = b.getU32();
+            if (i == field) {
+                value = v;
+                saw = true;
+            }
+        }
+        assertTrue(saw);
+        return value;
     }
 
     private static Creature find(World world, int entry) {
