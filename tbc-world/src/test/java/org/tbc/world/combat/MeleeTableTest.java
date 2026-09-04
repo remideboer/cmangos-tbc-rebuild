@@ -200,6 +200,19 @@ class MeleeTableTest {
     }
 
     @Test
+    void rollOneWhenVictimIsTotemShouldUseZeroBaseMiss() {
+        Player a = new Player();
+        a.level = 1;
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        v.totem = true;
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.01).rollOne(a, v, 2, 2).outcome());
+        v.totem = false;
+        assertEquals(MeleeTable.Outcome.MISS, table(0.01).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
     void rollOneWhenPlayerVsNpcAboveLevel10ShouldGlanceAtTenPlusDefenseMinusSkill() {
         Player a = new Player();
         a.level = 1;

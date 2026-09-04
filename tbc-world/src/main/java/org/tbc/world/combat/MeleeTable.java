@@ -111,6 +111,9 @@ public final class MeleeTable {
     /** Base 5%. Dual-wield white +19 unless a next-melee swing is queued. Vs NPC, defense − skill: ≤10 at 0.1 each; above that leftover at 0.2+0.4. */
     static double missChance(Unit attacker, Unit victim) {
         double pct = 5.0;
+        if (victim instanceof Creature creature && creature.totem) {
+            pct = 0;
+        }
         if (attacker instanceof Player p && p.hasOffhandWeapon() && !p.hasNextMeleeSwingQueued()) {
             pct += 19.0;
         }
