@@ -323,6 +323,9 @@ public final class InventoryHandler {
         if (paper == null || gift == null || paper == gift) {
             return;
         }
+        if (itemSlot < Player.INVENTORY_SLOT_BAG_START) {
+            return;
+        }
         ObjectMgr.ItemTemplate t = world.objectMgr.items.get(paper.entry);
         if (t == null || (t.flags & Content.ITEM_FLAG_IS_WRAPPER) == 0 || t.stackable <= 1) {
             return;

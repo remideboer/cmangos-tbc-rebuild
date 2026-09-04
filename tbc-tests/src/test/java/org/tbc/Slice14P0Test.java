@@ -491,6 +491,46 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14WrapItemWhenEquippedShouldIgnore() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "EquipWrapper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        ObjectMgr.ItemTemplate paperTpl = new ObjectMgr.ItemTemplate();
+        paperTpl.entry = Content.ITEM_RED_RIBBONED_WRAPPING_PAPER;
+        paperTpl.flags = Content.ITEM_FLAG_IS_WRAPPER;
+        paperTpl.stackable = 20;
+        world.objectMgr.items.put(paperTpl.entry, paperTpl);
+
+        int paperSlot = p.firstFreeBagSlot();
+        Item paper = new Item(world.nextItemGuid(), Content.ITEM_RED_RIBBONED_WRAPPING_PAPER);
+        paper.slot = paperSlot;
+        p.items.put((int) paper.guid, paper);
+        p.setGuid(invSlotField(paperSlot), UpdateBuilder.itemGuid(paper));
+
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(Player.EQUIPMENT_SLOT_MAINHAND), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer wrap = new WowBuffer(4);
+        wrap.putU8(0);
+        wrap.putU8(paperSlot);
+        wrap.putU8(0);
+        wrap.putU8(Player.EQUIPMENT_SLOT_MAINHAND);
+        client.handle(world, Opcodes.CMSG_WRAP_ITEM, wrap.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        assertEquals(0, sword.flags);
+        assertTrue(p.items.containsKey((int) paper.guid));
+        assertEquals(1, paper.count);
+    }
+
+    @Test
     void tpSl14CancelTempEnchantment() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();
