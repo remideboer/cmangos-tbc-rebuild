@@ -327,11 +327,16 @@ public final class InventoryHandler {
         if (t == null || (t.flags & Content.ITEM_FLAG_IS_WRAPPER) == 0 || t.stackable <= 1) {
             return;
         }
-        p.items.remove((int) paper.guid);
-        gift.flags = Content.ITEM_DYNFLAG_WRAPPED;
         int paperField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + giftSlot * 2;
         int itemField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + itemSlot * 2;
-        p.setGuid(paperField, 0);
+        if (paper.count > 1) {
+            paper.count--;
+            p.setGuid(paperField, UpdateBuilder.itemGuid(paper));
+        } else {
+            p.items.remove((int) paper.guid);
+            p.setGuid(paperField, 0);
+        }
+        gift.flags = Content.ITEM_DYNFLAG_WRAPPED;
         p.setGuid(itemField, UpdateBuilder.itemGuid(gift));
         var pkt = UpdateBuilder.maybeCompress(
                 UpdateBuilder.values(p, paperField, paperField + 1, itemField, itemField + 1));
