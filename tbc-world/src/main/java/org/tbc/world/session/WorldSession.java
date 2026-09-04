@@ -339,8 +339,7 @@ public final class WorldSession {
         if (LaterOpcodes.handle(this, world, opcode, in)) {
             return;
         }
-        if (opcode == Opcodes.CMSG_VOICE_SESSION_ENABLE
-                || opcode == Opcodes.CMSG_DESTROYITEM) {
+        if (opcode == Opcodes.CMSG_VOICE_SESSION_ENABLE) {
             return;
         }
         if (opcode == Opcodes.CMSG_AREATRIGGER) {

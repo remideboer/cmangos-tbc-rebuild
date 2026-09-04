@@ -37,6 +37,26 @@ public final class InventoryHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** bag, slot, count (0 = whole stack). Layout: spec/03-protocol/packets/inventory.md */
+    public static void destroyItem(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 3) {
+            return;
+        }
+        int bag = in.getU8();
+        int slot = in.getU8();
+        in.getU8();
+        Item it = p.itemAt(bag, slot);
+        if (it == null) {
+            return;
+        }
+        p.items.remove((int) it.guid);
+        int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
+        p.setGuid(field, 0);
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+        s.send(pkt.opcode(), pkt.payload());
+    }
+
     public static final int BUYBACK_SLOT_START = 74;
     public static final int BONUS_ENCHANTMENT_SLOT = 5;
     public static final int ENCHANT_SLOT_FIELDS = 3;

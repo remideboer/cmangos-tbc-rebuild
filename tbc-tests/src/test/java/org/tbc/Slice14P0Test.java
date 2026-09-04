@@ -63,6 +63,33 @@ class Slice14P0Test {
     }
 
     @Test
+    void tpSl14DestroyItem() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Destroyer", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int slot = p.firstFreeBagSlot();
+        Item sword = new Item(world.nextItemGuid(), 25);
+        sword.slot = slot;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(slot), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer destroy = new WowBuffer(3);
+        destroy.putU8(0);
+        destroy.putU8(slot);
+        destroy.putU8(0);
+        client.handle(world, Opcodes.CMSG_DESTROYITEM, destroy.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        assertEquals(0L, guidAt(update, invSlotField(slot)));
+    }
+
+    @Test
     void tpSl14TrainerBuySpell() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();
@@ -145,7 +172,7 @@ class Slice14P0Test {
                 return inflate(client.payloads.get(i));
             }
         }
-        throw new AssertionError("no SMSG_UPDATE_OBJECT after swap");
+        throw new AssertionError("no SMSG_UPDATE_OBJECT after inventory mutate");
     }
 
     private static byte[] inflate(byte[] compressed) throws Exception {

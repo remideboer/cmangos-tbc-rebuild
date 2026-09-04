@@ -22,6 +22,10 @@ public final class LaterOpcodes {
             InventoryHandler.swapInvItem(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_DESTROYITEM) {
+            InventoryHandler.destroyItem(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
             if (in.remaining() < 4) {
                 return true;
