@@ -34,9 +34,11 @@ if not exist "tbc-auth\target\tbc-auth-0.1.0-SNAPSHOT.jar" goto :missing
 if not exist "tbc-world\target\tbc-world-0.1.0-SNAPSHOT.jar" goto :missing
 if not exist "tbc-admin\target\tbc-admin-0.1.0-SNAPSHOT.jar" goto :missing
 if not exist "tbc-editor\target\tbc-editor-0.1.0-SNAPSHOT.jar" goto :missing
+if not exist "tbc-launcher\target\tbc-launcher-0.1.0-SNAPSHOT.jar" goto :missing
+if not exist "TbcLauncher.exe" goto :missing
 
 echo.
-echo Jars ready. Run start.bat to launch auth, world, admin, and editor.
+echo Jars ready. Run TbcLauncher.exe or start.bat.
 exit /b 0
 
 :missing

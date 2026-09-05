@@ -2,6 +2,8 @@ target/
 *.class
 *.jar
 *.log
+TbcLauncher.exe
+logs/
 .idea/
 *.iml
 DataDir/
