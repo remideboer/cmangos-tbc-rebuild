@@ -125,6 +125,8 @@ final class HandledOpcodes {
             Opcodes.MSG_RAID_READY_CHECK,
             Opcodes.CMSG_GUILD_INVITE,
             Opcodes.CMSG_GUILD_ACCEPT,
+            Opcodes.CMSG_GUILD_PROMOTE,
+            Opcodes.CMSG_GUILD_MOTD,
             Opcodes.CMSG_PETITION_BUY,
             Opcodes.CMSG_PETITION_SHOWLIST,
             Opcodes.CMSG_PETITION_SHOW_SIGNATURES,

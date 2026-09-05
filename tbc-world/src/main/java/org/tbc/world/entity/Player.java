@@ -53,6 +53,7 @@ public final class Player extends Unit {
     public int difficulty;
     public int guildId;
     public int guildIdInvited;
+    public int guildRank;
     public int guildRankRights;
     public boolean guildLeader;
     public int gmLevel;

@@ -7,6 +7,18 @@ import java.util.List;
 public final class Guild {
     public int id;
     public String name = "";
+    public String motd = "";
     public long leaderGuid;
     public final List<Long> members = new ArrayList<>();
+    public final List<Rank> ranks = new ArrayList<>();
+
+    public static final class Rank {
+        public final String name;
+        public final int rights;
+
+        public Rank(String name, int rights) {
+            this.name = name;
+            this.rights = rights;
+        }
+    }
 }

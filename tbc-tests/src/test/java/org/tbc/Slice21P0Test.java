@@ -132,6 +132,51 @@ class Slice21P0Test {
     }
 
     @Test
+    void tpSl21GuildPromote() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.guildCreate(world, "Plates");
+        lead.guildInvite(world, "Mate");
+        mate.guildAccept(world);
+        lead.clear();
+        mate.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putCString("Mate");
+        lead.handle(world, Opcodes.CMSG_GUILD_PROMOTE, in.array());
+        WowBuffer g = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(0, g.getU8());
+        assertEquals(3, g.getU8());
+        assertEquals("Lead", g.getCString());
+        assertEquals("Mate", g.getCString());
+        assertEquals("Member", g.getCString());
+        assertEquals(0, g.remaining());
+        WowBuffer b = new WowBuffer(lastPayload(mate, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(0, b.getU8());
+        assertEquals(3, b.getU8());
+        assertEquals("Lead", b.getCString());
+        assertEquals("Mate", b.getCString());
+        assertEquals("Member", b.getCString());
+        assertEquals(0, b.remaining());
+    }
+
+    @Test
+    void tpSl21GuildMotd() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        lead.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putCString("Stay grouped");
+        lead.handle(world, Opcodes.CMSG_GUILD_MOTD, in.array());
+        WowBuffer g = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(2, g.getU8());
+        assertEquals(1, g.getU8());
+        assertEquals("Stay grouped", g.getCString());
+        assertEquals(0, g.remaining());
+    }
+
+    @Test
     void tpSl21PetitionRename() {
         World world = World.inMemory();
         WowClientDouble client = login(world, "Renamer");
@@ -173,6 +218,14 @@ class Slice21P0Test {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);
         Player created = world.characters.create(ACC.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        return client;
+    }
+
+    private static WowClientDouble loginOther(World world, String name) {
+        WowClientDouble client = new WowClientDouble();
+        client.connect(new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86"));
+        Player created = world.characters.create(2, name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         return client;
     }

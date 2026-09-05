@@ -193,11 +193,12 @@ public final class PetitionHandler {
             g.name = pet.name;
             g.leaderGuid = p.guid;
             g.members.add(p.guid);
+            GuildHandler.seedDefaultRanks(g);
             world.objectMgr.guilds.put(g.id, g);
             p.guildId = g.id;
             p.guildLeader = true;
             p.guildName = pet.name;
-            p.guildRankRights = GuildHandler.GR_RIGHT_ALL;
+            GuildHandler.applyRank(p, g, 0);
             GuildHandler.commandResult(s, GuildHandler.GUILD_CREATE_S, pet.name, 0);
             for (long guid : pet.signers) {
                 g.members.add(guid);
@@ -206,7 +207,7 @@ public final class PetitionHandler {
                     signee.guildId = g.id;
                     signee.guildName = pet.name;
                     signee.guildLeader = false;
-                    signee.guildRankRights = GuildHandler.GR_RIGHT_EMPTY;
+                    GuildHandler.applyRank(signee, g, Math.max(0, g.ranks.size() - 1));
                     if (signee.session != null) {
                         GuildHandler.commandResult(signee.session, GUILD_FOUNDER_S, pet.name, 0);
                     }

@@ -332,6 +332,18 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_GUILD_ACCEPT, new byte[0]);
     }
 
+    public void guildPromote(World world, String name) {
+        WowBuffer b = new WowBuffer(16);
+        b.putCString(name);
+        handle(world, Opcodes.CMSG_GUILD_PROMOTE, b.array());
+    }
+
+    public void guildMotd(World world, String motd) {
+        WowBuffer b = new WowBuffer(16);
+        b.putCString(motd);
+        handle(world, Opcodes.CMSG_GUILD_MOTD, b.array());
+    }
+
     public void auctionSell(World world, long auctioneer, long itemGuid, int bid, int buyout, int minutes) {
         WowBuffer b = new WowBuffer(32);
         b.putU64(auctioneer);

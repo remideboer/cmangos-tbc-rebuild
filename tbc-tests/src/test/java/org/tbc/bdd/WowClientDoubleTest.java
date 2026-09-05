@@ -62,6 +62,8 @@ class WowClientDoubleTest {
         d.guildCreate(w, "Lions");
         d.guildInvite(w, "Nobody");
         d.guildAccept(w);
+        d.guildPromote(w, "Nobody");
+        d.guildMotd(w, "Stay grouped");
         d.auctionSell(w, 0, 0, 100, 0, 720);
         d.auctionBid(w, 0, 1, 100);
         d.groupInvite(w, "Nobody");

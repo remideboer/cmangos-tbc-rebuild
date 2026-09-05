@@ -133,6 +133,71 @@ class GuildHandlerTest {
         assertFalse(b.ops.contains(Opcodes.SMSG_GUILD_EVENT));
     }
 
+    @Test
+    void promoteWhenNotInGuildUnknownSelfOrTooHighShouldRefuse() {
+        World world = World.inMemory();
+        Sink a = login(world, ACC_A, "Lead");
+        Sink b = login(world, ACC_B, "Mate");
+        GuildHandler.promote(a.session, world, cstring("Mate"));
+        assertEquals(GuildHandler.ERR_GUILD_PLAYER_NOT_IN_GUILD,
+                resultOf(a.last.get(Opcodes.SMSG_GUILD_COMMAND_RESULT)));
+
+        createGuild(a.session, world, "Lions");
+        GuildHandler.invite(a.session, world, cstring("Mate"));
+        GuildHandler.accept(b.session, world);
+        a.ops.clear();
+        a.last.clear();
+        GuildHandler.promote(a.session, world, cstring("Nobody"));
+        assertEquals(GuildHandler.ERR_GUILD_PLAYER_NOT_IN_GUILD_S,
+                resultOf(a.last.get(Opcodes.SMSG_GUILD_COMMAND_RESULT)));
+
+        a.ops.clear();
+        a.last.clear();
+        GuildHandler.promote(a.session, world, cstring("Lead"));
+        assertEquals(GuildHandler.ERR_GUILD_NAME_INVALID,
+                resultOf(a.last.get(Opcodes.SMSG_GUILD_COMMAND_RESULT)));
+
+        b.session.player().guildRank = 1;
+        a.ops.clear();
+        a.last.clear();
+        GuildHandler.promote(a.session, world, cstring("Mate"));
+        assertEquals(GuildHandler.ERR_GUILD_RANK_TOO_HIGH_S,
+                resultOf(a.last.get(Opcodes.SMSG_GUILD_COMMAND_RESULT)));
+
+        a.session.player().guildRank = 4;
+        a.ops.clear();
+        a.last.clear();
+        GuildHandler.promote(a.session, world, cstring("Mate"));
+        assertEquals(GuildHandler.ERR_GUILD_PERMISSIONS,
+                resultOf(a.last.get(Opcodes.SMSG_GUILD_COMMAND_RESULT)));
+    }
+
+    @Test
+    void motdWhenNotInGuildOrNoRightsShouldRefuseAndEmptyClears() {
+        World world = World.inMemory();
+        Sink a = login(world, ACC_A, "Lead");
+        GuildHandler.motd(a.session, world, cstring("Stay"));
+        assertEquals(GuildHandler.ERR_GUILD_PLAYER_NOT_IN_GUILD,
+                resultOf(a.last.get(Opcodes.SMSG_GUILD_COMMAND_RESULT)));
+
+        createGuild(a.session, world, "Lions");
+        a.session.player().guildRank = 4;
+        a.ops.clear();
+        a.last.clear();
+        GuildHandler.motd(a.session, world, cstring("Stay"));
+        assertEquals(GuildHandler.ERR_GUILD_PERMISSIONS,
+                resultOf(a.last.get(Opcodes.SMSG_GUILD_COMMAND_RESULT)));
+
+        a.session.player().guildRank = 0;
+        a.ops.clear();
+        a.last.clear();
+        GuildHandler.motd(a.session, world, new WowBuffer(new byte[0]));
+        WowBuffer ev = new WowBuffer(a.last.get(Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(GuildHandler.GE_MOTD, ev.getU8());
+        assertEquals(1, ev.getU8());
+        assertEquals("", ev.getCString());
+    }
+
     private static int resultOf(byte[] payload) {
         WowBuffer r = new WowBuffer(payload);
         r.getU32();
