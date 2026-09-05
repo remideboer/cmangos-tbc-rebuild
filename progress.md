@@ -36,7 +36,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 18 Pets | p0_junit | Wire: `Slice18P0Test` `SMSG_PET_SPELLS` pet guid (`001`), stable **0x0A/0x08/0x09** (`002`), warlock dismiss vs hunter (`003`), totem `SMSG_DESTROY_OBJECT` (`004`). |
 | 19 Channels | p0_junit | Wire: `Slice19P0Test` YOU_JOINED **0x02** + channelId (`001`), list raw guid (`002`), text emote (`003`), voice ignored (`004`). |
 | 20 Items leftover | p0_junit | Wire: `Slice20P0Test` buyback slot **74** VALUES (`001`), socket bonus vs meta **25890** (`002`), repair coinage (`003`). |
-| 21 Guild leftover | p0_junit | Wire: `Slice21P0Test` guild query name (`001`), `MSG_GUILD_PERMISSIONS` 6 tab pairs (`002`), roll + ping guid (`003`). |
+| 21 Guild leftover | p0_junit | Wire: `Slice21P0Test` guild query name (`001`), `MSG_GUILD_PERMISSIONS` 6 tab pairs (`002`), roll + ping guid (`003`). `TP-SL21-004/005/006`: petition showlist **5863**, show signatures, rename. Decline notifies owner (`PetitionHandlerTest`). Slice 21 petition leftover is filled. |
 | 22 Honor / inspect / duel | p0_junit | Wire: `Slice22P0Test` `SMSG_PVP_CREDIT` + cap 75000 (`001`), inspect packed + 0x3D (`002`), duel **3000** + OOB (`003`). |
 | 23 Arena teams | p0_junit | Wire: `Slice23P0Test` arena roster personalRating (`001`), PvP log type 0 (`002`), AFK **43680** from 3 unique reporters (`003`). |
 | 24 AV / AB / EY | p0_junit | AB stables/blacksmith WS; EY flag score; AV Snowfall; Irondeep mine tick **+1 / 45s** WS **3127**. |

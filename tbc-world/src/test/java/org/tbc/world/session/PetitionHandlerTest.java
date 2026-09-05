@@ -164,6 +164,39 @@ class PetitionHandlerTest {
         assertFalse(PetitionHandler.turnIn(sink.session, world, new WowBuffer(turn.array())));
     }
 
+    @Test
+    void showListWhenNotPetitionerShouldStaySilent() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Visitor");
+        Player p = sink.session.player();
+        Creature banker = find(world, Content.NPC_OLIVIA_BURNSIDE);
+        p.relocate(banker.x, banker.y, banker.z, banker.o);
+        WowBuffer in = new WowBuffer(8);
+        in.putU64(banker.guid);
+        PetitionHandler.showList(sink.session, world, new WowBuffer(in.array()));
+        assertFalse(sink.ops.contains(Opcodes.SMSG_PETITION_SHOWLIST));
+    }
+
+    @Test
+    void declineWhenSignerShouldNotifyOwner() {
+        World world = World.inMemory();
+        Sink owner = login(world, "Lead");
+        Player op = owner.session.player();
+        op.setMoney(Content.GUILD_CHARTER_COST);
+        Creature npc = find(world, Content.NPC_REBECCA_LAUGHLIN);
+        op.relocate(npc.x, npc.y, npc.z, npc.o);
+        PetitionHandler.buy(owner.session, world, buyPacket(npc.guid, "Nope"));
+        long petition = charterGuid(op);
+        World.Account accB = new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86");
+        Sink signer = login(world, accB, "Ink");
+        owner.ops.clear();
+        WowBuffer dec = new WowBuffer(8);
+        dec.putU64(petition);
+        PetitionHandler.decline(signer.session, world, new WowBuffer(dec.array()));
+        WowBuffer r = new WowBuffer(owner.last.get(Opcodes.MSG_PETITION_DECLINE));
+        assertEquals(signer.session.player().guid, r.getU64());
+    }
+
     private static long charterGuid(Player p) {
         for (org.tbc.world.entity.Item it : p.items.values()) {
             if (it.entry == Content.ITEM_GUILD_CHARTER) {

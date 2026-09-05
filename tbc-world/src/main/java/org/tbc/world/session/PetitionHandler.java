@@ -224,6 +224,156 @@ public final class PetitionHandler {
         s.send(Opcodes.SMSG_TURN_IN_PETITION_RESULTS, data.array());
     }
 
+    public static void showList(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long npcGuid = in.getU64();
+        Player p = s.player();
+        Creature npc = Content.creature(world.map(p.mapId, p.instanceId), npcGuid);
+        if (npc == null || Content.outOfRange(p, npc)
+                || (npc.npcFlags & Content.UNIT_NPC_FLAG_PETITIONER) == 0) {
+            return;
+        }
+        boolean tabard = (npc.npcFlags & Content.UNIT_NPC_FLAG_TABARDDESIGNER) != 0;
+        WowBuffer data = new WowBuffer(128);
+        data.putU64(npcGuid);
+        if (tabard) {
+            data.putU8(1);
+            data.putU32(1);
+            data.putU32(Content.ITEM_GUILD_CHARTER);
+            data.putU32(Content.CHARTER_DISPLAY_ID);
+            data.putU32(Content.GUILD_CHARTER_COST);
+            data.putU32(0);
+            data.putU32(9);
+        } else {
+            data.putU8(3);
+            putArenaCharter(data, 1, 23560, 800000, 2);
+            putArenaCharter(data, 2, 23561, 1200000, 3);
+            putArenaCharter(data, 3, 23562, 2000000, 5);
+        }
+        s.send(Opcodes.SMSG_PETITION_SHOWLIST, data.array());
+    }
+
+    static void putArenaCharter(WowBuffer data, int index, int entry, int cost, int signs) {
+        data.putU32(index);
+        data.putU32(entry);
+        data.putU32(Content.CHARTER_DISPLAY_ID);
+        data.putU32(cost);
+        data.putU32(signs);
+        data.putU32(signs);
+    }
+
+    public static void showSignatures(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long petitionGuid = in.getU64();
+        ObjectMgr.Petition pet = world.objectMgr.petitions.get(Guid.low(petitionGuid));
+        if (pet == null) {
+            return;
+        }
+        if (pet.type == TYPE_GUILD && s.player().guildId != 0) {
+            return;
+        }
+        WowBuffer data = new WowBuffer(32 + pet.signers.size() * 12);
+        data.putU64(Guid.player(pet.guidLow));
+        data.putU64(pet.ownerGuid);
+        data.putU32(pet.guidLow);
+        data.putU8(pet.signers.size());
+        for (long signer : pet.signers) {
+            data.putU64(signer);
+            data.putU32(0);
+        }
+        s.send(Opcodes.SMSG_PETITION_SHOW_SIGNATURES, data.array());
+    }
+
+    public static void decline(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long petitionGuid = in.getU64();
+        ObjectMgr.Petition pet = world.objectMgr.petitions.get(Guid.low(petitionGuid));
+        if (pet == null) {
+            return;
+        }
+        Player owner = world.playerByGuid(pet.ownerGuid);
+        if (owner != null && owner.session != null) {
+            WowBuffer data = new WowBuffer(8);
+            data.putU64(s.player().guid);
+            owner.session.send(Opcodes.MSG_PETITION_DECLINE, data.array());
+        }
+    }
+
+    public static void rename(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long petitionGuid = in.getU64();
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        Player p = s.player();
+        Item item = null;
+        for (Item it : p.items.values()) {
+            if (it.guid == petitionGuid || Guid.low(it.guid) == Guid.low(petitionGuid)) {
+                item = it;
+                break;
+            }
+        }
+        if (item == null) {
+            return;
+        }
+        ObjectMgr.Petition pet = world.objectMgr.petitions.get(Guid.low(petitionGuid));
+        if (pet == null) {
+            return;
+        }
+        if (pet.type == TYPE_GUILD && guildByName(world, name) != null) {
+            GuildHandler.commandResult(s, GuildHandler.GUILD_CREATE_S, name, ERR_GUILD_NAME_EXISTS_S);
+            return;
+        }
+        pet.name = name;
+        WowBuffer data = new WowBuffer(16 + name.length());
+        data.putU64(petitionGuid);
+        data.putCString(name);
+        s.send(Opcodes.MSG_PETITION_RENAME, data.array());
+    }
+
+    public static void query(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            return;
+        }
+        in.getU32();
+        long petitionGuid = in.getU64();
+        ObjectMgr.Petition pet = world.objectMgr.petitions.get(Guid.low(petitionGuid));
+        if (pet == null) {
+            return;
+        }
+        WowBuffer data = new WowBuffer(80 + pet.name.length());
+        data.putU32(pet.guidLow);
+        data.putU64(pet.ownerGuid);
+        data.putCString(pet.name);
+        data.putU8(0);
+        if (pet.type == TYPE_GUILD) {
+            data.putU32(9);
+            data.putU32(9);
+            data.putU32(0);
+        } else {
+            data.putU32(pet.type - 1);
+            data.putU32(pet.type - 1);
+            data.putU32(pet.type);
+        }
+        data.putU32(0);
+        data.putU32(0);
+        data.putU32(0);
+        data.putU32(0);
+        data.putU16(0);
+        data.putU32(0);
+        data.putU32(0);
+        data.putU32(0);
+        data.putU32(0);
+        data.putU32(pet.type == TYPE_GUILD ? 0 : 1);
+        s.send(Opcodes.SMSG_PETITION_QUERY_RESPONSE, data.array());
+    }
+
     static void sendSignResults(WorldSession s, World world, ObjectMgr.Petition pet, Player signer, int result) {
         WowBuffer data = new WowBuffer(24);
         data.putU64(Guid.player(pet.guidLow));

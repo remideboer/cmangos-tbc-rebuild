@@ -336,6 +336,11 @@ public final class WorldSession {
             case Opcodes.CMSG_GUILD_INVITE -> GuildHandler.invite(this, world, in);
             case Opcodes.CMSG_GUILD_ACCEPT -> GuildHandler.accept(this, world);
             case Opcodes.CMSG_PETITION_BUY -> PetitionHandler.buy(this, world, in);
+            case Opcodes.CMSG_PETITION_SHOWLIST -> PetitionHandler.showList(this, world, in);
+            case Opcodes.CMSG_PETITION_SHOW_SIGNATURES -> PetitionHandler.showSignatures(this, world, in);
+            case Opcodes.MSG_PETITION_DECLINE -> PetitionHandler.decline(this, world, in);
+            case Opcodes.MSG_PETITION_RENAME -> PetitionHandler.rename(this, world, in);
+            case Opcodes.CMSG_PETITION_QUERY -> PetitionHandler.query(this, world, in);
             case Opcodes.CMSG_PETITION_SIGN -> PetitionHandler.sign(this, world, in);
             case Opcodes.CMSG_TURN_IN_PETITION -> {
                 if (!PetitionHandler.turnIn(this, world, in)) {
