@@ -301,6 +301,23 @@ public final class ObjectMgr {
     public final Map<Integer, ZoneWeather> weather = new HashMap<>();
     public final List<Auction> auctions = new ArrayList<>();
     public final Map<Integer, Guild> guilds = new HashMap<>();
+    /** Talent.dbc / TalentTab.dbc. Player.cpp LearnTalent. */
+    public record Talent(int id, int tab, int row, int col, int rank0, int rank1, int rank2, int rank3, int rank4,
+                         int dependsOn, int dependsOnRank, int dependsOnSpell) {
+        public int rank(int i) {
+            return switch (i) {
+                case 0 -> rank0;
+                case 1 -> rank1;
+                case 2 -> rank2;
+                case 3 -> rank3;
+                case 4 -> rank4;
+                default -> 0;
+            };
+        }
+    }
+    public record TalentTab(int id, int classMask) {}
+    public final Map<Integer, Talent> talents = new HashMap<>();
+    public final Map<Integer, TalentTab> talentTabs = new HashMap<>();
     public final AtomicInteger nextGuildId = new AtomicInteger(1);
     public final AtomicInteger nextAuctionId = new AtomicInteger(2);
     public final AtomicInteger nextCreatureLow = new AtomicInteger(1_000_000);
@@ -322,6 +339,7 @@ public final class ObjectMgr {
             seedDefaults();
             seedQueryDefaults();
             loadStartOutfit(dataDir);
+            loadTalents(dataDir);
             return;
         }
         try (Connection c = world.get()) {
@@ -380,6 +398,7 @@ public final class ObjectMgr {
         }
         seedQueryDefaults();
         loadStartOutfit(dataDir);
+        loadTalents(dataDir);
     }
 
     private void loadCreate(Connection c) throws Exception {
@@ -847,6 +866,7 @@ public final class ObjectMgr {
         taxiNodes.put(Content.TAXI_STORMWIND, new TaxiNode(Content.TAXI_STORMWIND, 0,
                 -8835.76f, 490.084f, 109.699f, true, false));
         weather.put(Content.ZONE_ELWYNN, new ZoneWeather(Content.ZONE_ELWYNN, Content.WEATHER_STATE_FINE, 0f));
+        seedTalents();
         quests.put(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
                 0, "Speak with Marshal McBride.", "Speak with Marshal McBride."));
         vendorItems.put(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
@@ -917,6 +937,7 @@ public final class ObjectMgr {
         taxiNodes.putIfAbsent(Content.TAXI_STORMWIND, new TaxiNode(Content.TAXI_STORMWIND, 0,
                 -8835.76f, 490.084f, 109.699f, true, false));
         weather.putIfAbsent(Content.ZONE_ELWYNN, new ZoneWeather(Content.ZONE_ELWYNN, Content.WEATHER_STATE_FINE, 0f));
+        seedTalents();
         pointsOfInterest.putIfAbsent(lionsPrideInnPoi().entry(), lionsPrideInnPoi());
         eventCreatures.putIfAbsent(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
                 new Spawn(11, Content.NPC_LUMA_SKYMOTHER, 547, -92.45719f, -110.6642f, -2.866759f, 2.408554f))));
@@ -1334,6 +1355,48 @@ public final class ObjectMgr {
         } catch (Exception e) {
             log.warn("CharStartOutfit load failed: {}", e.getMessage());
         }
+    }
+
+    /** Talent.dbc / TalentTab.dbc. In-memory seed is Improved Heroic Strike 124 when DataDir is absent. */
+    void loadTalents(Path dataDir) {
+        if (dataDir == null) {
+            return;
+        }
+        Path talentFile = dataDir.resolve("dbc").resolve("Talent.dbc");
+        if (Files.isRegularFile(talentFile)) {
+            try {
+                DbcFile dbc = DbcFile.load(talentFile);
+                for (int[] row : dbc.records) {
+                    if (row.length < 21 || row[0] == 0) {
+                        continue;
+                    }
+                    talents.put(row[0], new Talent(row[0], row[1], row[2], row[3],
+                            row[4], row[5], row[6], row[7], row[8],
+                            row[13], row[16], row[20]));
+                }
+            } catch (Exception e) {
+                log.warn("Talent.dbc load failed: {}", e.getMessage());
+            }
+        }
+        Path tabFile = dataDir.resolve("dbc").resolve("TalentTab.dbc");
+        if (Files.isRegularFile(tabFile)) {
+            try {
+                DbcFile dbc = DbcFile.load(tabFile);
+                for (int[] row : dbc.records) {
+                    if (row.length < 21 || row[0] == 0) {
+                        continue;
+                    }
+                    talentTabs.put(row[0], new TalentTab(row[0], row[20]));
+                }
+            } catch (Exception e) {
+                log.warn("TalentTab.dbc load failed: {}", e.getMessage());
+            }
+        }
+    }
+
+    private void seedTalents() {
+        talents.putIfAbsent(124, new Talent(124, 161, 0, 0, 12282, 12663, 12664, 0, 0, 0, 0, 0));
+        talentTabs.putIfAbsent(161, new TalentTab(161, 1));
     }
 
     public void fillItemVisuals(Player p) {

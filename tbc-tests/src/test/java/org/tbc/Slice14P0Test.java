@@ -25,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class Slice14P0Test {
     private static final World.Account ACC =
             new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
+    private static final World.Account ACC_B =
+            new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86");
 
     @Test
     void tpSl14SwapInvItem() throws Exception {
@@ -1187,6 +1189,106 @@ class Slice14P0Test {
             }
         }
         return null;
+    }
+
+    @Test
+    void tpSl14LearnTalent() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Talented", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.setInt(UpdateFields.PLAYER_CHARACTER_POINTS1, 1);
+        client.clear();
+        client.learnTalent(world, 124, 0);
+        assertEquals(12282, WowClientDouble.u32le(lastPayload(client, Opcodes.SMSG_LEARNED_SPELL), 0));
+    }
+
+    @Test
+    void tpSl14LearnTalentWhenNoPointsShouldStaySilent() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Untalented", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        client.learnTalent(world, 124, 0);
+        assertFalse(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+    }
+
+    @Test
+    void tpSl14CorpseExpireOnTick() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Bones", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        assertNotNull(p.corpse);
+        p.corpse.expireAtMs = world.nowMs() - 1;
+        client.clear();
+        world.tick(org.tbc.world.world.WorldTimers.CORPSES_MS);
+        client.handle(world, Opcodes.MSG_CORPSE_QUERY, new byte[0]);
+        byte[] q = lastPayload(client, Opcodes.MSG_CORPSE_QUERY);
+        assertEquals(0, q[0] & 0xFF);
+    }
+
+    @Test
+    void tpSl14CorpseExpireWhenTimerNotDueShouldKeepCorpse() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Fresh", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        p.corpse.expireAtMs = world.nowMs() - 1;
+        world.tick(org.tbc.world.world.WorldTimers.CORPSES_MS - 1);
+        client.clear();
+        client.handle(world, Opcodes.MSG_CORPSE_QUERY, new byte[0]);
+        byte[] q = lastPayload(client, Opcodes.MSG_CORPSE_QUERY);
+        assertEquals(1, q[0] & 0xFF);
+    }
+
+    @Test
+    void tpSl14GroupOfflineLeaderOnTick() {
+        World world = World.inMemory();
+        WowClientDouble a = new WowClientDouble();
+        WowClientDouble b = new WowClientDouble();
+        a.connect(ACC);
+        b.connect(ACC_B);
+        Player pa = world.characters.create(ACC.id(), "Lead", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player pb = world.characters.create(ACC_B.id(), "Mate", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        a.login(world, pa.guid);
+        b.login(world, pb.guid);
+        a.groupInvite(world, "Mate");
+        b.groupAccept(world);
+        Player lead = a.session().player();
+        lead.group.leaderLastOnlineMs = world.nowMs() - 301_000;
+        lead.session = null;
+        b.clear();
+        world.tick(org.tbc.world.world.WorldTimers.GROUPS_MS);
+        byte[] set = lastPayload(b, Opcodes.SMSG_GROUP_SET_LEADER);
+        assertEquals("Mate", new WowBuffer(set).getCString());
+        assertEquals(pb.guid, b.session().player().group.leaderGuid);
+    }
+
+    @Test
+    void tpSl14DeleteCharsOnTick() {
+        World world = World.inMemory();
+        Player p = world.characters.create(ACC.id(), "Gone", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.characters.markDeleted(p.guid, world.nowMs() - 31L * 24 * 60 * 60_000);
+        assertEquals(1, world.characters.storedCount(ACC.id()));
+        world.tick(org.tbc.world.world.WorldTimers.DELETECHARS_MS);
+        assertEquals(0, world.characters.storedCount(ACC.id()));
     }
 
     private static byte[] lastPayload(WowClientDouble client, int opcode) {

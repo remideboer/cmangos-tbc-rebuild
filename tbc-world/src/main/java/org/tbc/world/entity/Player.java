@@ -97,6 +97,7 @@ public final class Player extends Unit {
     public Player duelOpponent;
     public int duelPhase;
     public Corpse corpse;
+    public long deleteDateMs;
     public int taxiPath;
     public final int[] taxiMask = new int[16];
     public boolean mounted;

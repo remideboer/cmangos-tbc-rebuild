@@ -40,7 +40,9 @@ public final class DeathHandler {
         corpse.ownerGuid = p.guid;
         corpse.mapId = p.mapId;
         corpse.relocate(deathX, deathY, deathZ, p.o);
+        corpse.expireAtMs = world.nowMs() + Corpse.RESURRECTABLE_MS;
         p.corpse = corpse;
+        world.corpses.put(p.guid, corpse);
         if (p.auras.stream().noneMatch(a -> a.spellId() == PvpObjectives.GHOST_AURA)) {
             p.auras.add(new Unit.Aura(PvpObjectives.GHOST_AURA, 0, 1));
         }
@@ -71,6 +73,41 @@ public final class DeathHandler {
         s.send(Opcodes.MSG_CORPSE_QUERY, q.array());
         s.send(Opcodes.SMSG_SPELL_GO, world.spells.encodeGo(
                 p.guid, p.guid, PvpObjectives.GHOST_AURA, world.nowMs(), new SpellCastTargets()));
+    }
+
+    public static void query(WorldSession s) {
+        Player p = s.player();
+        if (p.corpse == null) {
+            s.send(Opcodes.MSG_CORPSE_QUERY, new byte[]{0});
+            return;
+        }
+        Corpse corpse = p.corpse;
+        WowBuffer q = new WowBuffer(32);
+        q.putU8(1);
+        q.putU32(corpse.mapId);
+        q.putFloat(corpse.x);
+        q.putFloat(corpse.y);
+        q.putFloat(corpse.z);
+        q.putU32(corpse.mapId);
+        s.send(Opcodes.MSG_CORPSE_QUERY, q.array());
+    }
+
+    /** ObjectAccessor::RemoveOldCorpses. world-loop.md WUPDATE_CORPSES. */
+    public static void removeOldCorpses(World world) {
+        long now = world.nowMs();
+        var it = world.corpses.entrySet().iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            Corpse corpse = e.getValue();
+            if (corpse == null || !corpse.expired(now)) {
+                continue;
+            }
+            Player owner = world.playerByGuid(e.getKey());
+            if (owner != null && owner.corpse == corpse) {
+                owner.corpse = null;
+            }
+            it.remove();
+        }
     }
 
     public static void reclaim(WorldSession s, World world, WowBuffer in) {

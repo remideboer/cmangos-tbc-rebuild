@@ -79,6 +79,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_BATTLEMASTER_JOIN,
             Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA,
             Opcodes.CMSG_REPOP_REQUEST,
+            Opcodes.MSG_CORPSE_QUERY,
             Opcodes.CMSG_RECLAIM_CORPSE,
             Opcodes.CMSG_SELF_RES,
             Opcodes.CMSG_PET_ACTION,

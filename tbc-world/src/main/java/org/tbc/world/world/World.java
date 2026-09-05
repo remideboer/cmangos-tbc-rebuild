@@ -18,6 +18,7 @@ import org.tbc.world.combat.Factions;
 import org.tbc.world.combat.MeleeTable;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.entity.Corpse;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Player;
@@ -37,6 +38,8 @@ import org.tbc.world.pvp.EyBattlefield;
 import org.tbc.world.pvp.OutdoorPvp;
 import org.tbc.world.script.ScriptRegistry;
 import org.tbc.world.session.AuctionHandler;
+import org.tbc.world.session.DeathHandler;
+import org.tbc.world.session.GroupHandler;
 import org.tbc.world.session.WeatherHandler;
 import org.tbc.world.session.WorldSession;
 import org.tbc.world.spell.SpellCastTargets;
@@ -79,6 +82,7 @@ public final class World implements Runnable {
     public final OutdoorPvp outdoorPvp = new OutdoorPvp();
     public final GameEventMgr events = new GameEventMgr();
     public final WorldTimers timers = new WorldTimers();
+    public final Map<Long, Corpse> corpses = new ConcurrentHashMap<>();
     public final Terrain terrain;
     public final GraveyardManager graveyards;
     public final String motd;
@@ -560,6 +564,18 @@ public final class World implements Runnable {
                 }
             }
             m.dbScripts.process(diff, (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
+        }
+        if (timers.passed(WorldTimers.GROUPS)) {
+            timers.reset(WorldTimers.GROUPS);
+            GroupHandler.updateOfflineLeaders(this);
+        }
+        if (timers.passed(WorldTimers.DELETECHARS)) {
+            timers.reset(WorldTimers.DELETECHARS);
+            characters.deleteOldCharacters(nowMs());
+        }
+        if (timers.passed(WorldTimers.CORPSES)) {
+            timers.reset(WorldTimers.CORPSES);
+            DeathHandler.removeOldCorpses(this);
         }
         if (timers.passed(WorldTimers.EVENTS)) {
             int next = events.update(this, nowMs());

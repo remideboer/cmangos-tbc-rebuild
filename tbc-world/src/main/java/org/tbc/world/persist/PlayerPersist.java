@@ -44,6 +44,7 @@ public final class PlayerPersist {
         d.online = src.online;
         d.resting = src.resting;
         d.restBonus = src.restBonus;
+        d.deleteDateMs = src.deleteDateMs;
         d.watchedFaction = src.watchedFaction;
         System.arraycopy(src.actionButtons, 0, d.actionButtons, 0, 132);
         System.arraycopy(src.tut, 0, d.tut, 0, 8);

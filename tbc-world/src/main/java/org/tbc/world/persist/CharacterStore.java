@@ -103,6 +103,56 @@ public final class CharacterStore {
         return n;
     }
 
+    /** Player.cpp DeleteOldCharacters. CharDelete.KeepDays default 30. keepDays 0 is a no-op. */
+    public static final int CHARDELETE_KEEP_DAYS = 30;
+    public static final long DAY_MS = 24L * 60 * 60_000;
+
+    public void deleteOldCharacters(long nowMs) {
+        deleteOldCharacters(nowMs, CHARDELETE_KEEP_DAYS);
+    }
+
+    public void deleteOldCharacters(long nowMs, int keepDays) {
+        if (keepDays <= 0) {
+            return;
+        }
+        long cutoff = nowMs - keepDays * DAY_MS;
+        memory.values().removeIf(p -> p.deleteDateMs != 0 && p.deleteDateMs < cutoff);
+        inWorld.values().removeIf(p -> p.deleteDateMs != 0 && p.deleteDateMs < cutoff);
+        for (List<Player> list : byAccount.values()) {
+            list.removeIf(p -> p.deleteDateMs != 0 && p.deleteDateMs < cutoff);
+        }
+        if (chars == null) {
+            return;
+        }
+        try (Connection c = chars.get();
+             PreparedStatement ps = c.prepareStatement(
+                     "DELETE FROM characters WHERE deleteDate IS NOT NULL AND deleteDate < ?")) {
+            ps.setLong(1, cutoff / 1000);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.warn("deleteOldCharacters {}", e.getMessage());
+        }
+    }
+
+    public void markDeleted(long guid, long deleteDateMs) {
+        int g = Guid.low(guid);
+        Player snap = memory.get(g);
+        if (snap != null) {
+            snap.deleteDateMs = deleteDateMs;
+        }
+        Player live = inWorld.get(g);
+        if (live != null) {
+            live.deleteDateMs = deleteDateMs;
+        }
+        for (List<Player> list : byAccount.values()) {
+            for (Player p : list) {
+                if (Guid.low(p.guid) == g) {
+                    p.deleteDateMs = deleteDateMs;
+                }
+            }
+        }
+    }
+
     public int onlineCount() {
         int n = 0;
         for (Player p : memory.values()) {
@@ -117,7 +167,7 @@ public final class CharacterStore {
         if (chars == null) {
             List<Player> out = new ArrayList<>();
             for (Player p : memory.values()) {
-                if (p.accountId == accountId) {
+                if (p.accountId == accountId && p.deleteDateMs == 0) {
                     out.add(p);
                 }
             }

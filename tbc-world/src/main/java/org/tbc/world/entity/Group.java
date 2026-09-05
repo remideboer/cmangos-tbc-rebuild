@@ -16,6 +16,7 @@ public final class Group {
     public long id;
     public long guid;
     public long leaderGuid;
+    public long leaderLastOnlineMs;
     public boolean raid;
     public int lootMethod;
     public int lootThreshold = 2;

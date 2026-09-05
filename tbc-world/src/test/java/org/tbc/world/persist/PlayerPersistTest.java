@@ -18,6 +18,7 @@ class PlayerPersistTest {
         src.money = 9;
         src.resting = true;
         src.restBonus = 12.5f;
+        src.deleteDateMs = 99;
         src.actionButtons[3] = 78;
         Item back = new Item(99, 25);
         src.buyback.put(99, back);
@@ -26,6 +27,7 @@ class PlayerPersistTest {
         assertEquals(9, d.money);
         assertEquals(12.5f, d.restBonus);
         assertTrue(d.resting);
+        assertEquals(99, d.deleteDateMs);
         assertEquals(78, d.actionButtons[3]);
         assertTrue(d.items.isEmpty());
         assertTrue(d.buyback.isEmpty());

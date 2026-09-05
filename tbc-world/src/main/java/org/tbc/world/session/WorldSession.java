@@ -344,6 +344,7 @@ public final class WorldSession {
             case Opcodes.CMSG_BATTLEMASTER_JOIN -> handleBgJoin(world, 489);
             case Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA -> handleBgJoin(world, 562);
             case Opcodes.CMSG_REPOP_REQUEST -> DeathHandler.repop(this, world);
+            case Opcodes.MSG_CORPSE_QUERY -> DeathHandler.query(this);
             case Opcodes.CMSG_RECLAIM_CORPSE -> DeathHandler.reclaim(this, world, in);
             case Opcodes.CMSG_SELF_RES -> {
                 player.setHealth(player.maxHealth());
@@ -354,7 +355,7 @@ public final class WorldSession {
             case Opcodes.CMSG_JOIN_CHANNEL -> ChannelHandler.join(this, in);
             case Opcodes.CMSG_BUY_ITEM -> handleBuy(world, in);
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
-            case Opcodes.CMSG_LEARN_TALENT -> handleTalent(in);
+            case Opcodes.CMSG_LEARN_TALENT -> TalentHandler.learn(this, world, in);
             case Opcodes.CMSG_TRAINER_LIST -> handleTrainer(world, in);
             case Opcodes.CMSG_ACTIVATETAXI -> TaxiHandler.activate(this, world, in);
             case Opcodes.CMSG_ACTIVATETAXIEXPRESS -> {
@@ -942,11 +943,6 @@ public final class WorldSession {
 
     private void handleBuyInSlot(World world, WowBuffer in) {
         world.content.buy(player, world.map(player.mapId, player.instanceId), in, true, world.nextItemGuid(), this::send);
-    }
-
-    private void handleTalent(WowBuffer in) {
-        in.getU32();
-        in.getU32();
     }
 
     private void handleTrainer(World world, WowBuffer in) {

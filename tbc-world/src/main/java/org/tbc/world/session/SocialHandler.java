@@ -274,6 +274,7 @@ public final class SocialHandler {
         if (from.group == null) {
             from.group = new Group();
             from.group.leaderGuid = from.guid;
+            from.group.leaderLastOnlineMs = world.nowMs();
             from.group.members.add(from);
         }
         if (from.group.members.size() >= Group.MAX_PARTY) {

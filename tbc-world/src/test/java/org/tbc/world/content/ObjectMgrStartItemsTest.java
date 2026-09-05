@@ -101,6 +101,27 @@ class ObjectMgrStartItemsTest {
         assertFalse(p.hasSkill(ChrStatic.SKILL_LANG_ORCISH));
     }
 
+    @Test
+    void talentDbcWhenPresentShouldReplaceSeedRow() throws Exception {
+        Path dbcDir = tmp.resolve("dbc");
+        Files.createDirectories(dbcDir);
+        writeTalent(dbcDir.resolve("Talent.dbc"), 124, 161, 12282);
+        writeTalentTab(dbcDir.resolve("TalentTab.dbc"), 161, 1);
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null, tmp);
+        ObjectMgr.Talent t = mgr.talents.get(124);
+        assertNotNull(t);
+        assertEquals(12282, t.rank0());
+        assertEquals(1, mgr.talentTabs.get(161).classMask());
+    }
+
+    @Test
+    void missingTalentDbcKeepsSeed() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null, tmp);
+        assertEquals(12282, mgr.talents.get(124).rank0());
+    }
+
     private static Player player(int race, int clazz, int gender) {
         Player p = new Player();
         p.guid = 1;
@@ -124,6 +145,45 @@ class ObjectMgrStartItemsTest {
         for (int i = 0; i < 11; i++) {
             b.putInt(0);
         }
+        b.put((byte) 0);
+        Files.write(file, b.array());
+    }
+
+    private static void writeTalent(Path file, int id, int tab, int rank0) throws Exception {
+        int fields = 21;
+        int recSize = fields * 4;
+        ByteBuffer b = ByteBuffer.allocate(20 + recSize + 1).order(ByteOrder.LITTLE_ENDIAN);
+        b.putInt(0x43424457);
+        b.putInt(1);
+        b.putInt(fields);
+        b.putInt(recSize);
+        b.putInt(1);
+        b.putInt(id);
+        b.putInt(tab);
+        b.putInt(0);
+        b.putInt(0);
+        b.putInt(rank0);
+        for (int i = 0; i < 16; i++) {
+            b.putInt(0);
+        }
+        b.put((byte) 0);
+        Files.write(file, b.array());
+    }
+
+    private static void writeTalentTab(Path file, int id, int classMask) throws Exception {
+        int fields = 21;
+        int recSize = fields * 4;
+        ByteBuffer b = ByteBuffer.allocate(20 + recSize + 1).order(ByteOrder.LITTLE_ENDIAN);
+        b.putInt(0x43424457);
+        b.putInt(1);
+        b.putInt(fields);
+        b.putInt(recSize);
+        b.putInt(1);
+        b.putInt(id);
+        for (int i = 0; i < 19; i++) {
+            b.putInt(0);
+        }
+        b.putInt(classMask);
         b.put((byte) 0);
         Files.write(file, b.array());
     }

@@ -409,6 +409,13 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_BATTLEMASTER_JOIN, b.array());
     }
 
+    public void learnTalent(World world, int talentId, int rank) {
+        WowBuffer b = new WowBuffer(8);
+        b.putU32(talentId);
+        b.putU32(rank);
+        handle(world, Opcodes.CMSG_LEARN_TALENT, b.array());
+    }
+
     public void battlefieldPort(World world, int action) {
         WowBuffer b = new WowBuffer(9);
         b.putU8(0);

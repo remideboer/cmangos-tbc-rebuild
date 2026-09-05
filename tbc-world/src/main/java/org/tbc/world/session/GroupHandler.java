@@ -1,12 +1,72 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Group;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.world.World;
 
-/** Raid convert and ready check. Layout: spec/03-protocol/packets/group.md */
+import java.util.HashSet;
+import java.util.Set;
+
+/** Raid convert, ready check, offline leader. Layout: spec/03-protocol/packets/group.md */
 public final class GroupHandler {
+    /** World.cpp Group.OfflineLeaderDelay default 300 s. */
+    public static final int OFFLINE_LEADER_DELAY_MS = 300_000;
+
     private GroupHandler() {}
+
+    /** Group.cpp UpdateOfflineLeader. world-loop.md WUPDATE_GROUPS. */
+    public static void updateOfflineLeaders(World world) {
+        long now = world.nowMs();
+        Set<Group> groups = new HashSet<>();
+        for (Player p : world.playersOnline()) {
+            if (p.group != null) {
+                groups.add(p.group);
+            }
+        }
+        for (Group g : groups) {
+            updateOfflineLeader(g, now);
+        }
+    }
+
+    static void updateOfflineLeader(Group g, long now) {
+        Player leader = null;
+        for (Player m : g.members) {
+            if (m.guid == g.leaderGuid) {
+                leader = m;
+                break;
+            }
+        }
+        if (leader != null && leader.session != null) {
+            g.leaderLastOnlineMs = now;
+            return;
+        }
+        if (now - g.leaderLastOnlineMs < OFFLINE_LEADER_DELAY_MS) {
+            return;
+        }
+        Player chosen = null;
+        for (Player m : g.members) {
+            if (m.guid != g.leaderGuid && m.session != null) {
+                chosen = m;
+                break;
+            }
+        }
+        if (chosen == null) {
+            return;
+        }
+        g.leaderGuid = chosen.guid;
+        g.leaderLastOnlineMs = now;
+        WowBuffer data = new WowBuffer(16);
+        data.putCString(chosen.name);
+        byte[] payload = data.array();
+        for (Player m : g.members) {
+            if (m.session != null) {
+                m.session.send(Opcodes.SMSG_GROUP_SET_LEADER, payload);
+                m.session.send(Opcodes.SMSG_GROUP_LIST, g.listFor(m));
+            }
+        }
+    }
 
     public static void raidConvert(WorldSession s) {
         Player p = s.player();
