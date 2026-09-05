@@ -50,10 +50,28 @@ public final class CharacterStore {
                 ResultSet rs = s.executeQuery("SELECT IFNULL(MAX(guid),0)+1 FROM item_instance");
                 if (rs.next()) {
                     nextItem.set(Math.max(1L, rs.getLong(1)));
+                    deleteDanglingItemRefs(nextItem.get());
                 }
             } catch (Exception e) {
                 log.warn("item guid max: {}", e.getMessage());
             }
+        }
+    }
+
+    /** ObjectMgr::SetHighestGuids — drop refs at or above the next item guid. */
+    private void deleteDanglingItemRefs(long next) {
+        deleteDangling("DELETE FROM character_inventory WHERE item >= ?", next);
+        deleteDangling("DELETE FROM mail_items WHERE item_guid >= ?", next);
+        deleteDangling("DELETE FROM auction WHERE itemguid >= ?", next);
+        deleteDangling("DELETE FROM guild_bank_item WHERE item_guid >= ?", next);
+    }
+
+    private void deleteDangling(String sql, long next) {
+        try (Connection c = chars.get(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setLong(1, next);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.warn("dangling item cleanup: {}", e.getMessage());
         }
     }
 
@@ -409,6 +427,7 @@ public final class CharacterStore {
                 save(p);
             }
         }
+        mgr.applyEquippedMelee(p);
         p.applyCreateFields();
     }
 

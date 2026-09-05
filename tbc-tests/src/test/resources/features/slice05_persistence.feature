@@ -38,6 +38,25 @@ Feature: Slice 5 character persistence
     When the world clears online accounts
     Then no character is online
 
+  @tp-sl05-006
+  Scenario: Periodic save keeps gold after crash without logout
+    Given a logged-in character with gold 12345 and a modified action button
+    When the first periodic save window elapses
+    And the world process is killed without logout
+    And the player relogs on a new mock client
+    Then SMSG_LOGIN_VERIFY_WORLD has the saved map and position
+    And SMSG_ACTION_BUTTONS has 132 packed uint32 and the modified button
+
+  @tp-sl05-007
+  Scenario: Disconnect save keeps gold after combat TCP close
+    Given a logged-in character with gold 12345 and a modified action button
+    And the player is in combat
+    When the TCP connection closes
+    And 60 seconds elapse
+    And the player relogs on a new mock client
+    Then SMSG_LOGIN_VERIFY_WORLD has the saved map and position
+    And SMSG_ACTION_BUTTONS has 132 packed uint32 and the modified button
+
   @negative
   Scenario: Unknown guid does not create a character
     Given a logged-in character

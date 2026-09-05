@@ -12,11 +12,13 @@ import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 
+import java.util.function.BiConsumer;
+
 /** Bag 0 swap. Layout: spec/03-protocol/packets/inventory.md */
 public final class InventoryHandler {
     private InventoryHandler() {}
 
-    public static void swapInvItem(WorldSession s, WowBuffer in) {
+    public static void swapInvItem(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
         if (in.remaining() < 2) {
             return;
@@ -41,10 +43,11 @@ public final class InventoryHandler {
         var pkt = UpdateBuilder.maybeCompress(
                 UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
         s.send(pkt.opcode(), pkt.payload());
+        if (world != null) {
+            world.objectMgr.applyEquippedMelee(p);
+        }
     }
-
-    /** dstbag, dstslot, srcbag, srcslot. Same pos: ignore. inventory.md */
-    public static void swapItem(WorldSession s, WowBuffer in) {
+    public static void swapItem(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
         if (in.remaining() < 4) {
             return;
@@ -76,6 +79,9 @@ public final class InventoryHandler {
         var pkt = UpdateBuilder.maybeCompress(
                 UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
         s.send(pkt.opcode(), pkt.payload());
+        if (world != null) {
+            world.objectMgr.applyEquippedMelee(p);
+        }
     }
 
     /** bag, slot, count (0 = whole stack). Layout: spec/03-protocol/packets/inventory.md */
@@ -139,13 +145,53 @@ public final class InventoryHandler {
         }
         long guid = in.getU64();
         Creature npc = Content.creature(world.map(p.mapId, p.instanceId), guid);
-        if (npc == null || Content.outOfRange(p, npc)
-                || (npc.npcFlags & Content.UNIT_NPC_FLAG_BANKER) == 0) {
+        if (npc == null || Content.outOfRange(p, npc)) {
+            return;
+        }
+        sendShowBank(npc, s::send);
+    }
+
+    public static void sendShowBank(Creature c, BiConsumer<Integer, byte[]> send) {
+        if ((c.npcFlags & Content.UNIT_NPC_FLAG_BANKER) == 0) {
             return;
         }
         WowBuffer shown = new WowBuffer(8);
-        shown.putU64(guid);
-        s.send(Opcodes.SMSG_SHOW_BANK, shown.array());
+        shown.putU64(c.guid);
+        send.accept(Opcodes.SMSG_SHOW_BANK, shown.array());
+    }
+
+    /** guid raw banker. CMaNGOS HandleBuyBankSlotOpcode. inventory.md */
+    public static void buyBankSlot(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Creature npc = Content.creature(world.map(p.mapId, p.instanceId), guid);
+        if (npc == null || Content.outOfRange(p, npc) || (npc.npcFlags & Content.UNIT_NPC_FLAG_BANKER) == 0) {
+            return;
+        }
+        int slot = p.bankBagSlotCount() + 1;
+        if (slot > Player.BANK_SLOT_BAG_END - Player.BANK_SLOT_BAG_START) {
+            return;
+        }
+        int price = Content.BANK_BAG_SLOT_PRICES[slot];
+        if (p.money < price) {
+            sendBuyBankSlotResult(s, Content.ERR_BANKSLOT_INSUFFICIENT_FUNDS);
+            return;
+        }
+        p.setBankBagSlotCount(slot);
+        p.setMoney(p.money - price);
+        sendBuyBankSlotResult(s, Content.ERR_BANKSLOT_OK);
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(
+                p, UpdateFields.PLAYER_BYTES_2, UpdateFields.PLAYER_FIELD_COINAGE));
+        s.send(pkt.opcode(), pkt.payload());
+    }
+
+    private static void sendBuyBankSlotResult(WorldSession s, int result) {
+        WowBuffer out = new WowBuffer(4);
+        out.putU32(result);
+        s.send(Opcodes.SMSG_BUY_BANK_SLOT_RESULT, out.array());
     }
 
     /** srcbag, srcslot. Always inventory → bank. inventory.md */
@@ -243,6 +289,7 @@ public final class InventoryHandler {
             opened.putU64(UpdateBuilder.itemGuid(it));
             s.send(Opcodes.SMSG_OPEN_CONTAINER, opened.array());
         }
+        world.objectMgr.applyEquippedMelee(p);
     }
 
     /** srcbag, srcslot, dstbag. Store into a free slot of dstbag. inventory.md */

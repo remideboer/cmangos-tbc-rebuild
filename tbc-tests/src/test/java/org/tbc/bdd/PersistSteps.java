@@ -136,6 +136,44 @@ public class PersistSteps {
         world.characters.save(p);
     }
 
+    @When("the first periodic save window elapses")
+    public void firstPeriodicSaveWindowElapses() {
+        int wait = world.saveIntervalMs + world.saveIntervalMs / 2;
+        client.session().tick(world, wait);
+    }
+
+    @When("the world process is killed without logout")
+    public void killedWithoutLogout() {
+        Player p = client.session().player();
+        rememberPosition(p);
+        savedGold = p.money;
+        client.session().logout(world, false);
+    }
+
+    @When("the player relogs on a new mock client")
+    public void relogOnly() {
+        relogFreshClient();
+    }
+
+    @Given("the player is in combat")
+    public void playerInCombat() {
+        client.session().player().inCombat = true;
+    }
+
+    @When("the TCP connection closes")
+    public void tcpCloses() {
+        Player p = client.session().player();
+        rememberPosition(p);
+        savedGold = p.money;
+        client.disconnect(world);
+    }
+
+    @When("{int} seconds elapse")
+    public void secondsElapse(int seconds) {
+        world.advanceMs(seconds * 1000L);
+        client.session().tick(world, seconds * 1000);
+    }
+
     @When("the world clears online accounts")
     public void clearOnline() {
         world.characters.clearOnline();

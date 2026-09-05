@@ -19,7 +19,7 @@ public final class LaterOpcodes {
             return false;
         }
         if (opcode == Opcodes.CMSG_SWAP_INV_ITEM) {
-            InventoryHandler.swapInvItem(s, in);
+            InventoryHandler.swapInvItem(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_DESTROYITEM) {
@@ -32,6 +32,14 @@ public final class LaterOpcodes {
         }
         if (opcode == Opcodes.CMSG_BANKER_ACTIVATE) {
             InventoryHandler.bankerActivate(s, world, in);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_BUY_BANK_SLOT) {
+            InventoryHandler.buyBankSlot(s, world, in);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_BINDER_ACTIVATE) {
+            BinderHandler.activate(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_AUTOBANK_ITEM) {
@@ -67,7 +75,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_SWAP_ITEM) {
-            InventoryHandler.swapItem(s, in);
+            InventoryHandler.swapItem(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_RESET_INSTANCES) {

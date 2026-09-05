@@ -8,6 +8,10 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.session.AuctionHandler;
+import org.tbc.world.session.InventoryHandler;
+import org.tbc.world.session.TaxiHandler;
+import org.tbc.world.session.TrainerHandler;
 
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -25,6 +29,39 @@ public final class Content {
     public static final int UNIT_NPC_FLAG_FLIGHTMASTER = 0x2000;
     public static final int UNIT_NPC_FLAG_AUCTIONEER = 0x200000;
     public static final int UNIT_NPC_FLAG_BANKER = 0x00020000;
+    public static final int UNIT_NPC_FLAG_INNKEEPER = 0x00010000;
+    /** GossipDef.h DEFAULT_GOSSIP_MESSAGE; menu 0 title text. */
+    public static final int DEFAULT_GOSSIP_MESSAGE = 0x00FFFFFF;
+    /** NPCHandler.h MAX_GOSSIP_TEXT_OPTIONS. */
+    public static final int MAX_GOSSIP_TEXT_OPTIONS = 8;
+    /** QueryHandler.cpp missing npc_text fill. */
+    public static final String DEFAULT_NPC_TEXT = "Greetings $N";
+    /** GossipDef.h GOSSIP_ICON_VENDOR; brown bag. */
+    public static final int GOSSIP_ICON_VENDOR = 1;
+    /** GossipDef.h GOSSIP_ICON_TAXI; flight. */
+    public static final int GOSSIP_ICON_TAXI = 2;
+    /** GossipDef.h GOSSIP_ICON_INTERACT_2; innkeeper. */
+    public static final int GOSSIP_ICON_INTERACT_2 = 5;
+    /** GossipDef.h GOSSIP_ICON_TRAINER; book. */
+    public static final int GOSSIP_ICON_TRAINER = 3;
+    /** GossipDef.h GOSSIP_ICON_MONEY_BAG; banker. */
+    public static final int GOSSIP_ICON_MONEY_BAG = 6;
+    /** GossipDef.h GOSSIP_OPTION_GOSSIP. */
+    public static final int GOSSIP_OPTION_GOSSIP = 1;
+    /** GossipDef.h GOSSIP_OPTION_VENDOR. */
+    public static final int GOSSIP_OPTION_VENDOR = 3;
+    /** GossipDef.h GOSSIP_OPTION_TAXIVENDOR. */
+    public static final int GOSSIP_OPTION_TAXIVENDOR = 4;
+    /** GossipDef.h GOSSIP_OPTION_TRAINER. */
+    public static final int GOSSIP_OPTION_TRAINER = 5;
+    /** GossipDef.h GOSSIP_OPTION_BANKER. */
+    public static final int GOSSIP_OPTION_BANKER = 9;
+    /** GossipDef.h GOSSIP_OPTION_INNKEEPER. */
+    public static final int GOSSIP_OPTION_INNKEEPER = 8;
+    /** GossipDef.h GOSSIP_OPTION_AUCTIONEER. */
+    public static final int GOSSIP_OPTION_AUCTIONEER = 13;
+    /** AuctionHouseMgr.cpp GetAuctionHouseEntry faction 12 (human). */
+    public static final int AUCTION_HOUSE_HUMAN = 1;
     public static final int NPC_AUCTIONEER_CHILTON = 8670;
     public static final int NPC_OLIVIA_BURNSIDE = 2455;
     public static final int GAME_EVENT_MIDSUMMER = 1;
@@ -41,6 +78,17 @@ public final class Content {
     public static final int NPC_DEPUTY_WILLEM = 823;
     public static final int NPC_LLANE_BESHERE = 911;
     public static final int NPC_DUNGAR_LONGDRINK = 352;
+    public static final int NPC_INNKEEPER_FARLEY = 295;
+    /** creature_template GossipMenuId for Farley 295. */
+    public static final int GOSSIP_MENU_FARLEY = 1291;
+    /** gossip_menu 1291 text_id. */
+    public static final int GOSSIP_TEXT_FARLEY = 820;
+    /** gossip_menu_option action_menu_id for Farley inn-info. */
+    public static final int GOSSIP_MENU_FARLEY_INN_INFO = 1221;
+    /** gossip_menu 1221 text_id. */
+    public static final int GOSSIP_TEXT_FARLEY_INN_INFO = 1853;
+    /** gossip_menu_option.option_text on Farley menu 1291. */
+    public static final String GOSSIP_FARLEY_INN_INFO = "What can I do at an inn?";
     public static final int ITEM_WORN_SHORTSWORD = 25;
     public static final int ITEM_ROUGH_ARROW = 2512;
     public static final int ITEM_SMALL_BROWN_POUCH = 4496;
@@ -63,7 +111,19 @@ public final class Content {
     public static final int ERR_TAXINOTVISITED = 6;
     public static final int ZONE_ELWYNN = 12;
     public static final int WEATHER_STATE_FINE = 0;
+    /** Weather.h WEATHER_STATE_LIGHT_RAIN. */
+    public static final int WEATHER_STATE_LIGHT_RAIN = 3;
     public static final int WEATHER_INSTANT_SMOOTH = 0;
+    /** Player.h BuyBankSlotResult. */
+    public static final int ERR_BANKSLOT_FAILED_TOO_MANY = 0;
+    public static final int ERR_BANKSLOT_INSUFFICIENT_FUNDS = 1;
+    public static final int ERR_BANKSLOT_NOTBANKER = 2;
+    public static final int ERR_BANKSLOT_OK = 3;
+    /**
+     * BankBagSlotPrices.dbc id → copper. Index 0 unused.
+     * Slot 1..7: 10s, 1g, 10g, 25g, 50g, 100g, 200g.
+     */
+    public static final int[] BANK_BAG_SLOT_PRICES = {0, 1000, 10_000, 100_000, 250_000, 500_000, 1_000_000, 2_000_000};
     public static final int BACKPACK_START = 23;
     public static final int BACKPACK_END = 39;
 
@@ -82,7 +142,61 @@ public final class Content {
         if (c == null || outOfRange(p, c)) {
             return;
         }
-        send.accept(Opcodes.SMSG_GOSSIP_MESSAGE, encodeGossip(c));
+        send.accept(Opcodes.SMSG_GOSSIP_MESSAGE, encodeGossip(p, c));
+    }
+
+    public void gossipSelect(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {
+        if (in.remaining() < 16) {
+            return;
+        }
+        long guid = in.getU64();
+        int menuId = in.getU32();
+        int gossipListId = in.getU32();
+        Creature c = creature(map, guid);
+        if (c == null || outOfRange(p, c)) {
+            return;
+        }
+        if (!p.hasGossipOption(menuId, gossipListId)) {
+            return;
+        }
+        int option = p.gossipOptionId(gossipListId);
+        if (option == GOSSIP_OPTION_VENDOR) {
+            if ((c.npcFlags & UNIT_NPC_FLAG_VENDOR) == 0) {
+                return;
+            }
+            send.accept(Opcodes.SMSG_LIST_INVENTORY, encodeVendorList(c));
+        } else if (option == GOSSIP_OPTION_TRAINER) {
+            TrainerHandler.sendList(p, c, mgr, send);
+        } else if (option == GOSSIP_OPTION_BANKER) {
+            InventoryHandler.sendShowBank(c, send);
+        } else if (option == GOSSIP_OPTION_TAXIVENDOR) {
+            TaxiHandler.sendMenu(p, c, mgr, send);
+        } else if (option == GOSSIP_OPTION_INNKEEPER) {
+            if ((c.npcFlags & UNIT_NPC_FLAG_INNKEEPER) == 0) {
+                return;
+            }
+            send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
+            send.accept(Opcodes.SMSG_BINDER_CONFIRM, encodeBinderConfirm(c));
+        } else if (option == GOSSIP_OPTION_AUCTIONEER) {
+            if ((c.npcFlags & UNIT_NPC_FLAG_AUCTIONEER) == 0) {
+                return;
+            }
+            AuctionHandler.sendHello(c, send);
+        } else if (option == GOSSIP_OPTION_GOSSIP) {
+            int poiId = p.gossipActionPoi(gossipListId);
+            if (poiId != 0) {
+                ObjectMgr.PointOfInterest poi = mgr.pointsOfInterest.get(poiId);
+                if (poi != null) {
+                    send.accept(Opcodes.SMSG_GOSSIP_POI, encodeGossipPoi(poi));
+                }
+            }
+            int next = p.gossipActionMenu(gossipListId);
+            if (next > 0) {
+                send.accept(Opcodes.SMSG_GOSSIP_MESSAGE, encodeGossip(p, c, next));
+            } else if (next < 0) {
+                send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
+            }
+        }
     }
 
     public void listInventory(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {
@@ -281,13 +395,36 @@ public final class Content {
         p.setInt(base + 3, 0);
     }
 
-    byte[] encodeGossip(Creature c) {
+    byte[] encodeGossip(Player p, Creature c) {
+        return encodeGossip(p, c, mgr.gossipMenuId(c.entry));
+    }
+
+    byte[] encodeGossip(Player p, Creature c, int menuId) {
+        List<ObjectMgr.GossipMenuItem> items = mgr.gossipOptionsFor(p, c, menuId);
+        int[] optionIds = new int[items.size()];
+        int[] actionMenus = new int[items.size()];
+        int[] actionPois = new int[items.size()];
+        for (int i = 0; i < items.size(); i++) {
+            optionIds[i] = items.get(i).optionId();
+            actionMenus[i] = items.get(i).actionMenu();
+            actionPois[i] = items.get(i).actionPoi();
+        }
+        p.prepareGossipMenu(menuId, optionIds, actionMenus, actionPois);
         List<Integer> quests = mgr.questGivers.getOrDefault(c.entry, List.of());
         WowBuffer b = new WowBuffer(64);
         b.putU64(c.guid);
-        b.putU32(0);
-        b.putU32(0);
-        b.putU32(0);
+        b.putU32(menuId);
+        b.putU32(mgr.gossipTextId(menuId));
+        b.putU32(items.size());
+        int index = 0;
+        for (ObjectMgr.GossipMenuItem it : items) {
+            b.putU32(index++);
+            b.putU8(it.icon());
+            b.putU8(it.coded());
+            b.putU32(it.boxMoney());
+            b.putCString(it.text());
+            b.putCString(it.boxText());
+        }
         b.putU32(quests.size());
         for (int id : quests) {
             ObjectMgr.QuestTemplate q = mgr.quests.get(id);
@@ -296,6 +433,23 @@ public final class Content {
             b.putU32(q == null ? 1 : q.minLevel());
             b.putCString(q == null ? "" : q.title());
         }
+        return b.array();
+    }
+
+    static byte[] encodeGossipPoi(ObjectMgr.PointOfInterest poi) {
+        WowBuffer b = new WowBuffer(24 + poi.iconName().length());
+        b.putU32(poi.flags());
+        b.putFloat(poi.x());
+        b.putFloat(poi.y());
+        b.putU32(poi.icon());
+        b.putU32(poi.data());
+        b.putCString(poi.iconName());
+        return b.array();
+    }
+
+    static byte[] encodeBinderConfirm(Creature c) {
+        WowBuffer b = new WowBuffer(8);
+        b.putU64(c.guid);
         return b.array();
     }
 
@@ -325,9 +479,17 @@ public final class Content {
     }
 
     static byte[] encodePush(Player p, Item it, int count) {
+        return encodePush(p, it, count, 1, count);
+    }
+
+    public static byte[] encodeLootPush(Player p, Item it, int inventoryTotal) {
+        return encodePush(p, it, it.count, 0, inventoryTotal);
+    }
+
+    static byte[] encodePush(Player p, Item it, int count, int received, int inventoryTotal) {
         WowBuffer b = new WowBuffer(48);
         b.putU64(p.guid);
-        b.putU32(1);
+        b.putU32(received);
         b.putU32(0);
         b.putU32(1);
         b.putU8(it.bag);
@@ -336,7 +498,7 @@ public final class Content {
         b.putU32(0);
         b.putU32(0);
         b.putU32(count);
-        b.putU32(count);
+        b.putU32(inventoryTotal);
         return b.array();
     }
 

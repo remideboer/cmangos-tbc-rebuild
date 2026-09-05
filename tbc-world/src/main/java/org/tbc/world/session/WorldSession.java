@@ -6,6 +6,7 @@ import org.tbc.common.Codes;
 import org.tbc.common.Srp6;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.ChrStatic;
+import org.tbc.world.content.Content;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
@@ -39,6 +40,10 @@ public final class WorldSession {
     public static final int STATUS_LOGGEDIN = 2;
     public static final float MELEE_RANGE = 5f;
     public static final int MAX_SHEATH_STATE = 3;
+    /** CMSG_LOGOUT_REQUEST sit timer (`ShouldLogOut` = request + 20 s). */
+    public static final int LOGOUT_DELAY_MS = 20_000;
+    /** TCP close (`ShouldDisconnect` = request + 60 s). C++ comment says 20; follow 60. */
+    public static final int DISCONNECT_DELAY_MS = 60_000;
 
     private final long id = NEXT_ID.getAndIncrement();
     private final PacketSink sink;
@@ -51,9 +56,12 @@ public final class WorldSession {
     private long lastPingMs;
     private final Queue<Pkt> inbound = new ConcurrentLinkedQueue<>();
     private long logoutAt;
+    private boolean socketClosed;
+    private boolean offline;
     private final List<Integer> sentOpcodes = new ArrayList<>();
     private final Set<Long> seen = new HashSet<>();
     private final AtomicInteger timeSync = new AtomicInteger();
+    private final AtomicInteger moveOrder = new AtomicInteger();
     public Player pendingInviteFrom;
     public final List<String> channels = new ArrayList<>();
     public String lastTicket = "";
@@ -96,6 +104,10 @@ public final class WorldSession {
         send(Opcodes.SMSG_AUTH_CHALLENGE, b.array());
     }
 
+    public int nextMoveOrder() {
+        return moveOrder.getAndIncrement();
+    }
+
     public void send(int opcode, byte[] payload) {
         sentOpcodes.add(opcode);
         sink.send(opcode, payload == null ? new byte[0] : payload);
@@ -116,12 +128,22 @@ public final class WorldSession {
         if (player == null) {
             return;
         }
+        if (socketClosed && !offline) {
+            setOffline(world);
+        }
         if (logoutAt > 0 && world.nowMs() >= logoutAt) {
             logout(world, true);
         }
-        if (player.online && player.firstSaveAtMs > 0 && world.nowMs() >= player.firstSaveAtMs) {
-            world.characters.save(player);
-            player.firstSaveAtMs = world.nowMs() + world.saveIntervalMs;
+        if (player == null) {
+            return;
+        }
+        if (player.online && player.nextSaveMs > 0) {
+            if (diff >= player.nextSaveMs) {
+                world.characters.save(player);
+                player.nextSaveMs = world.saveIntervalMs;
+            } else {
+                player.nextSaveMs -= diff;
+            }
         }
         if (player.nextTimeSyncMs > 0 && world.nowMs() >= player.nextTimeSyncMs) {
             player.timeSyncCounter++;
@@ -162,7 +184,7 @@ public final class WorldSession {
 
     private Creature meleeTarget(World world) {
         GameMap map = world.map(player.mapId, player.instanceId);
-        for (Creature c : map.nearbyCreatures(player, Combat.meleeRange(player))) {
+        for (Creature c : map.nearbyCreatures(player, Combat.meleeRange(player) + Combat.MELEE_LEEWAY)) {
             if (c.victim == player.guid || player.victim == c.guid) {
                 return c;
             }
@@ -224,6 +246,13 @@ public final class WorldSession {
             handleWorldportAck(world);
             return;
         }
+        if (opcode == Opcodes.MSG_MOVE_TELEPORT_ACK) {
+            try {
+                handleMove(world, opcode, in, true);
+            } catch (RuntimeException ignored) {
+            }
+            return;
+        }
         if (opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
             try {
                 handleMove(world, opcode, in, true);
@@ -255,6 +284,7 @@ public final class WorldSession {
             case Opcodes.CMSG_ITEM_QUERY_SINGLE -> QueryHandler.item(this, world, in);
             case Opcodes.CMSG_QUEST_QUERY -> QueryHandler.quest(this, world, in);
             case Opcodes.CMSG_PAGE_TEXT_QUERY -> QueryHandler.pageText(this, world, in);
+            case Opcodes.CMSG_NPC_TEXT_QUERY -> QueryHandler.npcText(this, world, in);
             case Opcodes.CMSG_PET_NAME_QUERY -> QueryHandler.petName(this, in);
             case Opcodes.CMSG_WHOIS -> QueryHandler.whois(this, world, in);
             case Opcodes.CMSG_TIME_SYNC_RESP -> in.skip(Math.min(8, in.remaining()));
@@ -281,11 +311,12 @@ public final class WorldSession {
             case Opcodes.CMSG_ATTACKSTOP -> handleAttackStop(world);
             case Opcodes.CMSG_SETSHEATHED -> handleSheath(in);
             case Opcodes.CMSG_LOOT -> handleLoot(world, in);
-            case Opcodes.CMSG_LOOT_MONEY -> {
-            }
+            case Opcodes.CMSG_AUTOSTORE_LOOT_ITEM -> LootHandler.autostoreLootItem(this, world, in);
+            case Opcodes.CMSG_LOOT_MONEY -> LootHandler.lootMoney(this, world);
             case Opcodes.CMSG_LOOT_RELEASE -> handleLootRelease(world, in);
             case Opcodes.CMSG_CAST_SPELL -> handleCast(world, in);
             case Opcodes.CMSG_GOSSIP_HELLO, Opcodes.CMSG_QUESTGIVER_HELLO -> handleGossip(world, in);
+            case Opcodes.CMSG_GOSSIP_SELECT_OPTION -> handleGossipSelect(world, in);
             case Opcodes.CMSG_LIST_INVENTORY -> handleListInventory(world, in);
             case Opcodes.CMSG_QUESTGIVER_QUERY_QUEST -> handleQuestQuery(world, in);
             case Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST -> handleQuestAccept(world, in);
@@ -311,7 +342,7 @@ public final class WorldSession {
             case Opcodes.CMSG_RECLAIM_CORPSE -> DeathHandler.reclaim(this, world, in);
             case Opcodes.CMSG_SELF_RES -> {
                 player.setHealth(player.maxHealth());
-                player.ghost = false;
+                player.setGhost(false);
             }
             case Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE ->
                     org.tbc.world.session.LaterOpcodes.handle(this, world, opcode, in);
@@ -561,7 +592,7 @@ public final class WorldSession {
         revealNearby(world);
         world.characters.setOnline(p, true);
         p.online = true;
-        p.firstSaveAtMs = world.nowMs() + Math.min(60_000, world.saveIntervalMs);
+        p.nextSaveMs = world.jitteredFirstSaveMs();
         p.nextTimeSyncMs = world.nowMs() + 5_000;
         WeatherHandler.sendSnapshot(this, world, p.zoneId);
     }
@@ -715,7 +746,7 @@ public final class WorldSession {
         if (inst) {
             logout(world, true);
         } else {
-            logoutAt = world.nowMs() + 20_000;
+            logoutAt = world.nowMs() + LOGOUT_DELAY_MS;
         }
     }
 
@@ -738,7 +769,25 @@ public final class WorldSession {
         player.session = null;
         player = null;
         logoutAt = 0;
+        socketClosed = false;
+        offline = false;
         seen.clear();
+    }
+
+    /**
+     * TCP close while in-world: {@code SetOffline} + {@code LogoutRequest(now)}.
+     * {@link #tick} fires {@code LogoutPlayer} after {@link #DISCONNECT_DELAY_MS}.
+     */
+    public void markSocketClosed() {
+        socketClosed = true;
+    }
+
+    private void setOffline(World world) {
+        if (player == null) {
+            return;
+        }
+        offline = true;
+        logoutAt = world.nowMs() + DISCONNECT_DELAY_MS;
     }
 
     private void handleAttack(World world, WowBuffer in) {
@@ -752,20 +801,12 @@ public final class WorldSession {
             send(Opcodes.SMSG_ATTACKSWING_DEADTARGET, new byte[0]);
             return;
         }
-        world.combat.startAttack(player, c, world.nowMs());
-        if (c.eventAi != null) {
-            c.eventAi.onAggro(c, player, (cr, t, spell) -> {
-                org.tbc.world.spell.SpellCastTargets tgt = new org.tbc.world.spell.SpellCastTargets();
-                send(Opcodes.SMSG_SPELL_START, world.spells.encodeStart(cr.guid, spell, 1, tgt));
-                send(Opcodes.SMSG_SPELL_GO, world.spells.encodeGo(cr.guid, t == null ? cr.guid : t.guid, spell, world.nowMs(), tgt));
-            });
+        if (!c.inCombat) {
+            world.engage(c, player);
+        } else {
+            world.combat.startAttack(player, c, world.nowMs());
         }
-        if (c.script != null) {
-            c.script.aggro();
-        }
-        send(Opcodes.SMSG_ATTACKSTART, world.combat.encodeAttackStart(player.guid, guid));
-        send(Opcodes.SMSG_ATTACKSTART, world.combat.encodeAttackStart(c.guid, player.guid));
-        if (player.distance2d(c) > Combat.meleeRange(player)) {
+        if (player.distance2d(c) > Combat.meleeRange(player, c, Combat.meleeLeeway(player, c))) {
             send(Opcodes.SMSG_ATTACKSWING_NOTINRANGE, new byte[0]);
             return;
         }
@@ -801,6 +842,7 @@ public final class WorldSession {
         Creature c = world.map(player.mapId, player.instanceId).creatures.get(guid);
         byte[] pkt = world.combat.lootResponse(player, c);
         if (pkt != null) {
+            player.lootGuid = guid;
             send(Opcodes.SMSG_LOOT_RESPONSE, pkt);
         }
         LootHandler.maybeStartRoll(player, c, guid);
@@ -808,6 +850,7 @@ public final class WorldSession {
 
     private void handleLootRelease(World world, WowBuffer in) {
         long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        player.lootGuid = 0;
         send(Opcodes.SMSG_LOOT_RELEASE_RESPONSE, world.combat.encodeLootRelease(guid));
     }
 
@@ -845,6 +888,10 @@ public final class WorldSession {
 
     private void handleGossip(World world, WowBuffer in) {
         world.content.gossipHello(player, world.map(player.mapId, player.instanceId), in, this::send);
+    }
+
+    private void handleGossipSelect(World world, WowBuffer in) {
+        world.content.gossipSelect(player, world.map(player.mapId, player.instanceId), in, this::send);
     }
 
     private void handleListInventory(World world, WowBuffer in) {
@@ -898,12 +945,15 @@ public final class WorldSession {
     }
 
     private void handleTrainer(World world, WowBuffer in) {
-        long guid = in.remaining() >= 8 ? in.getU64() : 0;
-        WowBuffer out = new WowBuffer(16);
-        out.putU64(guid);
-        out.putU32(0);
-        out.putU32(0);
-        send(Opcodes.SMSG_TRAINER_LIST, out.array());
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Creature npc = Content.creature(world.map(player.mapId, player.instanceId), guid);
+        if (npc == null || Content.outOfRange(player, npc)) {
+            return;
+        }
+        TrainerHandler.sendList(player, npc, world.objectMgr, this::send);
     }
 
     private void handleGoUse(World world, WowBuffer in) {

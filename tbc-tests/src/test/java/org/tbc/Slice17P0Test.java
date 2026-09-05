@@ -5,6 +5,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.session.DeathHandler;
 import org.tbc.world.world.World;
@@ -45,6 +46,33 @@ class Slice17P0Test {
         assertEquals(DeathHandler.CORPSE_RECLAIM_DELAY_FIRST_MS,
                 WowClientDouble.u32le(lastPayload(client, Opcodes.SMSG_CORPSE_RECLAIM_DELAY), 0));
         assertTrue(sawSpellGo(client, PvpObjectives.GHOST_AURA));
+        assertEquals(Player.PLAYER_FLAGS_GHOST, p.getInt(UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST);
+        assertTrue(client.saw(Opcodes.SMSG_MOVE_WATER_WALK));
+        assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
+        assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
+    }
+
+    @Test
+    void tpSl17RepopWhenDunMoroghShouldUseClosestGraveyard() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Piep");
+        Player p = client.session().player();
+        p.relocate(-6240f, 331f, 383f, 0);
+        p.setHealth(0);
+        client.clear();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
+        assertEquals(0, WowClientDouble.u32le(loc, 0));
+        float gx = WowClientDouble.floatle(loc, 4);
+        float gy = WowClientDouble.floatle(loc, 8);
+        assertEquals(-6220f, gx, 0.01);
+        assertEquals(330f, gy, 0.01);
+        assertTrue(Math.abs(gx - DeathHandler.GY_ELWYNN_X) > 100);
+        assertTrue(p.ghost);
+        assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
+        assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
     }
 
     @Test
@@ -71,7 +99,7 @@ class Slice17P0Test {
         World world = World.inMemory();
         WowClientDouble client = login(world, "Ghost");
         Player p = client.session().player();
-        p.ghost = true;
+        p.setGhost(true);
         p.level = 11;
         Item gear = new Item(world.nextItemGuid(), 25);
         gear.durability = 100;

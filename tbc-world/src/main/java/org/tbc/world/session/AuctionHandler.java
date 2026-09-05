@@ -10,10 +10,18 @@ import org.tbc.world.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
-/** Auction search list. Layout: spec/03-protocol/packets/auction.md */
+/** Auction hello / search list. Layout: spec/03-protocol/packets/auction.md */
 public final class AuctionHandler {
     private AuctionHandler() {}
+
+    public static void sendHello(Creature c, BiConsumer<Integer, byte[]> send) {
+        WowBuffer out = new WowBuffer(12);
+        out.putU64(c.guid);
+        out.putU32(Content.AUCTION_HOUSE_HUMAN);
+        send.accept(Opcodes.MSG_AUCTION_HELLO, out.array());
+    }
 
     public static void listItems(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
@@ -43,6 +51,14 @@ public final class AuctionHandler {
         out.putU32(hits.size());
         out.putU32(Content.AUCTION_LIST_DELAY_MS);
         s.send(Opcodes.SMSG_AUCTION_LIST_RESULT, out.array());
+    }
+
+    /** CMaNGOS AuctionHouseObject::Update. world-loop.md WUPDATE_AUCTIONS. */
+    public static void expire(World world) {
+        if (world == null || world.objectMgr == null) {
+            return;
+        }
+        world.objectMgr.auctions.removeIf(a -> a.timeLeftMs() <= 0);
     }
 
     static void putRow(WowBuffer out, ObjectMgr.Auction a) {

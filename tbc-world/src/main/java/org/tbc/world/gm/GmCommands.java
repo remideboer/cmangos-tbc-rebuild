@@ -90,7 +90,7 @@ public final class GmCommands {
             }
             case "revive" -> {
                 p.setHealth(p.maxHealth() == 0 ? 50 : p.maxHealth());
-                p.ghost = false;
+                p.setGhost(false);
                 yield "Revived.";
             }
             case "appear" -> {

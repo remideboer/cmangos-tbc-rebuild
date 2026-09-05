@@ -9,12 +9,44 @@ import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.world.World;
 
-/** CMSG_ACTIVATETAXI. Spline: spec/03-protocol/packets/taxi.md */
+import java.util.function.BiConsumer;
+
+/** CMSG_ACTIVATETAXI / SMSG_SHOWTAXINODES. Layout: spec/03-protocol/packets/taxi.md */
 public final class TaxiHandler {
     public static final int MONSTER_MOVE_NORMAL = 0;
+    public static final int MONSTER_MOVE_FACING_SPOT = 2;
+    public static final int MONSTER_MOVE_FACING_TARGET = 3;
+    public static final int MONSTER_MOVE_FACING_ANGLE = 4;
     public static final int SPLINE_FLAG_RUNMODE = 0x00000100;
+    /** taxi.md TaxiMaskSize. */
+    public static final int TAXI_MASK_SIZE = 16;
 
     private TaxiHandler() {}
+
+    public static void sendMenu(Player p, Creature c, ObjectMgr mgr, BiConsumer<Integer, byte[]> send) {
+        byte[] payload = encodeMenu(p, c, mgr);
+        if (payload != null) {
+            send.accept(Opcodes.SMSG_SHOWTAXINODES, payload);
+        }
+    }
+
+    static byte[] encodeMenu(Player p, Creature c, ObjectMgr mgr) {
+        if ((c.npcFlags & Content.UNIT_NPC_FLAG_FLIGHTMASTER) == 0) {
+            return null;
+        }
+        int curloc = mgr.nearestTaxiNode(c.x, c.y, c.z, c.mapId, p.team);
+        if (curloc == 0) {
+            return null;
+        }
+        WowBuffer b = new WowBuffer(16 + TAXI_MASK_SIZE * 4);
+        b.putU32(1);
+        b.putU64(c.guid);
+        b.putU32(curloc);
+        for (int i = 0; i < TAXI_MASK_SIZE; i++) {
+            b.putU32(p.taxiMask[i]);
+        }
+        return b.array();
+    }
 
     public static void activate(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();

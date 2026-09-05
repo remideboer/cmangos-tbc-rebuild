@@ -14,6 +14,7 @@ import org.tbc.world.ai.FactorySelector;
 import org.tbc.world.ai.MotionMaster;
 import org.tbc.world.ai.ScriptedCreatureAI;
 import org.tbc.world.combat.Combat;
+import org.tbc.world.combat.Factions;
 import org.tbc.world.combat.MeleeTable;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
@@ -23,7 +24,9 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.gm.GmCommands;
 import org.tbc.world.map.GameMap;
+import org.tbc.world.map.GraveyardManager;
 import org.tbc.world.map.LineOfSight;
+import org.tbc.world.map.Terrain;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -33,6 +36,8 @@ import org.tbc.world.pvp.AvBattlefield;
 import org.tbc.world.pvp.EyBattlefield;
 import org.tbc.world.pvp.OutdoorPvp;
 import org.tbc.world.script.ScriptRegistry;
+import org.tbc.world.session.AuctionHandler;
+import org.tbc.world.session.WeatherHandler;
 import org.tbc.world.session.WorldSession;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.spell.SpellEngine;
@@ -43,10 +48,12 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class World implements Runnable {
@@ -64,12 +71,16 @@ public final class World implements Runnable {
     public final ScriptRegistry scripts = new ScriptRegistry();
     public final SpellEngine spells;
     public final Combat combat = new Combat();
+    public final Factions factions;
     public final GmCommands gm;
     public final AbBattlefield ab = new AbBattlefield();
     public final AvBattlefield av = new AvBattlefield();
     public final EyBattlefield ey = new EyBattlefield();
     public final OutdoorPvp outdoorPvp = new OutdoorPvp();
     public final GameEventMgr events = new GameEventMgr();
+    public final WorldTimers timers = new WorldTimers();
+    public final Terrain terrain;
+    public final GraveyardManager graveyards;
     public final String motd;
     public final int realmId;
     public final int instantLogout;
@@ -95,7 +106,13 @@ public final class World implements Runnable {
         this.characters = new CharacterStore(charsDb);
         this.characters.clearOnline();
         Path dataDir = conf == null ? null : Path.of(conf.get("DataDir", "."));
+        this.terrain = Terrain.fromDataDir(dataDir);
+        this.graveyards = GraveyardManager.seeded();
         this.objectMgr.load(worldDb, scripts, dataDir);
+        this.factions = Factions.seeded();
+        this.factions.loadFromDataDir(dataDir);
+        this.objectMgr.factions = this.factions;
+        this.graveyards.load(worldDb);
         this.gm = new GmCommands(conf == null || conf.getBool("GM.LowerSecurity", true));
         this.motd = conf == null ? "Welcome to the 8606 rebuild." : conf.get("Motd", "Welcome to the 8606 rebuild.");
         this.realmId = conf == null ? 1 : conf.getInt("RealmID", 1);
@@ -162,6 +179,31 @@ public final class World implements Runnable {
         return nowMs.get();
     }
 
+    /**
+     * Player.cpp first save jitter: urand(interval/2, interval*3/2).
+     * {@code roll} selects a delay in that inclusive range (CMaNGOS {@code urand}).
+     */
+    public static int jitteredFirstSaveMs(int intervalMs, int roll) {
+        if (intervalMs <= 0) {
+            return 0;
+        }
+        int lo = intervalMs / 2;
+        int hi = (int) (intervalMs * 3L / 2);
+        if (hi <= lo) {
+            return lo;
+        }
+        int span = hi - lo + 1;
+        int u = roll % span;
+        if (u < 0) {
+            u += span;
+        }
+        return lo + u;
+    }
+
+    public int jitteredFirstSaveMs() {
+        return jitteredFirstSaveMs(saveIntervalMs, ThreadLocalRandom.current().nextInt());
+    }
+
     /** Test / domain clock advance (logout delay, BG capture timers). */
     public void advanceMs(long deltaMs) {
         nowMs.addAndGet(deltaMs);
@@ -170,6 +212,10 @@ public final class World implements Runnable {
     public GameMap map(int mapId, int instanceId) {
         int key = mapId * 1_000_000 + instanceId;
         return maps.computeIfAbsent(key, k -> new GameMap(mapId, instanceId));
+    }
+
+    public Collection<GameMap> maps() {
+        return maps.values();
     }
 
     public void addSession(WorldSession s) {
@@ -264,12 +310,28 @@ public final class World implements Runnable {
     }
 
     public void teleport(Player p, int mapId, float x, float y, float z, float o) {
-        if (p.session != null) {
-            if (p.mapId != mapId) {
-                WowBuffer pending = new WowBuffer(4);
-                pending.putU32(mapId);
-                p.session.send(Opcodes.SMSG_TRANSFER_PENDING, pending.array());
+        if (p.mapId == mapId) {
+            p.relocate(x, y, z, o);
+            if (p.session != null) {
+                WowBuffer ack = new WowBuffer(64);
+                ack.putPackedGuid(p.guid);
+                ack.putU32(p.session.nextMoveOrder());
+                p.movement.write(ack, false, p.guid, (int) nowMs());
+                p.session.send(Opcodes.MSG_MOVE_TELEPORT_ACK, ack.array());
+                WowBuffer obs = new WowBuffer(64);
+                p.movement.write(obs, true, p.guid, (int) nowMs());
+                for (Player other : map(p.mapId, p.instanceId).nearbyPlayers(p, GameMap.VISIBILITY)) {
+                    if (other.session != null) {
+                        other.session.send(Opcodes.MSG_MOVE_TELEPORT, obs.array());
+                    }
+                }
             }
+            return;
+        }
+        if (p.session != null) {
+            WowBuffer pending = new WowBuffer(4);
+            pending.putU32(mapId);
+            p.session.send(Opcodes.SMSG_TRANSFER_PENDING, pending.array());
             WowBuffer nw = new WowBuffer(20);
             nw.putU32(mapId);
             nw.putFloat(x);
@@ -327,8 +389,39 @@ public final class World implements Runnable {
             }
         }
         if (!c.alive()) {
+            objectMgr.fillCorpseLoot(c);
             hitMap.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, c.entry, c, p,
                     (src, tgt, spell) -> sendDbScriptCast(hitMap, src, tgt, spell));
+        }
+    }
+
+    /** CMaNGOS AttackStart + SMSG_ATTACKSTART to nearby (combat-log.md). */
+    public void engage(Creature c, Player p) {
+        if (c == null || p == null || !c.alive() || !p.alive()) {
+            return;
+        }
+        boolean fresh = !c.inCombat;
+        combat.startAttack(p, c, nowMs());
+        if (!fresh) {
+            return;
+        }
+        GameMap m = map(p.mapId, p.instanceId);
+        if (c.eventAi != null) {
+            c.eventAi.onAggro(c, p, (cr, t, spell) -> sendEventAiCast(m, cr, t, spell));
+        }
+        if (c.script != null) {
+            c.script.aggro();
+        }
+        byte[] you = combat.encodeAttackStart(p.guid, c.guid);
+        byte[] them = combat.encodeAttackStart(c.guid, p.guid);
+        var vis = UpdateBuilder.maybeCompress(UpdateBuilder.values(c,
+                UpdateFields.UNIT_FIELD_TARGET, UpdateFields.UNIT_FIELD_TARGET + 1, UpdateFields.UNIT_FIELD_FLAGS));
+        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+            if (pl.session != null) {
+                pl.session.send(Opcodes.SMSG_ATTACKSTART, you);
+                pl.session.send(Opcodes.SMSG_ATTACKSTART, them);
+                pl.session.send(vis.opcode(), vis.payload());
+            }
         }
     }
 
@@ -355,7 +448,7 @@ public final class World implements Runnable {
         }
         int swing = c.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
         c.meleeCooldownMs = swing > 0 ? swing : 2000;
-        if (c.distance2d(victim) > Combat.meleeRange(c)) {
+        if (c.distance2d(victim) > Combat.meleeRange(c, victim, Combat.meleeLeeway(c, victim))) {
             return;
         }
         creatureMeleeHit(c, victim);
@@ -363,6 +456,11 @@ public final class World implements Runnable {
 
     public void tick(int diff) {
         nowMs.set(System.currentTimeMillis());
+        timers.advance(diff);
+        if (timers.passed(WorldTimers.AUCTIONS)) {
+            timers.reset(WorldTimers.AUCTIONS);
+            AuctionHandler.expire(this);
+        }
         WorldSession add;
         while ((add = addQueue.poll()) != null) {
             sessions.put(add.id(), add);
@@ -371,30 +469,58 @@ public final class World implements Runnable {
             s.processQueue(this);
             s.tick(this, diff);
         }
+        if (timers.weatherPassed()) {
+            timers.resetWeather();
+            WeatherHandler.onTimer(this);
+        }
         for (GameMap m : maps.values()) {
             for (Creature c : m.creatures.values()) {
-                if (!c.inCombat && c.script == null && c.eventAi == null
-                        && c.motion.type() != MotionMaster.RANDOM) {
+                if (!c.alive()) {
+                    if (c.respawnAtMs > 0 && nowMs() >= c.respawnAtMs) {
+                        combat.respawn(c);
+                        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+                            if (pl.session != null) {
+                                var hp = UpdateBuilder.maybeCompress(
+                                        UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
+                                pl.session.send(hp.opcode(), hp.payload());
+                            }
+                        }
+                    }
+                    continue;
+                }
+                if (!c.inCombat && !c.evading && c.script == null && c.eventAi == null
+                        && c.motion.type() != MotionMaster.RANDOM && c.motion.type() != MotionMaster.HOME
+                        && (c.ai == null || !c.ai.aggroOnSight())) {
                     continue;
                 }
                 EventAi.SpellCast sink = (cr, t, spell) -> sendEventAiCast(m, cr, t, spell);
+                if (!c.inCombat && c.ai != null) {
+                    c.ai.updateOoc(c, m.nearbyPlayers(c, GameMap.VISIBILITY), factions, LineOfSight::clear,
+                            pl -> engage(c, pl));
+                }
                 if (c.inCombat) {
-                    Player victim = m.players.get(c.victim);
-                    if (combat.shouldEvade(c, victim, nowMs())) {
+                    Player leashVictim = m.players.get(c.victim);
+                    if (combat.shouldEvade(c, leashVictim, nowMs())) {
                         combat.evade(c, sink);
-                        c.startOocMotion();
+                        if (!c.evading) {
+                            c.startOocMotion();
+                        }
                     }
                 }
                 Player victim = m.players.get(c.victim);
                 if (c.ai != null) {
                     c.ai.update(c, victim, diff, sink, () -> {
                         combat.evade(c, sink);
-                        c.startOocMotion();
+                        if (!c.evading) {
+                            c.startOocMotion();
+                        }
                     });
                 } else if (c.eventAi != null) {
                     c.eventAi.update(c, victim, diff, sink, () -> {
                         combat.evade(c, sink);
-                        c.startOocMotion();
+                        if (!c.evading) {
+                            c.startOocMotion();
+                        }
                     });
                 }
                 if (c.script != null && c.inCombat && !(c.ai instanceof ScriptedCreatureAI)) {
@@ -405,14 +531,21 @@ public final class World implements Runnable {
                         }
                     });
                 }
-                if (c.inCombat || c.motion.type() == MotionMaster.RANDOM) {
-                    byte[] spline = c.motion.update(c, diff);
+                if (c.inCombat || c.motion.type() == MotionMaster.RANDOM || c.motion.type() == MotionMaster.HOME) {
+                    float ox = c.x;
+                    float oy = c.y;
+                    byte[] spline = c.motion.update(c, diff, terrain.asHeight());
+                    m.reindex(c, ox, oy);
                     if (spline != null) {
                         for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
                             if (pl.session != null) {
                                 pl.session.send(Opcodes.SMSG_MONSTER_MOVE, spline);
                             }
                         }
+                    }
+                    if (c.motion.homeArrived(c)) {
+                        combat.finishEvade(c, sink);
+                        c.startOocMotion();
                     }
                 }
                 if (c.inCombat) {
@@ -427,6 +560,11 @@ public final class World implements Runnable {
                 }
             }
             m.dbScripts.process(diff, (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
+        }
+        if (timers.passed(WorldTimers.EVENTS)) {
+            int next = events.update(this, nowMs());
+            timers.setInterval(WorldTimers.EVENTS, next);
+            timers.reset(WorldTimers.EVENTS);
         }
     }
 
@@ -462,13 +600,26 @@ public final class World implements Runnable {
 
     private void sendEventAiCast(GameMap m, Creature cr, Unit t, int spell) {
         SpellCastTargets tgt = new SpellCastTargets();
-        long hit = t == null ? cr.guid : t.guid;
+        Unit target = t == null ? cr : t;
+        long hit = target.guid;
         byte[] start = spells.encodeStart(cr.guid, spell, 1, tgt);
+        SpellEngine.SpellInfo info = spells.info(spell);
+        int dmg = 0;
+        if (info != null) {
+            dmg = spells.apply(cr, target, info);
+        }
         byte[] go = spells.encodeGo(cr.guid, hit, spell, nowMs(), tgt);
         for (Player pl : m.players.values()) {
             if (pl.session != null) {
                 pl.session.send(Opcodes.SMSG_SPELL_START, start);
                 pl.session.send(Opcodes.SMSG_SPELL_GO, go);
+                if (dmg > 0) {
+                    pl.session.send(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG,
+                            spells.encodeDamageLog(hit, cr.guid, info, dmg));
+                    var hp = UpdateBuilder.maybeCompress(
+                            UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
+                    pl.session.send(hp.opcode(), hp.payload());
+                }
             }
         }
     }

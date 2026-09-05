@@ -6,4 +6,9 @@ public final class PetAI implements UnitAI {
     public String aiName() {
         return "PetAI";
     }
+
+    @Override
+    public boolean aggroOnSight() {
+        return false;
+    }
 }

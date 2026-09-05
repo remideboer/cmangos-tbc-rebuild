@@ -44,6 +44,12 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_LOGOUT_REQUEST, new byte[0]);
     }
 
+    /** TCP close analogue — logout.md SetOffline, not CMSG_LOGOUT_REQUEST. */
+    public void disconnect(World world) {
+        session.markSocketClosed();
+        session.tick(world, 0);
+    }
+
     /** CMSG_PLAYER_LOGOUT — logout.md: intentional no-op (not a LOGOUT_REQUEST substitute). */
     public void playerLogout(World world) {
         handle(world, Opcodes.CMSG_PLAYER_LOGOUT, new byte[0]);
@@ -59,6 +65,27 @@ public final class WowClientDouble implements PacketSink {
         WowBuffer g = new WowBuffer(8);
         g.putU64(guid);
         handle(world, Opcodes.CMSG_GOSSIP_HELLO, g.array());
+    }
+
+    public void gossipSelect(World world, long guid, int menuId, int gossipListId) {
+        WowBuffer b = new WowBuffer(16);
+        b.putU64(guid);
+        b.putU32(menuId);
+        b.putU32(gossipListId);
+        handle(world, Opcodes.CMSG_GOSSIP_SELECT_OPTION, b.array());
+    }
+
+    public void binderActivate(World world, long guid) {
+        WowBuffer b = new WowBuffer(8);
+        b.putU64(guid);
+        handle(world, Opcodes.CMSG_BINDER_ACTIVATE, b.array());
+    }
+
+    public void npcTextQuery(World world, int textId, long guid) {
+        WowBuffer b = new WowBuffer(12);
+        b.putU32(textId);
+        b.putU64(guid);
+        handle(world, Opcodes.CMSG_NPC_TEXT_QUERY, b.array());
     }
 
     public void listInventory(World world, long guid) {
@@ -159,6 +186,16 @@ public final class WowClientDouble implements PacketSink {
         WowBuffer g = new WowBuffer(8);
         g.putU64(guid);
         handle(world, Opcodes.CMSG_LOOT_RELEASE, g.array());
+    }
+
+    public void autostoreLootItem(World world, int lootSlot) {
+        WowBuffer g = new WowBuffer(1);
+        g.putU8(lootSlot);
+        handle(world, Opcodes.CMSG_AUTOSTORE_LOOT_ITEM, g.array());
+    }
+
+    public void lootMoney(World world) {
+        handle(world, Opcodes.CMSG_LOOT_MONEY, new byte[0]);
     }
 
     public void castSpell(World world, int spellId, int castCount, long targetGuid) {

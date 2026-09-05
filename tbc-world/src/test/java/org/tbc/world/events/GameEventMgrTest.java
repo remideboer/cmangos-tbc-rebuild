@@ -203,6 +203,38 @@ class GameEventMgrTest {
         }
     }
 
+    @Test
+    void updateWhenDueShouldStartMidsummer() {
+        World world = World.inMemory();
+        world.events.schedule(Content.GAME_EVENT_MIDSUMMER, 0, Long.MAX_VALUE);
+        world.events.update(world, 1);
+        assertNotNull(find(world, Content.NPC_LUMA_SKYMOTHER));
+    }
+
+    @Test
+    void updateWhenNotDueShouldStopMidsummer() {
+        World world = World.inMemory();
+        world.events.schedule(Content.GAME_EVENT_MIDSUMMER, 0, Long.MAX_VALUE);
+        world.events.update(world, 1);
+        assertNotNull(find(world, Content.NPC_LUMA_SKYMOTHER));
+        world.events.schedule(Content.GAME_EVENT_MIDSUMMER, 10, 20);
+        world.events.update(world, 1);
+        assertNull(find(world, Content.NPC_LUMA_SKYMOTHER));
+    }
+
+    @Test
+    void scheduleWhenEventIdZeroShouldIgnore() {
+        World world = World.inMemory();
+        world.events.schedule(0, 0, Long.MAX_VALUE);
+        world.events.update(world, 1);
+        assertNull(find(world, Content.NPC_LUMA_SKYMOTHER));
+    }
+
+    @Test
+    void updateWhenWorldNullShouldReturnMinute() {
+        assertEquals(60_000, new GameEventMgr().update(null, 0));
+    }
+
     private static Creature find(World world, int entry) {
         return find(world, 547, entry);
     }

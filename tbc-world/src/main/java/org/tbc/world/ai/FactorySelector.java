@@ -10,6 +10,7 @@ import org.tbc.world.script.ScriptRegistry;
 public final class FactorySelector {
     static final int PERMIT_BASE_NO = -1;
     static final int PERMIT_BASE_IDLE = 1;
+    static final int PERMIT_BASE_REACTIVE = 100;
     static final int PERMIT_BASE_PROACTIVE = 200;
     static final int PERMIT_BASE_SPECIAL = 800;
 
@@ -115,6 +116,10 @@ public final class FactorySelector {
     private static int permitEventAi(Creature creature) {
         if ("EventAI".equals(creature.aiName)) {
             return PERMIT_BASE_SPECIAL;
+        }
+        if ((creature.extraFlags & Creature.CREATURE_EXTRA_FLAG_NO_AGGRO_ON_SIGHT) != 0
+                || creature.neutralToAll) {
+            return PERMIT_BASE_REACTIVE;
         }
         return PERMIT_BASE_PROACTIVE;
     }

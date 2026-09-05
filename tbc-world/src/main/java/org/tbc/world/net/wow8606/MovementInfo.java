@@ -4,6 +4,11 @@ import org.tbc.common.WowBuffer;
 
 /** spec/03-protocol/packets/movement.md — fallTime is always present. */
 public final class MovementInfo {
+    public static final int MOVEFLAG_FORWARD = 0x00000001;
+    public static final int MOVEFLAG_BACKWARD = 0x00000002;
+    public static final int MOVEFLAG_STRAFE_LEFT = 0x00000004;
+    public static final int MOVEFLAG_STRAFE_RIGHT = 0x00000008;
+    public static final int MOVEFLAG_WALK_MODE = 0x00000100;
     public static final int MOVEFLAG_ONTRANSPORT = 0x00000200;
     public static final int MOVEFLAG_FALLING = 0x00001000;
     public static final int MOVEFLAG_FALLINGFAR = 0x00004000;

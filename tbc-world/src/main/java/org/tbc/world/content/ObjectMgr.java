@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.tbc.common.DbPool;
 import org.tbc.world.ai.DbScriptStore;
 import org.tbc.world.ai.EventAiStore;
+import org.tbc.world.combat.Factions;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Guid;
@@ -28,6 +29,28 @@ import java.util.function.LongSupplier;
 /** ObjectMgr: playercreateinfo, creatures, gossip, quests from tbc-db. */
 public final class ObjectMgr {
     private static final Logger log = LoggerFactory.getLogger(ObjectMgr.class);
+    private static final int GOSSIP_MAX_MENU_ITEMS = 32;
+    /** GridDefines.h MAP_HALFSIZE = SIZE_OF_GRIDS * MAX_NUMBER_OF_GRIDS / 2. */
+    private static final float MAP_HALFSIZE = 533.33333f * 64 / 2;
+    private static final int GOSSIP_OPTION_GOSSIP = 1;
+    private static final int GOSSIP_OPTION_QUESTGIVER = 2;
+    private static final int GOSSIP_OPTION_VENDOR = 3;
+    private static final int GOSSIP_OPTION_TAXIVENDOR = 4;
+    private static final int GOSSIP_OPTION_TRAINER = 5;
+    private static final int GOSSIP_OPTION_SPIRITHEALER = 6;
+    private static final int GOSSIP_OPTION_SPIRITGUIDE = 7;
+    private static final int GOSSIP_OPTION_INNKEEPER = 8;
+    private static final int GOSSIP_OPTION_BANKER = 9;
+    private static final int GOSSIP_OPTION_PETITIONER = 10;
+    private static final int GOSSIP_OPTION_TABARDDESIGNER = 11;
+    private static final int GOSSIP_OPTION_BATTLEFIELD = 12;
+    private static final int GOSSIP_OPTION_AUCTIONEER = 13;
+    private static final int GOSSIP_OPTION_STABLEPET = 14;
+    private static final int GOSSIP_OPTION_ARMORER = 15;
+    private static final int GOSSIP_OPTION_UNLEARNTALENTS = 16;
+    private static final int GOSSIP_OPTION_UNLEARNPETSKILLS = 17;
+    private static final int GOSSIP_OPTION_BOT = 99;
+    private static final int CLASS_HUNTER = 3;
 
     public record CreateInfo(int race, int clazz, int map, int zone, float x, float y, float z, float o) {}
     public record CreateItem(int itemId, int amount) {}
@@ -37,11 +60,24 @@ public final class ObjectMgr {
                                    String scriptName, String gossip, int trainerType,
                                    String subName, String iconName, int display2, int display3, int display4,
                                    int typeFlags, int type, int family, int rank, int petSpellDataId,
-                                   float healthMultiplier, float powerMultiplier, int racialLeader) {
+                                   float healthMultiplier, float powerMultiplier, int racialLeader,
+                                   String aiName, int extraFlags, float minMeleeDmg, float maxMeleeDmg,
+                                   int meleeAttackTime, float combatReach, int lootId, int minLootGold, int maxLootGold) {
         public CreatureTemplate(int entry, String name, int display, int faction, int hp, int level, int npcFlags,
                                 String scriptName, String gossip, int trainerType) {
             this(entry, name, display, faction, hp, level, npcFlags, scriptName, gossip, trainerType,
                     "", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0);
+        }
+
+        public CreatureTemplate(int entry, String name, int display, int faction, int hp, int level, int npcFlags,
+                                String scriptName, String gossip, int trainerType,
+                                String subName, String iconName, int display2, int display3, int display4,
+                                int typeFlags, int type, int family, int rank, int petSpellDataId,
+                                float healthMultiplier, float powerMultiplier, int racialLeader) {
+            this(entry, name, display, faction, hp, level, npcFlags, scriptName, gossip, trainerType,
+                    subName, iconName, display2, display3, display4, typeFlags, type, family, rank, petSpellDataId,
+                    healthMultiplier, powerMultiplier, racialLeader,
+                    "", 0, 1f, 3f, 2000, 1.5f, 0, 0, 0);
         }
     }
 
@@ -50,8 +86,48 @@ public final class ObjectMgr {
             this(id, title, minLevel, type, 0, "", "");
         }
     }
-    public record GossipOption(int menuId, int id, String text, int npcOption) {}
+    public record GossipMenuItem(int menuId, int id, int icon, String text, int optionId, int npcFlag,
+                                 int coded, int boxMoney, String boxText, int actionMenu, int actionPoi,
+                                 int conditionId) {
+        public GossipMenuItem(int menuId, int id, int icon, String text, int optionId, int npcFlag,
+                              int coded, int boxMoney, String boxText, int actionMenu) {
+            this(menuId, id, icon, text, optionId, npcFlag, coded, boxMoney, boxText, actionMenu, 0, 0);
+        }
+
+        public GossipMenuItem(int menuId, int id, int icon, String text, int optionId, int npcFlag,
+                              int coded, int boxMoney, String boxText, int actionMenu, int actionPoi) {
+            this(menuId, id, icon, text, optionId, npcFlag, coded, boxMoney, boxText, actionMenu, actionPoi, 0);
+        }
+    }
+    /** points_of_interest; ObjectMgr.cpp LoadPointsOfInterest. */
+    public record PointOfInterest(int entry, float x, float y, int icon, int flags, int data, String iconName) {
+        public PointOfInterest {
+            iconName = iconName == null ? "" : iconName;
+        }
+    }
+    /** locales_points_of_interest entry 1; classic/TBC dump row (Lion's Pride Inn). */
+    public static PointOfInterest lionsPrideInnPoi() {
+        return new PointOfInterest(1, -9459f, 42.0805f, 7, 99, 0, "Lion's Pride Inn");
+    }
     public record PageText(int id, String text, int nextPage) {}
+    public record NpcTextSlot(float probability, String text0, String text1, int language, int[] emotes) {
+        public NpcTextSlot {
+            text0 = text0 == null ? "" : text0;
+            text1 = text1 == null ? "" : text1;
+            emotes = emotes == null || emotes.length != 6 ? new int[6] : emotes;
+        }
+    }
+    public record NpcText(int id, NpcTextSlot[] slots) {
+        public NpcText {
+            NpcTextSlot[] eight = new NpcTextSlot[Content.MAX_GOSSIP_TEXT_OPTIONS];
+            for (int i = 0; i < eight.length; i++) {
+                eight[i] = slots != null && i < slots.length && slots[i] != null
+                        ? slots[i] : new NpcTextSlot(0f, "", "", 0, new int[6]);
+            }
+            slots = eight;
+        }
+    }
+    public record LootRow(int item, float chance, int minCount, int maxCount) {}
 
     public static final class GameObjectTemplate {
         public final int entry;
@@ -185,10 +261,14 @@ public final class ObjectMgr {
     public final List<CreateSkill> createSkills = new ArrayList<>();
     public final Map<Integer, List<Integer>> startOutfit = new HashMap<>();
     public final Map<Integer, CreatureTemplate> creatures = new HashMap<>();
+    public Factions factions;
+    public final Map<Integer, List<LootRow>> creatureLoot = new HashMap<>();
+    public final Map<Integer, Float> modelCombatReach = new HashMap<>();
     public final Map<Integer, QuestTemplate> quests = new HashMap<>();
     public final Map<Integer, ItemTemplate> items = new HashMap<>();
     public final Map<Integer, GameObjectTemplate> gameObjects = new HashMap<>();
     public final Map<Integer, PageText> pageTexts = new HashMap<>();
+    public final Map<Integer, NpcText> npcTexts = new HashMap<>();
     public final List<Spawn> spawns = new ArrayList<>();
     public final List<Spawn> goSpawns = new ArrayList<>();
     public final Map<Integer, List<Spawn>> eventCreatures = new HashMap<>();
@@ -196,14 +276,21 @@ public final class ObjectMgr {
     public record AreaTrigger(int id, int map, float x, float y, float z, float o) {}
     public final Map<Integer, AreaTrigger> areaTriggers = new HashMap<>();
     public final Map<Integer, List<Integer>> vendorItems = new HashMap<>();
+    public final Map<Integer, Integer> gossipMenuIds = new HashMap<>();
+    public final Map<Integer, Integer> gossipTextIds = new HashMap<>();
+    public final Map<Integer, List<GossipMenuItem>> gossipOptions = new HashMap<>();
+    public final Map<Integer, PointOfInterest> pointsOfInterest = new HashMap<>();
     public final Map<Integer, List<Integer>> questGivers = new HashMap<>();
     public final Map<Integer, List<Integer>> questInvolved = new HashMap<>();
     public record TrainerSpell(int spell, int cost, int reqLevel) {}
     public record TaxiHop(int from, int to, int cost, float x, float y, float z) {}
+    /** TaxiNodes.dbc row used by GetNearestTaxiNode. Mount flags = MountCreatureID != 0. */
+    public record TaxiNode(int id, int mapId, float x, float y, float z, boolean alliance, boolean horde) {}
     public record ZoneWeather(int zone, int state, float grade) {}
     public record Auction(int id, int itemEntry, long owner, int startBid, int buyout, int timeLeftMs, String name) {}
     public final Map<Integer, List<TrainerSpell>> trainerSpells = new HashMap<>();
     public final Map<Integer, Integer> trainerClass = new HashMap<>();
+    public final Map<Integer, TaxiNode> taxiNodes = new HashMap<>();
     public final Map<Long, TaxiHop> taxiPaths = new HashMap<>();
     public final Map<Integer, ZoneWeather> weather = new HashMap<>();
     public final List<Auction> auctions = new ArrayList<>();
@@ -235,6 +322,8 @@ public final class ObjectMgr {
                 log.warn("playercreateinfo load failed: {}", e.getMessage());
             }
             loadCreatures(c);
+            loadModelInfo(c);
+            loadCreatureLoot(c);
             eventAiStore.load(c);
             dbScriptStore.load(c);
             try {
@@ -260,6 +349,12 @@ public final class ObjectMgr {
             loadQuests(c);
             loadAreaTriggers(c);
             loadItems(c);
+            loadNpcVendors(c);
+            try {
+                loadGossip(c);
+            } catch (Exception e) {
+                log.debug("gossip load skipped: {}", e.getMessage());
+            }
             loadGameObjects(c);
             loadPageTexts(c);
             try {
@@ -342,11 +437,31 @@ public final class ObjectMgr {
 
     private void loadCreatures(Connection c) {
         if (loadCreaturesSql(c,
+                "SELECT Entry, Name, SubName, IconName, DisplayId1, DisplayId2, DisplayId3, DisplayId4, "
+                        + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
+                        + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName, "
+                        + "AIName, ExtraFlags, MinMeleeDmg, MaxMeleeDmg, MeleeBaseAttackTime, LootId, MinLootGold, MaxLootGold "
+                        + "FROM creature_template LIMIT 50000",
+                true, true)) {
+            log.info("loaded {} creature_template rows", creatures.size());
+            return;
+        }
+        if (loadCreaturesSql(c,
+                "SELECT Entry, Name, SubName, IconName, ModelId1, ModelId2, ModelId3, ModelId4, "
+                        + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
+                        + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName, "
+                        + "AIName, ExtraFlags, MinMeleeDmg, MaxMeleeDmg, MeleeBaseAttackTime, LootId, MinLootGold, MaxLootGold "
+                        + "FROM creature_template LIMIT 50000",
+                true, true)) {
+            log.info("loaded {} creature_template rows", creatures.size());
+            return;
+        }
+        if (loadCreaturesSql(c,
                 "SELECT Entry, Name, SubName, IconName, ModelId1, ModelId2, ModelId3, ModelId4, "
                         + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
                         + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName "
                         + "FROM creature_template LIMIT 50000",
-                true)) {
+                true, false)) {
             log.info("loaded {} creature_template rows", creatures.size());
             return;
         }
@@ -355,7 +470,7 @@ public final class ObjectMgr {
                         + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
                         + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName "
                         + "FROM creature_template LIMIT 50000",
-                true)) {
+                true, false)) {
             log.info("loaded {} creature_template rows", creatures.size());
             return;
         }
@@ -380,12 +495,21 @@ public final class ObjectMgr {
         log.warn("creature_template column mismatch, using seed templates");
     }
 
-    private boolean loadCreaturesSql(Connection c, String sql, boolean full) {
+    private boolean loadCreaturesSql(Connection c, String sql, boolean full, boolean combat) {
         try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 int entry = rs.getInt(1);
                 String name = nz(rs.getString(2));
-                if (full) {
+                if (full && combat) {
+                    creatures.put(entry, new CreatureTemplate(
+                            entry, name, rs.getInt(5), rs.getInt(17), Math.max(1, rs.getInt(18)), rs.getInt(19),
+                            rs.getInt(20), nz(rs.getString(21)), "", 0,
+                            nz(rs.getString(3)), nz(rs.getString(4)), rs.getInt(6), rs.getInt(7), rs.getInt(8),
+                            rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13),
+                            rs.getFloat(14), rs.getFloat(15), rs.getInt(16),
+                            nz(rs.getString(22)), rs.getInt(23), rs.getFloat(24), rs.getFloat(25),
+                            Math.max(1, rs.getInt(26)), 0f, rs.getInt(27), rs.getInt(28), rs.getInt(29)));
+                } else if (full) {
                     creatures.put(entry, new CreatureTemplate(
                             entry, name, rs.getInt(5), rs.getInt(17), Math.max(1, rs.getInt(18)), rs.getInt(19),
                             rs.getInt(20), nz(rs.getString(21)), "", 0,
@@ -401,6 +525,69 @@ public final class ObjectMgr {
             return true;
         } catch (Exception e) {
             log.warn("creature_template query failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private void loadModelInfo(Connection c) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT modelid, combat_reach FROM creature_model_info");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                modelCombatReach.put(rs.getInt(1), rs.getFloat(2));
+            }
+            log.info("loaded {} creature_model_info rows", modelCombatReach.size());
+        } catch (Exception e) {
+            log.debug("creature_model_info load skipped: {}", e.getMessage());
+        }
+    }
+
+    private void loadCreatureLoot(Connection c) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT entry, item, ChanceOrQuestChance, mincountOrRef, maxcount FROM creature_loot_template");
+             ResultSet rs = ps.executeQuery()) {
+            int n = 0;
+            while (rs.next()) {
+                int minCount = rs.getInt(4);
+                float chance = rs.getFloat(3);
+                if (minCount < 0 || chance < 0f) {
+                    continue;
+                }
+                creatureLoot.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>())
+                        .add(new LootRow(rs.getInt(2), chance, minCount, Math.max(minCount, rs.getInt(5))));
+                n++;
+            }
+            log.info("loaded {} creature_loot_template rows", n);
+        } catch (Exception e) {
+            log.debug("creature_loot_template load skipped: {}", e.getMessage());
+        }
+    }
+
+    private void loadNpcVendors(Connection c) {
+        if (loadNpcVendorQuery(c, "SELECT entry, item FROM npc_vendor ORDER BY slot, item")) {
+            return;
+        }
+        loadNpcVendorQuery(c, "SELECT entry, item FROM npc_vendor");
+    }
+
+    private boolean loadNpcVendorQuery(Connection c, String sql) {
+        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            int n = 0;
+            while (rs.next()) {
+                int item = rs.getInt(2);
+                if (item <= 0) {
+                    continue;
+                }
+                List<Integer> stock = vendorItems.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>());
+                if (!stock.contains(item)) {
+                    stock.add(item);
+                }
+                n++;
+            }
+            log.info("loaded {} npc_vendor rows", n);
+            return true;
+        } catch (Exception e) {
+            log.debug("npc_vendor load skipped: {}", e.getMessage());
             return false;
         }
     }
@@ -619,7 +806,7 @@ public final class ObjectMgr {
         createInfo.put(key(1, 1), new CreateInfo(1, 1, 0, 12, -8949.95f, -132.493f, 83.5312f, 0f));
         createInfo.put(key(2, 1), new CreateInfo(2, 1, 1, 14, -618.518f, -4251.67f, 38.718f, 0f));
         createSpells.put((int) key(1, 1), new ArrayList<>(List.of(6603, 78, 81, 107, 196, 203, 204, 522, 668, 2382, 2479, 3050, 3365, 6233, 6246, 6247, 6477, 6478, 7266, 7267, 7355, 8386, 9078, 9125, 20597, 20598, 20599, 20864, 21651, 21652, 22027, 22810)));
-        creatures.put(6, new CreatureTemplate(6, "Kobold Vermin", 10913, 7, 42, 1, 0, "", "", 0));
+        creatures.put(6, seedKoboldVermin());
         creatures.put(103, new CreatureTemplate(103, "Garrick Padfoot", 3734, 21, 80, 5, 0, "", "", 0));
         areaTriggers.put(2230, new AreaTrigger(2230, 389, 0.797643f, -8.23429f, -15.5288f, 0f));
         creatures.put(Content.NPC_CORINA_STEELE, new CreatureTemplate(Content.NPC_CORINA_STEELE, "Corina Steele", 0, 12, 100, 5,
@@ -637,6 +824,8 @@ public final class ObjectMgr {
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1))));
         creatures.put(Content.NPC_DUNGAR_LONGDRINK, new CreatureTemplate(Content.NPC_DUNGAR_LONGDRINK, "Dungar Longdrink", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_FLIGHTMASTER, "", "", 0));
+        creatures.put(Content.NPC_INNKEEPER_FARLEY, new CreatureTemplate(Content.NPC_INNKEEPER_FARLEY, "Innkeeper Farley", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_INNKEEPER, "", "", 0));
         creatures.put(Content.NPC_AUCTIONEER_CHILTON, new CreatureTemplate(Content.NPC_AUCTIONEER_CHILTON, "Auctioneer Chilton", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_AUCTIONEER, "", "", 0));
         creatures.put(Content.NPC_OLIVIA_BURNSIDE, new CreatureTemplate(Content.NPC_OLIVIA_BURNSIDE, "Olivia Burnside", 0, 12, 100, 5,
@@ -646,10 +835,14 @@ public final class ObjectMgr {
         auctions.add(new Auction(1, Content.ITEM_WORN_SHORTSWORD, 0, 100, 0, 43_200_000, "Worn Shortsword"));
         taxiPaths.put(taxiKey(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE),
                 new TaxiHop(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE, 0, -4821.13f, -1152.4f, 502.295f));
+        taxiNodes.put(Content.TAXI_STORMWIND, new TaxiNode(Content.TAXI_STORMWIND, 0,
+                -8835.76f, 490.084f, 109.699f, true, false));
         weather.put(Content.ZONE_ELWYNN, new ZoneWeather(Content.ZONE_ELWYNN, Content.WEATHER_STATE_FINE, 0f));
         quests.put(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
                 0, "Speak with Marshal McBride.", "Speak with Marshal McBride."));
         vendorItems.put(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
+        creatureLoot.computeIfAbsent(6, k -> new ArrayList<>())
+                .add(new LootRow(Content.ITEM_WORN_SHORTSWORD, 100f, 1, 1));
         questGivers.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
         questInvolved.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
         if (spawns.isEmpty()) {
@@ -663,6 +856,7 @@ public final class ObjectMgr {
             spawns.add(new Spawn(8, Content.NPC_DUNGAR_LONGDRINK, 0, -8835.76f, 490.084f, 109.699f, 0f));
             spawns.add(new Spawn(9, Content.NPC_AUCTIONEER_CHILTON, 0, -8912f, -122f, 80f, 0f));
             spawns.add(new Spawn(10, Content.NPC_OLIVIA_BURNSIDE, 0, -8914f, -124f, 80f, 0f));
+            spawns.add(new Spawn(12, Content.NPC_INNKEEPER_FARLEY, 0, -9462.66f, 16.1915f, 57.0459f, 0f));
         }
         if (!eventCreatures.containsKey(Content.GAME_EVENT_MIDSUMMER)) {
             eventCreatures.put(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
@@ -674,13 +868,23 @@ public final class ObjectMgr {
         }
     }
 
+    private static CreatureTemplate seedKoboldVermin() {
+        return new CreatureTemplate(6, "Kobold Vermin", 10913, 7, 42, 1, 0, "", "", 0,
+                "", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0,
+                "", 0, 1f, 3f, 2000, 1.5f, 0, 1, 1);
+    }
+
     private void seedQueryDefaults() {
-        creatures.putIfAbsent(6, new CreatureTemplate(6, "Kobold Vermin", 10913, 7, 42, 1, 0, "", "", 0));
+        creatures.putIfAbsent(6, seedKoboldVermin());
         creatures.putIfAbsent(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         items.putIfAbsent(25, ItemTemplate.wornShortsword());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0));
         vendorItems.putIfAbsent(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
+        creatureLoot.computeIfAbsent(6, k -> new ArrayList<>());
+        if (creatureLoot.get(6).isEmpty()) {
+            creatureLoot.get(6).add(new LootRow(Content.ITEM_WORN_SHORTSWORD, 100f, 1, 1));
+        }
         questGivers.putIfAbsent(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
         questInvolved.putIfAbsent(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
         trainerClass.putIfAbsent(Content.NPC_LLANE_BESHERE, 1);
@@ -688,6 +892,8 @@ public final class ObjectMgr {
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1))));
         creatures.putIfAbsent(Content.NPC_DUNGAR_LONGDRINK, new CreatureTemplate(Content.NPC_DUNGAR_LONGDRINK, "Dungar Longdrink", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_FLIGHTMASTER, "", "", 0));
+        creatures.putIfAbsent(Content.NPC_INNKEEPER_FARLEY, new CreatureTemplate(Content.NPC_INNKEEPER_FARLEY, "Innkeeper Farley", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_INNKEEPER, "", "", 0));
         creatures.putIfAbsent(Content.NPC_AUCTIONEER_CHILTON, new CreatureTemplate(Content.NPC_AUCTIONEER_CHILTON, "Auctioneer Chilton", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_AUCTIONEER, "", "", 0));
         creatures.putIfAbsent(Content.NPC_OLIVIA_BURNSIDE, new CreatureTemplate(Content.NPC_OLIVIA_BURNSIDE, "Olivia Burnside", 0, 12, 100, 5,
@@ -699,15 +905,371 @@ public final class ObjectMgr {
         }
         taxiPaths.putIfAbsent(taxiKey(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE),
                 new TaxiHop(Content.TAXI_STORMWIND, Content.TAXI_IRONFORGE, 0, -4821.13f, -1152.4f, 502.295f));
+        taxiNodes.putIfAbsent(Content.TAXI_STORMWIND, new TaxiNode(Content.TAXI_STORMWIND, 0,
+                -8835.76f, 490.084f, 109.699f, true, false));
         weather.putIfAbsent(Content.ZONE_ELWYNN, new ZoneWeather(Content.ZONE_ELWYNN, Content.WEATHER_STATE_FINE, 0f));
+        pointsOfInterest.putIfAbsent(lionsPrideInnPoi().entry(), lionsPrideInnPoi());
         eventCreatures.putIfAbsent(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
                 new Spawn(11, Content.NPC_LUMA_SKYMOTHER, 547, -92.45719f, -110.6642f, -2.866759f, 2.408554f))));
         eventGameObjects.putIfAbsent(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
                 new Spawn(5470020, Content.GO_ICE_STONE, 547, -69.9045f, -162.245f, -2.36656f, 2.42601f))));
+        seedMenu0();
+        seedFarleyGossip();
     }
 
     public static long taxiKey(int from, int to) {
         return ((long) from << 32) | (to & 0xFFFFFFFFL);
+    }
+
+    /** ObjectMgr.cpp GetNearestTaxiNode. Alliance team 469 uses MountCreatureID[1]. */
+    public int nearestTaxiNode(float x, float y, float z, int mapId, int team) {
+        boolean alliance = team == 469;
+        int id = 0;
+        float best = Float.MAX_VALUE;
+        boolean found = false;
+        for (TaxiNode n : taxiNodes.values()) {
+            if (n.mapId() != mapId) {
+                continue;
+            }
+            if (alliance ? !n.alliance() : !n.horde()) {
+                continue;
+            }
+            float dx = n.x() - x;
+            float dy = n.y() - y;
+            float dz = n.z() - z;
+            float dist2 = dx * dx + dy * dy + dz * dz;
+            if (!found || dist2 < best) {
+                found = true;
+                best = dist2;
+                id = n.id();
+            }
+        }
+        return id;
+    }
+
+    public int gossipMenuId(int entry) {
+        return gossipMenuIds.getOrDefault(entry, 0);
+    }
+
+    public int gossipTextId(int menuId) {
+        if (menuId == 0) {
+            return Content.DEFAULT_GOSSIP_MESSAGE;
+        }
+        return gossipTextIds.getOrDefault(menuId, Content.DEFAULT_GOSSIP_MESSAGE);
+    }
+
+    public List<GossipMenuItem> gossipOptionsFor(Player p, Creature c) {
+        if (c == null) {
+            return List.of();
+        }
+        return gossipOptionsFor(p, c, gossipMenuId(c.entry));
+    }
+
+    public List<GossipMenuItem> gossipOptionsFor(Player p, Creature c, int menuId) {
+        if (c == null) {
+            return List.of();
+        }
+        List<GossipMenuItem> rows = gossipOptions.getOrDefault(menuId, List.of());
+        List<GossipMenuItem> out = new ArrayList<>();
+        for (GossipMenuItem it : rows) {
+            if (includeGossipOption(p, c, it)) {
+                out.add(it);
+                if (out.size() == GOSSIP_MAX_MENU_ITEMS) {
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
+    private boolean includeGossipOption(Player p, Creature c, GossipMenuItem it) {
+        if (it.conditionId() != 0) {
+            return false;
+        }
+        if ((it.npcFlag() & c.npcFlags) == 0) {
+            return false;
+        }
+        return switch (it.optionId()) {
+            case GOSSIP_OPTION_GOSSIP -> true;
+            case GOSSIP_OPTION_QUESTGIVER, GOSSIP_OPTION_ARMORER, GOSSIP_OPTION_BOT,
+                    GOSSIP_OPTION_UNLEARNTALENTS, GOSSIP_OPTION_UNLEARNPETSKILLS,
+                    GOSSIP_OPTION_BATTLEFIELD -> false;
+            case GOSSIP_OPTION_VENDOR -> {
+                List<Integer> stock = vendorItems.get(c.entry);
+                yield stock != null && !stock.isEmpty();
+            }
+            case GOSSIP_OPTION_TRAINER -> isTrainerOf(p, c);
+            case GOSSIP_OPTION_SPIRITHEALER -> p != null && !p.alive();
+            case GOSSIP_OPTION_STABLEPET -> p != null && p.clazz == CLASS_HUNTER;
+            case GOSSIP_OPTION_TAXIVENDOR, GOSSIP_OPTION_SPIRITGUIDE, GOSSIP_OPTION_INNKEEPER,
+                    GOSSIP_OPTION_BANKER, GOSSIP_OPTION_PETITIONER, GOSSIP_OPTION_TABARDDESIGNER,
+                    GOSSIP_OPTION_AUCTIONEER -> true;
+            default -> false;
+        };
+    }
+
+    private boolean isTrainerOf(Player p, Creature c) {
+        if (p == null) {
+            return false;
+        }
+        List<TrainerSpell> spells = trainerSpells.get(c.entry);
+        if (spells == null || spells.isEmpty()) {
+            return false;
+        }
+        int req = trainerClass.getOrDefault(c.entry, 0);
+        CreatureTemplate t = creatures.get(c.entry);
+        int trainerType = t == null ? 0 : t.trainerType();
+        return trainerType != 0 || p.clazz == req;
+    }
+
+    private void seedMenu0() {
+        if (gossipOptions.containsKey(0) && !gossipOptions.get(0).isEmpty()) {
+            return;
+        }
+        List<GossipMenuItem> rows = new ArrayList<>();
+        rows.add(menu0(0, 0, "GOSSIP_OPTION_QUESTGIVER", GOSSIP_OPTION_QUESTGIVER, 2));
+        rows.add(menu0(1, 1, "GOSSIP_OPTION_VENDOR", GOSSIP_OPTION_VENDOR, 128));
+        rows.add(menu0(2, 2, "GOSSIP_OPTION_TAXIVENDOR", GOSSIP_OPTION_TAXIVENDOR, 8192));
+        rows.add(menu0(3, 3, "GOSSIP_OPTION_TRAINER", GOSSIP_OPTION_TRAINER, 16));
+        rows.add(menu0(4, 4, "GOSSIP_OPTION_SPIRITHEALER", GOSSIP_OPTION_SPIRITHEALER, 16384));
+        rows.add(menu0(5, 4, "GOSSIP_OPTION_SPIRITGUIDE", GOSSIP_OPTION_SPIRITGUIDE, 32768));
+        rows.add(menu0(6, 5, "GOSSIP_OPTION_INNKEEPER", GOSSIP_OPTION_INNKEEPER, 65536));
+        rows.add(menu0(7, 6, "GOSSIP_OPTION_BANKER", GOSSIP_OPTION_BANKER, 131072));
+        rows.add(menu0(8, 7, "GOSSIP_OPTION_PETITIONER", GOSSIP_OPTION_PETITIONER, 262144));
+        rows.add(menu0(9, 8, "GOSSIP_OPTION_TABARDDESIGNER", GOSSIP_OPTION_TABARDDESIGNER, 524288));
+        rows.add(menu0(10, 9, "GOSSIP_OPTION_BATTLEFIELD", GOSSIP_OPTION_BATTLEFIELD, 1048576));
+        rows.add(menu0(11, 6, "GOSSIP_OPTION_AUCTIONEER", GOSSIP_OPTION_AUCTIONEER, 2097152));
+        rows.add(menu0(12, 0, "GOSSIP_OPTION_STABLEPET", GOSSIP_OPTION_STABLEPET, 4194304));
+        rows.add(menu0(13, 1, "GOSSIP_OPTION_ARMORER", GOSSIP_OPTION_ARMORER, 4096));
+        rows.add(menu0(14, 0, "GOSSIP_OPTION_UNLEARNTALENTS", GOSSIP_OPTION_UNLEARNTALENTS, 16));
+        rows.add(menu0(15, 2, "GOSSIP_OPTION_UNLEARNPETSKILLS", GOSSIP_OPTION_UNLEARNPETSKILLS, 16));
+        rows.add(menu0(16, 0, "GOSSIP_OPTION_BOT", GOSSIP_OPTION_BOT, 1));
+        gossipOptions.put(0, rows);
+    }
+
+    private static GossipMenuItem menu0(int id, int icon, String text, int optionId, int npcFlag) {
+        return new GossipMenuItem(0, id, icon, text, optionId, npcFlag, 0, 0, "", 0);
+    }
+
+    private void seedFarleyGossip() {
+        gossipMenuIds.putIfAbsent(Content.NPC_INNKEEPER_FARLEY, Content.GOSSIP_MENU_FARLEY);
+        gossipTextIds.putIfAbsent(Content.GOSSIP_MENU_FARLEY, Content.GOSSIP_TEXT_FARLEY);
+        gossipTextIds.putIfAbsent(Content.GOSSIP_MENU_FARLEY_INN_INFO, Content.GOSSIP_TEXT_FARLEY_INN_INFO);
+        if (!gossipOptions.containsKey(Content.GOSSIP_MENU_FARLEY)) {
+            gossipOptions.put(Content.GOSSIP_MENU_FARLEY, new ArrayList<>(List.of(
+                    new GossipMenuItem(Content.GOSSIP_MENU_FARLEY, 1, Content.GOSSIP_ICON_INTERACT_2,
+                            "Make this inn your home.", GOSSIP_OPTION_INNKEEPER, Content.UNIT_NPC_FLAG_INNKEEPER,
+                            0, 0, "", 0),
+                    new GossipMenuItem(Content.GOSSIP_MENU_FARLEY, 3, 0, Content.GOSSIP_FARLEY_INN_INFO,
+                            GOSSIP_OPTION_GOSSIP, Content.UNIT_NPC_FLAG_GOSSIP, 0, 0, "",
+                            Content.GOSSIP_MENU_FARLEY_INN_INFO))));
+        }
+    }
+
+    private void loadGossip(Connection c) {
+        loadPointsOfInterest(c);
+        loadGossipMenus(c);
+        loadGossipOptions(c);
+        loadGossipMenuIds(c);
+        loadNpcTexts(c);
+    }
+
+    private void loadPointsOfInterest(Connection c) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT entry, x, y, icon, flags, data, icon_name FROM points_of_interest");
+             ResultSet rs = ps.executeQuery()) {
+            int n = 0;
+            while (rs.next()) {
+                float x = rs.getFloat(2);
+                float y = rs.getFloat(3);
+                if (!validMapCoord(x, y)) {
+                    log.debug("points_of_interest entry {} invalid coordinates, ignored", rs.getInt(1));
+                    continue;
+                }
+                int entry = rs.getInt(1);
+                pointsOfInterest.put(entry, new PointOfInterest(entry, x, y, rs.getInt(4), rs.getInt(5),
+                        rs.getInt(6), nz(rs.getString(7))));
+                n++;
+            }
+            log.info("loaded {} points_of_interest", n);
+        } catch (Exception e) {
+            log.debug("points_of_interest load skipped: {}", e.getMessage());
+        }
+    }
+
+    /** GridDefines.h MaNGOS::IsValidMapCoord. */
+    static boolean validMapCoord(float x, float y) {
+        return validMapCoord(x) && validMapCoord(y);
+    }
+
+    static boolean validMapCoord(float c) {
+        return Float.isFinite(c) && Math.abs(c) <= MAP_HALFSIZE - 0.5f;
+    }
+
+    private void loadGossipMenus(Connection c) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT entry, text_id, condition_id FROM gossip_menu");
+             ResultSet rs = ps.executeQuery()) {
+            int n = 0;
+            while (rs.next()) {
+                int menuId = rs.getInt(1);
+                int conditionId = rs.getInt(3);
+                if (conditionId != 0) {
+                    continue;
+                }
+                gossipTextIds.putIfAbsent(menuId, rs.getInt(2));
+                n++;
+            }
+            log.info("loaded {} gossip_menu rows", n);
+        } catch (Exception e) {
+            log.debug("gossip_menu load skipped: {}", e.getMessage());
+        }
+    }
+
+    private void loadGossipOptions(Connection c) {
+        if (loadGossipOptionQuery(c,
+                "SELECT menu_id, id, option_icon, option_text, option_id, npc_option_npcflag, "
+                        + "action_menu_id, action_poi_id, box_coded, box_money, box_text, condition_id "
+                        + "FROM gossip_menu_option ORDER BY menu_id, id")) {
+            return;
+        }
+        if (loadGossipOptionQuery(c,
+                "SELECT menu_id, id, option_icon, option_text, option_id, npc_option_npcflag, "
+                        + "action_menu_id, action_poi_id, box_coded, box_money, box_text FROM gossip_menu_option "
+                        + "ORDER BY menu_id, id")) {
+            return;
+        }
+        if (loadGossipOptionQuery(c,
+                "SELECT menu_id, id, option_icon, option_text, option_id, npc_option_npcflag, "
+                        + "action_menu_id, box_coded, box_money, box_text FROM gossip_menu_option "
+                        + "ORDER BY menu_id, id")) {
+            return;
+        }
+        if (loadGossipOptionQuery(c,
+                "SELECT menu_id, id, option_icon, option_text, option_id, npc_option_npcflag, "
+                        + "box_coded, box_money, box_text FROM gossip_menu_option ORDER BY menu_id, id")) {
+            return;
+        }
+        loadGossipOptionQuery(c,
+                "SELECT menu_id, id, option_icon, option_text, option_id, npc_option_npcflag "
+                        + "FROM gossip_menu_option ORDER BY menu_id, id");
+    }
+
+    private boolean loadGossipOptionQuery(Connection c, String sql) {
+        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            boolean action = sql.contains("action_menu_id");
+            boolean poiCol = sql.contains("action_poi_id");
+            boolean boxed = sql.contains("box_coded");
+            boolean condCol = sql.contains("condition_id");
+            int n = 0;
+            while (rs.next()) {
+                int menuId = rs.getInt(1);
+                int actionMenu = 0;
+                int actionPoi = 0;
+                int coded = 0;
+                int boxMoney = 0;
+                String boxText = "";
+                int conditionId = 0;
+                if (action) {
+                    actionMenu = rs.getInt(7);
+                    int col = 8;
+                    if (poiCol) {
+                        actionPoi = rs.getInt(col++);
+                    }
+                    if (boxed) {
+                        coded = rs.getInt(col++);
+                        boxMoney = rs.getInt(col++);
+                        boxText = nz(rs.getString(col++));
+                    }
+                    if (condCol) {
+                        conditionId = rs.getInt(col);
+                    }
+                } else if (boxed) {
+                    coded = rs.getInt(7);
+                    boxMoney = rs.getInt(8);
+                    boxText = nz(rs.getString(9));
+                }
+                if (actionPoi != 0 && !pointsOfInterest.containsKey(actionPoi)) {
+                    actionPoi = 0;
+                }
+                gossipOptions.computeIfAbsent(menuId, k -> new ArrayList<>()).add(new GossipMenuItem(
+                        menuId, rs.getInt(2), rs.getInt(3), nz(rs.getString(4)), rs.getInt(5), rs.getInt(6),
+                        coded, boxMoney, boxText, actionMenu, actionPoi, conditionId));
+                n++;
+            }
+            log.info("loaded {} gossip_menu_option rows", n);
+            return true;
+        } catch (Exception e) {
+            log.debug("gossip_menu_option load skipped: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private void loadGossipMenuIds(Connection c) {
+        if (loadGossipMenuIdQuery(c, "SELECT Entry, GossipMenuId FROM creature_template")) {
+            return;
+        }
+        loadGossipMenuIdQuery(c, "SELECT entry, GossipMenuId FROM creature_template");
+    }
+
+    private boolean loadGossipMenuIdQuery(Connection c, String sql) {
+        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            int n = 0;
+            while (rs.next()) {
+                int menuId = rs.getInt(2);
+                if (menuId != 0) {
+                    gossipMenuIds.put(rs.getInt(1), menuId);
+                    n++;
+                }
+            }
+            log.info("loaded {} creature GossipMenuId values", n);
+            return true;
+        } catch (Exception e) {
+            log.debug("creature GossipMenuId load skipped: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private void loadNpcTexts(Connection c) {
+        try (PreparedStatement ps = c.prepareStatement(npcTextSelectSql()); ResultSet rs = ps.executeQuery()) {
+            int n = 0;
+            while (rs.next()) {
+                int id = rs.getInt(1);
+                if (id == 0) {
+                    continue;
+                }
+                NpcTextSlot[] slots = new NpcTextSlot[Content.MAX_GOSSIP_TEXT_OPTIONS];
+                int col = 2;
+                for (int i = 0; i < slots.length; i++) {
+                    String text0 = nz(rs.getString(col++));
+                    String text1 = nz(rs.getString(col++));
+                    int language = rs.getInt(col++);
+                    float probability = rs.getFloat(col++);
+                    int[] emotes = new int[6];
+                    for (int e = 0; e < 6; e++) {
+                        emotes[e] = rs.getInt(col++);
+                    }
+                    slots[i] = new NpcTextSlot(probability, text0, text1, language, emotes);
+                }
+                npcTexts.put(id, new NpcText(id, slots));
+                n++;
+            }
+            log.info("loaded {} npc_text rows", n);
+        } catch (Exception e) {
+            log.debug("npc_text load skipped: {}", e.getMessage());
+        }
+    }
+
+    private static String npcTextSelectSql() {
+        StringBuilder sql = new StringBuilder("SELECT ID");
+        for (int i = 0; i < Content.MAX_GOSSIP_TEXT_OPTIONS; i++) {
+            sql.append(", text").append(i).append("_0, text").append(i).append("_1, lang").append(i)
+                    .append(", prob").append(i);
+            for (int e = 0; e < 6; e++) {
+                sql.append(", em").append(i).append("_").append(e);
+            }
+        }
+        return sql.append(" FROM npc_text").toString();
     }
 
     private static String nz(String s) {
@@ -825,6 +1387,7 @@ public final class ObjectMgr {
                 storeCreateItem(p, ci.itemId(), ci.amount(), nextGuid);
             }
         }
+        applyEquippedMelee(p);
     }
 
     private void storeCreateItem(Player p, int itemId, int amount, LongSupplier nextGuid) {
@@ -977,9 +1540,16 @@ public final class ObjectMgr {
         c.spawnZ = z;
         c.spawnO = o;
         c.scriptName = t.scriptName();
+        c.aiName = t.aiName() == null ? "" : t.aiName();
+        c.extraFlags = t.extraFlags();
         c.applyTemplate(entry, t.name(), t.display(), t.faction(), t.hp(), t.level());
+        c.applyCombatStats(t.minMeleeDmg(), t.maxMeleeDmg(), t.meleeAttackTime(), combatReach(t));
         c.npcFlags = t.npcFlags();
         c.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_NPC_FLAGS, t.npcFlags());
+        if (factions != null) {
+            org.tbc.world.combat.FactionTemplate ft = factions.template(c);
+            c.neutralToAll = ft != null && ft.isNeutralToAll();
+        }
         org.tbc.world.ai.FactorySelector.selectAI(c, scripts);
         java.util.List<org.tbc.world.ai.EventAi.Script> rows = eventAiStore.scriptsFor(entry, c.spawnId);
         if (!rows.isEmpty()) {
@@ -994,5 +1564,94 @@ public final class ObjectMgr {
             c.eventAi.load(java.util.List.of(org.tbc.world.ai.EventAi.Script.aggroCast(7164)));
         }
         return c;
+    }
+
+    private float combatReach(CreatureTemplate t) {
+        if (t.combatReach() > 0f) {
+            return t.combatReach();
+        }
+        Float fromModel = modelCombatReach.get(t.display());
+        if (fromModel != null && fromModel > 0f) {
+            return fromModel;
+        }
+        return 1.5f;
+    }
+
+    /** CMaNGOS Loot::FillLoot for a corpse. SQL in ObjectMgr; Combat only encodes. */
+    public void fillCorpseLoot(Creature c) {
+        if (c == null) {
+            return;
+        }
+        c.lootGold = 0;
+        c.lootItems.clear();
+        CreatureTemplate t = creatures.get(c.entry);
+        int lootId = c.entry;
+        int minG = 0;
+        int maxG = 0;
+        if (t != null) {
+            if (t.lootId() != 0) {
+                lootId = t.lootId();
+            }
+            minG = t.minLootGold();
+            maxG = t.maxLootGold();
+        }
+        if (maxG < minG) {
+            maxG = minG;
+        }
+        if (maxG > 0) {
+            c.lootGold = minG + java.util.concurrent.ThreadLocalRandom.current().nextInt(maxG - minG + 1);
+        }
+        List<LootRow> rows = creatureLoot.get(lootId);
+        if (rows == null) {
+            return;
+        }
+        int slot = 0;
+        for (LootRow row : rows) {
+            if (row.minCount() < 0 || row.chance() < 0f) {
+                continue;
+            }
+            if (row.chance() < 100f
+                    && java.util.concurrent.ThreadLocalRandom.current().nextFloat() * 100f >= row.chance()) {
+                continue;
+            }
+            int count = row.minCount();
+            if (row.maxCount() > row.minCount()) {
+                count += java.util.concurrent.ThreadLocalRandom.current().nextInt(row.maxCount() - row.minCount() + 1);
+            }
+            ItemTemplate it = items.get(row.item());
+            int display = it != null ? it.displayId : 0;
+            c.lootItems.add(new org.tbc.world.loot.LootSlot(slot, row.item(), Math.max(1, count), display));
+            slot++;
+        }
+    }
+
+    /** UNIT_FIELD_MIN/MAXDAMAGE + BASEATTACKTIME from equipped weapons. */
+    public void applyEquippedMelee(Player p) {
+        if (p == null) {
+            return;
+        }
+        if (p.getFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_COMBATREACH) <= 0f) {
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_COMBATREACH, 1.5f);
+        }
+        ItemTemplate main = equippedTemplate(p, Player.EQUIPMENT_SLOT_MAINHAND);
+        if (main != null && main.dmgMax[0] > 0f) {
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINDAMAGE, main.dmgMin[0]);
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXDAMAGE, main.dmgMax[0]);
+            p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME, main.delay > 0 ? main.delay : 2000);
+        }
+        ItemTemplate off = equippedTemplate(p, Player.EQUIPMENT_SLOT_OFFHAND);
+        if (off != null && off.dmgMax[0] > 0f) {
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE, off.dmgMin[0]);
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE, off.dmgMax[0]);
+            p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, off.delay > 0 ? off.delay : 2000);
+        }
+    }
+
+    private ItemTemplate equippedTemplate(Player p, int slot) {
+        Item it = p.itemAt(0, slot);
+        if (it == null) {
+            return null;
+        }
+        return items.get(it.entry);
     }
 }

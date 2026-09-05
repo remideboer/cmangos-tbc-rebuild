@@ -4,6 +4,7 @@ import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.tbc.common.WowBuffer;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
@@ -22,6 +23,8 @@ public class CombatSteps {
     private World world;
     private WowClientDouble client;
     private Creature kobold;
+    private int lootWindowGold;
+    private int copperBeforeLootMoney;
 
     @Given("a logged-in character standing next to Kobold Vermin {int}")
     public void nextToKobold(int entry) {
@@ -58,9 +61,16 @@ public class CombatSteps {
     }
 
     @When("the attacker is {int} yards from the kobold")
+    @Given("the player is {int} yards from the kobold")
     public void attackerYardsFromKobold(int yards) {
         Player p = client.session().player();
         p.relocate(kobold.x + yards, kobold.y, kobold.z, kobold.o);
+    }
+
+    @When("{int} ms elapse on the world")
+    public void elapseWorld(int ms) {
+        client.clear();
+        world.tick(ms);
     }
 
     @When("the player starts auto-attack")
@@ -145,6 +155,70 @@ public class CombatSteps {
         assertTrue(p.length >= 14);
         assertEquals(kobold.guid, WowClientDouble.u64le(p, 0));
         assertEquals(org.tbc.world.combat.Combat.LOOT_CORPSE, p[8] & 0xFF);
+        lootWindowGold = WowClientDouble.u32le(p, 9);
+        assertTrue((p[13] & 0xFF) >= 1, "empty loot window is not the slice 6 milestone");
+    }
+
+    @When("the player takes loot slot {int}")
+    public void takeLootSlot(int slot) {
+        client.clear();
+        client.autostoreLootItem(world, slot);
+    }
+
+    @Then("SMSG_ITEM_PUSH_RESULT is a loot push of item {int}")
+    public void lootPush(int entry) {
+        byte[] p = client.payload(Opcodes.SMSG_ITEM_PUSH_RESULT);
+        WowBuffer b = new WowBuffer(p);
+        assertEquals(client.session().player().guid, b.getU64());
+        assertEquals(0, b.getU32());
+        assertEquals(0, b.getU32());
+        b.getU32();
+        b.getU8();
+        b.getU32();
+        assertEquals(entry, b.getU32());
+        int have = 0;
+        for (Item it : client.session().player().items.values()) {
+            if (it.entry == entry) {
+                have += it.count;
+            }
+        }
+        assertTrue(have >= 1);
+        b.getU32();
+        b.getU32();
+        int pushed = b.getU32();
+        assertTrue(pushed >= 1);
+        assertEquals(have, b.getU32());
+    }
+
+    @Then("SMSG_LOOT_REMOVED is loot slot {int}")
+    public void lootRemoved(int slot) {
+        byte[] p = client.payload(Opcodes.SMSG_LOOT_REMOVED);
+        assertEquals(1, p.length);
+        assertEquals(slot, p[0] & 0xFF);
+    }
+
+    @When("the player takes the corpse copper")
+    public void takeCorpseCopper() {
+        copperBeforeLootMoney = client.session().player().money;
+        client.clear();
+        client.lootMoney(world);
+    }
+
+    @Then("player copper increased by the corpse gold")
+    public void copperIncreased() {
+        assertTrue(lootWindowGold >= 1, "seed corpse must have gold for TP-SL06-007");
+        assertEquals(copperBeforeLootMoney + lootWindowGold, client.session().player().money);
+    }
+
+    @Then("the server has sent SMSG_LOOT_CLEAR_MONEY")
+    public void sawLootClearMoney() {
+        assertTrue(client.saw(Opcodes.SMSG_LOOT_CLEAR_MONEY));
+        assertEquals(0, client.payload(Opcodes.SMSG_LOOT_CLEAR_MONEY).length);
+    }
+
+    @Then("the server has not sent SMSG_LOOT_MONEY_NOTIFY")
+    public void noLootMoneyNotify() {
+        assertFalse(client.saw(Opcodes.SMSG_LOOT_MONEY_NOTIFY));
     }
 
     @Given("the player is in combat with the kobold")
@@ -205,6 +279,12 @@ public class CombatSteps {
         assertEquals(8, n);
         client.clear();
         client.handle(world, Opcodes.CMSG_LOOT, new byte[3]);
+    }
+
+    @When("the mock client sends CMSG_AUTOSTORE_LOOT_ITEM with no bytes")
+    public void truncatedAutostore() {
+        client.clear();
+        client.handle(world, Opcodes.CMSG_AUTOSTORE_LOOT_ITEM, new byte[0]);
     }
 
     @Then("the combat session still answers CMSG_PING with SMSG_PONG")

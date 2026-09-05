@@ -22,6 +22,9 @@ public final class Player extends Unit {
     public static final int INVENTORY_SLOT_ITEM_END = 39;
     public static final int BANK_SLOT_ITEM_START = 39;
     public static final int BANK_SLOT_ITEM_END = 67;
+    /** Player.h BANK_SLOT_BAG_START / BANK_SLOT_BAG_END. */
+    public static final int BANK_SLOT_BAG_START = 67;
+    public static final int BANK_SLOT_BAG_END = 74;
     public static final int MAX_VISIBLE_ITEM_OFFSET = 16;
     public static final int POWER_RAGE = 1;
     public static final int POWER_RAGE_MAX = 1000;
@@ -29,10 +32,16 @@ public final class Player extends Unit {
     public static final int CLASS_PRIEST = 5;
     public static final int CLASS_MAGE = 8;
     public static final int CLASS_WARLOCK = 9;
+    public static final int PLAYER_FLAGS_GHOST = 0x00000010;
 
     public WorldSession session;
     public int accountId;
     public long selection;
+    public long lootGuid;
+    private int gossipMenuId;
+    private int[] gossipOptionIds;
+    private int[] gossipActionMenus;
+    private int[] gossipActionPois;
     public int race;
     public int clazz;
     public int gender;
@@ -66,7 +75,7 @@ public final class Player extends Unit {
     public int powerType;
     public int displayId;
     public boolean dirty;
-    public long firstSaveAtMs;
+    public int nextSaveMs;
     public int timeSyncCounter;
     public long nextTimeSyncMs;
     public int zoneClient;
@@ -150,6 +159,17 @@ public final class Player extends Unit {
         movement.z = z;
         movement.o = o;
         applyEquippedVisuals();
+    }
+
+    public void setGhost(boolean g) {
+        ghost = g;
+        int flags = getInt(UpdateFields.PLAYER_FLAGS);
+        if (g) {
+            flags |= PLAYER_FLAGS_GHOST;
+        } else {
+            flags &= ~PLAYER_FLAGS_GHOST;
+        }
+        setInt(UpdateFields.PLAYER_FLAGS, flags);
     }
 
     @Override
@@ -273,6 +293,18 @@ public final class Player extends Unit {
         setInt(UpdateFields.PLAYER_FIELD_COINAGE, money);
     }
 
+    /** PLAYER_BYTES_2 byte 2. CMaNGOS GetBankBagSlotCount. */
+    public int bankBagSlotCount() {
+        return (getInt(UpdateFields.PLAYER_BYTES_2) >> 16) & 0xFF;
+    }
+
+    /** PLAYER_BYTES_2 byte 2. CMaNGOS SetBankBagSlotCount. */
+    public void setBankBagSlotCount(int count) {
+        int pb2 = getInt(UpdateFields.PLAYER_BYTES_2);
+        pb2 = (pb2 & ~(0xFF << 16)) | ((count & 0xFF) << 16);
+        setInt(UpdateFields.PLAYER_BYTES_2, pb2);
+    }
+
     public int createSelfFlags() {
         return PLAYER_CREATE_FLAGS;
     }
@@ -394,5 +426,37 @@ public final class Player extends Unit {
         if (field < taxiMask.length) {
             taxiMask[field] |= 1 << ((node - 1) % 32);
         }
+    }
+
+    public void prepareGossipMenu(int menuId, int[] optionIds) {
+        prepareGossipMenu(menuId, optionIds, null, null);
+    }
+
+    public void prepareGossipMenu(int menuId, int[] optionIds, int[] actionMenus) {
+        prepareGossipMenu(menuId, optionIds, actionMenus, null);
+    }
+
+    public void prepareGossipMenu(int menuId, int[] optionIds, int[] actionMenus, int[] actionPois) {
+        gossipMenuId = menuId;
+        gossipOptionIds = optionIds == null ? new int[0] : optionIds.clone();
+        gossipActionMenus = actionMenus == null ? new int[gossipOptionIds.length] : actionMenus.clone();
+        gossipActionPois = actionPois == null ? new int[gossipOptionIds.length] : actionPois.clone();
+    }
+
+    public boolean hasGossipOption(int menuId, int listId) {
+        return gossipOptionIds != null && menuId == gossipMenuId
+                && listId >= 0 && listId < gossipOptionIds.length;
+    }
+
+    public int gossipOptionId(int listId) {
+        return gossipOptionIds[listId];
+    }
+
+    public int gossipActionMenu(int listId) {
+        return gossipActionMenus[listId];
+    }
+
+    public int gossipActionPoi(int listId) {
+        return gossipActionPois[listId];
     }
 }

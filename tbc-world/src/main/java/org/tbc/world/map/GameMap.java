@@ -49,6 +49,22 @@ public final class GameMap {
         gameObjects.remove(go.guid);
     }
 
+    public void reindex(Creature c, float oldX, float oldY) {
+        if (c == null) {
+            return;
+        }
+        long from = cellKey(oldX, oldY);
+        long to = cellKey(c.x, c.y);
+        if (from == to) {
+            return;
+        }
+        Map<Long, Creature> oldCell = cells.get(from);
+        if (oldCell != null) {
+            oldCell.remove(c.guid);
+        }
+        cells.computeIfAbsent(to, k -> new ConcurrentHashMap<>()).put(c.guid, c);
+    }
+
     public void remove(Creature c) {
         creatures.remove(c.guid);
         Map<Long, Creature> cell = cells.get(cellKey(c.x, c.y));

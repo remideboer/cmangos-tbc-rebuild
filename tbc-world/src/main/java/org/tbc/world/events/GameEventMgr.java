@@ -17,6 +17,7 @@ public final class GameEventMgr {
     private final Set<Integer> active = new HashSet<>();
     private final Map<Integer, List<Creature>> spawned = new HashMap<>();
     private final Map<Integer, List<GameObject>> spawnedGos = new HashMap<>();
+    private final Map<Integer, long[]> window = new HashMap<>();
 
     public void start(World world, int eventId) {
         if (world == null || eventId <= 0 || active.contains(eventId)) {
@@ -68,5 +69,30 @@ public final class GameEventMgr {
 
     public boolean isActive(int eventId) {
         return active.contains(eventId);
+    }
+
+    /** Remember start/end so {@link #update} can start/stop on the events timer. */
+    public void schedule(int eventId, long startAtMs, long endAtMs) {
+        if (eventId <= 0) {
+            return;
+        }
+        window.put(eventId, new long[] { startAtMs, endAtMs });
+    }
+
+    /** CMaNGOS GameEventMgr::Update. Returns next check delay ms. */
+    public int update(World world, long nowMs) {
+        if (world == null) {
+            return 60_000;
+        }
+        for (Map.Entry<Integer, long[]> e : window.entrySet()) {
+            long start = e.getValue()[0];
+            long end = e.getValue()[1];
+            if (nowMs >= start && nowMs < end) {
+                start(world, e.getKey());
+            } else {
+                stop(world, e.getKey());
+            }
+        }
+        return 60_000;
     }
 }

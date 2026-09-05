@@ -100,8 +100,8 @@ public final class WorldSocket extends ChannelInboundHandlerAdapter implements P
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        if (session != null && session.player() != null) {
-            world.queuePacket(session, Opcodes.CMSG_LOGOUT_REQUEST, new byte[0]);
+        if (session != null) {
+            session.markSocketClosed();
         }
         if (acc != null) {
             acc.release();

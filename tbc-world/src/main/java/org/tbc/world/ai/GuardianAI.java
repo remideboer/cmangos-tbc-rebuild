@@ -6,4 +6,9 @@ public final class GuardianAI implements UnitAI {
     public String aiName() {
         return "GuardianAI";
     }
+
+    @Override
+    public boolean aggroOnSight() {
+        return false;
+    }
 }

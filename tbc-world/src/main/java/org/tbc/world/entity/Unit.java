@@ -9,7 +9,16 @@ import java.util.List;
 public class Unit extends Entity {
     public static final int TYPEID_UNIT = 3;
     public static final int TYPEID_PLAYER = 4;
+    public static final int UNIT_FLAG_SPAWNING = 0x00000002;
     public static final int UNIT_FLAG_PLAYER_CONTROLLED = 0x8;
+    public static final int UNIT_FLAG_EVADING_HOME = 0x00000010;
+    public static final int UNIT_FLAG_NOT_ATTACKABLE_1 = 0x00000080;
+    public static final int UNIT_FLAG_IMMUNE_TO_PLAYER = 0x00000100;
+    public static final int UNIT_FLAG_IMMUNE_TO_NPC = 0x00000200;
+    public static final int UNIT_FLAG_UNTARGETABLE = 0x00010000;
+    public static final int UNIT_FLAG_IN_COMBAT = 0x00080000;
+    public static final int UNIT_FLAG_TAXI_FLIGHT = 0x00100000;
+    public static final int UNIT_FLAG_UNINTERACTIBLE = 0x02000000;
     public static final int UPDATEFLAG_SELF = 0x01;
     public static final int UPDATEFLAG_LOWGUID = 0x08;
     public static final int UPDATEFLAG_HIGHGUID = 0x10;

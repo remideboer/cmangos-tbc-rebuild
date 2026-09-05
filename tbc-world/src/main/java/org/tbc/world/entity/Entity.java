@@ -34,6 +34,10 @@ public class Entity {
         return values[field];
     }
 
+    public long getGuid(int field) {
+        return (values[field] & 0xFFFFFFFFL) | ((long) values[field + 1] << 32);
+    }
+
     public float getFloat(int field) {
         return Float.intBitsToFloat(values[field]);
     }

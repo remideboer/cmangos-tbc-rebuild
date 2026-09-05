@@ -1,6 +1,8 @@
 package org.tbc.matrix;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
+import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -89,6 +91,26 @@ class QueryHandlerTest {
         assertEquals(0, u32(page, 4 + "Item page missing.".length() + 1));
 
         sink.opcodes.clear();
+        WowBuffer npcText = new WowBuffer(12);
+        npcText.putU32(Content.DEFAULT_GOSSIP_MESSAGE);
+        npcText.putU64(0);
+        s.handle(w, Opcodes.CMSG_NPC_TEXT_QUERY, npcText.array());
+        byte[] text = sink.last.get(Opcodes.SMSG_NPC_TEXT_UPDATE);
+        assertEquals(Content.DEFAULT_GOSSIP_MESSAGE, u32(text, 0));
+        WowBuffer decoded = new WowBuffer(text);
+        decoded.getU32();
+        for (int i = 0; i < 8; i++) {
+            assertEquals(0f, decoded.getFloat());
+            assertEquals(Content.DEFAULT_NPC_TEXT, decoded.getCString());
+            assertEquals(Content.DEFAULT_NPC_TEXT, decoded.getCString());
+            assertEquals(0, decoded.getU32());
+            for (int e = 0; e < 6; e++) {
+                assertEquals(0, decoded.getU32());
+            }
+        }
+        assertEquals(0, decoded.remaining());
+
+        sink.opcodes.clear();
         WowBuffer pet = new WowBuffer(12);
         pet.putU32(1);
         pet.putU64(0);
@@ -105,6 +127,46 @@ class QueryHandlerTest {
         byte[] guild = sink.last.get(Opcodes.SMSG_GUILD_QUERY_RESPONSE);
         assertEquals(1, u32(guild, 0));
         assertEquals(0, guild[4]);
+    }
+
+    @Test
+    void npcTextKnownEmptyStringFallsBackToTheOther() {
+        World w = World.inMemory();
+        Capture sink = new Capture();
+        WorldSession s = loggedIn(w, sink, "NpcTxt", 3);
+        ObjectMgr.NpcTextSlot[] slots = new ObjectMgr.NpcTextSlot[8];
+        slots[0] = new ObjectMgr.NpcTextSlot(1f, "Hello", "", 7, new int[]{1, 2, 3, 4, 5, 6});
+        slots[1] = new ObjectMgr.NpcTextSlot(0f, "", "Female", 0, new int[6]);
+        slots[2] = new ObjectMgr.NpcTextSlot(0.5f, "Male", "Lady", 0, new int[6]);
+        w.objectMgr.npcTexts.put(42, new ObjectMgr.NpcText(42, slots));
+
+        sink.opcodes.clear();
+        WowBuffer in = new WowBuffer(12);
+        in.putU32(42);
+        in.putU64(0);
+        s.handle(w, Opcodes.CMSG_NPC_TEXT_QUERY, in.array());
+        WowBuffer decoded = new WowBuffer(sink.last.get(Opcodes.SMSG_NPC_TEXT_UPDATE));
+        assertEquals(42, decoded.getU32());
+        assertEquals(1f, decoded.getFloat());
+        assertEquals("Hello", decoded.getCString());
+        assertEquals("Hello", decoded.getCString());
+        assertEquals(7, decoded.getU32());
+        assertEquals(1, decoded.getU32());
+        assertEquals(2, decoded.getU32());
+        assertEquals(3, decoded.getU32());
+        assertEquals(4, decoded.getU32());
+        assertEquals(5, decoded.getU32());
+        assertEquals(6, decoded.getU32());
+        decoded.getFloat();
+        assertEquals("Female", decoded.getCString());
+        assertEquals("Female", decoded.getCString());
+        decoded.getU32();
+        for (int e = 0; e < 6; e++) {
+            decoded.getU32();
+        }
+        decoded.getFloat();
+        assertEquals("Male", decoded.getCString());
+        assertEquals("Lady", decoded.getCString());
     }
 
     @Test

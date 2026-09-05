@@ -18,6 +18,7 @@ import java.util.zip.Inflater;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL14-* from packet files, one criterion per method. */
@@ -177,6 +178,133 @@ class Slice14P0Test {
         assertTrue(client.saw(Opcodes.SMSG_SHOW_BANK));
         WowBuffer shown = new WowBuffer(client.payload(Opcodes.SMSG_SHOW_BANK));
         assertEquals(banker.guid, shown.getU64());
+    }
+
+    @Test
+    void tpSl14BuyBankSlot() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "BagSlot", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature banker = find(world, Content.NPC_OLIVIA_BURNSIDE);
+        assertNotNull(banker);
+        p.relocate(banker.x, banker.y, banker.z, banker.o);
+        p.setMoney(Content.BANK_BAG_SLOT_PRICES[1]);
+        client.clear();
+        WowBuffer buy = new WowBuffer(8);
+        buy.putU64(banker.guid);
+        client.handle(world, Opcodes.CMSG_BUY_BANK_SLOT, buy.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_BUY_BANK_SLOT_RESULT));
+        assertEquals(Content.ERR_BANKSLOT_OK,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_BUY_BANK_SLOT_RESULT), 0));
+        byte[] update = lastValuesUpdate(client);
+        assertEquals(0, intAt(update, UpdateFields.PLAYER_FIELD_COINAGE));
+        assertEquals(1, (intAt(update, UpdateFields.PLAYER_BYTES_2) >> 16) & 0xFF);
+    }
+
+    @Test
+    void tpSl14BuyBankSlotWhenBrokeShouldReturnInsufficientFunds() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Broke", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature banker = find(world, Content.NPC_OLIVIA_BURNSIDE);
+        assertNotNull(banker);
+        p.relocate(banker.x, banker.y, banker.z, banker.o);
+        p.setMoney(Content.BANK_BAG_SLOT_PRICES[1] - 1);
+        client.clear();
+        WowBuffer buy = new WowBuffer(8);
+        buy.putU64(banker.guid);
+        client.handle(world, Opcodes.CMSG_BUY_BANK_SLOT, buy.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_BUY_BANK_SLOT_RESULT));
+        assertEquals(Content.ERR_BANKSLOT_INSUFFICIENT_FUNDS,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_BUY_BANK_SLOT_RESULT), 0));
+        assertFalse(client.saw(Opcodes.SMSG_UPDATE_OBJECT));
+        assertFalse(client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+        assertEquals(0, p.bankBagSlotCount());
+        assertEquals(Content.BANK_BAG_SLOT_PRICES[1] - 1, p.money);
+    }
+
+    @Test
+    void tpSl14BuyBankSlotWhenNotBankerShouldSendNothing() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "NoBank", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature vendor = find(world, Content.NPC_CORINA_STEELE);
+        assertNotNull(vendor);
+        p.relocate(vendor.x, vendor.y, vendor.z, vendor.o);
+        p.setMoney(Content.BANK_BAG_SLOT_PRICES[1]);
+        client.clear();
+        WowBuffer buy = new WowBuffer(8);
+        buy.putU64(vendor.guid);
+        client.handle(world, Opcodes.CMSG_BUY_BANK_SLOT, buy.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_BUY_BANK_SLOT_RESULT));
+        assertEquals(0, p.bankBagSlotCount());
+    }
+
+    @Test
+    void tpSl14BuyBankSlotWhenAllSlotsBoughtShouldSendNothing() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "FullBank", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature banker = find(world, Content.NPC_OLIVIA_BURNSIDE);
+        assertNotNull(banker);
+        p.relocate(banker.x, banker.y, banker.z, banker.o);
+        p.setBankBagSlotCount(Player.BANK_SLOT_BAG_END - Player.BANK_SLOT_BAG_START);
+        p.setMoney(Content.BANK_BAG_SLOT_PRICES[7]);
+        client.clear();
+        WowBuffer buy = new WowBuffer(8);
+        buy.putU64(banker.guid);
+        client.handle(world, Opcodes.CMSG_BUY_BANK_SLOT, buy.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_BUY_BANK_SLOT_RESULT));
+    }
+
+    @Test
+    void tpSl14BuyBankSlotWhenPayloadShortShouldSendNothing() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "ShortBuy", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_BUY_BANK_SLOT, new byte[4]);
+        assertFalse(client.saw(Opcodes.SMSG_BUY_BANK_SLOT_RESULT));
+    }
+
+    @Test
+    void tpSl14AuctionExpireOnTick() {
+        World world = World.inMemory();
+        world.objectMgr.auctions.add(new ObjectMgr.Auction(
+                99, Content.ITEM_WORN_SHORTSWORD, 0, 100, 0, 0, "Expired"));
+        assertTrue(world.objectMgr.auctions.stream().anyMatch(a -> a.id() == 99));
+
+        world.tick(60_000);
+
+        assertTrue(world.objectMgr.auctions.stream().noneMatch(a -> a.id() == 99));
+        assertTrue(world.objectMgr.auctions.stream().anyMatch(a -> a.id() == 1));
+    }
+
+    @Test
+    void tpSl14AuctionExpireWhenTimerNotDueShouldKeepListing() {
+        World world = World.inMemory();
+        world.objectMgr.auctions.add(new ObjectMgr.Auction(
+                99, Content.ITEM_WORN_SHORTSWORD, 0, 100, 0, 0, "Expired"));
+        world.tick(60_000 - 1);
+        assertTrue(world.objectMgr.auctions.stream().anyMatch(a -> a.id() == 99));
     }
 
     @Test
@@ -930,6 +1058,34 @@ class Slice14P0Test {
         assertEquals(Content.WEATHER_INSTANT_SMOOTH, payload[8] & 0xFF);
     }
 
+    @Test
+    void tpSl14WeatherTimer() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Storm", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        world.objectMgr.weather.put(p.zoneId, new ObjectMgr.ZoneWeather(p.zoneId, Content.WEATHER_STATE_LIGHT_RAIN, 0.5f));
+        client.clear();
+        world.tick(10 * 60_000);
+
+        assertTrue(client.saw(Opcodes.SMSG_WEATHER));
+        byte[] payload = lastPayload(client, Opcodes.SMSG_WEATHER);
+        assertEquals(Content.WEATHER_STATE_FINE, WowClientDouble.u32le(payload, 0));
+        assertEquals(0f, WowClientDouble.floatle(payload, 4), 0.001f);
+        assertEquals(Content.WEATHER_INSTANT_SMOOTH, payload[8] & 0xFF);
+    }
+
+    @Test
+    void tpSl14GameEventStartsOnTick() {
+        World world = World.inMemory();
+        world.events.schedule(Content.GAME_EVENT_MIDSUMMER, 0, Long.MAX_VALUE);
+        assertNull(find(world, 547, Content.NPC_LUMA_SKYMOTHER));
+        world.tick(60_000);
+        assertNotNull(find(world, 547, Content.NPC_LUMA_SKYMOTHER));
+    }
+
     private static int invSlotField(int slot) {
         return UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + slot * 2;
     }
@@ -1021,7 +1177,11 @@ class Slice14P0Test {
     }
 
     private static Creature find(World world, int entry) {
-        for (Creature c : world.map(0, 0).creatures.values()) {
+        return find(world, 0, entry);
+    }
+
+    private static Creature find(World world, int map, int entry) {
+        for (Creature c : world.map(map, 0).creatures.values()) {
             if (c.entry == entry) {
                 return c;
             }

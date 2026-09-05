@@ -1,6 +1,7 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
@@ -152,6 +153,38 @@ public final class QueryHandler {
             out.putU32(page.nextPage());
         }
         session.send(Opcodes.SMSG_PAGE_TEXT_QUERY_RESPONSE, out.array());
+    }
+
+    public static void npcText(WorldSession session, World world, WowBuffer in) {
+        int textId = readU32(in);
+        readU64(in);
+        ObjectMgr.NpcText gossip = world.objectMgr.npcTexts.get(textId);
+        WowBuffer out = new WowBuffer(256);
+        out.putU32(textId);
+        for (int i = 0; i < Content.MAX_GOSSIP_TEXT_OPTIONS; i++) {
+            if (gossip == null) {
+                out.putFloat(0f);
+                out.putCString(Content.DEFAULT_NPC_TEXT);
+                out.putCString(Content.DEFAULT_NPC_TEXT);
+                out.putU32(0);
+                for (int e = 0; e < 6; e++) {
+                    out.putU32(0);
+                }
+            } else {
+                ObjectMgr.NpcTextSlot slot = gossip.slots()[i];
+                String text0 = nz(slot.text0());
+                String text1 = nz(slot.text1());
+                out.putFloat(slot.probability());
+                out.putCString(text0.isEmpty() ? text1 : text0);
+                out.putCString(text1.isEmpty() ? text0 : text1);
+                out.putU32(slot.language());
+                int[] emotes = slot.emotes();
+                for (int e = 0; e < 6; e++) {
+                    out.putU32(emotes[e]);
+                }
+            }
+        }
+        session.send(Opcodes.SMSG_NPC_TEXT_UPDATE, out.array());
     }
 
     public static void petName(WorldSession session, WowBuffer in) {

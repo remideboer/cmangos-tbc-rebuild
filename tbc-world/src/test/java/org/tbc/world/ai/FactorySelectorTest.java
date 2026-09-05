@@ -99,6 +99,22 @@ class FactorySelectorTest {
         assertTrue(ai.meleeEnabled());
     }
 
+    @Test
+    void selectAiWhenNoAggroOnSightShouldReturnEventAiNotNull() {
+        Creature c = creature();
+        c.extraFlags = Creature.CREATURE_EXTRA_FLAG_NO_AGGRO_ON_SIGHT;
+        assertEquals("EventAI", FactorySelector.selectAI(c, scripts).aiName());
+        assertNotNull(c.eventAi);
+    }
+
+    @Test
+    void selectAiWhenNeutralToAllShouldReturnEventAiNotNull() {
+        Creature c = creature();
+        c.neutralToAll = true;
+        assertEquals("EventAI", FactorySelector.selectAI(c, scripts).aiName());
+        assertNotNull(c.eventAi);
+    }
+
     private static Creature creature() {
         Creature c = new Creature();
         c.guid = 2;

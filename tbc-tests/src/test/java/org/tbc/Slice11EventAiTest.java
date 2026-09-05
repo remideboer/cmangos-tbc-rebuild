@@ -49,6 +49,7 @@ class Slice11EventAiTest {
         c.eventAi = new EventAi();
         c.eventAi.load(List.of(EventAi.Script.timerOoc(0, 1000, 7164, EventAi.TARGET_SELF)));
         world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x + 40, c.y, c.z, c.o);
         client.clear();
         world.tick(501);
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
@@ -134,10 +135,11 @@ class Slice11EventAiTest {
         World world = World.inMemory();
         WowClientDouble client = login(world, "Los");
         Player p = client.session().player();
-        Creature c = world.objectMgr.spawnCreature(6, 0, p.x + 15, p.y, p.z, p.o, world.scripts);
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x + 25, p.y, p.z, p.o, world.scripts);
         c.eventAi = new EventAi();
         c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_OOC_LOS, 0, 100, 0, 0, 10, 0, 0,
                 EventAi.Action.cast(7164, EventAi.TARGET_SELF), EventAi.Action.none(), EventAi.Action.none())));
+        c.extraFlags = org.tbc.world.entity.Creature.CREATURE_EXTRA_FLAG_NO_AGGRO_ON_SIGHT;
         world.map(p.mapId, p.instanceId).add(c);
         client.clear();
         world.tick(50);
@@ -146,6 +148,28 @@ class Slice11EventAiTest {
         world.tick(50);
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
         assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
+    }
+
+    @Test
+    void aggroWhenEventAiFireballShouldApplySpellEngineDamage() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "FbCast");
+        Player p = client.session().player();
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        p.setHealth(100);
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_AGGRO, 0, 100, 0, 0, 0, 0, 0,
+                EventAi.Action.cast(SpellEngine.FIREBALL, EventAi.TARGET_HOSTILE),
+                EventAi.Action.none(), EventAi.Action.none())));
+        world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x, c.y, c.z, c.o);
+        client.clear();
+        client.attackSwing(world, c.guid);
+        assertTrue(p.health() < 100);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(SpellEngine.FIREBALL, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
+        assertTrue(client.saw(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
     }
 
     private static WowClientDouble login(World world, String name) {
