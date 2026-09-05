@@ -754,6 +754,25 @@ public final class CharacterStore {
         }
     }
 
+    public void removeFriend(int guid, long friendGuid) {
+        List<Player.Friend> rows = social.get(guid);
+        if (rows != null) {
+            rows.removeIf(f -> f.guid == friendGuid);
+        }
+        if (chars == null) {
+            return;
+        }
+        try (Connection c = chars.get()) {
+            PreparedStatement ps = c.prepareStatement(
+                    "DELETE FROM character_social WHERE guid = ? AND friend = ?");
+            ps.setInt(1, guid);
+            ps.setInt(2, Guid.low(friendGuid));
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.warn("removeFriend {}", e.getMessage());
+        }
+    }
+
     public int nextMailId() {
         return nextMail.getAndIncrement();
     }

@@ -58,6 +58,12 @@ class WowClientDoubleTest {
         d.sendMail(w, 1, "Nobody", "s", "b", 1);
         d.who(w);
         d.addFriend(w, "Nobody");
+        d.delFriend(w, created.guid);
+        d.guildCreate(w, "Lions");
+        d.guildInvite(w, "Nobody");
+        d.guildAccept(w);
+        d.auctionSell(w, 0, 0, 100, 0, 720);
+        d.auctionBid(w, 0, 1, 100);
         d.groupInvite(w, "Nobody");
         d.groupAccept(w);
         d.partyChat(w, "hi");

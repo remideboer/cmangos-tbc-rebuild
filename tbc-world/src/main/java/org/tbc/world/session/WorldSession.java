@@ -332,10 +332,15 @@ public final class WorldSession {
             case Opcodes.CMSG_CANCEL_TRADE -> SocialHandler.cancelTrade(this);
             case Opcodes.CMSG_WHO -> SocialHandler.who(this, world, in);
             case Opcodes.CMSG_ADD_FRIEND -> SocialHandler.addFriend(this, world, in);
+            case Opcodes.CMSG_DEL_FRIEND -> SocialHandler.delFriend(this, world, in);
+            case Opcodes.CMSG_GUILD_INVITE -> GuildHandler.invite(this, world, in);
+            case Opcodes.CMSG_GUILD_ACCEPT -> GuildHandler.accept(this, world);
             case Opcodes.CMSG_SEND_MAIL -> SocialHandler.sendMail(this, world, in);
             case Opcodes.CMSG_GET_MAIL_LIST -> SocialHandler.getMailList(this, world, in);
             case Opcodes.CMSG_MAIL_TAKE_ITEM -> SocialHandler.takeMailItem(this, world, in);
             case Opcodes.MSG_AUCTION_HELLO -> handleAuctionHello(world, in);
+            case Opcodes.CMSG_AUCTION_SELL_ITEM -> AuctionHandler.sellItem(this, world, in);
+            case Opcodes.CMSG_AUCTION_PLACE_BID -> AuctionHandler.placeBid(this, world, in);
             case Opcodes.CMSG_BATTLEMASTER_JOIN -> handleBgJoin(world, 489);
             case Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA -> handleBgJoin(world, 562);
             case Opcodes.CMSG_REPOP_REQUEST -> DeathHandler.repop(this, world);

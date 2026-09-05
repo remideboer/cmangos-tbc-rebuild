@@ -52,6 +52,8 @@ public final class Player extends Unit {
     public int atLogin;
     public int difficulty;
     public int guildId;
+    public int guildIdInvited;
+    public int guildRankRights;
     public boolean guildLeader;
     public int gmLevel;
     public int team; // 67 horde / 469 alliance

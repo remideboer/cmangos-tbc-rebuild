@@ -9,6 +9,7 @@ import org.tbc.world.combat.Factions;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Guid;
+import org.tbc.world.entity.Guild;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.DbcFile;
@@ -287,13 +288,21 @@ public final class ObjectMgr {
     /** TaxiNodes.dbc row used by GetNearestTaxiNode. Mount flags = MountCreatureID != 0. */
     public record TaxiNode(int id, int mapId, float x, float y, float z, boolean alliance, boolean horde) {}
     public record ZoneWeather(int zone, int state, float grade) {}
-    public record Auction(int id, int itemEntry, long owner, int startBid, int buyout, int timeLeftMs, String name) {}
+    public record Auction(int id, int itemEntry, long owner, int startBid, int buyout, int timeLeftMs, String name,
+                          long itemGuid, long bidder, int currentBid, int ownerAccount) {
+        public Auction(int id, int itemEntry, long owner, int startBid, int buyout, int timeLeftMs, String name) {
+            this(id, itemEntry, owner, startBid, buyout, timeLeftMs, name, 0, 0, 0, 0);
+        }
+    }
     public final Map<Integer, List<TrainerSpell>> trainerSpells = new HashMap<>();
     public final Map<Integer, Integer> trainerClass = new HashMap<>();
     public final Map<Integer, TaxiNode> taxiNodes = new HashMap<>();
     public final Map<Long, TaxiHop> taxiPaths = new HashMap<>();
     public final Map<Integer, ZoneWeather> weather = new HashMap<>();
     public final List<Auction> auctions = new ArrayList<>();
+    public final Map<Integer, Guild> guilds = new HashMap<>();
+    public final AtomicInteger nextGuildId = new AtomicInteger(1);
+    public final AtomicInteger nextAuctionId = new AtomicInteger(2);
     public final AtomicInteger nextCreatureLow = new AtomicInteger(1_000_000);
     public final AtomicInteger nextItemLow = new AtomicInteger(1);
 

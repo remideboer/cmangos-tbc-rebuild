@@ -43,6 +43,7 @@ public final class SocialHandler {
     public static final int FRIEND_ADDED_OFFLINE = 0x07;
     public static final int FRIEND_ALREADY = 0x08;
     public static final int FRIEND_SELF = 0x09;
+    public static final int FRIEND_REMOVED = 0x05;
     public static final int FRIEND_LIST_FULL = 0x01;
     public static final int TRADE_BUSY = 0;
     public static final int TRADE_BEGIN = 1;
@@ -120,6 +121,17 @@ public final class SocialHandler {
         boolean online = t.session != null;
         friendStatus(s, online ? FRIEND_ADDED_ONLINE : FRIEND_ADDED_OFFLINE, t.guid, note,
                 online ? 1 : 0, t.zoneId, t.level, t.clazz);
+    }
+
+    public static void delFriend(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Player p = s.player();
+        p.friends.removeIf(f -> f.guid == guid);
+        world.characters.removeFriend(Guid.low(p.guid), guid);
+        friendStatus(s, FRIEND_REMOVED, guid, "", 0, 0, 0, 0);
     }
 
     public static void who(WorldSession s, World world, WowBuffer in) {

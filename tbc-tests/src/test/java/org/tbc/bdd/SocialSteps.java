@@ -209,6 +209,12 @@ public class SocialSteps {
         assertTrue(alpha.saw(Opcodes.SMSG_FRIEND_STATUS));
     }
 
+    @When("Alpha removes Bravo as a friend")
+    public void delBravo() {
+        alpha.clear();
+        alpha.delFriend(world, bravo.session().player().guid);
+    }
+
     @When("Alpha adds Alpha as a friend")
     public void addSelf() {
         alpha.clear();
@@ -227,6 +233,97 @@ public class SocialSteps {
         bravo.connect(ACC_B);
         alpha.login(world, ag);
         bravo.login(world, bg);
+    }
+
+    @Given("Alpha created a guild named {string}")
+    public void alphaCreatedGuild(String name) {
+        alpha.clear();
+        alpha.guildCreate(world, name);
+        assertTrue(alpha.saw(Opcodes.SMSG_GUILD_ROSTER));
+    }
+
+    @When("Alpha invites Bravo to the guild")
+    public void guildInviteBravo() {
+        bravo.clear();
+        alpha.clear();
+        alpha.guildInvite(world, "Bravo");
+    }
+
+    @Then("Bravo received SMSG_GUILD_INVITE from Alpha for {string}")
+    public void bravoGuildInvite(String guild) {
+        assertTrue(bravo.saw(Opcodes.SMSG_GUILD_INVITE));
+        WowBuffer b = new WowBuffer(bravo.payload(Opcodes.SMSG_GUILD_INVITE));
+        assertEquals("Alpha", b.getCString());
+        assertEquals(guild, b.getCString());
+    }
+
+    @When("Bravo accepts the guild invite")
+    public void bravoAcceptGuild() {
+        alpha.clear();
+        bravo.clear();
+        bravo.guildAccept(world);
+    }
+
+    @Then("both received SMSG_GUILD_EVENT joined Bravo")
+    public void guildJoinedEvent() {
+        assertJoined(alpha.payload(Opcodes.SMSG_GUILD_EVENT));
+        assertJoined(bravo.payload(Opcodes.SMSG_GUILD_EVENT));
+    }
+
+    @When("Alpha lists that item at Chilton for {int} hours starting at {int} copper")
+    public void alphaSellAuction(int hours, int bid) {
+        Player p = alpha.session().player();
+        org.tbc.world.entity.Creature ah = null;
+        for (org.tbc.world.entity.Creature c : world.map(p.mapId, p.instanceId).creatures.values()) {
+            if (c.entry == org.tbc.world.content.Content.NPC_AUCTIONEER_CHILTON) {
+                ah = c;
+                break;
+            }
+        }
+        assertTrue(ah != null);
+        p.relocate(ah.x, ah.y, ah.z, ah.o);
+        alpha.clear();
+        alpha.auctionSell(world, ah.guid, tradedGuid, bid, 0, hours * 60);
+    }
+
+    @Then("Alpha received SMSG_AUCTION_COMMAND_RESULT started ok")
+    public void auctionStartedOk() {
+        assertTrue(alpha.saw(Opcodes.SMSG_AUCTION_COMMAND_RESULT));
+        byte[] p = alpha.payload(Opcodes.SMSG_AUCTION_COMMAND_RESULT);
+        assertTrue(WowClientDouble.u32le(p, 0) != 0);
+        assertEquals(0, WowClientDouble.u32le(p, 4));
+        assertEquals(0, WowClientDouble.u32le(p, 8));
+    }
+
+    @Given("Bravo has {int} copper")
+    public void bravoCopper(int copper) {
+        bravo.session().player().setMoney(copper);
+    }
+
+    @When("Bravo bids {int} copper on auction {int} at Chilton")
+    public void bravoBid(int price, int auctionId) {
+        Player p = bravo.session().player();
+        org.tbc.world.entity.Creature ah = null;
+        for (org.tbc.world.entity.Creature c : world.map(p.mapId, p.instanceId).creatures.values()) {
+            if (c.entry == org.tbc.world.content.Content.NPC_AUCTIONEER_CHILTON) {
+                ah = c;
+                break;
+            }
+        }
+        assertTrue(ah != null);
+        p.relocate(ah.x, ah.y, ah.z, ah.o);
+        bravo.clear();
+        bravo.auctionBid(world, ah.guid, auctionId, price);
+    }
+
+    @Then("Bravo received SMSG_AUCTION_COMMAND_RESULT bid placed ok")
+    public void auctionBidOk() {
+        assertTrue(bravo.saw(Opcodes.SMSG_AUCTION_COMMAND_RESULT));
+        byte[] p = bravo.payload(Opcodes.SMSG_AUCTION_COMMAND_RESULT);
+        assertEquals(1, WowClientDouble.u32le(p, 0));
+        assertEquals(2, WowClientDouble.u32le(p, 4));
+        assertEquals(0, WowClientDouble.u32le(p, 8));
+        assertEquals(1, WowClientDouble.u32le(p, 12));
     }
 
     @Then("Alpha contact list contains Bravo")
@@ -285,6 +382,14 @@ public class SocialSteps {
         alpha.ping(world, 4);
         assertTrue(alpha.saw(Opcodes.SMSG_PONG));
         assertEquals(4, WowClientDouble.u32le(alpha.payload(Opcodes.SMSG_PONG), 0));
+    }
+
+    private static void assertJoined(byte[] p) {
+        WowBuffer b = new WowBuffer(p);
+        assertEquals(0x03, b.getU8());
+        assertEquals(1, b.getU8());
+        assertEquals("Bravo", b.getCString());
+        assertTrue(b.getU64() != 0);
     }
 
     private static String otherName(byte[] list) {

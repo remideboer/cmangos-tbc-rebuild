@@ -1,23 +1,126 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Guild;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.world.World;
 
-/** Guild create and roster. Layout: spec/03-protocol/packets/guild.md */
+/** Guild create, invite, roster. Layout: spec/03-protocol/packets/guild.md */
 public final class GuildHandler {
     public static final int GR_RIGHT_EMPTY = 0x40;
+    /** Guild.h GR_RIGHT_INVITE. */
+    public static final int GR_RIGHT_INVITE = 0x00000050;
+    /** Guild.h GR_RIGHT_ALL (guild master). */
+    public static final int GR_RIGHT_ALL = 0x000DF1FF;
     public static final int GUILD_BANK_MAX_TABS = 6;
+    public static final int GUILD_CREATE_S = 0;
+    public static final int GUILD_INVITE_S = 1;
+    public static final int ERR_ALREADY_IN_GUILD_S = 0x03;
+    public static final int ERR_ALREADY_INVITED_TO_GUILD_S = 0x05;
+    public static final int ERR_GUILD_PERMISSIONS = 0x08;
+    public static final int ERR_GUILD_PLAYER_NOT_IN_GUILD = 0x09;
+    public static final int ERR_GUILD_PLAYER_NOT_FOUND_S = 0x0B;
+    public static final int ERR_GUILD_NOT_ALLIED = 0x0C;
+    public static final int GE_JOINED = 0x03;
 
     private GuildHandler() {}
 
-    public static void create(WorldSession s, WowBuffer in) {
+    public static void create(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
-        p.guildId = 1;
+        if (p.guildId != 0) {
+            return;
+        }
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        Guild g = new Guild();
+        g.id = world.objectMgr.nextGuildId.getAndIncrement();
+        g.name = name;
+        g.leaderGuid = p.guid;
+        g.members.add(p.guid);
+        world.objectMgr.guilds.put(g.id, g);
+        p.guildId = g.id;
         p.guildLeader = true;
-        p.guildName = in.remaining() > 0 ? in.getCString() : "";
+        p.guildName = name;
+        p.guildRankRights = GR_RIGHT_ALL;
         roster(s, p);
+    }
+
+    public static void invite(WorldSession s, World world, WowBuffer in) {
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        Player t = world.playerByName(name);
+        if (t == null || t.session == null) {
+            commandResult(s, GUILD_INVITE_S, name, ERR_GUILD_PLAYER_NOT_FOUND_S);
+            return;
+        }
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (p.team != t.team) {
+            commandResult(s, GUILD_INVITE_S, name, ERR_GUILD_NOT_ALLIED);
+            return;
+        }
+        if (t.guildId != 0) {
+            commandResult(s, GUILD_INVITE_S, t.name, ERR_ALREADY_IN_GUILD_S);
+            return;
+        }
+        if (t.guildIdInvited != 0) {
+            commandResult(s, GUILD_INVITE_S, t.name, ERR_ALREADY_INVITED_TO_GUILD_S);
+            return;
+        }
+        if ((p.guildRankRights & GR_RIGHT_INVITE) != GR_RIGHT_INVITE) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        t.guildIdInvited = g.id;
+        WowBuffer inv = new WowBuffer(32);
+        inv.putCString(p.name);
+        inv.putCString(g.name);
+        t.session.send(Opcodes.SMSG_GUILD_INVITE, inv.array());
+    }
+
+    public static void accept(WorldSession s, World world) {
+        Player p = s.player();
+        if (p.guildId != 0) {
+            return;
+        }
+        Guild g = world.objectMgr.guilds.get(p.guildIdInvited);
+        if (g == null) {
+            return;
+        }
+        Player leader = world.playerByGuid(g.leaderGuid);
+        if (leader != null && leader.team != p.team) {
+            return;
+        }
+        p.guildIdInvited = 0;
+        p.guildId = g.id;
+        p.guildName = g.name;
+        p.guildLeader = false;
+        p.guildRankRights = GR_RIGHT_EMPTY;
+        g.members.add(p.guid);
+        WowBuffer ev = new WowBuffer(32);
+        ev.putU8(GE_JOINED);
+        ev.putU8(1);
+        ev.putCString(p.name);
+        ev.putU64(p.guid);
+        byte[] payload = ev.array();
+        for (long guid : g.members) {
+            Player m = world.playerByGuid(guid);
+            if (m != null && m.session != null) {
+                m.session.send(Opcodes.SMSG_GUILD_EVENT, payload);
+            }
+        }
+    }
+
+    static void commandResult(WorldSession s, int type, String name, int result) {
+        WowBuffer b = new WowBuffer(16);
+        b.putU32(type);
+        b.putCString(name == null ? "" : name);
+        b.putU32(result);
+        s.send(Opcodes.SMSG_GUILD_COMMAND_RESULT, b.array());
     }
 
     public static void roster(WorldSession s, Player p) {

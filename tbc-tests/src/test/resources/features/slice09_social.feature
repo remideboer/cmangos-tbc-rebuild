@@ -43,6 +43,34 @@ Feature: Slice 9 social and economy
     And both characters log out and relog
     Then Alpha contact list contains Bravo
 
+  @tp-sl09-005
+  Scenario: Guild invite and accept
+    Given Alpha created a guild named "Lions"
+    When Alpha invites Bravo to the guild
+    Then Bravo received SMSG_GUILD_INVITE from Alpha for "Lions"
+    When Bravo accepts the guild invite
+    Then both received SMSG_GUILD_EVENT joined Bravo
+
+  @tp-sl09-006
+  Scenario: Auction sell item
+    Given Alpha has item 25 in a bag slot
+    And Alpha has 100 copper
+    When Alpha lists that item at Chilton for 12 hours starting at 100 copper
+    Then Alpha received SMSG_AUCTION_COMMAND_RESULT started ok
+    And Alpha no longer has that item guid
+
+  @tp-sl09-007
+  Scenario: Auction place bid
+    Given Bravo has 200 copper
+    When Bravo bids 100 copper on auction 1 at Chilton
+    Then Bravo received SMSG_AUCTION_COMMAND_RESULT bid placed ok
+
+  @tp-sl09-008
+  Scenario: Delete friend
+    When Alpha adds Bravo as a friend
+    And Alpha removes Bravo as a friend
+    Then Alpha received friend result 5
+
   @negative
   Scenario: Invite unknown name
     When Alpha invites Nobody to the party

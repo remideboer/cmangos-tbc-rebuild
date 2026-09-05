@@ -310,6 +310,46 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_ADD_FRIEND, b.array());
     }
 
+    public void delFriend(World world, long guid) {
+        WowBuffer b = new WowBuffer(8);
+        b.putU64(guid);
+        handle(world, Opcodes.CMSG_DEL_FRIEND, b.array());
+    }
+
+    public void guildCreate(World world, String name) {
+        WowBuffer b = new WowBuffer(16);
+        b.putCString(name);
+        handle(world, Opcodes.CMSG_GUILD_CREATE, b.array());
+    }
+
+    public void guildInvite(World world, String name) {
+        WowBuffer b = new WowBuffer(16);
+        b.putCString(name);
+        handle(world, Opcodes.CMSG_GUILD_INVITE, b.array());
+    }
+
+    public void guildAccept(World world) {
+        handle(world, Opcodes.CMSG_GUILD_ACCEPT, new byte[0]);
+    }
+
+    public void auctionSell(World world, long auctioneer, long itemGuid, int bid, int buyout, int minutes) {
+        WowBuffer b = new WowBuffer(32);
+        b.putU64(auctioneer);
+        b.putU64(itemGuid);
+        b.putU32(bid);
+        b.putU32(buyout);
+        b.putU32(minutes);
+        handle(world, Opcodes.CMSG_AUCTION_SELL_ITEM, b.array());
+    }
+
+    public void auctionBid(World world, long auctioneer, int auctionId, int price) {
+        WowBuffer b = new WowBuffer(16);
+        b.putU64(auctioneer);
+        b.putU32(auctionId);
+        b.putU32(price);
+        handle(world, Opcodes.CMSG_AUCTION_PLACE_BID, b.array());
+    }
+
     public void sendMail(World world, long mailbox, String receiver, String subject, String body, long itemGuid) {
         WowBuffer b = new WowBuffer(64);
         b.putU64(mailbox);

@@ -157,7 +157,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_GUILD_CREATE) {
-            GuildHandler.create(s, in);
+            GuildHandler.create(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_GUILD_BANKER_ACTIVATE) {
