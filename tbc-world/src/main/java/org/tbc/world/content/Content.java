@@ -30,6 +30,10 @@ public final class Content {
     public static final int UNIT_NPC_FLAG_AUCTIONEER = 0x200000;
     public static final int UNIT_NPC_FLAG_BANKER = 0x00020000;
     public static final int UNIT_NPC_FLAG_INNKEEPER = 0x00010000;
+    /** Unit.h UNIT_NPC_FLAG_PETITIONER. */
+    public static final int UNIT_NPC_FLAG_PETITIONER = 0x00040000;
+    /** Unit.h UNIT_NPC_FLAG_TABARDDESIGNER. */
+    public static final int UNIT_NPC_FLAG_TABARDDESIGNER = 0x00080000;
     /** GossipDef.h DEFAULT_GOSSIP_MESSAGE; menu 0 title text. */
     public static final int DEFAULT_GOSSIP_MESSAGE = 0x00FFFFFF;
     /** NPCHandler.h MAX_GOSSIP_TEXT_OPTIONS. */
@@ -64,6 +68,14 @@ public final class Content {
     public static final int AUCTION_HOUSE_HUMAN = 1;
     public static final int NPC_AUCTIONEER_CHILTON = 8670;
     public static final int NPC_OLIVIA_BURNSIDE = 2455;
+    /** Stormwind tabard designer (creature_template 5193). */
+    public static final int NPC_REBECCA_LAUGHLIN = 5193;
+    /** PetitionsHandler.cpp GUILD_CHARTER. */
+    public static final int ITEM_GUILD_CHARTER = 5863;
+    /** PetitionsHandler.cpp GUILD_CHARTER_COST. */
+    public static final int GUILD_CHARTER_COST = 1000;
+    /** PetitionsHandler.cpp CHARTER_DISPLAY_ID. */
+    public static final int CHARTER_DISPLAY_ID = 16161;
     public static final int GAME_EVENT_MIDSUMMER = 1;
     public static final int NPC_LUMA_SKYMOTHER = 25697;
     public static final int GO_ICE_STONE = 187882;

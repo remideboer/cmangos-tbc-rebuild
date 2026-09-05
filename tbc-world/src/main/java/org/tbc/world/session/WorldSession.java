@@ -335,6 +335,13 @@ public final class WorldSession {
             case Opcodes.CMSG_DEL_FRIEND -> SocialHandler.delFriend(this, world, in);
             case Opcodes.CMSG_GUILD_INVITE -> GuildHandler.invite(this, world, in);
             case Opcodes.CMSG_GUILD_ACCEPT -> GuildHandler.accept(this, world);
+            case Opcodes.CMSG_PETITION_BUY -> PetitionHandler.buy(this, world, in);
+            case Opcodes.CMSG_PETITION_SIGN -> PetitionHandler.sign(this, world, in);
+            case Opcodes.CMSG_TURN_IN_PETITION -> {
+                if (!PetitionHandler.turnIn(this, world, in)) {
+                    LaterOpcodes.handle(this, world, opcode, in);
+                }
+            }
             case Opcodes.CMSG_SEND_MAIL -> SocialHandler.sendMail(this, world, in);
             case Opcodes.CMSG_GET_MAIL_LIST -> SocialHandler.getMailList(this, world, in);
             case Opcodes.CMSG_MAIL_TAKE_ITEM -> SocialHandler.takeMailItem(this, world, in);

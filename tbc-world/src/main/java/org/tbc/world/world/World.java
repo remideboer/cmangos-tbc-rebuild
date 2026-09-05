@@ -92,6 +92,8 @@ public final class World implements Runnable {
     public final double sayRange;
     public final double yellRange;
     public final int saveIntervalMs;
+    /** World.cpp MinPetitionSigns default 9. */
+    public int minPetitionSigns = 9;
 
     private final Map<Integer, GameMap> maps = new ConcurrentHashMap<>();
     private final Map<Long, WorldSession> sessions = new ConcurrentHashMap<>();

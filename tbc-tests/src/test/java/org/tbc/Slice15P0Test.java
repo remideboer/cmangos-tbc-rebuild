@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** TP-SL15-* from packet files, one criterion per method. */
 class Slice15P0Test {
@@ -93,6 +94,65 @@ class Slice15P0Test {
         long requester = g.a.session().player().guid;
         assertEquals(requester, WowClientDouble.u64le(lastPayload(g.a, Opcodes.MSG_RAID_READY_CHECK), 0));
         assertEquals(requester, WowClientDouble.u64le(lastPayload(g.b, Opcodes.MSG_RAID_READY_CHECK), 0));
+    }
+
+    @Test
+    void tpSl15BuyGuildCharter() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC_A);
+        Player created = world.characters.create(ACC_A.id(), "Buyer", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.setMoney(Content.GUILD_CHARTER_COST);
+        Creature npc = find(world, Content.NPC_REBECCA_LAUGHLIN);
+        p.relocate(npc.x, npc.y, npc.z, npc.o);
+        client.clear();
+        client.petitionBuy(world, npc.guid, "CharterGuild", 1);
+        byte[] push = lastPayload(client, Opcodes.SMSG_ITEM_PUSH_RESULT);
+        assertEquals(1, WowClientDouble.u32le(push, 8), "received from NPC");
+        assertEquals(Content.ITEM_GUILD_CHARTER, WowClientDouble.u32le(push, 25));
+        assertEquals(0, p.money);
+    }
+
+    @Test
+    void tpSl15SignGuildCharter() {
+        Pair g = loginTwo("Owner", "Signer");
+        Player owner = g.a.session().player();
+        owner.setMoney(Content.GUILD_CHARTER_COST);
+        Creature npc = find(g.world, Content.NPC_REBECCA_LAUGHLIN);
+        owner.relocate(npc.x, npc.y, npc.z, npc.o);
+        g.b.session().player().relocate(npc.x, npc.y, npc.z, npc.o);
+        g.a.clear();
+        g.a.petitionBuy(g.world, npc.guid, "SignGuild", 1);
+        long petition = charterGuid(owner);
+        g.a.clear();
+        g.b.clear();
+        g.b.petitionSign(g.world, petition);
+        byte[] signed = lastPayload(g.b, Opcodes.SMSG_PETITION_SIGN_RESULTS);
+        WowBuffer r = new WowBuffer(signed);
+        assertEquals(petition, r.getU64());
+        assertEquals(g.b.session().player().guid, r.getU64());
+        assertEquals(0, r.getU32());
+        assertTrue(g.a.saw(Opcodes.SMSG_PETITION_SIGN_RESULTS));
+    }
+
+    @Test
+    void tpSl15TurnInGuildCharter() {
+        Pair g = loginTwo("Founder", "Signer");
+        g.world.minPetitionSigns = 1;
+        Player owner = g.a.session().player();
+        owner.setMoney(Content.GUILD_CHARTER_COST);
+        Creature npc = find(g.world, Content.NPC_REBECCA_LAUGHLIN);
+        owner.relocate(npc.x, npc.y, npc.z, npc.o);
+        g.b.session().player().relocate(npc.x, npc.y, npc.z, npc.o);
+        g.a.petitionBuy(g.world, npc.guid, "TurnGuild", 1);
+        long petition = charterGuid(owner);
+        g.b.petitionSign(g.world, petition);
+        g.a.clear();
+        g.a.petitionTurnIn(g.world, petition);
+        assertEquals(0, WowClientDouble.u32le(lastPayload(g.a, Opcodes.SMSG_TURN_IN_PETITION_RESULTS), 0));
+        assertFalse(g.a.saw(Opcodes.SMSG_ARENA_TEAM_ROSTER));
     }
 
     @Test
@@ -304,6 +364,15 @@ class Slice15P0Test {
             }
         }
         throw new AssertionError("missing opcode " + opcode);
+    }
+
+    private static long charterGuid(Player p) {
+        for (Item it : p.items.values()) {
+            if (it.entry == Content.ITEM_GUILD_CHARTER) {
+                return it.guid;
+            }
+        }
+        throw new AssertionError("no guild charter");
     }
 
     private record Pair(World world, WowClientDouble a, WowClientDouble b) {}

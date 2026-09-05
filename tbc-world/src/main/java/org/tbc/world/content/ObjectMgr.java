@@ -251,6 +251,19 @@ public final class ObjectMgr {
             t.requiredDisenchantSkill = -1;
             return t;
         }
+
+        /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
+        public static ItemTemplate guildCharter() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_GUILD_CHARTER;
+            t.name = "Guild Charter";
+            t.displayId = Content.CHARTER_DISPLAY_ID;
+            t.quality = 1;
+            t.buyPrice = Content.GUILD_CHARTER_COST;
+            t.stackable = 1;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
     }
 
     public final Map<Long, CreateInfo> createInfo = new HashMap<>();
@@ -322,6 +335,19 @@ public final class ObjectMgr {
     public final AtomicInteger nextAuctionId = new AtomicInteger(2);
     public final AtomicInteger nextCreatureLow = new AtomicInteger(1_000_000);
     public final AtomicInteger nextItemLow = new AtomicInteger(1);
+
+    /** petition / petition_sign. PetitionsHandler.cpp. */
+    public static final class Petition {
+        public int guidLow;
+        public long ownerGuid;
+        public int ownerAccount;
+        public String name = "";
+        public int type;
+        public final List<Long> signers = new ArrayList<>();
+        public final List<Integer> signerAccounts = new ArrayList<>();
+    }
+
+    public final Map<Integer, Petition> petitions = new HashMap<>();
 
     public record Spawn(int guid, int entry, int map, float x, float y, float z, float o,
             float spawnDist, int movementType) {
@@ -858,6 +884,8 @@ public final class ObjectMgr {
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_AUCTIONEER, "", "", 0));
         creatures.put(Content.NPC_OLIVIA_BURNSIDE, new CreatureTemplate(Content.NPC_OLIVIA_BURNSIDE, "Olivia Burnside", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_BANKER, "", "", 0));
+        creatures.put(Content.NPC_REBECCA_LAUGHLIN, new CreatureTemplate(Content.NPC_REBECCA_LAUGHLIN, "Rebecca Laughlin", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_PETITIONER | Content.UNIT_NPC_FLAG_TABARDDESIGNER, "", "", 0));
         creatures.put(Content.NPC_LUMA_SKYMOTHER, new CreatureTemplate(Content.NPC_LUMA_SKYMOTHER, "Luma Skymother", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP, "", "", 0));
         auctions.add(new Auction(1, Content.ITEM_WORN_SHORTSWORD, 0, 100, 0, 43_200_000, "Worn Shortsword"));
@@ -885,6 +913,7 @@ public final class ObjectMgr {
             spawns.add(new Spawn(8, Content.NPC_DUNGAR_LONGDRINK, 0, -8835.76f, 490.084f, 109.699f, 0f));
             spawns.add(new Spawn(9, Content.NPC_AUCTIONEER_CHILTON, 0, -8912f, -122f, 80f, 0f));
             spawns.add(new Spawn(10, Content.NPC_OLIVIA_BURNSIDE, 0, -8914f, -124f, 80f, 0f));
+            spawns.add(new Spawn(13, Content.NPC_REBECCA_LAUGHLIN, 0, -8916f, -126f, 80f, 0f));
             spawns.add(new Spawn(12, Content.NPC_INNKEEPER_FARLEY, 0, -9462.66f, 16.1915f, 57.0459f, 0f));
         }
         if (!eventCreatures.containsKey(Content.GAME_EVENT_MIDSUMMER)) {
@@ -908,6 +937,7 @@ public final class ObjectMgr {
         creatures.putIfAbsent(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         items.putIfAbsent(25, ItemTemplate.wornShortsword());
+        items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0));
         vendorItems.putIfAbsent(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
         creatureLoot.computeIfAbsent(6, k -> new ArrayList<>());
@@ -927,6 +957,8 @@ public final class ObjectMgr {
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_AUCTIONEER, "", "", 0));
         creatures.putIfAbsent(Content.NPC_OLIVIA_BURNSIDE, new CreatureTemplate(Content.NPC_OLIVIA_BURNSIDE, "Olivia Burnside", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_BANKER, "", "", 0));
+        creatures.putIfAbsent(Content.NPC_REBECCA_LAUGHLIN, new CreatureTemplate(Content.NPC_REBECCA_LAUGHLIN, "Rebecca Laughlin", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_PETITIONER | Content.UNIT_NPC_FLAG_TABARDDESIGNER, "", "", 0));
         creatures.putIfAbsent(Content.NPC_LUMA_SKYMOTHER, new CreatureTemplate(Content.NPC_LUMA_SKYMOTHER, "Luma Skymother", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP, "", "", 0));
         if (auctions.isEmpty()) {
@@ -943,6 +975,16 @@ public final class ObjectMgr {
                 new Spawn(11, Content.NPC_LUMA_SKYMOTHER, 547, -92.45719f, -110.6642f, -2.866759f, 2.408554f))));
         eventGameObjects.putIfAbsent(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
                 new Spawn(5470020, Content.GO_ICE_STONE, 547, -69.9045f, -162.245f, -2.36656f, 2.42601f))));
+        boolean hasPetitioner = false;
+        for (Spawn s : spawns) {
+            if (s.entry() == Content.NPC_REBECCA_LAUGHLIN) {
+                hasPetitioner = true;
+                break;
+            }
+        }
+        if (!hasPetitioner) {
+            spawns.add(new Spawn(1_000_013, Content.NPC_REBECCA_LAUGHLIN, 0, -8916f, -126f, 80f, 0f));
+        }
         seedMenu0();
         seedFarleyGossip();
     }

@@ -416,6 +416,38 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_LEARN_TALENT, b.array());
     }
 
+    /** CMSG_PETITION_BUY. Layout: spec/03-protocol/packets/guild.md */
+    public void petitionBuy(World world, long npcGuid, String name, int clientIndex) {
+        WowBuffer b = new WowBuffer(96 + name.length());
+        b.putU64(npcGuid);
+        b.putU32(0);
+        b.putU64(0);
+        b.putCString(name);
+        for (int i = 0; i < 10; i++) {
+            b.putU32(0);
+        }
+        b.putU16(0);
+        b.putU8(0);
+        b.putU32(clientIndex);
+        b.putU32(0);
+        handle(world, Opcodes.CMSG_PETITION_BUY, b.array());
+    }
+
+    /** CMSG_PETITION_SIGN. Layout: spec/03-protocol/packets/guild.md */
+    public void petitionSign(World world, long petitionGuid) {
+        WowBuffer b = new WowBuffer(9);
+        b.putU64(petitionGuid);
+        b.putU8(0);
+        handle(world, Opcodes.CMSG_PETITION_SIGN, b.array());
+    }
+
+    /** CMSG_TURN_IN_PETITION. Layout: spec/03-protocol/packets/guild.md */
+    public void petitionTurnIn(World world, long petitionGuid) {
+        WowBuffer b = new WowBuffer(8);
+        b.putU64(petitionGuid);
+        handle(world, Opcodes.CMSG_TURN_IN_PETITION, b.array());
+    }
+
     public void battlefieldPort(World world, int action) {
         WowBuffer b = new WowBuffer(9);
         b.putU8(0);
