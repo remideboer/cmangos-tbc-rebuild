@@ -1,0 +1,33 @@
+package org.tbc.editor;
+
+/** Loaded character scalars for the detail form. */
+public record CharacterDetail(
+        long guid,
+        int accountId,
+        String accountName,
+        String name,
+        int race,
+        int clazz,
+        int gender,
+        int level,
+        int xp,
+        int money,
+        int map,
+        int zone,
+        float x,
+        float y,
+        float z,
+        float o,
+        int bindMap,
+        int bindZone,
+        float bindX,
+        float bindY,
+        float bindZ,
+        int skin,
+        int face,
+        int hairStyle,
+        int hairColor,
+        int facialHair,
+        int atLogin,
+        int cinematic,
+        boolean online) {}

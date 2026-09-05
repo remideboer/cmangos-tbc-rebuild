@@ -19,6 +19,7 @@
     <module>tbc-auth</module>
     <module>tbc-world</module>
     <module>tbc-admin</module>
+    <module>tbc-editor</module>
     <module>tbc-tests</module>
   </modules>
   <properties>
