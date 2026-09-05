@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class Slice11EventAiTest {
     private static final World.Account ACC =
             new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
+    private static final World.Account ACC_FAR =
+            new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86");
 
     @Test
     void timerInCombatWhenWindowElapsedShouldSendSpellGo() {
@@ -54,6 +56,27 @@ class Slice11EventAiTest {
         world.tick(501);
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
         assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
+    }
+
+    @Test
+    void timerOocWhenFarPlayerOnSameMapShouldNotReceiveSpellGo() {
+        World world = World.inMemory();
+        WowClientDouble near = login(world, ACC, "Near");
+        WowClientDouble far = login(world, ACC_FAR, "Far");
+        Player pn = near.session().player();
+        Player pf = far.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, pn.x, pn.y, pn.z, pn.o, world.scripts);
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(EventAi.Script.timerOoc(0, 1000, 7164, EventAi.TARGET_SELF)));
+        world.map(pn.mapId, pn.instanceId).add(c);
+        pn.relocate(c.x + 40, c.y, c.z, c.o);
+        pf.relocate(c.x + 500, c.y, c.z, c.o);
+        near.clear();
+        far.clear();
+        world.tick(501);
+        assertTrue(near.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(7164, spellId(near.payload(Opcodes.SMSG_SPELL_GO)));
+        assertFalse(far.saw(Opcodes.SMSG_SPELL_GO));
     }
 
     @Test
@@ -145,7 +168,7 @@ class Slice11EventAiTest {
         world.tick(50);
         assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
         p.relocate(c.x + 5, c.y, c.z, c.o);
-        world.tick(50);
+        world.tick(Creature.IDLE_UPDATE_MS);
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
         assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
     }
@@ -173,9 +196,13 @@ class Slice11EventAiTest {
     }
 
     private static WowClientDouble login(World world, String name) {
+        return login(world, ACC, name);
+    }
+
+    private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
-        client.connect(ACC);
-        Player created = world.characters.create(ACC.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.connect(acc);
+        Player created = world.characters.create(acc.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         return client;
     }

@@ -152,6 +152,22 @@ public final class LaterOpcodes {
             GroupHandler.raidConvert(s);
             return true;
         }
+        if (opcode == Opcodes.CMSG_GROUP_ASSISTANT_LEADER) {
+            GroupHandler.assistantLeader(s, in);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_GROUP_CHANGE_SUB_GROUP) {
+            GroupHandler.changeSubGroup(s, in);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_GROUP_SWAP_SUB_GROUP) {
+            GroupHandler.swapSubGroup(s, in);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_REQUEST_RAID_INFO) {
+            GroupHandler.requestRaidInfo(s);
+            return true;
+        }
         if (opcode == Opcodes.MSG_RAID_READY_CHECK) {
             GroupHandler.readyCheck(s, in);
             return true;
@@ -169,7 +185,19 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_GUILD_BANK_BUY_TAB) {
-            GuildHandler.buyTab(s, in);
+            GuildHandler.buyTab(s, world, in);
+            return true;
+        }
+        if (opcode == Opcodes.MSG_GUILD_BANK_LOG_QUERY) {
+            GuildHandler.bankLogQuery(s, world, in);
+            return true;
+        }
+        if (opcode == Opcodes.MSG_QUERY_GUILD_BANK_TEXT) {
+            GuildHandler.queryBankText(s, world, in);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_SET_GUILD_BANK_TEXT) {
+            GuildHandler.setBankText(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_AUCTION_LIST_ITEMS) {

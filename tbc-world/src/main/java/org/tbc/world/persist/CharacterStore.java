@@ -433,6 +433,7 @@ public final class CharacterStore {
             }
             try {
                 loadInventory(c, p);
+                noteItemGuids(p);
             } catch (Exception e) {
                 log.warn("load inventory {}", e.getMessage());
             }
@@ -739,24 +740,13 @@ public final class CharacterStore {
     }
 
     public long nextItemGuid() {
-        long max = nextItem.get();
-        for (Player p : memory.values()) {
-            max = Math.max(max, maxItemGuid(p));
-        }
-        for (Player p : inWorld.values()) {
-            max = Math.max(max, maxItemGuid(p));
-        }
-        long need = max;
-        nextItem.updateAndGet(v -> Math.max(v, need));
         return nextItem.getAndIncrement();
     }
 
-    private static long maxItemGuid(Player p) {
-        long max = 1;
+    private void noteItemGuids(Player p) {
         for (Item it : p.items.values()) {
-            max = Math.max(max, it.guid + 1);
+            nextItem.updateAndGet(v -> Math.max(v, it.guid + 1));
         }
-        return max;
     }
 
     public Player storedByName(String name) {

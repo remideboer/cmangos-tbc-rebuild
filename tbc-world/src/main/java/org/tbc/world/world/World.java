@@ -150,6 +150,7 @@ public final class World implements Runnable {
         }
     }
 
+    /** Instantiates map 0/1 spawn rows at boot. Lazy grid load/unload is FR-CNT-002 / maps-grids-visibility.md — not this increment. */
     private void seedStarterMobs() {
         if (objectMgr.spawns.isEmpty()) {
             map(0, 0).add(objectMgr.spawnCreature(6, 0, -8900f, -120f, 80f, 0f, scripts));
@@ -317,7 +318,10 @@ public final class World implements Runnable {
 
     public void teleport(Player p, int mapId, float x, float y, float z, float o) {
         if (p.mapId == mapId) {
+            float ox = p.x;
+            float oy = p.y;
             p.relocate(x, y, z, o);
+            map(p.mapId, p.instanceId).reindex(p, ox, oy);
             if (p.session != null) {
                 WowBuffer ack = new WowBuffer(64);
                 ack.putPackedGuid(p.guid);
@@ -480,7 +484,8 @@ public final class World implements Runnable {
             WeatherHandler.onTimer(this);
         }
         for (GameMap m : maps.values()) {
-            for (Creature c : m.creatures.values()) {
+            // CMaNGOS Map::Update → VisitNearbyCellsOf(player), not every continent spawn.
+            for (Creature c : m.creaturesNearPlayers(GameMap.VISIBILITY)) {
                 if (!c.alive()) {
                     if (c.respawnAtMs > 0 && nowMs() >= c.respawnAtMs) {
                         combat.respawn(c);
@@ -493,6 +498,15 @@ public final class World implements Runnable {
                         }
                     }
                     continue;
+                }
+                boolean combatPulse = c.inCombat || c.evading || c.motion.type() == MotionMaster.HOME;
+                if (!combatPulse) {
+                    if (c.nextUpdateMs > 0) {
+                        c.nextUpdateMs -= diff;
+                    }
+                    if (c.nextUpdateMs > 0) {
+                        continue;
+                    }
                 }
                 if (!c.inCombat && !c.evading && c.script == null && c.eventAi == null
                         && c.motion.type() != MotionMaster.RANDOM && c.motion.type() != MotionMaster.HOME
@@ -564,6 +578,11 @@ public final class World implements Runnable {
                         }
                     }
                 }
+                if (!c.inCombat && !c.evading && c.motion.type() != MotionMaster.HOME) {
+                    c.nextUpdateMs = c.motion.type() == MotionMaster.RANDOM
+                            ? Creature.RANDOM_UPDATE_MS
+                            : Creature.IDLE_UPDATE_MS;
+                }
             }
             m.dbScripts.process(diff, (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
         }
@@ -627,7 +646,7 @@ public final class World implements Runnable {
             dmg = spells.apply(cr, target, info);
         }
         byte[] go = spells.encodeGo(cr.guid, hit, spell, nowMs(), tgt);
-        for (Player pl : m.players.values()) {
+        for (Player pl : m.nearbyPlayers(cr, GameMap.VISIBILITY)) {
             if (pl.session != null) {
                 pl.session.send(Opcodes.SMSG_SPELL_START, start);
                 pl.session.send(Opcodes.SMSG_SPELL_GO, go);

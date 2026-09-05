@@ -8,6 +8,7 @@ import org.tbc.world.entity.Unit;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,6 +23,7 @@ public final class GameMap {
     public static final double VISIBILITY = 90.0;
     private static final float CELL = 100f;
     private final Map<Long, Map<Long, Creature>> cells = new ConcurrentHashMap<>();
+    private final Map<Long, Map<Long, Player>> playerCells = new ConcurrentHashMap<>();
 
     public GameMap(int mapId, int instanceId) {
         this.mapId = mapId;
@@ -30,10 +32,15 @@ public final class GameMap {
 
     public void add(Player p) {
         players.put(p.guid, p);
+        playerCells.computeIfAbsent(cellKey(p.x, p.y), k -> new ConcurrentHashMap<>()).put(p.guid, p);
     }
 
     public void remove(Player p) {
         players.remove(p.guid);
+        Map<Long, Player> cell = playerCells.get(cellKey(p.x, p.y));
+        if (cell != null) {
+            cell.remove(p.guid);
+        }
     }
 
     public void add(Creature c) {
@@ -65,6 +72,22 @@ public final class GameMap {
         cells.computeIfAbsent(to, k -> new ConcurrentHashMap<>()).put(c.guid, c);
     }
 
+    public void reindex(Player p, float oldX, float oldY) {
+        if (p == null) {
+            return;
+        }
+        long from = cellKey(oldX, oldY);
+        long to = cellKey(p.x, p.y);
+        if (from == to) {
+            return;
+        }
+        Map<Long, Player> oldCell = playerCells.get(from);
+        if (oldCell != null) {
+            oldCell.remove(p.guid);
+        }
+        playerCells.computeIfAbsent(to, k -> new ConcurrentHashMap<>()).put(p.guid, p);
+    }
+
     public void remove(Creature c) {
         creatures.remove(c.guid);
         Map<Long, Creature> cell = cells.get(cellKey(c.x, c.y));
@@ -75,17 +98,54 @@ public final class GameMap {
 
     public List<Player> nearbyPlayers(Unit u, double range) {
         List<Player> out = new ArrayList<>();
-        for (Player p : players.values()) {
-            if (p.guid != u.guid && p.distance2d(u) <= range) {
-                out.add(p);
+        int span = cellSpan(range);
+        int cx = (int) Math.floor(u.x / CELL);
+        int cy = (int) Math.floor(u.y / CELL);
+        for (int dx = -span; dx <= span; dx++) {
+            for (int dy = -span; dy <= span; dy++) {
+                Map<Long, Player> cell = playerCells.get(cellKeyIndex(cx + dx, cy + dy));
+                if (cell == null) {
+                    continue;
+                }
+                for (Player p : cell.values()) {
+                    if (p.guid != u.guid && p.distance2d(u) <= range) {
+                        out.add(p);
+                    }
+                }
             }
         }
         return out;
     }
 
+    /**
+     * CMaNGOS Map::VisitNearbyCellsOf: creatures in cells around online players.
+     * Includes corpses so a due respawn runs when a player is in range.
+     */
+    public List<Creature> creaturesNearPlayers(double range) {
+        if (players.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Creature> out = new HashMap<>();
+        int span = cellSpan(range);
+        for (Player p : players.values()) {
+            int cx = (int) Math.floor(p.x / CELL);
+            int cy = (int) Math.floor(p.y / CELL);
+            for (int dx = -span; dx <= span; dx++) {
+                for (int dy = -span; dy <= span; dy++) {
+                    Map<Long, Creature> cell = cells.get(cellKeyIndex(cx + dx, cy + dy));
+                    if (cell == null) {
+                        continue;
+                    }
+                    out.putAll(cell);
+                }
+            }
+        }
+        return new ArrayList<>(out.values());
+    }
+
     public List<Creature> nearbyCreatures(Unit u, double range) {
         List<Creature> out = new ArrayList<>();
-        int span = (int) Math.ceil(range / CELL) + 1;
+        int span = cellSpan(range);
         int cx = (int) Math.floor(u.x / CELL);
         int cy = (int) Math.floor(u.y / CELL);
         for (int dx = -span; dx <= span; dx++) {
@@ -106,6 +166,10 @@ public final class GameMap {
 
     public Collection<Player> players() {
         return players.values();
+    }
+
+    private static int cellSpan(double range) {
+        return (int) Math.ceil(range / CELL) + 1;
     }
 
     static long cellKey(float x, float y) {

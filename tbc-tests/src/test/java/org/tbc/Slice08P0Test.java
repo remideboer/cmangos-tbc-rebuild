@@ -32,7 +32,10 @@ class Slice08P0Test {
         int[] n = {0};
         c.motion.rng(() -> n[0]++ == 0 ? 0.0 : 1.0);
         c.startOocMotion();
+        float ox = p.x;
+        float oy = p.y;
         p.relocate(c.x + 40, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
         client.clear();
         world.tick(1000);
         assertTrue(client.saw(Opcodes.SMSG_MONSTER_MOVE));

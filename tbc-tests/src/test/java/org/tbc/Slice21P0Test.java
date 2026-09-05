@@ -177,6 +177,140 @@ class Slice21P0Test {
     }
 
     @Test
+    void tpSl21GuildEmblem() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        Player p = lead.session().player();
+        lead.guildCreate(world, "Plates");
+        org.tbc.world.entity.Creature npc = petitioner(world);
+        p.relocate(npc.x, npc.y, npc.z, npc.o);
+        p.setMoney(100000);
+        lead.clear();
+        WowBuffer in = new WowBuffer(32);
+        in.putU64(npc.guid);
+        in.putU32(1);
+        in.putU32(2);
+        in.putU32(3);
+        in.putU32(4);
+        in.putU32(5);
+        lead.handle(world, Opcodes.MSG_SAVE_GUILD_EMBLEM, in.array());
+        assertEquals(0, WowClientDouble.u32le(lastPayload(lead, Opcodes.MSG_SAVE_GUILD_EMBLEM), 0));
+        assertEquals(0, p.money);
+        WowBuffer q = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_QUERY_RESPONSE));
+        assertEquals(p.guildId, q.getU32());
+        assertEquals("Plates", q.getCString());
+        for (int i = 0; i < 10; i++) {
+            q.getCString();
+        }
+        assertEquals(1, q.getU32());
+        assertEquals(2, q.getU32());
+        assertEquals(3, q.getU32());
+        assertEquals(4, q.getU32());
+        assertEquals(5, q.getU32());
+    }
+
+    @Test
+    void tpSl21GuildBankLog() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        lead.clear();
+        lead.handle(world, Opcodes.MSG_GUILD_BANK_LOG_QUERY, new byte[]{6});
+        WowBuffer g = new WowBuffer(lastPayload(lead, Opcodes.MSG_GUILD_BANK_LOG_QUERY));
+        assertEquals(6, g.getU8());
+        assertEquals(0, g.getU8());
+        assertEquals(0, g.remaining());
+    }
+
+    @Test
+    void tpSl21GuildBankText() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        Player p = lead.session().player();
+        lead.guildCreate(world, "Plates");
+        p.setMoney(GuildHandler.TAB_PRICE);
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_BUY_TAB, new byte[8]);
+        lead.clear();
+        WowBuffer set = new WowBuffer(16);
+        set.putU8(0);
+        set.putCString("Rules");
+        lead.handle(world, Opcodes.CMSG_SET_GUILD_BANK_TEXT, set.array());
+        WowBuffer g = new WowBuffer(lastPayload(lead, Opcodes.MSG_QUERY_GUILD_BANK_TEXT));
+        assertEquals(0, g.getU8());
+        assertEquals("Rules", g.getCString());
+        assertEquals(0, g.remaining());
+    }
+
+    @Test
+    void tpSl21RaidInfo() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Lead");
+        client.clear();
+        client.handle(world, Opcodes.CMSG_REQUEST_RAID_INFO, new byte[0]);
+        WowBuffer g = new WowBuffer(lastPayload(client, Opcodes.SMSG_RAID_INSTANCE_INFO));
+        assertEquals(0, g.getU32());
+        assertEquals(0, g.remaining());
+    }
+
+    @Test
+    void tpSl21RaidAssistant() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.groupInvite(world, "Mate");
+        mate.groupAccept(world);
+        lead.handle(world, Opcodes.CMSG_GROUP_RAID_CONVERT, new byte[0]);
+        lead.clear();
+        mate.clear();
+        WowBuffer in = new WowBuffer(9);
+        in.putU64(mate.session().player().guid);
+        in.putU8(1);
+        lead.handle(world, Opcodes.CMSG_GROUP_ASSISTANT_LEADER, in.array());
+        WowBuffer list = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GROUP_LIST));
+        assertEquals(1, list.getU8());
+        list.getU8();
+        list.getU8();
+        list.getU8();
+        list.getU64();
+        assertEquals(1, list.getU32());
+        assertEquals("Mate", list.getCString());
+        assertEquals(mate.session().player().guid, list.getU64());
+        list.getU8();
+        list.getU8();
+        assertEquals(1, list.getU8());
+    }
+
+    @Test
+    void tpSl21SubgroupSwap() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.groupInvite(world, "Mate");
+        mate.groupAccept(world);
+        lead.handle(world, Opcodes.CMSG_GROUP_RAID_CONVERT, new byte[0]);
+        WowBuffer move = new WowBuffer(16);
+        move.putCString("Mate");
+        move.putU8(1);
+        lead.handle(world, Opcodes.CMSG_GROUP_CHANGE_SUB_GROUP, move.array());
+        lead.clear();
+        WowBuffer swap = new WowBuffer(16);
+        swap.putCString("Lead");
+        swap.putCString("Mate");
+        lead.handle(world, Opcodes.CMSG_GROUP_SWAP_SUB_GROUP, swap.array());
+        WowBuffer list = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GROUP_LIST));
+        assertEquals(1, list.getU8());
+        list.getU8();
+        assertEquals(1, list.getU8());
+        list.getU8();
+        list.getU64();
+        assertEquals(1, list.getU32());
+        assertEquals("Mate", list.getCString());
+        list.getU64();
+        list.getU8();
+        assertEquals(0, list.getU8());
+    }
+
+    @Test
     void tpSl21PetitionRename() {
         World world = World.inMemory();
         WowClientDouble client = login(world, "Renamer");

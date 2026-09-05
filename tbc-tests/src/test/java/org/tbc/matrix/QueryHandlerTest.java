@@ -241,6 +241,37 @@ class QueryHandlerTest {
         assertEquals(0x00FFFFFF | 0x80000000, u32(go, 0));
     }
 
+    @Test
+    void nameQueryWhenOtherPlayerOnDifferentMapShouldReturnName() {
+        World w = World.inMemory();
+        Capture alphaSink = new Capture();
+        WorldSession alpha = loggedIn(w, alphaSink, "Alpha", 0);
+        Capture bravoSink = new Capture();
+        WorldSession bravo = loggedIn(w, bravoSink, "Bravo", 0);
+        w.teleport(bravo.player(), 1, 0, 0, 0, 0);
+        alphaSink.opcodes.clear();
+        WowBuffer q = new WowBuffer(8);
+        q.putU64(bravo.player().guid);
+        alpha.handle(w, Opcodes.CMSG_NAME_QUERY, q.array());
+        WowBuffer out = new WowBuffer(alphaSink.last.get(Opcodes.SMSG_NAME_QUERY_RESPONSE));
+        assertEquals(bravo.player().guid, out.getU64());
+        assertEquals("Bravo", out.getCString());
+    }
+
+    @Test
+    void nameQueryWhenUnknownGuidShouldReturnUnknown() {
+        World w = World.inMemory();
+        Capture sink = new Capture();
+        WorldSession s = loggedIn(w, sink, "QryName", 0);
+        sink.opcodes.clear();
+        WowBuffer q = new WowBuffer(8);
+        q.putU64(0x00FFFFFFL);
+        s.handle(w, Opcodes.CMSG_NAME_QUERY, q.array());
+        WowBuffer out = new WowBuffer(sink.last.get(Opcodes.SMSG_NAME_QUERY_RESPONSE));
+        assertEquals(0x00FFFFFFL, out.getU64());
+        assertEquals("Unknown", out.getCString());
+    }
+
     private static byte[] creatureQuery(int entry, long guid) {
         WowBuffer b = new WowBuffer(12);
         b.putU32(entry);

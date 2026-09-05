@@ -12,6 +12,7 @@ public final class Group {
     private static final AtomicInteger NEXT = new AtomicInteger(1);
     public static final int MAX_PARTY = 5;
     public static final int MEMBER_ONLINE = 0x01;
+    public static final int FLAG_ASSISTANT = 0x01;
 
     public long id;
     public long guid;
@@ -30,6 +31,8 @@ public final class Group {
     public int rollSlot;
     public int rollItemId;
     public final Map<Long, Integer> rollVotes = new HashMap<>();
+    public final Map<Long, Integer> subgroups = new HashMap<>();
+    public final Map<Long, Integer> flags = new HashMap<>();
 
     public Group() {
         id = NEXT.getAndIncrement();
@@ -45,8 +48,8 @@ public final class Group {
         WowBuffer b = new WowBuffer(128);
         b.putU8(raid ? 1 : 0);
         b.putU8(0);
-        b.putU8(0);
-        b.putU8(0);
+        b.putU8(subgroups.getOrDefault(recipient.guid, 0));
+        b.putU8(flags.getOrDefault(recipient.guid, 0));
         b.putU64(guid);
         int others = Math.max(0, members.size() - 1);
         b.putU32(others);
@@ -57,8 +60,8 @@ public final class Group {
             b.putCString(m.name);
             b.putU64(m.guid);
             b.putU8(m.session != null ? MEMBER_ONLINE : 0);
-            b.putU8(0);
-            b.putU8(0);
+            b.putU8(subgroups.getOrDefault(m.guid, 0));
+            b.putU8(flags.getOrDefault(m.guid, 0));
         }
         b.putU64(leaderGuid);
         if (others != 0) {

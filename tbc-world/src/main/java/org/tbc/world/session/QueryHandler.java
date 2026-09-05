@@ -3,6 +3,7 @@ package org.tbc.world.session;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.entity.Guild;
 import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
 import org.tbc.world.gm.GmCommands;
@@ -208,19 +209,26 @@ public final class QueryHandler {
         session.send(Opcodes.SMSG_PET_NAME_QUERY_RESPONSE, out.array());
     }
 
-    public static void guild(WorldSession session, WowBuffer in) {
+    public static void guild(WorldSession session, World world, WowBuffer in) {
         int guildId = readU32(in);
-        WowBuffer out = new WowBuffer(32);
+        Guild g = world.objectMgr.guilds.get(guildId);
+        Player p = session.player();
+        String name = g != null ? g.name : (p != null ? nz(p.guildName) : "");
+        WowBuffer out = new WowBuffer(256);
         out.putU32(guildId);
-        out.putCString(session.player() != null ? nz(session.player().guildName) : "");
+        out.putCString(name);
         for (int i = 0; i < 10; i++) {
-            out.putU8(0);
+            if (g != null && i < g.ranks.size()) {
+                out.putCString(g.ranks.get(i).name);
+            } else {
+                out.putU8(0);
+            }
         }
-        out.putU32(0);
-        out.putU32(0);
-        out.putU32(0);
-        out.putU32(0);
-        out.putU32(0);
+        out.putU32(g != null ? g.emblemStyle : 0);
+        out.putU32(g != null ? g.emblemColor : 0);
+        out.putU32(g != null ? g.borderStyle : 0);
+        out.putU32(g != null ? g.borderColor : 0);
+        out.putU32(g != null ? g.backgroundColor : 0);
         session.send(Opcodes.SMSG_GUILD_QUERY_RESPONSE, out.array());
     }
 

@@ -9,6 +9,13 @@ public final class Guild {
     public String name = "";
     public String motd = "";
     public long leaderGuid;
+    public int emblemStyle;
+    public int emblemColor;
+    public int borderStyle;
+    public int borderColor;
+    public int backgroundColor;
+    public int purchasedTabs;
+    public final String[] tabTexts = new String[6];
     public final List<Long> members = new ArrayList<>();
     public final List<Rank> ranks = new ArrayList<>();
 

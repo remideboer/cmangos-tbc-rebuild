@@ -1,6 +1,8 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guild;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -36,6 +38,13 @@ public final class GuildHandler {
     public static final int GE_PROMOTION = 0x00;
     public static final int GE_MOTD = 0x02;
     public static final int GE_JOINED = 0x03;
+    /** SharedDefines.h GOLD × 10. MSG_SAVE_GUILD_EMBLEM cost. */
+    public static final int EMBLEM_COST = 100000;
+    public static final int ERR_GUILDEMBLEM_SUCCESS = 0;
+    public static final int ERR_GUILDEMBLEM_NOGUILD = 2;
+    public static final int ERR_GUILDEMBLEM_NOTGUILDMASTER = 3;
+    public static final int ERR_GUILDEMBLEM_NOTENOUGHMONEY = 4;
+    public static final int ERR_GUILDEMBLEM_INVALIDVENDOR = 5;
 
     private GuildHandler() {}
 
@@ -204,6 +213,54 @@ public final class GuildHandler {
         broadcastEvent(world, g, GE_MOTD, 0, motd);
     }
 
+    public static void saveEmblem(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 28) {
+            return;
+        }
+        long vendorGuid = in.getU64();
+        int emblemStyle = in.getU32();
+        int emblemColor = in.getU32();
+        int borderStyle = in.getU32();
+        int borderColor = in.getU32();
+        int backgroundColor = in.getU32();
+        Player p = s.player();
+        Creature npc = Content.creature(world.map(p.mapId, p.instanceId), vendorGuid);
+        if (npc == null || Content.outOfRange(p, npc)
+                || (npc.npcFlags & Content.UNIT_NPC_FLAG_TABARDDESIGNER) == 0) {
+            sendEmblem(s, ERR_GUILDEMBLEM_INVALIDVENDOR);
+            return;
+        }
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            sendEmblem(s, ERR_GUILDEMBLEM_NOGUILD);
+            return;
+        }
+        if (g.leaderGuid != p.guid) {
+            sendEmblem(s, ERR_GUILDEMBLEM_NOTGUILDMASTER);
+            return;
+        }
+        if (p.money < EMBLEM_COST) {
+            sendEmblem(s, ERR_GUILDEMBLEM_NOTENOUGHMONEY);
+            return;
+        }
+        p.setMoney(p.money - EMBLEM_COST);
+        g.emblemStyle = emblemStyle;
+        g.emblemColor = emblemColor;
+        g.borderStyle = borderStyle;
+        g.borderColor = borderColor;
+        g.backgroundColor = backgroundColor;
+        sendEmblem(s, ERR_GUILDEMBLEM_SUCCESS);
+        WowBuffer q = new WowBuffer(4);
+        q.putU32(g.id);
+        QueryHandler.guild(s, world, q);
+    }
+
+    static void sendEmblem(WorldSession s, int result) {
+        WowBuffer b = new WowBuffer(4);
+        b.putU32(result);
+        s.send(Opcodes.MSG_SAVE_GUILD_EMBLEM, b.array());
+    }
+
     static Player memberByName(World world, Guild g, String name) {
         for (long guid : g.members) {
             Player m = world.playerByGuid(guid);
@@ -351,7 +408,7 @@ public final class GuildHandler {
 
     public static final int TAB_PRICE = 100000;
 
-    public static void buyTab(WorldSession s, WowBuffer in) {
+    public static void buyTab(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() >= 8) {
             in.getU64();
         }
@@ -359,8 +416,12 @@ public final class GuildHandler {
         if (p.guildId == 0) {
             return;
         }
-        p.money = Math.max(0, p.money - TAB_PRICE);
+        p.setMoney(Math.max(0, p.money - TAB_PRICE));
         p.guildBankTabs++;
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g != null) {
+            g.purchasedTabs++;
+        }
         WowBuffer perm = new WowBuffer(80);
         perm.putU32(0);
         perm.putU32(GR_RIGHT_EMPTY);
@@ -371,5 +432,68 @@ public final class GuildHandler {
             perm.putU32(0);
         }
         s.send(Opcodes.MSG_GUILD_PERMISSIONS, perm.array());
+    }
+
+    public static void bankLogQuery(WorldSession s, World world, WowBuffer in) {
+        int tabId = in.remaining() > 0 ? in.getU8() : 0;
+        Guild g = world.objectMgr.guilds.get(s.player().guildId);
+        if (g == null) {
+            return;
+        }
+        if (tabId >= g.purchasedTabs && tabId != GUILD_BANK_MAX_TABS) {
+            return;
+        }
+        WowBuffer out = new WowBuffer(4);
+        out.putU8(tabId);
+        out.putU8(0);
+        s.send(Opcodes.MSG_GUILD_BANK_LOG_QUERY, out.array());
+    }
+
+    public static void queryBankText(WorldSession s, World world, WowBuffer in) {
+        int tabId = in.remaining() > 0 ? in.getU8() : 0;
+        Guild g = world.objectMgr.guilds.get(s.player().guildId);
+        if (g == null || tabId < 0 || tabId >= g.purchasedTabs) {
+            return;
+        }
+        sendBankText(world, g, tabId, s);
+    }
+
+    public static void setBankText(WorldSession s, World world, WowBuffer in) {
+        int tabId = in.remaining() > 0 ? in.getU8() : 0;
+        String text = in.remaining() > 0 ? in.getCString() : "";
+        if (text.length() > 500) {
+            text = text.substring(0, 500);
+        }
+        Guild g = world.objectMgr.guilds.get(s.player().guildId);
+        if (g == null || tabId < 0 || tabId >= g.purchasedTabs) {
+            return;
+        }
+        if (text.equals(tabText(g, tabId))) {
+            return;
+        }
+        g.tabTexts[tabId] = text;
+        sendBankText(world, g, tabId, null);
+    }
+
+    static String tabText(Guild g, int tabId) {
+        String t = g.tabTexts[tabId];
+        return t == null ? "" : t;
+    }
+
+    static void sendBankText(World world, Guild g, int tabId, WorldSession only) {
+        WowBuffer data = new WowBuffer(64);
+        data.putU8(tabId);
+        data.putCString(tabText(g, tabId));
+        byte[] payload = data.array();
+        if (only != null) {
+            only.send(Opcodes.MSG_QUERY_GUILD_BANK_TEXT, payload);
+            return;
+        }
+        for (long guid : g.members) {
+            Player m = world.playerByGuid(guid);
+            if (m != null && m.session != null) {
+                m.session.send(Opcodes.MSG_QUERY_GUILD_BANK_TEXT, payload);
+            }
+        }
     }
 }

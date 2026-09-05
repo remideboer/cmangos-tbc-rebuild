@@ -45,6 +45,10 @@ public final class Creature extends Unit {
     public boolean combatMovement = true;
     public int movementType;
     public float spawnDist;
+    /** CMaNGOS Unit::UpdateNextUpdateTime idle 500ms / random 250ms (min of urand). */
+    public static final int IDLE_UPDATE_MS = 500;
+    public static final int RANDOM_UPDATE_MS = 250;
+    public int nextUpdateMs;
 
     public Creature() {
         super(UpdateFields.UNIT_END, TYPEID_UNIT);

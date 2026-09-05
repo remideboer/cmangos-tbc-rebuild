@@ -236,7 +236,7 @@ public final class WorldSession {
             return;
         }
         if (opcode == Opcodes.CMSG_GUILD_QUERY) {
-            QueryHandler.guild(this, in);
+            QueryHandler.guild(this, world, in);
             return;
         }
         if (status < STATUS_LOGGEDIN) {
@@ -337,6 +337,7 @@ public final class WorldSession {
             case Opcodes.CMSG_GUILD_ACCEPT -> GuildHandler.accept(this, world);
             case Opcodes.CMSG_GUILD_PROMOTE -> GuildHandler.promote(this, world, in);
             case Opcodes.CMSG_GUILD_MOTD -> GuildHandler.motd(this, world, in);
+            case Opcodes.MSG_SAVE_GUILD_EMBLEM -> GuildHandler.saveEmblem(this, world, in);
             case Opcodes.CMSG_PETITION_BUY -> PetitionHandler.buy(this, world, in);
             case Opcodes.CMSG_PETITION_SHOWLIST -> PetitionHandler.showList(this, world, in);
             case Opcodes.CMSG_PETITION_SHOW_SIGNATURES -> PetitionHandler.showSignatures(this, world, in);
@@ -623,7 +624,10 @@ public final class WorldSession {
             in.getU32();
         }
         MovementInfo m = MovementInfo.readC2s(in);
+        float ox = player.x;
+        float oy = player.y;
         player.relocate(m.x, m.y, m.z, m.o);
+        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
         player.movement = m;
         m.stime = (int) world.nowMs();
         WowBuffer echo = new WowBuffer(64);
@@ -717,18 +721,7 @@ public final class WorldSession {
 
     private void handleNameQuery(World world, WowBuffer in) {
         long guid = in.getU64();
-        Player p = player.guid == guid ? player : world.playerByName("");
-        if (guid == player.guid) {
-            p = player;
-        } else {
-            p = null;
-            for (Player o : world.map(player.mapId, player.instanceId).players()) {
-                if (o.guid == guid) {
-                    p = o;
-                    break;
-                }
-            }
-        }
+        Player p = world.playerByGuid(guid);
         WowBuffer out = new WowBuffer(64);
         out.putU64(guid);
         out.putCString(p == null ? "Unknown" : p.name);

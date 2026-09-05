@@ -7,6 +7,7 @@ import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL06-003: creature SMSG_ATTACKSTART so the 8606 client plays the fight. */
@@ -70,5 +71,45 @@ class Slice06P0Test {
         }
         assertTrue(sawCreatureStart);
         assertTrue(c.inCombat);
+    }
+
+    @Test
+    void hostileWhenOocAfterFirstUpdateShouldNotPullOnFiftyMsTick() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Wait", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x + 50, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        world.tick(50);
+        assertFalse(c.inCombat);
+        ox = p.x;
+        oy = p.y;
+        p.relocate(c.x + 10, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.clear();
+        world.tick(50);
+        assertFalse(c.inCombat);
+        world.tick(500);
+        assertTrue(c.inCombat);
+        boolean sawCreatureStart = false;
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKSTART) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            long attacker = WowClientDouble.u64le(payload, 0);
+            long victim = WowClientDouble.u64le(payload, 8);
+            if (attacker == c.guid && victim == p.guid) {
+                sawCreatureStart = true;
+            }
+        }
+        assertTrue(sawCreatureStart);
     }
 }

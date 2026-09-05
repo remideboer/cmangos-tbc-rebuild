@@ -46,7 +46,10 @@ public class ContentSteps {
     public void koboldRandomMotion(int entry, int movementType, int spawnDist) {
         wanderKobold = find(entry);
         Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
         p.relocate(wanderKobold.x + 40, wanderKobold.y, wanderKobold.z, wanderKobold.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
         wanderKobold.movementType = movementType;
         wanderKobold.spawnDist = spawnDist;
         int[] n = {0};
