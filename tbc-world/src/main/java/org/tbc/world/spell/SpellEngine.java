@@ -56,6 +56,7 @@ public final class SpellEngine {
     public static final int EFFECT_LEARN_SPELL = 36;
     public static final int EFFECT_DISPEL = 38;
     public static final int EFFECT_DISPEL_MECHANIC = 108;
+    public static final int EFFECT_SEND_TAXI = 123;
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_DUAL_WIELD = 40;
@@ -101,7 +102,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
-            EFFECT_DISPEL_MECHANIC);
+            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -344,6 +345,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_DISPEL_MECHANIC) {
             dispelMechanic(target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
+        if (sp.effect == EFFECT_SEND_TAXI) {
+            sendTaxi(target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -779,6 +784,17 @@ public final class SpellEngine {
             return;
         }
         target.setFacingTo(destX, destY);
+    }
+
+    /**
+     * Effect 123 — SPELL_EFFECT_SEND_TAXI. CMaNGOS ActivateTaxiPathTo(misc) on player target.
+     * Taxi Stair of Destiny to Honor Hold 34907 is path 564.
+     */
+    public void sendTaxi(Unit target, int pathId) {
+        if (!(target instanceof Player p) || pathId <= 0) {
+            return;
+        }
+        p.startTaxiFlight(pathId);
     }
 
     /**
