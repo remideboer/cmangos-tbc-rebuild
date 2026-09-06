@@ -369,6 +369,7 @@ public final class WorldSession {
             case Opcodes.CMSG_RESURRECT_RESPONSE -> DeathHandler.resurrectResponse(this, world, in);
             case Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE ->
                     org.tbc.world.session.LaterOpcodes.handle(this, world, opcode, in);
+            case Opcodes.CMSG_AREA_SPIRIT_HEALER_QUERY -> DeathHandler.areaSpiritQuery(this, world, in);
             case Opcodes.CMSG_JOIN_CHANNEL -> ChannelHandler.join(this, world, in);
             case Opcodes.CMSG_LEAVE_CHANNEL -> ChannelHandler.leave(this, in);
             case Opcodes.CMSG_CHANNEL_PASSWORD -> ChannelHandler.password(this, world, in);

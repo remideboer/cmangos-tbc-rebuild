@@ -1,7 +1,9 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
 import org.tbc.world.entity.Corpse;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
@@ -176,6 +178,36 @@ public final class DeathHandler {
                     p.guid, p.guid, PvpObjectives.SICKNESS, world.nowMs(), new SpellCastTargets()));
         }
     }
+
+    /**
+     * HandleAreaSpiritHealerQueryOpcode + Creature::SendAreaSpiritHealerQueryOpcode.
+     * Must be on a BG map; healer must be spirit service.
+     */
+    public static void areaSpiritQuery(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        int map = p.mapId;
+        boolean bg = map == 489 || map == 529 || map == 30 || map == 566;
+        if (!bg) {
+            return;
+        }
+        long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        Creature unit = Content.creature(world.map(p.mapId, p.instanceId), guid);
+        if (unit == null) {
+            return;
+        }
+        int flags = unit.npcFlags;
+        if ((flags & (UNIT_NPC_FLAG_SPIRITHEALER | UNIT_NPC_FLAG_SPIRITGUIDE)) == 0) {
+            return;
+        }
+        // No channeled resurrect spell yet → nextResurrectMs = 0.
+        WowBuffer data = new WowBuffer(12);
+        data.putU64(unit.guid);
+        data.putU32(0);
+        s.send(Opcodes.SMSG_AREA_SPIRIT_HEALER_TIME, data.array());
+    }
+
+    static final int UNIT_NPC_FLAG_SPIRITHEALER = 0x00004000;
+    static final int UNIT_NPC_FLAG_SPIRITGUIDE = 0x00008000;
 
     /** WorldSession::HandleSelfResOpcode — cast PLAYER_SELF_RES_SPELL then clear. */
     public static void selfRes(WorldSession s, World world) {

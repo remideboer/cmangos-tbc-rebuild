@@ -2,6 +2,7 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.pvp.PvpObjectives;
@@ -301,6 +302,25 @@ class Slice23P0Test {
         assertEquals(p.guid, out.getU64());
         assertEquals(2, out.getU32());
         assertEquals(0, out.getU8());
+        assertEquals(0, out.getU32());
+    }
+
+    @Test
+    void tpSl23AreaSpiritHealerQueryShouldSendTime() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Ghost");
+        Player p = client.session().player();
+        world.teleport(p, 489, 0, 0, 0, 0);
+        Creature healer = world.objectMgr.spawnCreature(6, 489, p.x, p.y, p.z, p.o, world.scripts);
+        healer.npcFlags = 0x00008000;
+        healer.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_NPC_FLAGS, healer.npcFlags);
+        world.map(p.mapId, p.instanceId).add(healer);
+        client.clear();
+        WowBuffer in = new WowBuffer(8);
+        in.putU64(healer.guid);
+        client.handle(world, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUERY, in.array());
+        WowBuffer out = new WowBuffer(lastPayload(client, Opcodes.SMSG_AREA_SPIRIT_HEALER_TIME));
+        assertEquals(healer.guid, out.getU64());
         assertEquals(0, out.getU32());
     }
 
