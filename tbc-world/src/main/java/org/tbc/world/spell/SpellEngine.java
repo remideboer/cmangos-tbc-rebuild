@@ -61,6 +61,7 @@ public final class SpellEngine {
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
     public static final int EFFECT_INEBRIATE = 100;
+    public static final int EFFECT_REPUTATION = 103;
     public static final int EFFECT_KNOCK_BACK = 98;
     public static final int EFFECT_DESTROY_ALL_TOTEMS = 110;
     public static final int EFFECT_DURABILITY_DAMAGE = 111;
@@ -88,7 +89,7 @@ public final class SpellEngine {
             EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
-            EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT);
+            EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -298,6 +299,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_MODIFY_THREAT_PERCENT) {
             modifyThreatPercent(caster, target, (sp.minDmg + sp.maxDmg) / 2);
+            return 0;
+        }
+        if (sp.effect == EFFECT_REPUTATION) {
+            modifyReputation(target, sp.misc(), (sp.minDmg + sp.maxDmg) / 2);
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -643,6 +648,17 @@ public final class SpellEngine {
             return;
         }
         c.threatManager.modifyThreatPercent(caster, percent);
+    }
+
+    /**
+     * Effect 103 — SPELL_EFFECT_REPUTATION. CMaNGOS ModifyReputation(misc faction, damage).
+     * Stormpike Reputation +5 is spell 21187, faction 730.
+     */
+    public void modifyReputation(Unit target, int factionId, int amount) {
+        if (!(target instanceof Player p) || factionId <= 0 || amount == 0) {
+            return;
+        }
+        p.modifyReputation(factionId, amount);
     }
 
     /**

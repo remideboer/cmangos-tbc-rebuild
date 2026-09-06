@@ -67,6 +67,18 @@ public final class Player extends Unit {
         int packed = (gender & 0xFF) | (drunk & 0xFFFE);
         setInt(UpdateFields.PLAYER_BYTES_3, (bytes & ~0xFFFF) | packed);
     }
+
+    /** CMaNGOS ReputationMgr::ModifyReputation — standing += amount. */
+    public void modifyReputation(int factionId, int amount) {
+        if (factionId <= 0 || amount == 0) {
+            return;
+        }
+        reputation.merge(factionId, amount, Integer::sum);
+    }
+
+    public int reputationStanding(int factionId) {
+        return reputation.getOrDefault(factionId, 0);
+    }
     public int skin, face, hairStyle, hairColor, facialHair;
     public int money;
     public int xp;
@@ -113,6 +125,8 @@ public final class Player extends Unit {
     private final java.util.Set<Integer> unlearnableSkills = new java.util.HashSet<>();
     public final int[] tut = new int[8];
     public final Map<Integer, Item> items = new HashMap<>();
+    /** CMaNGOS ReputationMgr standing keyed by Faction.dbc id (spell EffectMiscValue). */
+    private final Map<Integer, Integer> reputation = new HashMap<>();
     public final List<Integer> knownTitles = new ArrayList<>();
     public int honorPoints;
     public int arenaPoints;
