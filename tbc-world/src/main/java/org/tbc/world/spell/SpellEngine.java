@@ -68,6 +68,7 @@ public final class SpellEngine {
     public static final int EFFECT_ENERGIZE = 30;
     public static final int EFFECT_ADD_HONOR = 45;
     public static final int EFFECT_LEARN_SPELL = 36;
+    public static final int EFFECT_TAME_CREATURE = 55;
     public static final int EFFECT_LEARN_PET_SPELL = 57;
     public static final int EFFECT_DISPEL = 38;
     public static final int EFFECT_DISPEL_MECHANIC = 108;
@@ -135,7 +136,7 @@ public final class SpellEngine {
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
-            EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET,
+            EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE,
             EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_FORCE_CAST, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ACTIVATE_OBJECT, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
@@ -460,6 +461,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_CREATE_PET) {
             createTamedPet(target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_TAME_CREATURE) {
+            tameCreature(caster, target);
             return 0;
         }
         if (sp.effect == EFFECT_SEND_TAXI) {
@@ -1456,6 +1461,25 @@ public final class SpellEngine {
         pet.entry = creatureEntry;
         pet.summoned = true;
         p.pet = pet;
+    }
+
+    /**
+     * Effect 55 — SPELL_EFFECT_TAMECREATURE. CMaNGOS hunter caster, pet from creature
+     * target, ForcedDespawn the beast. Tame Beast 13481.
+     */
+    public void tameCreature(Unit caster, Unit target) {
+        if (!(caster instanceof Player p) || p.clazz != Player.CLASS_HUNTER) {
+            return;
+        }
+        if (!(target instanceof Creature c) || c.entry <= 0) {
+            return;
+        }
+        Pet pet = new Pet();
+        pet.entry = c.entry;
+        pet.level = c.level;
+        pet.summoned = true;
+        p.pet = pet;
+        c.setHealth(0);
     }
 
     /**
