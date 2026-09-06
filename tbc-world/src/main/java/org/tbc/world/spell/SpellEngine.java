@@ -34,6 +34,7 @@ public final class SpellEngine {
     public static final int SPELL_CAST_OK = 0xFF;
     public static final int EFFECT_INSTAKILL = 1;
     public static final int EFFECT_SCHOOL_DAMAGE = 2;
+    public static final int EFFECT_TELEPORT_UNITS = 5;
     public static final int EFFECT_POWER_DRAIN = 8;
     public static final int EFFECT_HEALTH_LEECH = 9;
     public static final int EFFECT_HEAL = 10;
@@ -105,7 +106,7 @@ public final class SpellEngine {
     private static final double MAGIC_MISS = 0.04;
 
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
-            EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
+            EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
@@ -241,6 +242,12 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_INSTAKILL) {
             instakill(target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_TELEPORT_UNITS) {
+            if (sp.id == 8690 && target instanceof Player p) {
+                teleportUnits(p, p.bindMap, p.bindX, p.bindY, p.bindZ, p.o);
+            }
             return 0;
         }
         if (sp.effect == EFFECT_HEALTH_LEECH) {
@@ -511,6 +518,21 @@ public final class SpellEngine {
             return;
         }
         target.setHealth(0);
+    }
+
+    /**
+     * Effect 5 — SPELL_EFFECT_TELEPORT_UNITS. CMaNGOS NearTeleportTo dest; taxi is a no-op.
+     * Hearthstone 8690 dest is homebind (TARGET_LOCATION_DATABASE).
+     */
+    public void teleportUnits(Unit target, int mapId, float x, float y, float z, float o) {
+        if (target == null) {
+            return;
+        }
+        if ((target.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_TAXI_FLIGHT) != 0) {
+            return;
+        }
+        target.mapId = mapId;
+        target.relocate(x, y, z, o);
     }
 
     /**
