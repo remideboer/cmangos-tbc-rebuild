@@ -279,6 +279,7 @@ public final class Player extends Unit {
     }
     public int taxiPath;
     private int lastPlayMusic;
+    private int lastPlaySound;
     private int lastTotemCreatedSlot;
     private long lastTotemCreatedGuid;
     private long lastSkinningLootGuid;
@@ -745,6 +746,21 @@ public final class Player extends Unit {
 
     public int lastPlayMusic() {
         return lastPlayMusic;
+    }
+
+    /**
+     * CMaNGOS WorldObject::PlayDirectSound — SMSG_PLAY_SOUND uint32 SoundEntries id.
+     * BOTM Jungle Madness Music 49963 is sound 7294.
+     */
+    public void playSound(int soundId) {
+        if (soundId <= 0) {
+            return;
+        }
+        lastPlaySound = soundId;
+    }
+
+    public int lastPlaySound() {
+        return lastPlaySound;
     }
 
     /**

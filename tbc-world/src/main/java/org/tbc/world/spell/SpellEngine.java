@@ -84,6 +84,7 @@ public final class SpellEngine {
     public static final int EFFECT_LEAP = 29;
     public static final int EFFECT_LEAP_BACK = 138;
     public static final int EFFECT_KILL_CREDIT_GROUP = 134;
+    public static final int EFFECT_PLAY_SOUND = 131;
     public static final int EFFECT_PLAY_MUSIC = 132;
     public static final int EFFECT_UNLEARN_SPECIALIZATION = 133;
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
@@ -157,7 +158,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_TELEPORT_GRAVEYARD, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
-            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
+            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PLAY_SOUND, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
             EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_PROSPECTING, EFFECT_UNLEARN_SPECIALIZATION,
             EFFECT_LEAP);
 
@@ -615,6 +616,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_PLAY_MUSIC) {
             playMusic(target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_PLAY_SOUND) {
+            playSound(target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_PULL_TOWARDS) {
@@ -1687,6 +1692,24 @@ public final class SpellEngine {
             return;
         }
         p.playMusic(soundId);
+    }
+
+    /**
+     * Effect 131 — SPELL_EFFECT_PLAY_SOUND. CMaNGOS PlayDirectSound(misc) to player target.
+     * BOTM Jungle Madness Music 49963 is SoundEntries 7294. SMSG_PLAY_SOUND 0x2D2 uint32.
+     */
+    public void playSound(Unit target, int soundId) {
+        if (!(target instanceof Player p)) {
+            return;
+        }
+        p.playSound(soundId);
+    }
+
+    /** SMSG_PLAY_SOUND 0x2D2: uint32 soundId. */
+    public static byte[] encodePlaySound(int soundId) {
+        WowBuffer b = new WowBuffer(4);
+        b.putU32(soundId);
+        return b.array();
     }
 
     /** SMSG_PLAY_MUSIC 0x277: uint32 soundId. */
