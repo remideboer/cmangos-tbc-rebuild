@@ -82,6 +82,7 @@ public final class SpellEngine {
     public static final int EFFECT_POWER_BURN = 62;
     public static final int EFFECT_THREAT = 63;
     public static final int EFFECT_INTERRUPT_CAST = 68;
+    public static final int EFFECT_PICKPOCKET = 71;
     public static final int EFFECT_ADD_FARSIGHT = 72;
     public static final int EFFECT_HEAL_MECHANICAL = 75;
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
@@ -115,7 +116,7 @@ public final class SpellEngine {
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
-            EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
+            EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
@@ -415,6 +416,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_CHARGE_DEST) {
             chargeDest(caster, sp.maxRange);
+            return 0;
+        }
+        if (sp.effect == EFFECT_PICKPOCKET) {
+            pickPocket(caster, target);
             return 0;
         }
         if (sp.effect == EFFECT_SKINNING) {
@@ -1043,6 +1048,22 @@ public final class SpellEngine {
         float destY = caster.y + dist * (float) Math.sin(caster.o);
         float o = (float) Math.atan2(destY - caster.y, destX - caster.x);
         caster.relocate(destX, destY, caster.z, o);
+    }
+
+    /**
+     * Effect 71 — SPELL_EFFECT_PICKPOCKET. CMaNGOS player caster, creature target.
+     * Pick Pocket 921. loot.md clientLootType PICKPOCKETING (2).
+     */
+    public void pickPocket(Unit caster, Unit target) {
+        if (!(caster instanceof Player p) || !(target instanceof Creature c)) {
+            return;
+        }
+        p.showPickpocketLoot(c.guid);
+    }
+
+    /** SMSG_LOOT_RESPONSE 0x160: guid + clientLootType 2 + gold 0 + itemCount 0. */
+    public static byte[] encodePickpocketLoot(long guid) {
+        return encodeSkinningLoot(guid);
     }
 
     /**
