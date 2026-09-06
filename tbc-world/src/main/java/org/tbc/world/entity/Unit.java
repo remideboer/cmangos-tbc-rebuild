@@ -187,6 +187,11 @@ public class Unit extends Entity {
         movement.o = o;
     }
 
+    /** CMaNGOS Unit::GetAngle + SetFacingTo / SetOrientation. EffectDistract. */
+    public void setFacingTo(float destX, float destY) {
+        relocate(x, y, z, (float) Math.atan2(destY - y, destX - x));
+    }
+
     public int health() {
         return getInt(UpdateFields.UNIT_FIELD_HEALTH);
     }

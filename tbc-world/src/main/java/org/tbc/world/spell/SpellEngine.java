@@ -41,6 +41,7 @@ public final class SpellEngine {
     public static final int EFFECT_QUEST_COMPLETE = 16;
     public static final int EFFECT_WEAPON_DAMAGE_NOSCHOOL = 17;
     public static final int EFFECT_WEAPON_PERCENT_DAMAGE = 31;
+    public static final int EFFECT_DISTRACT = 69;
     public static final int EFFECT_PARRY = 22;
     public static final int EFFECT_BLOCK = 23;
     public static final int EFFECT_SPAWN = 46;
@@ -98,7 +99,7 @@ public final class SpellEngine {
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
-            EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE);
+            EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -332,6 +333,12 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_WEAPON_PERCENT_DAMAGE) {
             return weaponPercentDamage(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+        }
+        if (sp.effect == EFFECT_DISTRACT) {
+            float destX = caster != null ? caster.x : target.x;
+            float destY = caster != null ? caster.y : target.y;
+            distract(target, destX, destY);
+            return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
             knockBack(caster, target, sp.misc() / 10f, Math.max(0, (sp.minDmg + sp.maxDmg) / 2) / 10f);
@@ -755,6 +762,17 @@ public final class SpellEngine {
         int dmg = Math.max(1, weapon * pct / 100);
         target.setHealth(target.health() - dmg);
         return dmg;
+    }
+
+    /**
+     * Effect 69 — SPELL_EFFECT_DISTRACT. CMaNGOS skip in-combat; SetFacingTo dest.
+     * Apply uses caster xy as dest until spell targets carry a ground dest. Distract 1725.
+     */
+    public void distract(Unit target, float destX, float destY) {
+        if (target == null || target.inCombat) {
+            return;
+        }
+        target.setFacingTo(destX, destY);
     }
 
     /**
