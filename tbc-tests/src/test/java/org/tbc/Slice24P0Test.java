@@ -137,6 +137,25 @@ class Slice24P0Test {
         assertTrue(hasWorldState(client, PvpObjectives.WS_AV_SCORE_A, 599));
     }
 
+    @Test
+    void tpSl24AbFarmContestedThenOccupied() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "AbFarm");
+        Player p = client.session().player();
+        world.teleport(p, 529, 0, 0, 0, 0);
+        client.clear();
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(PvpObjectives.AB_FARM);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_AB_FARM_CONT_A, 1));
+        assertEquals(AbBattlefield.STATUS_ALLY_CONT, world.ab.farmStatus());
+        client.clear();
+        world.advanceMs(PvpObjectives.AB_CONTEST_MS);
+        client.session().tick(world, 50);
+        assertTrue(hasWorldState(client, PvpObjectives.WS_AB_FARM_OCC_A, 1));
+        assertEquals(AbBattlefield.STATUS_ALLY_OCC, world.ab.farmStatus());
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

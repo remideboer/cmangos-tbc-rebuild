@@ -1063,6 +1063,12 @@ public final class WorldSession {
         if (player.mapId == 529) {
             if (guid == PvpObjectives.AB_BLACKSMITH) {
                 world.ab.assaultBlacksmith(AbBattlefield.TEAM_ALLIANCE, world.nowMs());
+            } else if (guid == PvpObjectives.AB_FARM) {
+                world.ab.assaultNode(AbBattlefield.NODE_FARM, AbBattlefield.TEAM_ALLIANCE, world.nowMs());
+            } else if (guid == PvpObjectives.AB_LUMBER_MILL) {
+                world.ab.assaultNode(AbBattlefield.NODE_LUMBER, AbBattlefield.TEAM_ALLIANCE, world.nowMs());
+            } else if (guid == PvpObjectives.AB_GOLD_MINE) {
+                world.ab.assaultNode(AbBattlefield.NODE_GOLD, AbBattlefield.TEAM_ALLIANCE, world.nowMs());
             } else {
                 world.ab.assaultStables(AbBattlefield.TEAM_ALLIANCE, world.nowMs());
             }

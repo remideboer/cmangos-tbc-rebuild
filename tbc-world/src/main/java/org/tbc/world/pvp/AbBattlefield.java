@@ -13,6 +13,9 @@ public final class AbBattlefield {
 
     public static final int NODE_STABLES = 0;
     public static final int NODE_BLACKSMITH = 1;
+    public static final int NODE_FARM = 2;
+    public static final int NODE_LUMBER = 3;
+    public static final int NODE_GOLD = 4;
 
     public static final int STATUS_NEUTRAL = 0;
     public static final int STATUS_ALLY_CONT = 1;
@@ -22,19 +25,31 @@ public final class AbBattlefield {
 
     private static final int[] WS_OCC_A = {
             PvpObjectives.WS_AB_STABLES_OCC_A,
-            PvpObjectives.WS_AB_BLACKSMITH_A
+            PvpObjectives.WS_AB_BLACKSMITH_A,
+            PvpObjectives.WS_AB_FARM_OCC_A,
+            PvpObjectives.WS_AB_LUMBER_OCC_A,
+            PvpObjectives.WS_AB_GOLD_OCC_A
     };
     private static final int[] WS_OCC_H = {
             PvpObjectives.WS_AB_STABLES_OCC_H,
-            PvpObjectives.WS_AB_BLACKSMITH_H
+            PvpObjectives.WS_AB_BLACKSMITH_H,
+            PvpObjectives.WS_AB_FARM_OCC_H,
+            PvpObjectives.WS_AB_LUMBER_OCC_H,
+            PvpObjectives.WS_AB_GOLD_OCC_H
     };
     private static final int[] WS_CONT_A = {
             PvpObjectives.WS_AB_STABLES_CONT_A,
-            PvpObjectives.WS_AB_BLACKSMITH_CONT_A
+            PvpObjectives.WS_AB_BLACKSMITH_CONT_A,
+            PvpObjectives.WS_AB_FARM_CONT_A,
+            PvpObjectives.WS_AB_LUMBER_CONT_A,
+            PvpObjectives.WS_AB_GOLD_CONT_A
     };
     private static final int[] WS_CONT_H = {
             PvpObjectives.WS_AB_STABLES_CONT_H,
-            PvpObjectives.WS_AB_BLACKSMITH_CONT_H
+            PvpObjectives.WS_AB_BLACKSMITH_CONT_H,
+            PvpObjectives.WS_AB_FARM_CONT_H,
+            PvpObjectives.WS_AB_LUMBER_CONT_H,
+            PvpObjectives.WS_AB_GOLD_CONT_H
     };
 
     private final int[] status = new int[5];
@@ -53,6 +68,10 @@ public final class AbBattlefield {
 
     public int blacksmithStatus() {
         return status[NODE_BLACKSMITH];
+    }
+
+    public int farmStatus() {
+        return status[NODE_FARM];
     }
 
     public int nodeStatus(int node) {
