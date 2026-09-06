@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL16-* from packet files, one criterion per method. */
@@ -79,6 +80,28 @@ class Slice16P0Test {
         client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
         assertTrue(hasWorldState(client, 1545, 1) || hasWorldState(client, 1546, 1));
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == 23333 || a.spellId() == 23335));
+    }
+
+    @Test
+    void tpSl16WsgFlagDropWhenCancelAuraShouldSetOnGround() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Drop");
+        Player p = client.session().player();
+        world.teleport(p, 489, 0, 0, 0, 0);
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(1);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        int flagSpell = p.auras.stream()
+                .mapToInt(a -> a.spellId())
+                .filter(id -> id == 23333 || id == 23335)
+                .findFirst()
+                .orElseThrow();
+        client.clear();
+        WowBuffer cancel = new WowBuffer(4);
+        cancel.putU32(flagSpell);
+        client.handle(world, Opcodes.CMSG_CANCEL_AURA, cancel.array());
+        assertFalse(p.auras.stream().anyMatch(a -> a.spellId() == flagSpell));
+        assertTrue(hasWorldState(client, 1545, -1) || hasWorldState(client, 1546, -1));
     }
 
     private static WowClientDouble login(World world, String name) {

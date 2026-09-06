@@ -318,6 +318,15 @@ public final class LaterOpcodes {
         if (opcode == Opcodes.CMSG_CANCEL_AURA) {
             int spell = in.remaining() >= 4 ? in.getU32() : 0;
             world.spells.cancelAura(p, spell);
+            // BattleGroundWS::HandlePlayerDroppedFlag — flag aura cancel → ON_GROUND (-1).
+            if (p.mapId == 489 && (spell == PvpObjectives.WSG_FLAG_A || spell == PvpObjectives.WSG_FLAG_H)) {
+                // Match pickup stub: aura 23333 ↔ WS 1545; aura 23335 ↔ WS 1546.
+                int field = spell == PvpObjectives.WSG_FLAG_A ? PvpObjectives.WS_WSG_A : PvpObjectives.WS_WSG_H;
+                WowBuffer ws = new WowBuffer(8);
+                ws.putU32(field);
+                ws.putU32(-1);
+                s.send(Opcodes.SMSG_UPDATE_WORLD_STATE, ws.array());
+            }
             return true;
         }
         if (opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
