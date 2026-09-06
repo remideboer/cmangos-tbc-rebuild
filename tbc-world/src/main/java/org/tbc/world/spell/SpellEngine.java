@@ -57,6 +57,7 @@ public final class SpellEngine {
     public static final int EFFECT_THREAT = 63;
     public static final int EFFECT_INTERRUPT_CAST = 68;
     public static final int EFFECT_ADD_FARSIGHT = 72;
+    public static final int EFFECT_HEAL_MECHANICAL = 75;
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
     public static final int EFFECT_INEBRIATE = 100;
@@ -82,7 +83,7 @@ public final class SpellEngine {
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
-            EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT);
+            EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -272,6 +273,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SELF_RESURRECT) {
             selfResurrect(caster, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
+        if (sp.effect == EFFECT_HEAL_MECHANICAL) {
+            healMechanical(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -552,6 +557,17 @@ public final class SpellEngine {
             return;
         }
         p.failQuest(questId);
+    }
+
+    /**
+     * Effect 75 — SPELL_EFFECT_HEAL_MECHANICAL. CMaNGOS EffectHealMechanical: living
+     * unitTarget, heal by damage (creature type is targeting). Mechanical Patch Kit 15057.
+     */
+    public void healMechanical(Unit target, int amount) {
+        if (target == null || !target.alive() || amount <= 0) {
+            return;
+        }
+        target.setHealth(target.health() + amount);
     }
 
     /**
