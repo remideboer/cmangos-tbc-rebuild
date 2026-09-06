@@ -59,6 +59,7 @@ public final class SpellEngine {
     public static final int EFFECT_DISPEL_MECHANIC = 108;
     public static final int EFFECT_SEND_TAXI = 123;
     public static final int EFFECT_PULL_TOWARDS = 124;
+    public static final int EFFECT_LEAP_BACK = 138;
     public static final int EFFECT_KILL_CREDIT_GROUP = 134;
     public static final int EFFECT_PLAY_MUSIC = 132;
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
@@ -108,7 +109,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE,
-            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS);
+            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_LEAP_BACK);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -375,6 +376,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_PULL_TOWARDS) {
             pullTowards(caster, target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_LEAP_BACK) {
+            leapBack(caster, target, sp.misc() / 10f, (sp.minDmg + sp.maxDmg) / 2 / 10f);
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -898,6 +903,20 @@ public final class SpellEngine {
         float speedZ = (dz + 0.5f * time * time * MOVEMENT_GRAVITY) / time;
         float angle = (float) Math.atan2(dy, dx);
         target.knockBackWithAngle(angle, speedXY, speedZ);
+    }
+
+    /**
+     * Effect 138 — SPELL_EFFECT_LEAP_BACK. CMaNGOS KnockBackFrom(unitTarget) on caster.
+     * Negative Jump 40622 is misc 100 / damage -350. Taxi flight is a no-op.
+     */
+    public void leapBack(Unit caster, Unit target, float horiz, float vert) {
+        if (caster == null || target == null) {
+            return;
+        }
+        if ((caster.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_TAXI_FLIGHT) != 0) {
+            return;
+        }
+        caster.knockBackFrom(target, horiz, vert);
     }
 
     /**
