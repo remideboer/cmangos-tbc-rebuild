@@ -110,6 +110,7 @@ public final class SpellEngine {
     public static final int EFFECT_FEED_PET = 101;
     public static final int EFFECT_DISMISS_PET = 102;
     public static final int EFFECT_REPUTATION = 103;
+    public static final int EFFECT_SUMMON_OBJECT_SLOT1 = 104;
     public static final int EFFECT_KNOCK_BACK = 98;
     public static final int EFFECT_DESTROY_ALL_TOTEMS = 110;
     public static final int EFFECT_DURABILITY_DAMAGE = 111;
@@ -139,7 +140,7 @@ public final class SpellEngine {
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_DISENCHANT, EFFECT_INEBRIATE, EFFECT_FEED_PET,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
-            EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
+            EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION, EFFECT_SUMMON_OBJECT_SLOT1,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_TELEPORT_GRAVEYARD, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
@@ -565,6 +566,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_REPUTATION) {
             modifyReputation(target, sp.misc(), (sp.minDmg + sp.maxDmg) / 2);
+            return 0;
+        }
+        if (sp.effect == EFFECT_SUMMON_OBJECT_SLOT1) {
+            summonObjectSlot(caster, 0, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -1342,6 +1347,37 @@ public final class SpellEngine {
         if (action == GameObjectUse.ACTION_OPEN) {
             GameObjectUse.useDoorOrButton(go, false);
         }
+    }
+
+    /**
+     * Effect 104 — SPELL_EFFECT_SUMMON_OBJECT_SLOT1. CMaNGOS EffectSummonObject slot 0.
+     * Freezing Trap 1499 misc GO 2561. Player SMSG_TOTEM_CREATED.
+     */
+    public void summonObjectSlot(Unit caster, int slot, int goEntry) {
+        if (caster == null || goEntry <= 0 || slot < 0 || slot >= Unit.MAX_OBJECT_SLOT) {
+            return;
+        }
+        if (caster.objectSlot(slot) != null) {
+            caster.setObjectSlot(slot, null);
+        }
+        GameObject go = new GameObject();
+        go.entry = goEntry;
+        go.guid = Guid.HIGH_GAMEOBJECT | (caster.guid & 0xFFFFFFFFL);
+        go.relocate(caster.x, caster.y, caster.z, caster.o);
+        caster.setObjectSlot(slot, go);
+        if (caster instanceof Player p) {
+            p.setLastTotemCreated(slot, go.guid);
+        }
+    }
+
+    /** SMSG_TOTEM_CREATED 0x412: slot, GO guid, extra 0, duration 0. */
+    public static byte[] encodeTotemCreated(int slot, long guid) {
+        WowBuffer b = new WowBuffer(17);
+        b.putU8(slot);
+        b.putU64(guid);
+        b.putU32(0);
+        b.putU32(0);
+        return b.array();
     }
 
     /**

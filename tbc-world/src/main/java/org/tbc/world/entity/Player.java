@@ -278,6 +278,8 @@ public final class Player extends Unit {
     }
     public int taxiPath;
     private int lastPlayMusic;
+    private int lastTotemCreatedSlot;
+    private long lastTotemCreatedGuid;
     private long lastSkinningLootGuid;
     private long lastInsigniaLootGuid;
     private int lastSkinnedRepop;
@@ -734,6 +736,22 @@ public final class Player extends Unit {
 
     public int lastPlayMusic() {
         return lastPlayMusic;
+    }
+
+    /**
+     * CMaNGOS SMSG_TOTEM_CREATED after EffectSummonObject slot &lt; MAX_TOTEM_SLOT.
+     */
+    public void setLastTotemCreated(int slot, long guid) {
+        lastTotemCreatedSlot = slot;
+        lastTotemCreatedGuid = guid;
+    }
+
+    public int lastTotemCreatedSlot() {
+        return lastTotemCreatedSlot;
+    }
+
+    public long lastTotemCreatedGuid() {
+        return lastTotemCreatedGuid;
     }
 
     /**

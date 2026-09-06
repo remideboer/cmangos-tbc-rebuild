@@ -128,6 +128,24 @@ public class Unit extends Entity {
         canBlock = value;
     }
 
+    /** CMaNGOS m_ObjectSlotGuid — trap/totem GO slots (MAX_TOTEM_SLOT 4). */
+    public static final int MAX_OBJECT_SLOT = 4;
+    private final GameObject[] objectSlots = new GameObject[MAX_OBJECT_SLOT];
+
+    public GameObject objectSlot(int slot) {
+        if (slot < 0 || slot >= MAX_OBJECT_SLOT) {
+            return null;
+        }
+        return objectSlots[slot];
+    }
+
+    public void setObjectSlot(int slot, GameObject go) {
+        if (slot < 0 || slot >= MAX_OBJECT_SLOT) {
+            return;
+        }
+        objectSlots[slot] = go;
+    }
+
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
     public void clearSpawningFlag() {
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
