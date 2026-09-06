@@ -337,6 +337,8 @@ public final class WorldSession {
             case Opcodes.CMSG_GUILD_ACCEPT -> GuildHandler.accept(this, world);
             case Opcodes.CMSG_GUILD_PROMOTE -> GuildHandler.promote(this, world, in);
             case Opcodes.CMSG_GUILD_RANK -> GuildHandler.rank(this, world, in);
+            case Opcodes.CMSG_GUILD_ADD_RANK -> GuildHandler.addRank(this, world, in);
+            case Opcodes.CMSG_GUILD_DEL_RANK -> GuildHandler.delRank(this, world);
             case Opcodes.CMSG_GUILD_MOTD -> GuildHandler.motd(this, world, in);
             case Opcodes.MSG_SAVE_GUILD_EMBLEM -> GuildHandler.saveEmblem(this, world, in);
             case Opcodes.CMSG_PETITION_BUY -> PetitionHandler.buy(this, world, in);

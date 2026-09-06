@@ -237,6 +237,55 @@ public final class GuildHandler {
         roster(s, p);
     }
 
+    public static final int GUILD_RANKS_MIN_COUNT = 5;
+    public static final int GUILD_RANKS_MAX_COUNT = 10;
+
+    /** HandleGuildAddRankOpcode. */
+    public static void addRank(WorldSession s, World world, WowBuffer in) {
+        String rankName = in.remaining() > 0 ? in.getCString() : "";
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (p.guid != g.leaderGuid) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        if (g.ranks.size() >= GUILD_RANKS_MAX_COUNT) {
+            return;
+        }
+        int chat = GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK;
+        g.ranks.add(new Guild.Rank(rankName == null ? "" : rankName, chat));
+        WowBuffer q = new WowBuffer(4);
+        q.putU32(g.id);
+        QueryHandler.guild(s, world, q);
+        roster(s, p);
+    }
+
+    /** HandleGuildDelRankOpcode — remove last rank if above min. */
+    public static void delRank(WorldSession s, World world) {
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (p.guid != g.leaderGuid) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        if (g.ranks.size() <= GUILD_RANKS_MIN_COUNT) {
+            return;
+        }
+        g.ranks.remove(g.ranks.size() - 1);
+        WowBuffer q = new WowBuffer(4);
+        q.putU32(g.id);
+        QueryHandler.guild(s, world, q);
+        roster(s, p);
+    }
+
     public static void motd(WorldSession s, World world, WowBuffer in) {
         String motd = in.remaining() > 0 ? in.getCString() : "";
         Player p = s.player();

@@ -358,6 +358,26 @@ class Slice21P0Test {
         assertTrue(lead.saw(Opcodes.SMSG_GUILD_ROSTER));
     }
 
+    @Test
+    void tpSl21GuildAddRankWhenMasterShouldAppendRank() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        lead.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putCString("Scout");
+        lead.handle(world, Opcodes.CMSG_GUILD_ADD_RANK, in.array());
+        WowBuffer q = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_QUERY_RESPONSE));
+        q.getU32();
+        q.getCString();
+        String[] ranks = new String[10];
+        for (int i = 0; i < 10; i++) {
+            ranks[i] = q.getCString();
+        }
+        assertEquals("Scout", ranks[5]);
+        assertTrue(lead.saw(Opcodes.SMSG_GUILD_ROSTER));
+    }
+
     private static org.tbc.world.entity.Creature petitioner(World world) {
         for (org.tbc.world.entity.Creature c : world.map(0, 0).creatures.values()) {
             if (c.entry == org.tbc.world.content.Content.NPC_REBECCA_LAUGHLIN) {
