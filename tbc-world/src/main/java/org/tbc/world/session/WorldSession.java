@@ -1126,6 +1126,11 @@ public final class WorldSession {
             world.outdoorPvp.captureZmWest(true);
             flushWorldStates(world.outdoorPvp.drainWorldStates());
         }
+        if (guid == PvpObjectives.GO_ZM_CENTER_N) {
+            if (world.outdoorPvp.claimZmGraveyard(player, true)) {
+                flushWorldStates(world.outdoorPvp.drainWorldStates());
+            }
+        }
         if (guid == PvpObjectives.GO_HALAA_BANNER) {
             world.outdoorPvp.captureHalaa(player, true);
             flushWorldStates(world.outdoorPvp.drainWorldStates());

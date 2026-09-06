@@ -166,6 +166,42 @@ public final class OutdoorPvp {
         }
     }
 
+    /**
+     * Twin Spire GY via center banner GO 182529 — requires both beacons + battle standard
+     * (32430 A / 32431 H). GY WS 2648/2649/2647, buff 33779, GY 969 (TP-SL25-010).
+     */
+    public boolean claimZmGraveyard(Player p, boolean alliance) {
+        if (!zmEastOwned || !zmWestOwned) {
+            return false;
+        }
+        if (alliance) {
+            if (!zmEastAlliance || !zmWestAlliance) {
+                return false;
+            }
+            if (p.auras.stream().noneMatch(a -> a.spellId() == PvpObjectives.SPELL_BATTLE_STANDARD_A)) {
+                return false;
+            }
+            p.auras.removeIf(a -> a.spellId() == PvpObjectives.SPELL_BATTLE_STANDARD_A);
+            emit(PvpObjectives.WS_ZM_GY_A, 1);
+            emit(PvpObjectives.WS_ZM_GY_H, 0);
+            emit(PvpObjectives.WS_ZM_GY_N, 0);
+        } else {
+            if (zmEastAlliance || zmWestAlliance) {
+                return false;
+            }
+            if (p.auras.stream().noneMatch(a -> a.spellId() == PvpObjectives.SPELL_BATTLE_STANDARD_H)) {
+                return false;
+            }
+            p.auras.removeIf(a -> a.spellId() == PvpObjectives.SPELL_BATTLE_STANDARD_H);
+            emit(PvpObjectives.WS_ZM_GY_A, 0);
+            emit(PvpObjectives.WS_ZM_GY_H, 1);
+            emit(PvpObjectives.WS_ZM_GY_N, 0);
+        }
+        zmGy = PvpObjectives.ZM_GY;
+        p.auras.add(new Unit.Aura(PvpObjectives.ZM_TWIN_SPIRE_BLESSING, 0, 1));
+        return true;
+    }
+
     public java.util.List<int[]> drainWorldStates() {
         java.util.List<int[]> out = new java.util.ArrayList<>(pendingWs.size());
         while (!pendingWs.isEmpty()) {

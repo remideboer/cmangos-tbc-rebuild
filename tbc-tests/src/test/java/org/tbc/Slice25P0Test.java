@@ -162,6 +162,28 @@ class Slice25P0Test {
         assertTrue(hasWorldState(client, PvpObjectives.WS_ZM_WEST_N, 0));
     }
 
+    @Test
+    void tpSl25ZmGraveyardClaim() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "ZmGy", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        world.outdoorPvp.captureZmEast(true);
+        world.outdoorPvp.captureZmWest(true);
+        world.outdoorPvp.drainWorldStates();
+        p.auras.add(new org.tbc.world.entity.Unit.Aura(PvpObjectives.SPELL_BATTLE_STANDARD_A, 0, 1));
+        client.clear();
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(PvpObjectives.GO_ZM_CENTER_N);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_ZM_GY_A, 1));
+        assertTrue(hasWorldState(client, PvpObjectives.WS_ZM_GY_N, 0));
+        assertEquals(PvpObjectives.ZM_GY, world.outdoorPvp.zmGy);
+        assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.ZM_TWIN_SPIRE_BLESSING));
+    }
+
     private static boolean hasWorldState(WowClientDouble client, int field, int value) {
         for (int i = 0; i < client.opcodes.size(); i++) {
             if (client.opcodes.get(i) != Opcodes.SMSG_UPDATE_WORLD_STATE) {

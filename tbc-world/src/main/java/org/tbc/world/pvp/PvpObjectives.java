@@ -105,6 +105,7 @@ public final class PvpObjectives {
     public static final int ZM_GY = 969;
     public static final int ZM_TWIN_SPIRE_BLESSING = 33779;
     public static final int SPELL_BATTLE_STANDARD_A = 32430;
+    public static final int SPELL_BATTLE_STANDARD_H = 32431;
     public static final int WS_EY_RES_A = 2749;
     public static final int WS_EY_RES_H = 2750;
     public static final int WS_EY_TOWERS_A = 2752;
