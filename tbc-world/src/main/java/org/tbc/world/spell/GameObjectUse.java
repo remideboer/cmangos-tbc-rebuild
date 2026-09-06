@@ -3,6 +3,7 @@ package org.tbc.world.spell;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.GameObject;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.function.BiConsumer;
 
@@ -17,6 +18,13 @@ public final class GameObjectUse {
     public static final int TYPE_MO_TRANSPORT = 15;
     public static final int STATE_ACTIVE = 0;
     public static final int STATE_READY = 1;
+    /** GameObject.h GO_STATE_ACTIVE_ALTERNATIVE — DESTROY / cannon. */
+    public static final int STATE_ACTIVE_ALTERNATIVE = 2;
+    /** SharedDefines.h GO_FLAG_IN_USE. */
+    public static final int GO_FLAG_IN_USE = 0x00000001;
+    /** GameObject.h GameObjectActions::OPEN / DESTROY. */
+    public static final int ACTION_OPEN = 8;
+    public static final int ACTION_DESTROY = 12;
 
     private GameObjectUse() {}
 
@@ -53,6 +61,19 @@ public final class GameObjectUse {
 
     public static boolean isMoTransport(GameObject go) {
         return go != null && go.type == TYPE_MO_TRANSPORT;
+    }
+
+    /**
+     * CMaNGOS GameObject::UseDoorOrButton — READY only; alternative is DESTROY.
+     */
+    public static boolean useDoorOrButton(GameObject go, boolean alternative) {
+        if (go == null || go.state != STATE_READY) {
+            return false;
+        }
+        go.setInt(UpdateFields.GAMEOBJECT_FLAGS,
+                go.getInt(UpdateFields.GAMEOBJECT_FLAGS) | GO_FLAG_IN_USE);
+        go.state = alternative ? STATE_ACTIVE_ALTERNATIVE : STATE_ACTIVE;
+        return true;
     }
 
     public static void sendCustomAnim(BiConsumer<Integer, byte[]> send, long guid, int animId) {

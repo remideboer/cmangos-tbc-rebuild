@@ -7,6 +7,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
 import org.tbc.world.entity.Corpse;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Pet;
@@ -101,6 +102,7 @@ public final class SpellEngine {
     public static final int EFFECT_SANCTUARY = 79;
     public static final int EFFECT_STUCK = 84;
     public static final int EFFECT_SUMMON_PLAYER = 85;
+    public static final int EFFECT_ACTIVATE_OBJECT = 86;
     /** CMaNGOS MAX_PLAYER_SUMMON_DELAY (2*MINUTE) in milliseconds. */
     public static final int MAX_PLAYER_SUMMON_DELAY_MS = 120_000;
     public static final int EFFECT_INEBRIATE = 100;
@@ -133,7 +135,7 @@ public final class SpellEngine {
             EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET,
             EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_FORCE_CAST, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
-            EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
+            EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ACTIVATE_OBJECT, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_DISENCHANT, EFFECT_INEBRIATE, EFFECT_FEED_PET,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
@@ -327,6 +329,11 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SUMMON_PLAYER) {
             summonPlayer(caster, target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_ACTIVATE_OBJECT) {
+            GameObject go = caster instanceof Player p ? p.spellGameObjectTarget() : null;
+            activateObject(go, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_ADD_EXTRA_ATTACKS) {
@@ -1318,6 +1325,23 @@ public final class SpellEngine {
 
     static boolean isBattleGround(int mapId) {
         return BATTLEGROUND_MAPS.contains(mapId);
+    }
+
+    /**
+     * Effect 86 — SPELL_EFFECT_ACTIVATE_OBJECT. CMaNGOS GameObjectActions.
+     * Blow Zul'Farrak Door 11195 is DESTROY (12) → UseDoorOrButton alternative.
+     */
+    public void activateObject(GameObject go, int action) {
+        if (go == null) {
+            return;
+        }
+        if (action == GameObjectUse.ACTION_DESTROY) {
+            GameObjectUse.useDoorOrButton(go, true);
+            return;
+        }
+        if (action == GameObjectUse.ACTION_OPEN) {
+            GameObjectUse.useDoorOrButton(go, false);
+        }
     }
 
     /**

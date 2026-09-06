@@ -166,6 +166,7 @@ public final class Player extends Unit {
     public int zoneClient;
     public Pet pet;
     private Item spellItemTarget;
+    private GameObject spellGameObjectTarget;
     public Group group;
     public TradeData trade;
     public final List<Friend> friends = new ArrayList<>();
@@ -819,6 +820,17 @@ public final class Player extends Unit {
 
     public Item spellItemTarget() {
         return spellItemTarget;
+    }
+
+    /**
+     * CMaNGOS Spell::gameObjTarget — Blow Zul'Farrak Door 11195.
+     */
+    public void setSpellGameObjectTarget(GameObject go) {
+        spellGameObjectTarget = go;
+    }
+
+    public GameObject spellGameObjectTarget() {
+        return spellGameObjectTarget;
     }
 
     /**
