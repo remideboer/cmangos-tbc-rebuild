@@ -22,8 +22,11 @@ public final class ArenaTeamHandler {
     static final int ERR_ARENA_TEAM_INVITE_SS = 1;
     static final int ERR_ALREADY_IN_ARENA_TEAM = 2;
     static final int ERR_ARENA_TEAM_INTERNAL = 1;
-    /** ArenaTeamEvents ERR_ARENA_TEAM_JOIN_SS. */
+    static final int ERR_ARENA_TEAM_QUIT_S = 3;
+    static final int ERR_ARENA_TEAM_LEADER_LEAVE_S = 8;
+    /** ArenaTeamEvents ERR_ARENA_TEAM_JOIN_SS / LEAVE_SS. */
     static final int EVENT_JOIN = 3;
+    static final int EVENT_LEAVE = 4;
     /** TBC CONFIG_UINT32_MAX_PLAYER_LEVEL. */
     static final int MAX_PLAYER_LEVEL = 70;
 
@@ -107,6 +110,51 @@ public final class ArenaTeamHandler {
             return;
         }
         broadcastEvent(world, at, EVENT_JOIN, p.guid, p.name, at.name);
+    }
+
+    /** HandleArenaTeamLeaveOpcode — DelMember + LEAVE event (non-captain). */
+    public static void leave(WorldSession s, World world, WowBuffer in) {
+        int teamId = in.remaining() >= 4 ? in.getU32() : 0;
+        ArenaTeam at = world.objectMgr.arenaTeams.get(teamId);
+        if (at == null) {
+            return;
+        }
+        Player p = s.player();
+        if (p.guid == at.captainGuid && at.members.size() > 1) {
+            sendCommandResult(s, ERR_ARENA_TEAM_QUIT_S, "", "", ERR_ARENA_TEAM_LEADER_LEAVE_S);
+            return;
+        }
+        if (p.guid == at.captainGuid) {
+            disband(world, at, s);
+            return;
+        }
+        delMember(world, at, p.guid);
+        broadcastEvent(world, at, EVENT_LEAVE, p.guid, p.name, at.name);
+        sendCommandResult(s, ERR_ARENA_TEAM_QUIT_S, at.name, "", 0);
+    }
+
+    static void delMember(World world, ArenaTeam at, long guid) {
+        at.members.remove(guid);
+        Player player = world.playerByGuid(guid);
+        if (player != null) {
+            if (player.session != null) {
+                sendCommandResult(player.session, ERR_ARENA_TEAM_QUIT_S, at.name, "", 0);
+            }
+            clearArenaTeam(player, at.slot);
+        }
+    }
+
+    static void clearArenaTeam(Player pl, int slot) {
+        setInArenaTeam(pl, 0, slot);
+    }
+
+    static void disband(World world, ArenaTeam at, WorldSession session) {
+        // Solo captain leave — Disband; full DISBAND event in a later TP.
+        while (!at.members.isEmpty()) {
+            Long g = at.members.keySet().iterator().next();
+            delMember(world, at, g);
+        }
+        world.objectMgr.arenaTeams.remove(at.id);
     }
 
     static boolean addMember(World world, ArenaTeam at, Player pl) {

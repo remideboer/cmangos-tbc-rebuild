@@ -386,6 +386,7 @@ public final class WorldSession {
             case Opcodes.MSG_INSPECT_ARENA_TEAMS -> ArenaTeamHandler.inspect(this, world, in);
             case Opcodes.CMSG_ARENA_TEAM_INVITE -> ArenaTeamHandler.invite(this, world, in);
             case Opcodes.CMSG_ARENA_TEAM_ACCEPT -> ArenaTeamHandler.accept(this, world);
+            case Opcodes.CMSG_ARENA_TEAM_LEAVE -> ArenaTeamHandler.leave(this, world, in);
             case Opcodes.CMSG_DUEL_ACCEPTED -> handleDuel(world);
             case Opcodes.CMSG_TOGGLE_PVP -> togglePvp(in);
             case Opcodes.CMSG_SET_TITLE -> {
