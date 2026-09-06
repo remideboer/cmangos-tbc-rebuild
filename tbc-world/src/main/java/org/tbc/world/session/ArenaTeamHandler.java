@@ -29,6 +29,7 @@ public final class ArenaTeamHandler {
     static final int EVENT_LEAVE = 4;
     static final int EVENT_REMOVE = 5;
     static final int EVENT_DISBANDED = 8;
+    static final int EVENT_LEADER_CHANGED = 7;
     static final int ERR_ARENA_TEAM_PERMISSIONS = 8;
     /** TBC CONFIG_UINT32_MAX_PLAYER_LEVEL. */
     static final int MAX_PLAYER_LEVEL = 70;
@@ -173,6 +174,31 @@ public final class ArenaTeamHandler {
             return;
         }
         disband(world, at, s);
+    }
+
+    /** HandleArenaTeamLeaderOpcode — SetCaptain + LEADER_CHANGED event. */
+    public static void leader(WorldSession s, World world, WowBuffer in) {
+        int teamId = in.remaining() >= 4 ? in.getU32() : 0;
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        ArenaTeam at = world.objectMgr.arenaTeams.get(teamId);
+        if (at == null) {
+            return;
+        }
+        Player captain = s.player();
+        if (at.captainGuid != captain.guid) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", "", ERR_ARENA_TEAM_PERMISSIONS);
+            return;
+        }
+        Player target = name.isEmpty() ? null : world.playerByName(name);
+        if (target == null || !at.members.containsKey(target.guid)) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", name, ERR_ARENA_TEAM_PLAYER_NOT_FOUND_S);
+            return;
+        }
+        if (at.captainGuid == target.guid) {
+            return;
+        }
+        at.captainGuid = target.guid;
+        broadcastEvent(world, at, EVENT_LEADER_CHANGED, 0, captain.name, name, at.name);
     }
 
     static void delMember(World world, ArenaTeam at, long guid) {

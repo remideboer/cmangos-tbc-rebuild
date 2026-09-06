@@ -243,6 +243,38 @@ class Slice23P0Test {
         assertEquals("Glads", ev.getCString());
     }
 
+    @Test
+    void tpSl23ArenaTeamLeaderWhenCaptainShouldBroadcastLeaderChanged() {
+        World world = World.inMemory();
+        WowClientDouble captain = login(world, ACC_A, "Captain");
+        WowClientDouble member = login(world, ACC_B, "Member");
+        Player cap = captain.session().player();
+        Player mem = member.session().player();
+        org.tbc.world.entity.ArenaTeam team = new org.tbc.world.entity.ArenaTeam();
+        team.id = 7;
+        team.slot = 0;
+        team.name = "Glads";
+        team.captainGuid = cap.guid;
+        team.members.put(cap.guid, new org.tbc.world.entity.ArenaTeam.Member());
+        team.members.put(mem.guid, new org.tbc.world.entity.ArenaTeam.Member());
+        world.objectMgr.arenaTeams.put(team.id, team);
+        cap.arenaTeam = team.id;
+        mem.arenaTeam = team.id;
+        captain.clear();
+        member.clear();
+        WowBuffer in = new WowBuffer(32);
+        in.putU32(team.id);
+        in.putCString("Member");
+        captain.handle(world, Opcodes.CMSG_ARENA_TEAM_LEADER, in.array());
+        assertEquals(mem.guid, team.captainGuid);
+        WowBuffer ev = new WowBuffer(lastPayload(captain, Opcodes.SMSG_ARENA_TEAM_EVENT));
+        assertEquals(7, ev.getU8());
+        assertEquals(3, ev.getU8());
+        assertEquals("Captain", ev.getCString());
+        assertEquals("Member", ev.getCString());
+        assertEquals("Glads", ev.getCString());
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
