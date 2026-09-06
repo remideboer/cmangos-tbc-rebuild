@@ -330,6 +330,34 @@ class Slice21P0Test {
         assertEquals("NewName", out.getCString());
     }
 
+    @Test
+    void tpSl21GuildRankWhenMasterRenamesShouldQueryResponse() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        lead.clear();
+        int rankId = 4; // Initiate
+        WowBuffer in = new WowBuffer(128);
+        in.putU32(rankId);
+        in.putU32(GuildHandler.GR_RIGHT_GCHATLISTEN | GuildHandler.GR_RIGHT_GCHATSPEAK);
+        in.putCString("Recruit");
+        in.putU32(0);
+        for (int t = 0; t < GuildHandler.GUILD_BANK_MAX_TABS; t++) {
+            in.putU32(0);
+            in.putU32(0);
+        }
+        lead.handle(world, Opcodes.CMSG_GUILD_RANK, in.array());
+        WowBuffer q = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_QUERY_RESPONSE));
+        assertEquals(lead.session().player().guildId, q.getU32());
+        assertEquals("Plates", q.getCString());
+        String[] ranks = new String[10];
+        for (int i = 0; i < 10; i++) {
+            ranks[i] = q.getCString();
+        }
+        assertEquals("Recruit", ranks[rankId]);
+        assertTrue(lead.saw(Opcodes.SMSG_GUILD_ROSTER));
+    }
+
     private static org.tbc.world.entity.Creature petitioner(World world) {
         for (org.tbc.world.entity.Creature c : world.map(0, 0).creatures.values()) {
             if (c.entry == org.tbc.world.content.Content.NPC_REBECCA_LAUGHLIN) {

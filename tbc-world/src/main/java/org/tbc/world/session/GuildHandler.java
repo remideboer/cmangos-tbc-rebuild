@@ -197,6 +197,46 @@ public final class GuildHandler {
         broadcastEvent(world, g, GE_PROMOTION, 0, p.name, t.name, rankName);
     }
 
+    /** HandleGuildRankOpcode — GM renames/rights a rank; Query + Roster. */
+    public static void rank(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (p.guid != g.leaderGuid) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        if (in.remaining() < 8) {
+            return;
+        }
+        int rankId = in.getU32();
+        int rights = in.getU32();
+        String rankName = in.remaining() > 0 ? in.getCString() : "";
+        if (in.remaining() >= 4) {
+            in.getU32(); // MoneyPerDay
+        }
+        for (int t = 0; t < GUILD_BANK_MAX_TABS && in.remaining() >= 8; t++) {
+            in.getU32();
+            in.getU32();
+        }
+        if (rankId < 0 || rankId >= g.ranks.size()) {
+            return;
+        }
+        if (rankId == 0) {
+            rights = GR_RIGHT_ALL;
+        }
+        Guild.Rank r = g.ranks.get(rankId);
+        r.name = rankName == null ? "" : rankName;
+        r.rights = rights;
+        WowBuffer q = new WowBuffer(4);
+        q.putU32(g.id);
+        QueryHandler.guild(s, world, q);
+        roster(s, p);
+    }
+
     public static void motd(WorldSession s, World world, WowBuffer in) {
         String motd = in.remaining() > 0 ? in.getCString() : "";
         Player p = s.player();

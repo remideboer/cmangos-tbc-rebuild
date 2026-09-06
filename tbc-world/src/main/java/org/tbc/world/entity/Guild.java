@@ -20,8 +20,8 @@ public final class Guild {
     public final List<Rank> ranks = new ArrayList<>();
 
     public static final class Rank {
-        public final String name;
-        public final int rights;
+        public String name;
+        public int rights;
 
         public Rank(String name, int rights) {
             this.name = name;
