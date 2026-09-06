@@ -63,6 +63,17 @@ public class Unit extends Entity {
     public int entry;
     public String scriptName = "";
     public final List<Aura> auras = new ArrayList<>();
+
+    /** CMaNGOS ProcessDispelList — remove up to max auras; 0 means 1. */
+    public int dispelAuras(int max) {
+        int n = Math.max(1, max);
+        int removed = 0;
+        while (removed < n && !auras.isEmpty()) {
+            auras.remove(auras.size() - 1);
+            removed++;
+        }
+        return removed;
+    }
     public long lastMeleeMs;
     public long lastOffhandMeleeMs;
     public int threat;
