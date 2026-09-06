@@ -4,6 +4,7 @@ import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.WorldSession;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -251,6 +252,11 @@ public final class Player extends Unit {
     public int honorYesterday;
     public int yesterdayContrib;
     public final long[] totems = new long[4];
+
+    /** CMaNGOS Totem::UnSummon on every MAX_TOTEM_SLOT. */
+    public void destroyAllTotems() {
+        Arrays.fill(totems, 0);
+    }
     public float lastAckSpeed;
     /** Last CMSG_MOVE_SPLINE_DONE movementCounter (movement.md). */
     public int lastSplineDoneCounter;

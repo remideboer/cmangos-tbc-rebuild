@@ -61,6 +61,7 @@ public final class SpellEngine {
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
     public static final int EFFECT_INEBRIATE = 100;
+    public static final int EFFECT_DESTROY_ALL_TOTEMS = 110;
     public static final int EFFECT_ATTACK_ME = 114;
     public static final int EFFECT_HEAL_PCT = 136;
     public static final int EFFECT_ENERGIZE_PCT = 137;
@@ -83,7 +84,7 @@ public final class SpellEngine {
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
-            EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL);
+            EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -277,6 +278,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_HEAL_MECHANICAL) {
             healMechanical(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
+        if (sp.effect == EFFECT_DESTROY_ALL_TOTEMS) {
+            destroyAllTotems(caster);
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -568,6 +573,17 @@ public final class SpellEngine {
             return;
         }
         target.setHealth(target.health() + amount);
+    }
+
+    /**
+     * Effect 110 — SPELL_EFFECT_DESTROY_ALL_TOTEMS. CMaNGOS UnSummon all caster totem slots.
+     * Totemic Call 36936.
+     */
+    public void destroyAllTotems(Unit caster) {
+        if (!(caster instanceof Player p)) {
+            return;
+        }
+        p.destroyAllTotems();
     }
 
     /**
