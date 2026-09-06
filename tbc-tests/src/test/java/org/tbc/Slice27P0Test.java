@@ -102,6 +102,27 @@ class Slice27P0Test {
     }
 
     @Test
+    void tpSl27ForceSwimSpeedAck() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Swimmer");
+        Player p = client.session().player();
+        WowBuffer ack = new WowBuffer(64);
+        ack.putPackedGuid(p.guid);
+        ack.putU32(2);
+        ack.putU32(0);
+        ack.putU8(0);
+        ack.putU32(0);
+        ack.putFloat(p.x);
+        ack.putFloat(p.y);
+        ack.putFloat(p.z);
+        ack.putFloat(p.o);
+        ack.putU32(0);
+        ack.putFloat(4.722946f);
+        client.handle(world, Opcodes.CMSG_FORCE_SWIM_SPEED_CHANGE_ACK, ack.array());
+        assertEquals(4.722946f, p.lastAckSpeed, 0.0001f);
+    }
+
+    @Test
     void tpSl27CancelMountAura() {
         World world = World.inMemory();
         WowClientDouble client = login(world, ACC_A, "Mounter");

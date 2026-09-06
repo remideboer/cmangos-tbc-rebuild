@@ -260,7 +260,7 @@ public final class WorldSession {
             }
             return;
         }
-        if (opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
+        if (isForceSpeedChangeAck(opcode)) {
             try {
                 handleMove(world, opcode, in, true);
                 if (in.remaining() >= 4) {
@@ -917,6 +917,18 @@ public final class WorldSession {
         }
         int bytes2 = player.getInt(UpdateFields.UNIT_FIELD_BYTES_2);
         player.setInt(UpdateFields.UNIT_FIELD_BYTES_2, (bytes2 & ~0xFF) | (sheath & 0xFF));
+    }
+
+    /** movement.md — all CMSG_FORCE_*_SPEED_CHANGE_ACK share packed guid + counter + MovementInfo + float. */
+    private static boolean isForceSpeedChangeAck(int opcode) {
+        return opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK
+                || opcode == Opcodes.CMSG_FORCE_RUN_BACK_SPEED_CHANGE_ACK
+                || opcode == Opcodes.CMSG_FORCE_SWIM_SPEED_CHANGE_ACK
+                || opcode == Opcodes.CMSG_FORCE_WALK_SPEED_CHANGE_ACK
+                || opcode == Opcodes.CMSG_FORCE_SWIM_BACK_SPEED_CHANGE_ACK
+                || opcode == Opcodes.CMSG_FORCE_TURN_RATE_CHANGE_ACK
+                || opcode == Opcodes.CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK
+                || opcode == Opcodes.CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK;
     }
 
     /** spell.md CMSG_STANDSTATECHANGE — stand/sit/sleep/kneel only (CMaNGOS HandleStandStateChangeOpcode). */
