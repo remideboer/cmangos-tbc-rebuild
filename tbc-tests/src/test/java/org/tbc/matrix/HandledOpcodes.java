@@ -176,6 +176,7 @@ final class HandledOpcodes {
             Opcodes.MSG_INSPECT_HONOR_STATS,
             Opcodes.MSG_INSPECT_ARENA_TEAMS,
             Opcodes.CMSG_ARENA_TEAM_INVITE,
+            Opcodes.CMSG_ARENA_TEAM_ACCEPT,
             Opcodes.CMSG_CHANNEL_LIST,
             Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE,
             Opcodes.CMSG_TOTEM_DESTROYED,

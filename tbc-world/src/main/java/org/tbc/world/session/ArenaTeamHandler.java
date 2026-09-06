@@ -20,6 +20,10 @@ public final class ArenaTeamHandler {
     static final int ERR_ARENA_TEAM_TOO_MANY_MEMBERS_S = 0x16;
     static final int ERR_ARENA_TEAM_CREATE_S = 0;
     static final int ERR_ARENA_TEAM_INVITE_SS = 1;
+    static final int ERR_ALREADY_IN_ARENA_TEAM = 2;
+    static final int ERR_ARENA_TEAM_INTERNAL = 1;
+    /** ArenaTeamEvents ERR_ARENA_TEAM_JOIN_SS. */
+    static final int EVENT_JOIN = 3;
     /** TBC CONFIG_UINT32_MAX_PLAYER_LEVEL. */
     static final int MAX_PLAYER_LEVEL = 70;
 
@@ -84,6 +88,71 @@ public final class ArenaTeamHandler {
         data.putCString(team.name);
         if (invitee.session != null) {
             invitee.session.send(Opcodes.SMSG_ARENA_TEAM_INVITE, data.array());
+        }
+    }
+
+    /** HandleArenaTeamAcceptOpcode — AddMember + JOIN event. */
+    public static void accept(WorldSession s, World world) {
+        Player p = s.player();
+        ArenaTeam at = world.objectMgr.arenaTeams.get(p.arenaTeamIdInvited);
+        if (at == null) {
+            return;
+        }
+        if (arenaTeamId(p, at.slot) != 0) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", "", ERR_ALREADY_IN_ARENA_TEAM);
+            return;
+        }
+        if (!addMember(world, at, p)) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", "", ERR_ARENA_TEAM_INTERNAL);
+            return;
+        }
+        broadcastEvent(world, at, EVENT_JOIN, p.guid, p.name, at.name);
+    }
+
+    static boolean addMember(World world, ArenaTeam at, Player pl) {
+        if (at.members.size() >= at.maxMembers()) {
+            return false;
+        }
+        if (arenaTeamId(pl, at.slot) != 0) {
+            return false;
+        }
+        ArenaTeam.Member mem = new ArenaTeam.Member();
+        mem.personalRating = 0;
+        at.members.put(pl.guid, mem);
+        setInArenaTeam(pl, at.id, at.slot);
+        pl.arenaTeamIdInvited = 0;
+        return true;
+    }
+
+    static void setInArenaTeam(Player pl, int teamId, int slot) {
+        switch (slot) {
+            case 0 -> pl.arenaTeam = teamId;
+            case 1 -> pl.arenaTeamId3 = teamId;
+            case 2 -> pl.arenaTeamId5 = teamId;
+            default -> {
+            }
+        }
+    }
+
+    static void broadcastEvent(World world, ArenaTeam at, int event, long guid, String str1, String str2) {
+        WowBuffer data = new WowBuffer(64);
+        data.putU8(event);
+        data.putU8(str2 == null ? (str1 == null ? 0 : 1) : 2);
+        if (str1 != null) {
+            data.putCString(str1);
+        }
+        if (str2 != null) {
+            data.putCString(str2);
+        }
+        if (guid != 0) {
+            data.putU64(guid);
+        }
+        byte[] payload = data.array();
+        for (Long memberGuid : at.members.keySet()) {
+            Player m = world.playerByGuid(memberGuid);
+            if (m != null && m.session != null) {
+                m.session.send(Opcodes.SMSG_ARENA_TEAM_EVENT, payload);
+            }
         }
     }
 

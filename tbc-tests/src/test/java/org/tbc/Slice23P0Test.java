@@ -110,6 +110,37 @@ class Slice23P0Test {
         assertEquals(team.id, inv.arenaTeamIdInvited);
     }
 
+    @Test
+    void tpSl23ArenaTeamAcceptShouldJoinAndBroadcastEvent() {
+        World world = World.inMemory();
+        WowClientDouble captain = login(world, ACC_A, "Captain");
+        WowClientDouble invitee = login(world, ACC_B, "Invitee");
+        Player cap = captain.session().player();
+        Player inv = invitee.session().player();
+        inv.level = 70;
+        org.tbc.world.entity.ArenaTeam team = new org.tbc.world.entity.ArenaTeam();
+        team.id = 7;
+        team.slot = 0;
+        team.name = "Glads";
+        team.captainGuid = cap.guid;
+        team.members.put(cap.guid, new org.tbc.world.entity.ArenaTeam.Member());
+        world.objectMgr.arenaTeams.put(team.id, team);
+        cap.arenaTeam = team.id;
+        inv.arenaTeamIdInvited = team.id;
+        captain.clear();
+        invitee.clear();
+        invitee.handle(world, Opcodes.CMSG_ARENA_TEAM_ACCEPT, new byte[0]);
+        assertEquals(team.id, inv.arenaTeam);
+        assertEquals(0, inv.arenaTeamIdInvited);
+        assertTrue(team.members.containsKey(inv.guid));
+        WowBuffer ev = new WowBuffer(lastPayload(captain, Opcodes.SMSG_ARENA_TEAM_EVENT));
+        assertEquals(3, ev.getU8());
+        assertEquals(2, ev.getU8());
+        assertEquals("Invitee", ev.getCString());
+        assertEquals("Glads", ev.getCString());
+        assertEquals(inv.guid, ev.getU64());
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
