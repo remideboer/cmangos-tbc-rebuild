@@ -111,6 +111,17 @@ public class Unit extends Entity {
         canParry = value;
     }
 
+    private boolean canBlock;
+
+    public boolean canBlock() {
+        return canBlock;
+    }
+
+    /** CMaNGOS Unit::SetCanBlock. Block 107. */
+    public void setCanBlock(boolean value) {
+        canBlock = value;
+    }
+
     /** CMaNGOS Unit::CombatStop — leave combat, clear victim. */
     public void combatStop() {
         inCombat = false;
