@@ -166,6 +166,22 @@ public class Unit extends Entity {
         }
         return removed;
     }
+
+    /** CMaNGOS EffectDispelMechanic — remove up to max auras with mechanic; 0 max means 1. */
+    public int dispelMechanic(int mechanic, int max) {
+        if (mechanic <= 0) {
+            return 0;
+        }
+        int n = Math.max(1, max);
+        int removed = 0;
+        for (int i = auras.size() - 1; i >= 0 && removed < n; i--) {
+            if (auras.get(i).mechanic() == mechanic) {
+                auras.remove(i);
+                removed++;
+            }
+        }
+        return removed;
+    }
     public long lastMeleeMs;
     public long lastOffhandMeleeMs;
     public int threat;
@@ -246,5 +262,9 @@ public class Unit extends Entity {
         setInt(UpdateFields.UNIT_FIELD_BYTES_1, (bytes & ~0xFF) | (state & 0xFF));
     }
 
-    public record Aura(int spellId, int durationMs, int stacks) {}
+    public record Aura(int spellId, int durationMs, int stacks, int mechanic) {
+        public Aura(int spellId, int durationMs, int stacks) {
+            this(spellId, durationMs, stacks, 0);
+        }
+    }
 }

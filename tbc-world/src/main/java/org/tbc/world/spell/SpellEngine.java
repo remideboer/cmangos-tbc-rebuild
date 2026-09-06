@@ -55,6 +55,7 @@ public final class SpellEngine {
     public static final int EFFECT_ADD_HONOR = 45;
     public static final int EFFECT_LEARN_SPELL = 36;
     public static final int EFFECT_DISPEL = 38;
+    public static final int EFFECT_DISPEL_MECHANIC = 108;
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_DUAL_WIELD = 40;
@@ -99,7 +100,8 @@ public final class SpellEngine {
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
-            EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT);
+            EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
+            EFFECT_DISPEL_MECHANIC);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -338,6 +340,10 @@ public final class SpellEngine {
             float destX = caster != null ? caster.x : target.x;
             float destY = caster != null ? caster.y : target.y;
             distract(target, destX, destY);
+            return 0;
+        }
+        if (sp.effect == EFFECT_DISPEL_MECHANIC) {
+            dispelMechanic(target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -773,6 +779,17 @@ public final class SpellEngine {
             return;
         }
         target.setFacingTo(destX, destY);
+    }
+
+    /**
+     * Effect 108 — SPELL_EFFECT_DISPEL_MECHANIC. CMaNGOS HasMechanic(misc); damage count (0→1).
+     * Escape Artist 20589 first effect is MECHANIC_ROOT 7.
+     */
+    public void dispelMechanic(Unit target, int mechanic, int max) {
+        if (target == null) {
+            return;
+        }
+        target.dispelMechanic(mechanic, max);
     }
 
     /**
