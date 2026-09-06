@@ -39,6 +39,7 @@ public final class SpellEngine {
     public static final int EFFECT_HEAL = 10;
     public static final int EFFECT_BIND = 11;
     public static final int EFFECT_QUEST_COMPLETE = 16;
+    public static final int EFFECT_WEAPON_DAMAGE_NOSCHOOL = 17;
     public static final int EFFECT_RESURRECT = 18;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
@@ -71,7 +72,7 @@ public final class SpellEngine {
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
-            EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE);
+            EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -235,7 +236,8 @@ public final class SpellEngine {
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
-        if (sp.effect == EFFECT_SCHOOL_DAMAGE || sp.effect == EFFECT_WEAPON_DAMAGE) {
+        if (sp.effect == EFFECT_SCHOOL_DAMAGE || sp.effect == EFFECT_WEAPON_DAMAGE
+                || sp.effect == EFFECT_WEAPON_DAMAGE_NOSCHOOL) {
             int dmg = Math.max(1, (sp.minDmg + sp.maxDmg) / 2);
             target.setHealth(target.health() - dmg);
             return dmg;
