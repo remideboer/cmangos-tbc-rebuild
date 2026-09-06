@@ -15,6 +15,7 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_NOT_ATTACKABLE_1 = 0x00000080;
     public static final int UNIT_FLAG_IMMUNE_TO_PLAYER = 0x00000100;
     public static final int UNIT_FLAG_IMMUNE_TO_NPC = 0x00000200;
+    public static final int UNIT_FLAG_PVP = 0x00001000;
     public static final int UNIT_FLAG_UNTARGETABLE = 0x00010000;
     public static final int UNIT_FLAG_IN_COMBAT = 0x00080000;
     public static final int UNIT_FLAG_TAXI_FLIGHT = 0x00100000;

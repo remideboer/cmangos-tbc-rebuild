@@ -11,6 +11,7 @@ import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.AddonInfo;
 import org.tbc.world.net.wow8606.MovementInfo;
@@ -384,7 +385,7 @@ public final class WorldSession {
             case Opcodes.CMSG_INSPECT -> handleInspect(in);
             case Opcodes.MSG_INSPECT_ARENA_TEAMS -> ArenaTeamHandler.inspect(this, world, in);
             case Opcodes.CMSG_DUEL_ACCEPTED -> handleDuel(world);
-            case Opcodes.CMSG_TOGGLE_PVP -> player.pvpFlagged = !player.pvpFlagged;
+            case Opcodes.CMSG_TOGGLE_PVP -> togglePvp(in);
             case Opcodes.CMSG_SET_TITLE -> {
                 int title = in.remaining() >= 4 ? in.getU32() : 0;
                 // HandleSetTitleOpcode — title>0 && <64 require known; else clear to 0.
@@ -1137,6 +1138,34 @@ public final class WorldSession {
             out.putU8(0);
         }
         send(Opcodes.SMSG_INSPECT_TALENT, out.array());
+    }
+
+    /** MiscHandler HandleTogglePvP — PLAYER_FLAGS_PVP_DESIRED + UpdatePvP(true). */
+    private void togglePvp(WowBuffer in) {
+        // Sanctuary: AreaTable AREA_FLAG_SANCTUARY — no AreaTable yet; skip when zone marks sanctuary.
+        if (player.pvpSanctuary) {
+            return;
+        }
+        int flags = player.getInt(UpdateFields.PLAYER_FLAGS);
+        if (in.remaining() == 1) {
+            boolean desired = in.getU8() != 0;
+            if (desired) {
+                flags |= Player.PLAYER_FLAGS_PVP_DESIRED;
+            } else {
+                flags &= ~Player.PLAYER_FLAGS_PVP_DESIRED;
+            }
+        } else {
+            flags ^= Player.PLAYER_FLAGS_PVP_DESIRED;
+        }
+        player.setInt(UpdateFields.PLAYER_FLAGS, flags);
+        player.pvpFlagged = (flags & Player.PLAYER_FLAGS_PVP_DESIRED) != 0;
+        if ((flags & Player.PLAYER_FLAGS_PVP_DESIRED) != 0) {
+            int uf = player.getInt(UpdateFields.UNIT_FIELD_FLAGS);
+            player.setInt(UpdateFields.UNIT_FIELD_FLAGS, uf | Unit.UNIT_FLAG_PVP);
+        }
+        var upd = UpdateBuilder.maybeCompress(
+                UpdateBuilder.values(player, UpdateFields.PLAYER_FLAGS, UpdateFields.UNIT_FIELD_FLAGS));
+        send(upd.opcode(), upd.payload());
     }
 
     private void handleDuel(World world) {

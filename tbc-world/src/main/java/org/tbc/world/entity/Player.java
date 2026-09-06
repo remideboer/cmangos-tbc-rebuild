@@ -33,6 +33,8 @@ public final class Player extends Unit {
     public static final int CLASS_MAGE = 8;
     public static final int CLASS_WARLOCK = 9;
     public static final int PLAYER_FLAGS_GHOST = 0x00000010;
+    /** Player.h PLAYER_FLAGS_PVP_DESIRED — permanent PvP preference. */
+    public static final int PLAYER_FLAGS_PVP_DESIRED = 0x00000200;
 
     public WorldSession session;
     public int accountId;
@@ -104,6 +106,8 @@ public final class Player extends Unit {
     public int comboPoints;
     public int selectedTitle;
     public boolean pvpFlagged;
+    /** Sanctuary zone — HandleTogglePvP ignores (AREA_FLAG_SANCTUARY stand-in until AreaTable). */
+    public boolean pvpSanctuary;
     public Player duelOpponent;
     public int duelPhase;
     public Corpse corpse;

@@ -122,6 +122,20 @@ class Slice22P0Test {
         assertEquals(1500, out.getU32());
     }
 
+    @Test
+    void tpSl22TogglePvpWhenEmptyShouldSetDesiredAndUnitPvp() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Pvper");
+        Player p = client.session().player();
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TOGGLE_PVP, new byte[0]);
+        int flags = p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FLAGS);
+        assertEquals(Player.PLAYER_FLAGS_PVP_DESIRED, flags & Player.PLAYER_FLAGS_PVP_DESIRED);
+        int unitFlags = p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_FLAGS);
+        assertEquals(org.tbc.world.entity.Unit.UNIT_FLAG_PVP, unitFlags & org.tbc.world.entity.Unit.UNIT_FLAG_PVP);
+        assertTrue(client.saw(Opcodes.SMSG_UPDATE_OBJECT) || client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
