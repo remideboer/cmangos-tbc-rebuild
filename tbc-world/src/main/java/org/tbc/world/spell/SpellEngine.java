@@ -81,6 +81,7 @@ public final class SpellEngine {
     public static final int EFFECT_DUAL_WIELD = 40;
     public static final int EFFECT_OPEN_LOCK = 33;
     public static final int EFFECT_OPEN_LOCK_ITEM = 59;
+    public static final int EFFECT_ENCHANT_HELD_ITEM = 92;
     public static final int EFFECT_TRIGGER_SPELL = 64;
     public static final int EFFECT_POWER_BURN = 62;
     public static final int EFFECT_THREAT = 63;
@@ -121,6 +122,7 @@ public final class SpellEngine {
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
+            EFFECT_ENCHANT_HELD_ITEM,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
@@ -431,6 +433,10 @@ public final class SpellEngine {
         if (sp.effect == EFFECT_OPEN_LOCK_ITEM) {
             Item item = caster instanceof Player p ? p.spellItemTarget() : null;
             openLock(caster, item);
+            return 0;
+        }
+        if (sp.effect == EFFECT_ENCHANT_HELD_ITEM) {
+            enchantHeldItem(target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_PROSPECTING) {
@@ -1090,6 +1096,24 @@ public final class SpellEngine {
         }
         item.flags |= Content.ITEM_DYNFLAG_UNLOCKED;
         p.showOpenLockLoot(item.guid);
+    }
+
+    /**
+     * Effect 92 — SPELL_EFFECT_ENCHANT_HELD_ITEM. CMaNGOS player target mainhand TEMP_ENCHANTMENT_SLOT.
+     * Flametongue Totem Effect 8230 misc 124. Different existing temp enchant is a no-op.
+     */
+    public void enchantHeldItem(Unit target, int enchantId) {
+        if (!(target instanceof Player p) || enchantId == 0) {
+            return;
+        }
+        Item item = p.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND);
+        if (item == null) {
+            return;
+        }
+        if (item.tempEnchant != 0 && item.tempEnchant != enchantId) {
+            return;
+        }
+        item.tempEnchant = enchantId;
     }
 
     /** SMSG_LOOT_RESPONSE 0x160: item guid + clientLootType 2. */
