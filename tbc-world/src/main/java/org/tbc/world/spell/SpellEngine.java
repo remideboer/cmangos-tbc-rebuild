@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tbc.common.Codes;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
@@ -419,6 +420,11 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_CHARGE_DEST) {
             chargeDest(caster, sp.maxRange);
+            return 0;
+        }
+        if (sp.effect == EFFECT_OPEN_LOCK) {
+            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
+            openLock(caster, item);
             return 0;
         }
         if (sp.effect == EFFECT_PROSPECTING) {
@@ -1066,6 +1072,23 @@ public final class SpellEngine {
         float destY = caster.y + dist * (float) Math.sin(caster.o);
         float o = (float) Math.atan2(destY - caster.y, destX - caster.x);
         caster.relocate(destX, destY, caster.z, o);
+    }
+
+    /**
+     * Effect 33 — SPELL_EFFECT_OPEN_LOCK. CMaNGOS player caster, itemTarget.
+     * Opening 3365. ITEM_DYNFLAG_UNLOCKED; loot.md clientLootType PICKPOCKETING (2).
+     */
+    public void openLock(Unit caster, Item item) {
+        if (!(caster instanceof Player p) || item == null) {
+            return;
+        }
+        item.flags |= Content.ITEM_DYNFLAG_UNLOCKED;
+        p.showOpenLockLoot(item.guid);
+    }
+
+    /** SMSG_LOOT_RESPONSE 0x160: item guid + clientLootType 2. */
+    public static byte[] encodeOpenLockLoot(long guid) {
+        return encodeSkinningLoot(guid);
     }
 
     /**

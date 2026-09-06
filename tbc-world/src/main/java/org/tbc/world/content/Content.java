@@ -114,6 +114,8 @@ public final class Content {
     public static final int ITEM_RED_RIBBONED_WRAPPING_PAPER = 5042;
     /** ItemPrototype.h ITEM_FLAG_IS_WRAPPER; named in inventory.md. */
     public static final int ITEM_FLAG_IS_WRAPPER = 0x00000200;
+    /** Item.h ITEM_DYNFLAG_UNLOCKED; locked items after EffectOpenLock. */
+    public static final int ITEM_DYNFLAG_UNLOCKED = 0x00000004;
     /** Item.h ITEM_DYNFLAG_WRAPPED; named in inventory.md. */
     public static final int ITEM_DYNFLAG_WRAPPED = 0x00000008;
     public static final int SPELL_BATTLE_SHOUT = 6673;

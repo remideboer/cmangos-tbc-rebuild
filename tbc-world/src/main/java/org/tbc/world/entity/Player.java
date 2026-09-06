@@ -280,6 +280,7 @@ public final class Player extends Unit {
     private long lastPickpocketLootGuid;
     private long lastDisenchantLootGuid;
     private long lastProspectingLootGuid;
+    private long lastOpenLockLootGuid;
     public final int[] taxiMask = new int[16];
     public boolean mounted;
     public String lfgComment = "";
@@ -773,6 +774,17 @@ public final class Player extends Unit {
 
     public long lastProspectingLootGuid() {
         return lastProspectingLootGuid;
+    }
+
+    /**
+     * CMaNGOS SendLoot after EffectOpenLock — item loot pickpocketing.
+     */
+    public void showOpenLockLoot(long guid) {
+        lastOpenLockLootGuid = guid;
+    }
+
+    public long lastOpenLockLootGuid() {
+        return lastOpenLockLootGuid;
     }
 
     /**
