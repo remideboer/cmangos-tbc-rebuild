@@ -85,6 +85,7 @@ public final class SpellEngine {
     public static final int EFFECT_ENCHANT_HELD_ITEM = 92;
     public static final int EFFECT_CREATE_PET = 153;
     public static final int EFFECT_TRIGGER_SPELL = 64;
+    public static final int EFFECT_FORCE_CAST = 140;
     public static final int EFFECT_POWER_BURN = 62;
     public static final int EFFECT_THREAT = 63;
     public static final int EFFECT_INTERRUPT_CAST = 68;
@@ -125,7 +126,7 @@ public final class SpellEngine {
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
             EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET,
-            EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
+            EFFECT_TRIGGER_SPELL, EFFECT_FORCE_CAST, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
@@ -181,6 +182,21 @@ public final class SpellEngine {
 
     public boolean knownEffect(int effect) {
         return KNOWN_EFFECTS.contains(effect);
+    }
+
+    /**
+     * Effect 140 — SPELL_EFFECT_FORCE_CAST. CMaNGOS unitTarget casts EffectTriggerSpell.
+     * Portal Effect: Ironforge 17607 SQL trigger is 44089 (dest later). Nested uses catalog.
+     */
+    public int forceCast(Unit target, int triggerSpellId) {
+        if (target == null) {
+            return 0;
+        }
+        SpellInfo nested = info(triggerSpellId);
+        if (nested == null) {
+            return 0;
+        }
+        return apply(target, target, nested);
     }
 
     public void sendFail(BiConsumer<Integer, byte[]> send, int spellId, int result, int castCount) {
@@ -570,6 +586,9 @@ public final class SpellEngine {
                 return 0;
             }
             return apply(caster, target, nested);
+        }
+        if (sp.effect == EFFECT_FORCE_CAST) {
+            return forceCast(target, sp.misc());
         }
         if (sp.effect == EFFECT_ADD_FARSIGHT) {
             if (caster instanceof Player p) {
