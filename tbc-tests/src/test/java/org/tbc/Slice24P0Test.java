@@ -2,6 +2,7 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.pvp.AbBattlefield;
@@ -190,6 +191,36 @@ class Slice24P0Test {
         client.session().tick(world, 50);
         assertTrue(hasWorldState(client, PvpObjectives.WS_AB_GOLD_OCC_A, 1));
         assertEquals(AbBattlefield.STATUS_ALLY_OCC, world.ab.nodeStatus(AbBattlefield.NODE_GOLD));
+    }
+
+    @Test
+    void tpSl24AvVanndarKillShouldEndWithHordeWinnerLog() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "AvBoss");
+        Player p = client.session().player();
+        world.teleport(p, 30, 0, 0, 0, 0);
+        Creature vanndar = world.objectMgr.spawnCreature(11948, 30, p.x, p.y, p.z, p.o, world.scripts);
+        vanndar.entry = 11948;
+        vanndar.setHealth(1);
+        world.map(p.mapId, p.instanceId).add(vanndar);
+        client.clear();
+        for (int i = 0; i < 50 && vanndar.alive(); i++) {
+            world.meleeHit(p, vanndar);
+        }
+        assertTrue(!vanndar.alive());
+        byte[] log = lastPayload(client, Opcodes.MSG_PVP_LOG_DATA);
+        assertEquals(0, log[0] & 0xFF, "BG type");
+        assertEquals(1, log[1] & 0xFF, "ended");
+        assertEquals(0, log[2] & 0xFF, "WINNER_HORDE");
+    }
+
+    private static byte[] lastPayload(WowClientDouble client, int opcode) {
+        for (int i = client.opcodes.size() - 1; i >= 0; i--) {
+            if (client.opcodes.get(i) == opcode) {
+                return client.payloads.get(i);
+            }
+        }
+        throw new AssertionError("missing opcode " + opcode);
     }
 
     private static WowClientDouble login(World world, String name) {

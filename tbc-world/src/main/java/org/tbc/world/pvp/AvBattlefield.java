@@ -1,5 +1,7 @@
 package org.tbc.world.pvp;
 
+import org.tbc.common.WowBuffer;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,6 +11,12 @@ public final class AvBattlefield {
     public static final int TEAM_ALLIANCE = 0;
     public static final int TEAM_HORDE = 1;
     public static final int NODE_SNOWFALL = 3;
+    /** battleground-av.md Vanndar / Drek'Thar. */
+    public static final int NPC_VANNDAR = 11948;
+    public static final int NPC_DREKTHAR = 11946;
+    /** BuildPvpLogDataPacket WINNER_HORDE / ALLIANCE. */
+    public static final int WINNER_HORDE = 0;
+    public static final int WINNER_ALLIANCE = 1;
 
     private long captureReadyAt;
     private int assaultTeam = TEAM_ALLIANCE;
@@ -17,7 +25,17 @@ public final class AvBattlefield {
     private int reinforcementsHorde = 600;
     private int mineTeam = -1;
     private long nextMineTickAt;
+    private boolean ended;
+    private int winner = 2;
     private final ArrayDeque<int[]> pendingWs = new ArrayDeque<>();
+
+    public boolean ended() {
+        return ended;
+    }
+
+    public int winner() {
+        return winner;
+    }
 
     public long captureReadyAt() {
         return captureReadyAt;
@@ -65,6 +83,9 @@ public final class AvBattlefield {
     }
 
     public void onPlayerDeath(int defendingTeam) {
+        if (ended) {
+            return;
+        }
         if (defendingTeam == TEAM_ALLIANCE) {
             reinforcementsAlliance = Math.max(0, reinforcementsAlliance - 1);
             emit(PvpObjectives.WS_AV_SCORE_A, reinforcementsAlliance);
@@ -72,6 +93,37 @@ public final class AvBattlefield {
             reinforcementsHorde = Math.max(0, reinforcementsHorde - 1);
             emit(PvpObjectives.WS_AV_SCORE_H, reinforcementsHorde);
         }
+    }
+
+    /**
+     * BattleGroundAV::HandleKillUnit generals — EndBattleGround for opposing team.
+     * @return true if the match just ended
+     */
+    public boolean onGeneralKilled(int entry) {
+        if (ended) {
+            return false;
+        }
+        if (entry == NPC_VANNDAR) {
+            ended = true;
+            winner = WINNER_HORDE;
+            return true;
+        }
+        if (entry == NPC_DREKTHAR) {
+            ended = true;
+            winner = WINNER_ALLIANCE;
+            return true;
+        }
+        return false;
+    }
+
+    /** MSG_PVP_LOG_DATA after EndBattleGround — type BG, ended, winner, empty scores. */
+    public byte[] endedPvpLogPayload() {
+        WowBuffer log = new WowBuffer(8);
+        log.putU8(0);
+        log.putU8(1);
+        log.putU8(winner);
+        log.putU32(0);
+        return log.array();
     }
 
     public List<int[]> drainWorldStates() {

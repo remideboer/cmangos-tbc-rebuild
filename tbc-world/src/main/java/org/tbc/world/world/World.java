@@ -405,6 +405,14 @@ public final class World implements Runnable {
             objectMgr.fillCorpseLoot(c);
             hitMap.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, c.entry, c, p,
                     (src, tgt, spell) -> sendDbScriptCast(hitMap, src, tgt, spell));
+            if (p.mapId == 30 && av.onGeneralKilled(c.entry)) {
+                byte[] log = av.endedPvpLogPayload();
+                for (Player pl : hitMap.players()) {
+                    if (pl.session != null) {
+                        pl.session.send(Opcodes.MSG_PVP_LOG_DATA, log);
+                    }
+                }
+            }
         }
     }
 
