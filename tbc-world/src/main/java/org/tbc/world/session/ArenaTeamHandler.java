@@ -28,6 +28,7 @@ public final class ArenaTeamHandler {
     static final int EVENT_JOIN = 3;
     static final int EVENT_LEAVE = 4;
     static final int EVENT_REMOVE = 5;
+    static final int EVENT_DISBANDED = 8;
     static final int ERR_ARENA_TEAM_PERMISSIONS = 8;
     /** TBC CONFIG_UINT32_MAX_PLAYER_LEVEL. */
     static final int MAX_PLAYER_LEVEL = 70;
@@ -161,6 +162,19 @@ public final class ArenaTeamHandler {
         broadcastEvent(world, at, EVENT_REMOVE, 0, name, at.name, captain.name);
     }
 
+    /** HandleArenaTeamDisbandOpcode — captain Disband + DISBANDED event. */
+    public static void disbandOpcode(WorldSession s, World world, WowBuffer in) {
+        int teamId = in.remaining() >= 4 ? in.getU32() : 0;
+        ArenaTeam at = world.objectMgr.arenaTeams.get(teamId);
+        if (at == null) {
+            return;
+        }
+        if (at.captainGuid != s.player().guid) {
+            return;
+        }
+        disband(world, at, s);
+    }
+
     static void delMember(World world, ArenaTeam at, long guid) {
         at.members.remove(guid);
         Player player = world.playerByGuid(guid);
@@ -177,7 +191,9 @@ public final class ArenaTeamHandler {
     }
 
     static void disband(World world, ArenaTeam at, WorldSession session) {
-        // Solo captain leave — Disband; full DISBAND event in a later TP.
+        if (session != null) {
+            broadcastEvent(world, at, EVENT_DISBANDED, 0, session.player().name, at.name, null);
+        }
         while (!at.members.isEmpty()) {
             Long g = at.members.keySet().iterator().next();
             delMember(world, at, g);

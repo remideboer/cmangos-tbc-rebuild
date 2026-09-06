@@ -179,6 +179,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_ARENA_TEAM_ACCEPT,
             Opcodes.CMSG_ARENA_TEAM_LEAVE,
             Opcodes.CMSG_ARENA_TEAM_REMOVE,
+            Opcodes.CMSG_ARENA_TEAM_DISBAND,
             Opcodes.CMSG_CHANNEL_LIST,
             Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE,
             Opcodes.CMSG_TOTEM_DESTROYED,
