@@ -42,6 +42,7 @@ public final class SpellEngine {
     public static final int EFFECT_RESURRECT = 18;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
+    public static final int EFFECT_ENVIRONMENTAL_DAMAGE = 7;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
     public static final int EFFECT_ENERGIZE = 30;
     public static final int EFFECT_ADD_HONOR = 45;
@@ -70,7 +71,7 @@ public final class SpellEngine {
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
-            EFFECT_RESURRECT);
+            EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -227,6 +228,9 @@ public final class SpellEngine {
         if (sp.effect == EFFECT_RESURRECT) {
             resurrect(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
+        }
+        if (sp.effect == EFFECT_ENVIRONMENTAL_DAMAGE) {
+            return environmentalDamage(caster, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
@@ -415,6 +419,18 @@ public final class SpellEngine {
         int health = maxHp * damagePct / 100;
         int mana = p.maxPower() * damagePct / 100;
         p.addResurrectRequest(caster.guid, caster.mapId, caster.x, caster.y, caster.z, health, mana);
+    }
+
+    /**
+     * Effect 7 — SPELL_EFFECT_ENVIRONMENTAL_DAMAGE. CMaNGOS damages the player caster (GO fire).
+     */
+    public int environmentalDamage(Unit caster, int amount) {
+        if (!(caster instanceof Player p) || !p.alive() || amount <= 0) {
+            return 0;
+        }
+        int dealt = Math.min(amount, p.health());
+        p.setHealth(p.health() - dealt);
+        return dealt;
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
