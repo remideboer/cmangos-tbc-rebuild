@@ -47,6 +47,25 @@ public final class Player extends Unit {
     public int race;
     public int clazz;
     public int gender;
+    private int drunk;
+
+    public int drunkValue() {
+        return drunk;
+    }
+
+    /** CMaNGOS Player::SetDrunkValue — PLAYER_BYTES_3 low 16: gender | (drunk & 0xFFFE). */
+    public void setDrunkValue(int newDrunk) {
+        if (newDrunk < 0) {
+            newDrunk = 0;
+        }
+        if (newDrunk > 0xFFFF) {
+            newDrunk = 0xFFFF;
+        }
+        drunk = newDrunk;
+        int bytes = getInt(UpdateFields.PLAYER_BYTES_3);
+        int packed = (gender & 0xFF) | (drunk & 0xFFFE);
+        setInt(UpdateFields.PLAYER_BYTES_3, (bytes & ~0xFFFF) | packed);
+    }
     public int skin, face, hairStyle, hairColor, facialHair;
     public int money;
     public int xp;

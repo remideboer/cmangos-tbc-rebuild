@@ -59,6 +59,7 @@ public final class SpellEngine {
     public static final int EFFECT_ADD_FARSIGHT = 72;
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
+    public static final int EFFECT_INEBRIATE = 100;
     public static final int EFFECT_ATTACK_ME = 114;
     public static final int EFFECT_HEAL_PCT = 136;
     public static final int EFFECT_ENERGIZE_PCT = 137;
@@ -78,7 +79,7 @@ public final class SpellEngine {
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
-            EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT);
+            EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -256,6 +257,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_ENERGIZE_PCT) {
             energizePct(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_INEBRIATE) {
+            inebriate(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -520,6 +525,14 @@ public final class SpellEngine {
             return;
         }
         energize(target, max * pct / 100);
+    }
+
+    /** Effect 100 — SPELL_EFFECT_INEBRIATE. CMaNGOS: player target, drunk += damage * 256, cap 0xFFFF. */
+    public void inebriate(Unit target, int drinks) {
+        if (!(target instanceof Player p) || drinks <= 0) {
+            return;
+        }
+        p.setDrunkValue(p.drunkValue() + drinks * 256);
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
