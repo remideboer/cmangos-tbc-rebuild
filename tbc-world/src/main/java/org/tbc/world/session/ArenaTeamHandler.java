@@ -27,6 +27,8 @@ public final class ArenaTeamHandler {
     /** ArenaTeamEvents ERR_ARENA_TEAM_JOIN_SS / LEAVE_SS. */
     static final int EVENT_JOIN = 3;
     static final int EVENT_LEAVE = 4;
+    static final int EVENT_REMOVE = 5;
+    static final int ERR_ARENA_TEAM_PERMISSIONS = 8;
     /** TBC CONFIG_UINT32_MAX_PLAYER_LEVEL. */
     static final int MAX_PLAYER_LEVEL = 70;
 
@@ -109,7 +111,7 @@ public final class ArenaTeamHandler {
             sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", "", ERR_ARENA_TEAM_INTERNAL);
             return;
         }
-        broadcastEvent(world, at, EVENT_JOIN, p.guid, p.name, at.name);
+        broadcastEvent(world, at, EVENT_JOIN, p.guid, p.name, at.name, null);
     }
 
     /** HandleArenaTeamLeaveOpcode — DelMember + LEAVE event (non-captain). */
@@ -129,8 +131,34 @@ public final class ArenaTeamHandler {
             return;
         }
         delMember(world, at, p.guid);
-        broadcastEvent(world, at, EVENT_LEAVE, p.guid, p.name, at.name);
+        broadcastEvent(world, at, EVENT_LEAVE, p.guid, p.name, at.name, null);
         sendCommandResult(s, ERR_ARENA_TEAM_QUIT_S, at.name, "", 0);
+    }
+
+    /** HandleArenaTeamRemoveOpcode — captain kicks member + REMOVE event. */
+    public static void remove(WorldSession s, World world, WowBuffer in) {
+        int teamId = in.remaining() >= 4 ? in.getU32() : 0;
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        ArenaTeam at = world.objectMgr.arenaTeams.get(teamId);
+        if (at == null) {
+            return;
+        }
+        Player captain = s.player();
+        if (at.captainGuid != captain.guid) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", "", ERR_ARENA_TEAM_PERMISSIONS);
+            return;
+        }
+        Player target = name.isEmpty() ? null : world.playerByName(name);
+        if (target == null || !at.members.containsKey(target.guid)) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", name, ERR_ARENA_TEAM_PLAYER_NOT_FOUND_S);
+            return;
+        }
+        if (at.captainGuid == target.guid) {
+            sendCommandResult(s, ERR_ARENA_TEAM_QUIT_S, "", "", ERR_ARENA_TEAM_LEADER_LEAVE_S);
+            return;
+        }
+        delMember(world, at, target.guid);
+        broadcastEvent(world, at, EVENT_REMOVE, 0, name, at.name, captain.name);
     }
 
     static void delMember(World world, ArenaTeam at, long guid) {
@@ -182,15 +210,19 @@ public final class ArenaTeamHandler {
         }
     }
 
-    static void broadcastEvent(World world, ArenaTeam at, int event, long guid, String str1, String str2) {
-        WowBuffer data = new WowBuffer(64);
+    static void broadcastEvent(World world, ArenaTeam at, int event, long guid, String str1, String str2, String str3) {
+        int strCount = str3 != null ? 3 : (str2 != null ? 2 : (str1 != null ? 1 : 0));
+        WowBuffer data = new WowBuffer(96);
         data.putU8(event);
-        data.putU8(str2 == null ? (str1 == null ? 0 : 1) : 2);
+        data.putU8(strCount);
         if (str1 != null) {
             data.putCString(str1);
         }
         if (str2 != null) {
             data.putCString(str2);
+        }
+        if (str3 != null) {
+            data.putCString(str3);
         }
         if (guid != 0) {
             data.putU64(guid);
