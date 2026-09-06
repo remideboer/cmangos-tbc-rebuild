@@ -267,6 +267,15 @@ public class Unit extends Entity {
         setInt(UpdateFields.UNIT_FIELD_BYTES_1, (bytes & ~0xFF) | (state & 0xFF));
     }
 
+    public boolean hasAura(int spellId) {
+        for (Aura a : auras) {
+            if (a.spellId() == spellId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public record Aura(int spellId, int durationMs, int stacks, int mechanic) {
         public Aura(int spellId, int durationMs, int stacks) {
             this(spellId, durationMs, stacks, 0);

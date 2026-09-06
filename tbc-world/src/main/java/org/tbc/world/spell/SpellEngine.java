@@ -50,6 +50,7 @@ public final class SpellEngine {
     public static final int EFFECT_PROFICIENCY = 60;
     public static final int EFFECT_RESURRECT = 18;
     public static final int EFFECT_RESURRECT_NEW = 113;
+    public static final int EFFECT_SPIRIT_HEAL = 117;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
     public static final int EFFECT_ENVIRONMENTAL_DAMAGE = 7;
@@ -107,7 +108,7 @@ public final class SpellEngine {
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
-            EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
+            EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
@@ -280,6 +281,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_RESURRECT_NEW) {
             resurrectNew(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_SPIRIT_HEAL) {
+            spiritHeal(target, sp.id);
             return 0;
         }
         if (sp.effect == EFFECT_ENVIRONMENTAL_DAMAGE) {
@@ -626,6 +631,24 @@ public final class SpellEngine {
         }
         p.addResurrectRequest(caster.guid, caster.mapId, caster.x, caster.y, caster.z,
                 Math.max(0, health), Math.max(0, mana));
+    }
+
+    /**
+     * Effect 117 — SPELL_EFFECT_SPIRIT_HEAL. CMaNGOS ResurrectPlayer(1.0f). Spirit Heal
+     * 22012 requires Waiting to Resurrect 2584. Hunter/warlock pet restore is later.
+     */
+    public void spiritHeal(Unit target, int spellId) {
+        if (!(target instanceof Player p)) {
+            return;
+        }
+        if (p.alive() && !p.ghost) {
+            return;
+        }
+        if (spellId == 22012 && !p.hasAura(2584)) {
+            return;
+        }
+        p.setGhost(false);
+        p.setHealth(p.maxHealth());
     }
 
     /**
