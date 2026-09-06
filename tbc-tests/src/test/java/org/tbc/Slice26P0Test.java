@@ -128,6 +128,25 @@ class Slice26P0Test {
         assertEquals(org.tbc.world.entity.Unit.UNIT_STAND_STATE_SIT, p.standState());
     }
 
+    @Test
+    void tpSl26UnlearnSkill() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Caster");
+        Player p = client.session().player();
+        p.learnSkill(171, 1, 75, 1, true);
+        assertTrue(p.hasSkill(171));
+        client.clear();
+        WowBuffer unlearn = new WowBuffer(4);
+        unlearn.putU32(171);
+        client.handle(world, Opcodes.CMSG_UNLEARN_SKILL, unlearn.array());
+        assertFalse(p.hasSkill(171));
+        p.learnSkill(98, 300, 300, 0, false);
+        WowBuffer refuse = new WowBuffer(4);
+        refuse.putU32(98);
+        client.handle(world, Opcodes.CMSG_UNLEARN_SKILL, refuse.array());
+        assertTrue(p.hasSkill(98));
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

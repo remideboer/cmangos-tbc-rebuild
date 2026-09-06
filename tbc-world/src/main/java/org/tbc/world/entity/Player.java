@@ -80,6 +80,7 @@ public final class Player extends Unit {
     public int restFlags;
     public final int[] actionButtons = new int[132];
     public final List<Integer> spells = new ArrayList<>();
+    private final java.util.Set<Integer> unlearnableSkills = new java.util.HashSet<>();
     public final int[] tut = new int[8];
     public final Map<Integer, Item> items = new HashMap<>();
     public final List<Integer> knownTitles = new ArrayList<>();
@@ -363,12 +364,20 @@ public final class Player extends Unit {
     }
 
     public void learnSkill(int skillId, int value, int max, int step) {
+        learnSkill(skillId, value, max, step, false);
+    }
+
+    /** When canUnlearn, CMSG_UNLEARN_SKILL may clear the skill (SkillRaceClassInfo SKILL_FLAG_CAN_UNLEARN). */
+    public void learnSkill(int skillId, int value, int max, int step, boolean canUnlearn) {
         int free = -1;
         int want = skillId & 0xFFFF;
         for (int slot = 0; slot < 127; slot++) {
             int id = getInt(UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3) & 0xFFFF;
             if (id == want) {
                 setSkill(slot, skillId, value, max, step);
+                if (canUnlearn) {
+                    unlearnableSkills.add(want);
+                }
                 return;
             }
             if (free < 0 && id == 0) {
@@ -377,7 +386,27 @@ public final class Player extends Unit {
         }
         if (free >= 0) {
             setSkill(free, skillId, value, max, step);
+            if (canUnlearn) {
+                unlearnableSkills.add(want);
+            }
         }
+    }
+
+    /** SetSkillStep(id, 0) — clear skill when SKILL_FLAG_CAN_UNLEARN. */
+    public boolean unlearnSkill(int skillId) {
+        int want = skillId & 0xFFFF;
+        if (!unlearnableSkills.contains(want)) {
+            return false;
+        }
+        for (int slot = 0; slot < 127; slot++) {
+            int base = UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
+            if ((getInt(base) & 0xFFFF) == want) {
+                setSkill(slot, 0, 0, 0, 0);
+                unlearnableSkills.remove(want);
+                return true;
+            }
+        }
+        return false;
     }
 
     void applyLanguageSkills() {

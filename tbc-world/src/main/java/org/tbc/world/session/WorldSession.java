@@ -316,6 +316,7 @@ public final class WorldSession {
             case Opcodes.CMSG_ATTACKSTOP -> handleAttackStop(world);
             case Opcodes.CMSG_SETSHEATHED -> handleSheath(in);
             case Opcodes.CMSG_STANDSTATECHANGE -> handleStandStateChange(in);
+            case Opcodes.CMSG_UNLEARN_SKILL -> handleUnlearnSkill(in);
             case Opcodes.CMSG_LOOT -> handleLoot(world, in);
             case Opcodes.CMSG_AUTOSTORE_LOOT_ITEM -> LootHandler.autostoreLootItem(this, world, in);
             case Opcodes.CMSG_LOOT_MONEY -> LootHandler.lootMoney(this, world);
@@ -928,6 +929,14 @@ public final class WorldSession {
             default -> {
             }
         }
+    }
+
+    /** spell.md CMSG_UNLEARN_SKILL — SetSkillStep(id, 0) when SKILL_FLAG_CAN_UNLEARN. */
+    private void handleUnlearnSkill(WowBuffer in) {
+        if (in.remaining() < 4) {
+            return;
+        }
+        player.unlearnSkill(in.getU32());
     }
 
     private void handleAttackStop(World world) {
