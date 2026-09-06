@@ -89,6 +89,7 @@ public final class SpellEngine {
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_DUAL_WIELD = 40;
     public static final int EFFECT_OPEN_LOCK = 33;
+    public static final int EFFECT_SUMMON_CHANGE_ITEM = 34;
     public static final int EFFECT_OPEN_LOCK_ITEM = 59;
     public static final int EFFECT_ENCHANT_HELD_ITEM = 92;
     public static final int EFFECT_CREATE_PET = 153;
@@ -140,7 +141,7 @@ public final class SpellEngine {
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
-            EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE, EFFECT_SUMMON_PET,
+            EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE, EFFECT_SUMMON_PET, EFFECT_SUMMON_CHANGE_ITEM,
             EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_TRIGGER_MISSILE, EFFECT_FORCE_CAST, EFFECT_FORCE_CAST_WITH_VALUE, EFFECT_TRIGGER_SPELL_WITH_VALUE, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ACTIVATE_OBJECT, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
@@ -554,6 +555,11 @@ public final class SpellEngine {
         if (sp.effect == EFFECT_OPEN_LOCK_ITEM) {
             Item item = caster instanceof Player p ? p.spellItemTarget() : null;
             openLock(caster, item);
+            return 0;
+        }
+        if (sp.effect == EFFECT_SUMMON_CHANGE_ITEM) {
+            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
+            summonChangeItem(caster, item, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_ENCHANT_HELD_ITEM) {
@@ -1799,6 +1805,17 @@ public final class SpellEngine {
         }
         caster.setFarSightGuid(focusGuid);
         caster.setCameraViewGuid(focusGuid);
+    }
+
+    /**
+     * Effect 34 — SPELL_EFFECT_SUMMON_CHANGE_ITEM. CMaNGOS ConvertItem on the cast item.
+     * Summon Thunderstrike 21180 EffectItemType 17223.
+     */
+    public void summonChangeItem(Unit caster, Item oldItem, int newItemId) {
+        if (!(caster instanceof Player) || oldItem == null || newItemId <= 0) {
+            return;
+        }
+        oldItem.entry = newItemId;
     }
 
     /** Effect 24 — add item id × count from damage; SMSG_ITEM_PUSH_RESULT created=1. */
