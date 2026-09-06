@@ -257,6 +257,35 @@ public final class Player extends Unit {
     public void destroyAllTotems() {
         Arrays.fill(totems, 0);
     }
+
+    /** CMaNGOS Player::DurabilityPointsLoss — floor 0. */
+    public void durabilityPointsLoss(Item item, int points) {
+        if (item == null || points <= 0) {
+            return;
+        }
+        item.durability = Math.max(0, item.durability - points);
+    }
+
+    /**
+     * CMaNGOS DurabilityPointsLossAll. Equipped always; backpack (and bags) when inventory.
+     */
+    public void durabilityPointsLossAll(int points, boolean inventory) {
+        for (int s = 0; s < EQUIPMENT_SLOT_END; s++) {
+            Item it = itemAt(0, s);
+            if (it != null) {
+                durabilityPointsLoss(it, points);
+            }
+        }
+        if (!inventory) {
+            return;
+        }
+        for (int s = INVENTORY_SLOT_ITEM_START; s < INVENTORY_SLOT_ITEM_END; s++) {
+            Item it = itemAt(0, s);
+            if (it != null) {
+                durabilityPointsLoss(it, points);
+            }
+        }
+    }
     public float lastAckSpeed;
     /** Last CMSG_MOVE_SPLINE_DONE movementCounter (movement.md). */
     public int lastSplineDoneCounter;
