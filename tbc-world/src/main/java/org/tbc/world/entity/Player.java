@@ -683,6 +683,14 @@ public final class Player extends Unit {
         }
     }
 
+    /** CMaNGOS Player::removeSpell — SPELL_EFFECT_UNLEARN_SPECIALIZATION. */
+    public void removeSpell(int spellId) {
+        if (spellId <= 0) {
+            return;
+        }
+        spells.remove((Integer) spellId);
+    }
+
     /** Domain setup: both players are in an active duel (logout.md cantLogout). */
     public void engageDuel(Player other) {
         if (other == null) {

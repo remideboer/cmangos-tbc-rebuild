@@ -64,6 +64,7 @@ public final class SpellEngine {
     public static final int EFFECT_LEAP_BACK = 138;
     public static final int EFFECT_KILL_CREDIT_GROUP = 134;
     public static final int EFFECT_PLAY_MUSIC = 132;
+    public static final int EFFECT_UNLEARN_SPECIALIZATION = 133;
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_DUAL_WIELD = 40;
@@ -112,7 +113,7 @@ public final class SpellEngine {
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_LEAP_BACK,
-            EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF);
+            EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_UNLEARN_SPECIALIZATION);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -390,6 +391,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_STEAL_BENEFICIAL_BUFF) {
             stealBeneficialBuff(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
+        if (sp.effect == EFFECT_UNLEARN_SPECIALIZATION) {
+            unlearnSpecialization(target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -1118,6 +1123,17 @@ public final class SpellEngine {
         if (!p.spells.contains(spellId)) {
             p.spells.add(spellId);
         }
+    }
+
+    /**
+     * Effect 133 — SPELL_EFFECT_UNLEARN_SPECIALIZATION. CMaNGOS removeSpell(EffectTriggerSpell).
+     * Unlearn Spellfire Tailoring 41299 removes 26797. SpellInfo.misc holds the trigger id.
+     */
+    public void unlearnSpecialization(Unit target, int spellId) {
+        if (!(target instanceof Player p) || spellId <= 0) {
+            return;
+        }
+        p.removeSpell(spellId);
     }
 
     /** CMSG_CANCEL_AURA — unapply auras of this spell id (spell.md). */
