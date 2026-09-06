@@ -86,6 +86,9 @@ public final class SpellEngine {
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
     public static final int EFFECT_STUCK = 84;
+    public static final int EFFECT_SUMMON_PLAYER = 85;
+    /** CMaNGOS MAX_PLAYER_SUMMON_DELAY (2*MINUTE) in milliseconds. */
+    public static final int MAX_PLAYER_SUMMON_DELAY_MS = 120_000;
     public static final int EFFECT_INEBRIATE = 100;
     public static final int EFFECT_DISMISS_PET = 102;
     public static final int EFFECT_REPUTATION = 103;
@@ -113,7 +116,7 @@ public final class SpellEngine {
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
-            EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
+            EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
@@ -273,6 +276,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_STUCK) {
             stuck(caster);
+            return 0;
+        }
+        if (sp.effect == EFFECT_SUMMON_PLAYER) {
+            summonPlayer(caster, target);
             return 0;
         }
         if (sp.effect == EFFECT_ADD_EXTRA_ATTACKS) {
@@ -620,6 +627,32 @@ public final class SpellEngine {
         float destX = p.x + 10f * (float) Math.cos(p.o);
         float destY = p.y + 10f * (float) Math.sin(p.o);
         p.relocate(destX, destY, p.z, p.o);
+    }
+
+    /**
+     * Effect 85 — SPELL_EFFECT_SUMMON_PLAYER. CMaNGOS SetSummonPoint + SMSG_SUMMON_REQUEST.
+     * Ritual of Summoning Effect 7720. Evil Twin 23445 skips. Delay 2 minutes.
+     */
+    public void summonPlayer(Unit caster, Unit target) {
+        if (caster == null || !(target instanceof Player p)) {
+            return;
+        }
+        if (p.hasAura(23445)) {
+            return;
+        }
+        p.offerSummon(caster.guid, caster.mapId, caster.x, caster.y, caster.z, MAX_PLAYER_SUMMON_DELAY_MS);
+    }
+
+    /** SMSG_SUMMON_REQUEST 0x2AB: summoner guid, area, auto-decline ms. */
+    public static byte[] encodeSummonRequest(Unit caster, int delayMs) {
+        if (caster == null) {
+            return new byte[0];
+        }
+        WowBuffer b = new WowBuffer(16);
+        b.putU64(caster.guid);
+        b.putU32(caster.areaId);
+        b.putU32(delayMs);
+        return b.array();
     }
 
     /** Effect 19 — SPELL_EFFECT_ADD_EXTRA_ATTACKS. CMaNGOS m_extraAttacks += damage, cap 5. */
