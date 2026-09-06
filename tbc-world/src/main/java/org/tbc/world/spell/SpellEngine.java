@@ -69,6 +69,7 @@ public final class SpellEngine {
     public static final int EFFECT_APPLY_AURA = 6;
     public static final int EFFECT_PERSISTENT_AREA_AURA = 27;
     public static final int EFFECT_APPLY_AREA_AURA_PARTY = 35;
+    public static final int EFFECT_APPLY_AREA_AURA_FRIEND = 128;
     public static final int EFFECT_ENVIRONMENTAL_DAMAGE = 7;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
     public static final int EFFECT_ENERGIZE = 30;
@@ -153,7 +154,7 @@ public final class SpellEngine {
     private static final double MAGIC_MISS = 0.04;
 
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
-            EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_TELEPORT_UNITS_FACE_CASTER, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_APPLY_AREA_AURA_PARTY, EFFECT_WEAPON_DAMAGE,
+            EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_TELEPORT_UNITS_FACE_CASTER, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_APPLY_AREA_AURA_PARTY, EFFECT_APPLY_AREA_AURA_FRIEND, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
             EFFECT_ENCHANT_HELD_ITEM, EFFECT_ENCHANT_ITEM, EFFECT_ENCHANT_ITEM_TEMPORARY, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE, EFFECT_SUMMON_PET, EFFECT_SUMMON_CHANGE_ITEM,
             EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_SUMMON_RAF_FRIEND, EFFECT_TRIGGER_MISSILE, EFFECT_FORCE_CAST, EFFECT_FORCE_CAST_WITH_VALUE, EFFECT_TRIGGER_SPELL_WITH_VALUE, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
@@ -171,6 +172,9 @@ public final class SpellEngine {
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PLAY_SOUND, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
             EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_PROSPECTING, EFFECT_UNLEARN_SPECIALIZATION,
             EFFECT_LEAP);
+
+    private static final Set<Integer> APPLY_AREA_AURA_EFFECTS = Set.of(
+            EFFECT_APPLY_AREA_AURA_PARTY, EFFECT_APPLY_AREA_AURA_FRIEND);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -768,7 +772,7 @@ public final class SpellEngine {
             target.auras.add(new Unit.Aura(sp.id, 30_000, 1));
             return 0;
         }
-        if (sp.effect == EFFECT_APPLY_AREA_AURA_PARTY) {
+        if (APPLY_AREA_AURA_EFFECTS.contains(sp.effect)) {
             applyAreaAuraParty(target, sp.id);
             return 0;
         }
@@ -1416,8 +1420,9 @@ public final class SpellEngine {
     }
 
     /**
-     * Effect 35 — SPELL_EFFECT_APPLY_AREA_AURA_PARTY. CMaNGOS living unitTarget CreateAura.
-     * Devotion Aura 465.
+     * Effects 35/128 — SPELL_EFFECT_APPLY_AREA_AURA_PARTY/FRIEND.
+     * CMaNGOS EffectApplyAreaAura: living unitTarget CreateAura.
+     * Devotion Aura 465. Strength of Earth 31634.
      */
     public void applyAreaAuraParty(Unit target, int spellId) {
         if (target == null) {
