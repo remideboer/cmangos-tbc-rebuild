@@ -40,6 +40,7 @@ public final class SpellEngine {
     public static final int EFFECT_BIND = 11;
     public static final int EFFECT_QUEST_COMPLETE = 16;
     public static final int EFFECT_WEAPON_DAMAGE_NOSCHOOL = 17;
+    public static final int EFFECT_WEAPON_PERCENT_DAMAGE = 31;
     public static final int EFFECT_PARRY = 22;
     public static final int EFFECT_BLOCK = 23;
     public static final int EFFECT_SPAWN = 46;
@@ -97,7 +98,7 @@ public final class SpellEngine {
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
-            EFFECT_SPAWN, EFFECT_PROFICIENCY);
+            EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -328,6 +329,9 @@ public final class SpellEngine {
         if (sp.effect == EFFECT_PROFICIENCY) {
             proficiency(caster, sp.equippedItemClass(), sp.misc());
             return 0;
+        }
+        if (sp.effect == EFFECT_WEAPON_PERCENT_DAMAGE) {
+            return weaponPercentDamage(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
             knockBack(caster, target, sp.misc() / 10f, Math.max(0, (sp.minDmg + sp.maxDmg) / 2) / 10f);
@@ -735,6 +739,22 @@ public final class SpellEngine {
         b.putU8(itemClass);
         b.putU32(itemSubclassMask);
         return b.array();
+    }
+
+    /**
+     * Effect 31 — SPELL_EFFECT_WEAPON_PERCENT_DAMAGE. CMaNGOS CalculateDamage × (damage/100).
+     * Backstab 53 Rank 1 is 150% of weapon average.
+     */
+    public int weaponPercentDamage(Unit caster, Unit target, int pct) {
+        if (caster == null || target == null || !target.alive() || pct <= 0) {
+            return 0;
+        }
+        float min = caster.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE);
+        float max = caster.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE);
+        int weapon = Math.max(1, (int) ((min + max) / 2f));
+        int dmg = Math.max(1, weapon * pct / 100);
+        target.setHealth(target.health() - dmg);
+        return dmg;
     }
 
     /**
