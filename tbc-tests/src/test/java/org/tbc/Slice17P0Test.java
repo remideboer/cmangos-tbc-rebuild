@@ -112,6 +112,24 @@ class Slice17P0Test {
         assertTrue(sawSpellGo(client, PvpObjectives.SICKNESS));
     }
 
+    @Test
+    void tpSl17SelfResWhenSpellSetShouldCastAndClear() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Soul");
+        Player p = client.session().player();
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        // Reincarnation 20625 — death.md CMSG_SELF_RES casts PLAYER_SELF_RES_SPELL.
+        int selfRes = 20625;
+        p.setInt(UpdateFields.PLAYER_SELF_RES_SPELL, selfRes);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_SELF_RES, new byte[0]);
+        assertTrue(sawSpellGo(client, selfRes));
+        assertEquals(0, p.getInt(UpdateFields.PLAYER_SELF_RES_SPELL));
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

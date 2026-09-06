@@ -144,6 +144,18 @@ public final class DeathHandler {
         }
     }
 
+    /** WorldSession::HandleSelfResOpcode — cast PLAYER_SELF_RES_SPELL then clear. */
+    public static void selfRes(WorldSession s, World world) {
+        Player p = s.player();
+        int spellId = p.getInt(UpdateFields.PLAYER_SELF_RES_SPELL);
+        if (spellId == 0) {
+            return;
+        }
+        s.send(Opcodes.SMSG_SPELL_GO, world.spells.encodeGo(
+                p.guid, p.guid, spellId, world.nowMs(), new SpellCastTargets()));
+        p.setInt(UpdateFields.PLAYER_SELF_RES_SPELL, 0);
+    }
+
     private static void resurrect(WorldSession s, Player p) {
         p.setGhost(false);
         p.auras.removeIf(a -> a.spellId() == PvpObjectives.GHOST_AURA);

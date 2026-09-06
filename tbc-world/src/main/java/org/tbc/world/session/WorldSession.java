@@ -361,10 +361,7 @@ public final class WorldSession {
             case Opcodes.CMSG_REPOP_REQUEST -> DeathHandler.repop(this, world);
             case Opcodes.MSG_CORPSE_QUERY -> DeathHandler.query(this);
             case Opcodes.CMSG_RECLAIM_CORPSE -> DeathHandler.reclaim(this, world, in);
-            case Opcodes.CMSG_SELF_RES -> {
-                player.setHealth(player.maxHealth());
-                player.setGhost(false);
-            }
+            case Opcodes.CMSG_SELF_RES -> DeathHandler.selfRes(this, world);
             case Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE ->
                     org.tbc.world.session.LaterOpcodes.handle(this, world, opcode, in);
             case Opcodes.CMSG_JOIN_CHANNEL -> ChannelHandler.join(this, in);
