@@ -47,6 +47,7 @@ public final class SpellEngine {
     public static final int EFFECT_OPEN_LOCK = 33;
     public static final int EFFECT_TRIGGER_SPELL = 64;
     public static final int EFFECT_ADD_FARSIGHT = 72;
+    public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_DUMMY = 3;
     public static final int EFFECT_SCRIPT = 77;
     public static final int CAST_FLAG_UNKNOWN2 = 0x2;
@@ -60,7 +61,7 @@ public final class SpellEngine {
             EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
-            EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN);
+            EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -186,6 +187,10 @@ public final class SpellEngine {
         if (sp.effect == EFFECT_POWER_DRAIN) {
             return powerDrain(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
         }
+        if (sp.effect == EFFECT_ADD_COMBO_POINTS) {
+            addComboPoints(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
@@ -289,6 +294,14 @@ public final class SpellEngine {
             caster.setPower(caster.power() + taken);
         }
         return taken;
+    }
+
+    /** Effect 80 — SPELL_EFFECT_ADD_COMBO_POINTS. CMaNGOS EffectAddComboPoints. */
+    public void addComboPoints(Unit caster, Unit target, int count) {
+        if (!(caster instanceof Player p) || target == null || count <= 0) {
+            return;
+        }
+        p.addComboPoints(target, count);
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */

@@ -105,6 +105,31 @@ public final class Player extends Unit {
     public final int[] questLogId = new int[25];
     public final int[] questLogState = new int[25];
     public int comboPoints;
+    private long comboTargetGuid;
+
+    public int comboPoints() {
+        return comboPoints;
+    }
+
+    /** CMaNGOS Unit::AddComboPoints — same target accumulates, else reset; clamp 0..5. */
+    public void addComboPoints(Unit target, int count) {
+        if (target == null || count == 0) {
+            return;
+        }
+        if (target.guid == comboTargetGuid) {
+            comboPoints += count;
+        } else {
+            comboTargetGuid = target.guid;
+            comboPoints = count;
+        }
+        if (comboPoints > 5) {
+            comboPoints = 5;
+        }
+        if (comboPoints < 0) {
+            comboPoints = 0;
+        }
+    }
+
     public int selectedTitle;
     public boolean pvpFlagged;
     /** Sanctuary zone — HandleTogglePvP ignores (AREA_FLAG_SANCTUARY stand-in until AreaTable). */
