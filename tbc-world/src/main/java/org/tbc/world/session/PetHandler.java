@@ -1,10 +1,14 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.combat.MeleeTable;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 
 /** Pet bar, stable, totem. Layout: spec/03-protocol/packets/pet.md */
@@ -47,6 +51,16 @@ public final class PetHandler {
             atk.putU64(p.pet.guid);
             atk.putU64(target);
             s.send(Opcodes.SMSG_ATTACKSTART, atk.array());
+            // PetHandler.cpp COMMAND_ATTACK → AttackStart; first swing hits when in range.
+            Creature prey = world.map(p.mapId, p.instanceId).creatures.get(target);
+            if (prey != null && prey.alive()) {
+                Unit petUnit = new Unit(UpdateFields.UNIT_END, Unit.TYPEID_UNIT);
+                petUnit.guid = p.pet.guid;
+                int dmg = Math.max(1, (int) petUnit.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
+                prey.setHealth(Math.max(0, prey.health() - dmg));
+                MeleeTable.Result hit = new MeleeTable.Result(MeleeTable.Outcome.HIT, dmg, dmg);
+                s.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, world.combat.encodeAttack(petUnit, prey, hit));
+            }
         }
         if (p.pet != null) {
             s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(p.pet));

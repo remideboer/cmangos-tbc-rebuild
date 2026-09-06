@@ -2,6 +2,7 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.session.PetHandler;
@@ -94,6 +95,64 @@ class Slice18P0Test {
         client.handle(world, Opcodes.CMSG_TOTEM_DESTROYED, tot.array());
         assertEquals(0, p.totems[0]);
         assertEquals(99L, WowClientDouble.u64le(lastPayload(client, Opcodes.SMSG_DESTROY_OBJECT), 0));
+    }
+
+    @Test
+    void tpSl18PetAttackWhenCommandShouldSendAttackerStateUpdate() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "HuntAtk");
+        Player p = client.session().player();
+        p.clazz = PetHandler.CLASS_HUNTER;
+        Creature prey = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(prey);
+        int maxHp = prey.health();
+        WowBuffer summon = new WowBuffer(20);
+        summon.putU64(0);
+        summon.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        summon.putU64(0);
+        client.handle(world, Opcodes.CMSG_PET_ACTION, summon.array());
+        long petGuid = p.pet.guid;
+        client.clear();
+        WowBuffer act = new WowBuffer(20);
+        act.putU64(petGuid);
+        act.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        act.putU64(prey.guid);
+        client.handle(world, Opcodes.CMSG_PET_ACTION, act.array());
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKSTART));
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        byte[] pkt = lastPayload(client, Opcodes.SMSG_ATTACKERSTATEUPDATE);
+        assertEquals(petGuid, packedGuid(pkt, 4));
+        assertTrue(attackerStateDamage(pkt) > 0);
+        assertTrue(prey.health() < maxHp);
+    }
+
+    private static long packedGuid(byte[] p, int off) {
+        int mask = p[off] & 0xFF;
+        long guid = 0;
+        int i = off + 1;
+        for (int bit = 0; bit < 8; bit++) {
+            if ((mask & (1 << bit)) != 0) {
+                guid |= ((long) (p[i++] & 0xFF)) << (8 * bit);
+            }
+        }
+        return guid;
+    }
+
+    private static int attackerStateDamage(byte[] p) {
+        int mask = p[4] & 0xFF;
+        int i = 5;
+        for (int bit = 0; bit < 8; bit++) {
+            if ((mask & (1 << bit)) != 0) {
+                i++;
+            }
+        }
+        mask = p[i++] & 0xFF;
+        for (int bit = 0; bit < 8; bit++) {
+            if ((mask & (1 << bit)) != 0) {
+                i++;
+            }
+        }
+        return WowClientDouble.u32le(p, i);
     }
 
     private static WowClientDouble login(World world, String name) {
