@@ -97,14 +97,37 @@ public final class OutdoorPvp {
 
     /** Eastern Plaguelands Northpass tower GO 181899 — WS A/H/N 2372/2373/2352. */
     public void captureNorthpass(boolean alliance) {
+        emitEp(alliance, PvpObjectives.WS_EP_NORTHPASS_A, PvpObjectives.WS_EP_NORTHPASS_H,
+                PvpObjectives.WS_EP_NORTHPASS_N);
+    }
+
+    /** Crownguard GO 182096 — WS 2378/2379/2355. */
+    public void captureCrownguard(boolean alliance) {
+        emitEp(alliance, PvpObjectives.WS_EP_CROWNGUARD_A, PvpObjectives.WS_EP_CROWNGUARD_H,
+                PvpObjectives.WS_EP_CROWNGUARD_N);
+    }
+
+    /** Eastwall GO 182097 — WS 2354/2356/2361. */
+    public void captureEastwall(boolean alliance) {
+        emitEp(alliance, PvpObjectives.WS_EP_EASTWALL_A, PvpObjectives.WS_EP_EASTWALL_H,
+                PvpObjectives.WS_EP_EASTWALL_N);
+    }
+
+    /** Plaguewood GO 182098 — WS 2370/2371/2353. */
+    public void capturePlaguewood(boolean alliance) {
+        emitEp(alliance, PvpObjectives.WS_EP_PLAGUEWOOD_A, PvpObjectives.WS_EP_PLAGUEWOOD_H,
+                PvpObjectives.WS_EP_PLAGUEWOOD_N);
+    }
+
+    private void emitEp(boolean alliance, int wsA, int wsH, int wsN) {
         if (alliance) {
-            emit(PvpObjectives.WS_EP_NORTHPASS_A, 1);
-            emit(PvpObjectives.WS_EP_NORTHPASS_H, 0);
-            emit(PvpObjectives.WS_EP_NORTHPASS_N, 0);
+            emit(wsA, 1);
+            emit(wsH, 0);
+            emit(wsN, 0);
         } else {
-            emit(PvpObjectives.WS_EP_NORTHPASS_A, 0);
-            emit(PvpObjectives.WS_EP_NORTHPASS_H, 1);
-            emit(PvpObjectives.WS_EP_NORTHPASS_N, 0);
+            emit(wsA, 0);
+            emit(wsH, 1);
+            emit(wsN, 0);
         }
     }
 

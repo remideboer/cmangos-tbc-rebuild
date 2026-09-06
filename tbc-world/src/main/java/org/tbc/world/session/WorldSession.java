@@ -1106,6 +1106,18 @@ public final class WorldSession {
             world.outdoorPvp.captureNorthpass(true);
             flushWorldStates(world.outdoorPvp.drainWorldStates());
         }
+        if (guid == PvpObjectives.GO_EP_CROWNGUARD) {
+            world.outdoorPvp.captureCrownguard(true);
+            flushWorldStates(world.outdoorPvp.drainWorldStates());
+        }
+        if (guid == PvpObjectives.GO_EP_EASTWALL) {
+            world.outdoorPvp.captureEastwall(true);
+            flushWorldStates(world.outdoorPvp.drainWorldStates());
+        }
+        if (guid == PvpObjectives.GO_EP_PLAGUEWOOD) {
+            world.outdoorPvp.capturePlaguewood(true);
+            flushWorldStates(world.outdoorPvp.drainWorldStates());
+        }
         if (guid == PvpObjectives.GO_ZM_EAST) {
             world.outdoorPvp.captureZmEast(true);
             flushWorldStates(world.outdoorPvp.drainWorldStates());

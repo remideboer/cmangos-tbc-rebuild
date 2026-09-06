@@ -49,6 +49,21 @@ class Slice25P0Test {
     }
 
     @Test
+    void tpSl25CrownguardTowerWorldState() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Crown", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(PvpObjectives.GO_EP_CROWNGUARD);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_EP_CROWNGUARD_A, 1));
+        assertTrue(hasWorldState(client, PvpObjectives.WS_EP_CROWNGUARD_N, 0));
+    }
+
+    @Test
     void tpSl25TerokkarFiveTowersLockWorldState() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();
