@@ -122,6 +122,12 @@ public class Unit extends Entity {
         canBlock = value;
     }
 
+    /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
+    public void clearSpawningFlag() {
+        setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                getInt(UpdateFields.UNIT_FIELD_FLAGS) & ~UNIT_FLAG_SPAWNING);
+    }
+
     /** CMaNGOS Unit::CombatStop — leave combat, clear victim. */
     public void combatStop() {
         inCombat = false;

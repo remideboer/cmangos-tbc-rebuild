@@ -42,6 +42,7 @@ public final class SpellEngine {
     public static final int EFFECT_WEAPON_DAMAGE_NOSCHOOL = 17;
     public static final int EFFECT_PARRY = 22;
     public static final int EFFECT_BLOCK = 23;
+    public static final int EFFECT_SPAWN = 46;
     public static final int EFFECT_RESURRECT = 18;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
@@ -94,7 +95,8 @@ public final class SpellEngine {
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
-            EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK);
+            EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
+            EFFECT_SPAWN);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -312,6 +314,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_BLOCK) {
             enableBlock(caster);
+            return 0;
+        }
+        if (sp.effect == EFFECT_SPAWN) {
+            spawn(caster);
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -688,6 +694,14 @@ public final class SpellEngine {
             return;
         }
         caster.setCanBlock(true);
+    }
+
+    /** Effect 46 — SPELL_EFFECT_SPAWN. CMaNGOS RemoveFlag UNIT_FLAG_SPAWNING on m_caster. 15750. */
+    public void spawn(Unit caster) {
+        if (caster == null) {
+            return;
+        }
+        caster.clearSpawningFlag();
     }
 
     /**
