@@ -59,6 +59,7 @@ public final class SpellEngine {
     public static final int EFFECT_DISPEL_MECHANIC = 108;
     public static final int EFFECT_SEND_TAXI = 123;
     public static final int EFFECT_KILL_CREDIT_GROUP = 134;
+    public static final int EFFECT_PLAY_MUSIC = 132;
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_DUAL_WIELD = 40;
@@ -106,7 +107,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE,
-            EFFECT_DISMISS_PET);
+            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -365,6 +366,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_DISMISS_PET) {
             dismissPet(caster);
+            return 0;
+        }
+        if (sp.effect == EFFECT_PLAY_MUSIC) {
+            playMusic(target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -845,6 +850,24 @@ public final class SpellEngine {
             return;
         }
         p.pet = null;
+    }
+
+    /**
+     * Effect 132 — SPELL_EFFECT_PLAY_MUSIC. CMaNGOS PlayMusic(misc) to player target.
+     * Ribbon Pole Music 46852 is SoundEntries 12319. SMSG_PLAY_MUSIC 0x277 uint32.
+     */
+    public void playMusic(Unit target, int soundId) {
+        if (!(target instanceof Player p)) {
+            return;
+        }
+        p.playMusic(soundId);
+    }
+
+    /** SMSG_PLAY_MUSIC 0x277: uint32 soundId. */
+    public static byte[] encodePlayMusic(int soundId) {
+        WowBuffer b = new WowBuffer(4);
+        b.putU32(soundId);
+        return b.array();
     }
 
     /**

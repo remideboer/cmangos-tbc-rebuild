@@ -274,6 +274,7 @@ public final class Player extends Unit {
         resurrectMana = mana;
     }
     public int taxiPath;
+    private int lastPlayMusic;
     public final int[] taxiMask = new int[16];
     public boolean mounted;
     public String lfgComment = "";
@@ -700,6 +701,21 @@ public final class Player extends Unit {
 
     public void clearTaxiFlight() {
         taxiPath = 0;
+    }
+
+    /**
+     * CMaNGOS WorldObject::PlayMusic — SMSG_PLAY_MUSIC uint32 SoundEntries id.
+     * Ribbon Pole Music 46852 is sound 12319.
+     */
+    public void playMusic(int soundId) {
+        if (soundId <= 0) {
+            return;
+        }
+        lastPlayMusic = soundId;
+    }
+
+    public int lastPlayMusic() {
+        return lastPlayMusic;
     }
 
     /**
