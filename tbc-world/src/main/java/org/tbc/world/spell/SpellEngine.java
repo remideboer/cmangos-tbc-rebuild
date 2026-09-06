@@ -39,6 +39,7 @@ public final class SpellEngine {
     public static final int EFFECT_HEAL = 10;
     public static final int EFFECT_BIND = 11;
     public static final int EFFECT_QUEST_COMPLETE = 16;
+    public static final int EFFECT_RESURRECT = 18;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
@@ -68,7 +69,8 @@ public final class SpellEngine {
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
-            EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE);
+            EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
+            EFFECT_RESURRECT);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -220,6 +222,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_QUEST_COMPLETE) {
             questComplete(target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_RESURRECT) {
+            resurrect(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -389,6 +395,26 @@ public final class SpellEngine {
             return;
         }
         p.areaExploredOrEventHappens(questId);
+    }
+
+    /**
+     * Effect 18 — SPELL_EFFECT_RESURRECT. CMaNGOS EffectResurrect: dead/ghost player,
+     * skip if a request is already pending; HP/mana from damage percent.
+     */
+    public void resurrect(Unit caster, Unit target, int damagePct) {
+        if (caster == null || !(target instanceof Player p)) {
+            return;
+        }
+        if (p.alive() && !p.ghost) {
+            return;
+        }
+        if (p.resurrectGuid != 0) {
+            return;
+        }
+        int maxHp = p.maxHealth();
+        int health = maxHp * damagePct / 100;
+        int mana = p.maxPower() * damagePct / 100;
+        p.addResurrectRequest(caster.guid, caster.mapId, caster.x, caster.y, caster.z, health, mana);
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */

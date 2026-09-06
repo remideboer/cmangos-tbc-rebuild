@@ -170,6 +170,20 @@ public final class Player extends Unit {
     public float resurrectX, resurrectY, resurrectZ;
     public int resurrectHealth;
     public int resurrectMana;
+
+    /** CMaNGOS Player::AddResurrectRequest — pending SMSG_RESURRECT_REQUEST data. */
+    public void addResurrectRequest(long casterGuid, int mapId, float x, float y, float z, int health, int mana) {
+        if (resurrectGuid != 0) {
+            return;
+        }
+        resurrectGuid = casterGuid;
+        resurrectMap = mapId;
+        resurrectX = x;
+        resurrectY = y;
+        resurrectZ = z;
+        resurrectHealth = health;
+        resurrectMana = mana;
+    }
     public int taxiPath;
     public final int[] taxiMask = new int[16];
     public boolean mounted;
