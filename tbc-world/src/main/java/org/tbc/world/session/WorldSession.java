@@ -315,6 +315,7 @@ public final class WorldSession {
             case Opcodes.CMSG_ATTACKSWING -> handleAttack(world, in);
             case Opcodes.CMSG_ATTACKSTOP -> handleAttackStop(world);
             case Opcodes.CMSG_SETSHEATHED -> handleSheath(in);
+            case Opcodes.CMSG_STANDSTATECHANGE -> handleStandStateChange(in);
             case Opcodes.CMSG_LOOT -> handleLoot(world, in);
             case Opcodes.CMSG_AUTOSTORE_LOOT_ITEM -> LootHandler.autostoreLootItem(this, world, in);
             case Opcodes.CMSG_LOOT_MONEY -> LootHandler.lootMoney(this, world);
@@ -911,6 +912,22 @@ public final class WorldSession {
         }
         int bytes2 = player.getInt(UpdateFields.UNIT_FIELD_BYTES_2);
         player.setInt(UpdateFields.UNIT_FIELD_BYTES_2, (bytes2 & ~0xFF) | (sheath & 0xFF));
+    }
+
+    /** spell.md CMSG_STANDSTATECHANGE — stand/sit/sleep/kneel only (CMaNGOS HandleStandStateChangeOpcode). */
+    private void handleStandStateChange(WowBuffer in) {
+        if (in.remaining() < 4) {
+            return;
+        }
+        int anim = in.getU32();
+        switch (anim) {
+            case org.tbc.world.entity.Unit.UNIT_STAND_STATE_STAND,
+                    org.tbc.world.entity.Unit.UNIT_STAND_STATE_SIT,
+                    org.tbc.world.entity.Unit.UNIT_STAND_STATE_SLEEP,
+                    org.tbc.world.entity.Unit.UNIT_STAND_STATE_KNEEL -> player.applyStandState(anim);
+            default -> {
+            }
+        }
     }
 
     private void handleAttackStop(World world) {

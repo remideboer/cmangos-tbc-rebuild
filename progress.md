@@ -41,7 +41,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 23 Arena teams | p0_junit | Wire: `Slice23P0Test` arena CRUD (`005`–`010`), BG positions (`011`), battlefield list (`012`), area spirit TIME (`013`). Slice 23 Build filled. Not `p0_client`. |
 | 24 AV / AB / EY | p0_junit | AB five nodes; EY flag + 2s tower tick (`010`); AV Snowfall/mine/death/Vanndar end (`009`). Slice 24 Build filled. Not `p0_client`. |
 | 25 Outdoor PvP | p0_junit | Silithyst; EP four towers; ZM East+West+GY (banner+32430→33779/969); Halaa; TF lock. Slice 25 Build filled on wire. Not `p0_client`. |
-| 26 Spell algorithms | p0_junit | Door anim; chest open-lock; energize; add honor **45**; talent wipe; cancel channel; `CMSG_CANCEL_AURA` removes UA **30108**. |
+| 26 Spell algorithms | p0_junit | Door anim; chest open-lock; energize; add honor **45**; talent wipe; cancel channel; `CMSG_CANCEL_AURA` UA **30108**; `CMSG_STANDSTATECHANGE` sit. Still hollow: far sight, unlearn skill, mirror image (+ effect catalog depth). |
 | 27 Transports | p0_junit | Board MO + pathProgress; `leaveMoTransport`; ONTRANSPORT echo; ACK; mount. |
 | 28 Misc packets | p0_junit | Wire: `Slice28P0Test` quest push guid (`001`), master loot `SMSG_ITEM_PUSH_RESULT` (`002`), GMTICKET **0x06** (`003`), LFG accept `SMSG_LFG_UPDATE` (`004`). |
 | 29 GM commands | p0_junit | `Slice29P0Test`: `.help`/`.dismount` SEC_PLAYER; `.appear` LowerSecurity; SQL overlay. |

@@ -28,6 +28,8 @@ public class Unit extends Entity {
     public static final int PLAYER_CREATE_FLAGS = UPDATEFLAG_SELF | UPDATEFLAG_HIGHGUID | UPDATEFLAG_LIVING | UPDATEFLAG_HAS_POSITION;
     public static final int UNIT_STAND_STATE_STAND = 0;
     public static final int UNIT_STAND_STATE_SIT = 1;
+    public static final int UNIT_STAND_STATE_SLEEP = 3;
+    public static final int UNIT_STAND_STATE_KNEEL = 8;
 
     public MovementInfo movement = new MovementInfo();
     public long victim;
@@ -99,8 +101,13 @@ public class Unit extends Entity {
         return standState() == UNIT_STAND_STATE_STAND;
     }
 
-    private int standState() {
+    public int standState() {
         return getInt(UpdateFields.UNIT_FIELD_BYTES_1) & 0xFF;
+    }
+
+    /** Allowed client animstates: stand/sit/sleep/kneel (spell.md CMSG_STANDSTATECHANGE). */
+    public void applyStandState(int state) {
+        setStandState(state);
     }
 
     private void setStandState(int state) {

@@ -111,6 +111,23 @@ class Slice26P0Test {
         assertTrue(p.auras.stream().noneMatch(a -> a.spellId() == org.tbc.world.script.ClassScripts.SPELL_UNSTABLE_AFFLICTION));
     }
 
+    @Test
+    void tpSl26StandStateSit() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Caster");
+        Player p = client.session().player();
+        assertTrue(p.isStanding());
+        client.clear();
+        WowBuffer sit = new WowBuffer(4);
+        sit.putU32(org.tbc.world.entity.Unit.UNIT_STAND_STATE_SIT);
+        client.handle(world, Opcodes.CMSG_STANDSTATECHANGE, sit.array());
+        assertEquals(org.tbc.world.entity.Unit.UNIT_STAND_STATE_SIT, p.standState());
+        WowBuffer junk = new WowBuffer(4);
+        junk.putU32(99);
+        client.handle(world, Opcodes.CMSG_STANDSTATECHANGE, junk.array());
+        assertEquals(org.tbc.world.entity.Unit.UNIT_STAND_STATE_SIT, p.standState());
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);
