@@ -8,6 +8,7 @@ import org.tbc.world.content.Content;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
+import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.map.GameMap;
@@ -82,6 +83,7 @@ public final class SpellEngine {
     public static final int EFFECT_OPEN_LOCK = 33;
     public static final int EFFECT_OPEN_LOCK_ITEM = 59;
     public static final int EFFECT_ENCHANT_HELD_ITEM = 92;
+    public static final int EFFECT_CREATE_PET = 153;
     public static final int EFFECT_TRIGGER_SPELL = 64;
     public static final int EFFECT_POWER_BURN = 62;
     public static final int EFFECT_THREAT = 63;
@@ -122,7 +124,7 @@ public final class SpellEngine {
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
-            EFFECT_ENCHANT_HELD_ITEM,
+            EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
@@ -407,6 +409,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SUMMON_DEAD_PET) {
             summonDeadPet(caster);
+            return 0;
+        }
+        if (sp.effect == EFFECT_CREATE_PET) {
+            createTamedPet(target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_SEND_TAXI) {
@@ -1228,6 +1234,20 @@ public final class SpellEngine {
             return;
         }
         p.pet.summoned = true;
+    }
+
+    /**
+     * Effect 153 — SPELL_EFFECT_CREATE_PET. CMaNGOS hunter unitTarget, misc creature entry.
+     * Create Tamed Warp Stalker 46686 misc 26037.
+     */
+    public void createTamedPet(Unit target, int creatureEntry) {
+        if (!(target instanceof Player p) || p.clazz != Player.CLASS_HUNTER || creatureEntry <= 0) {
+            return;
+        }
+        Pet pet = new Pet();
+        pet.entry = creatureEntry;
+        pet.summoned = true;
+        p.pet = pet;
     }
 
     /**

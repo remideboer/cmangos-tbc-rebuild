@@ -34,6 +34,7 @@ public final class Player extends Unit {
     public static final int POWER_RAGE = 1;
     public static final int POWER_RAGE_MAX = 1000;
     /** ChrClasses.dbc. CLASSMASK_WAND_USERS in SharedDefines.h. spec/03-protocol/enums.md */
+    public static final int CLASS_HUNTER = 3;
     public static final int CLASS_PRIEST = 5;
     public static final int CLASS_MAGE = 8;
     public static final int CLASS_WARLOCK = 9;
