@@ -78,7 +78,7 @@ public final class SpellEngine {
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
-            EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT);
+            EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -252,6 +252,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_HEAL_PCT) {
             healPct(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
+        if (sp.effect == EFFECT_ENERGIZE_PCT) {
+            energizePct(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -500,6 +504,22 @@ public final class SpellEngine {
         }
         int add = target.maxHealth() * pct / 100;
         target.setHealth(target.health() + add);
+    }
+
+    /** Effect 137 — SPELL_EFFECT_ENERGIZE_PCT. CMaNGOS: matching power, gain = damage * max / 100. */
+    public void energizePct(Unit target, int pct, int powerType) {
+        if (target == null || !target.alive() || pct <= 0) {
+            return;
+        }
+        int type = target instanceof Player p ? p.powerType : 0;
+        if (type != powerType) {
+            return;
+        }
+        int max = target.maxPower();
+        if (max == 0) {
+            return;
+        }
+        energize(target, max * pct / 100);
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
