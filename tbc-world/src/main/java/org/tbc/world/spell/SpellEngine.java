@@ -44,6 +44,7 @@ public final class SpellEngine {
     public static final int EFFECT_WEAPON_PERCENT_DAMAGE = 31;
     public static final int EFFECT_NORMALIZED_WEAPON_DMG = 121;
     public static final int EFFECT_DISTRACT = 69;
+    public static final int EFFECT_SKINNING = 95;
     public static final int EFFECT_CHARGE = 96;
     public static final int EFFECT_CHARGE_DEST = 149;
     public static final int EFFECT_PARRY = 22;
@@ -123,7 +124,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
-            EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
+            EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
             EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_UNLEARN_SPECIALIZATION,
             EFFECT_LEAP);
@@ -414,6 +415,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_CHARGE_DEST) {
             chargeDest(caster, sp.maxRange);
+            return 0;
+        }
+        if (sp.effect == EFFECT_SKINNING) {
+            skinning(caster, target);
             return 0;
         }
         if (sp.effect == EFFECT_DISMISS_PET) {
@@ -1038,6 +1043,28 @@ public final class SpellEngine {
         float destY = caster.y + dist * (float) Math.sin(caster.o);
         float o = (float) Math.atan2(destY - caster.y, destX - caster.x);
         caster.relocate(destX, destY, caster.z, o);
+    }
+
+    /**
+     * Effect 95 — SPELL_EFFECT_SKINNING. CMaNGOS player caster, creature target.
+     * Skinning 8613. loot.md clientLootType PICKPOCKETING (2). Clears UNIT_FLAG_SKINNABLE.
+     */
+    public void skinning(Unit caster, Unit target) {
+        if (!(caster instanceof Player p) || !(target instanceof Creature c)) {
+            return;
+        }
+        c.clearSkinnableFlag();
+        p.showSkinningLoot(c.guid);
+    }
+
+    /** SMSG_LOOT_RESPONSE 0x160: guid + clientLootType 2 + gold 0 + itemCount 0. */
+    public static byte[] encodeSkinningLoot(long guid) {
+        WowBuffer b = new WowBuffer(16);
+        b.putU64(guid);
+        b.putU8(2);
+        b.putU32(0);
+        b.putU8(0);
+        return b.array();
     }
 
     /**

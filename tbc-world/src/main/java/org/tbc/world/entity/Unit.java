@@ -20,6 +20,7 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_IN_COMBAT = 0x00080000;
     public static final int UNIT_FLAG_TAXI_FLIGHT = 0x00100000;
     public static final int UNIT_FLAG_UNINTERACTIBLE = 0x02000000;
+    public static final int UNIT_FLAG_SKINNABLE = 0x04000000;
     public static final int UPDATEFLAG_SELF = 0x01;
     public static final int UPDATEFLAG_LOWGUID = 0x08;
     public static final int UPDATEFLAG_HIGHGUID = 0x10;
@@ -131,6 +132,12 @@ public class Unit extends Entity {
     public void clearSpawningFlag() {
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
                 getInt(UpdateFields.UNIT_FIELD_FLAGS) & ~UNIT_FLAG_SPAWNING);
+    }
+
+    /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE). EffectSkinning. */
+    public void clearSkinnableFlag() {
+        setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                getInt(UpdateFields.UNIT_FIELD_FLAGS) & ~UNIT_FLAG_SKINNABLE);
     }
 
     /** CMaNGOS Unit::CombatStop — leave combat, clear victim. */

@@ -275,6 +275,7 @@ public final class Player extends Unit {
     }
     public int taxiPath;
     private int lastPlayMusic;
+    private long lastSkinningLootGuid;
     public final int[] taxiMask = new int[16];
     public boolean mounted;
     public String lfgComment = "";
@@ -724,6 +725,17 @@ public final class Player extends Unit {
 
     public int lastPlayMusic() {
         return lastPlayMusic;
+    }
+
+    /**
+     * CMaNGOS Loot::ShowContentTo after EffectSkinning — SMSG_LOOT_RESPONSE pickpocketing.
+     */
+    public void showSkinningLoot(long guid) {
+        lastSkinningLootGuid = guid;
+    }
+
+    public long lastSkinningLootGuid() {
+        return lastSkinningLootGuid;
     }
 
     /**
