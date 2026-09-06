@@ -52,5 +52,19 @@ class SpellEngineDurabilityDamagePctTest {
                 Player.EQUIPMENT_SLOT_RANGED);
         eng.apply(new Player(), p, zero);
         assertEquals(80, bow.durability);
+        SpellEngine.SpellInfo invalid = new SpellEngine.SpellInfo(
+                23436, SpellEngine.EFFECT_DURABILITY_DAMAGE_PCT, 0, 0, 0, 100, 100, 0f, -1);
+        eng.apply(new Player(), p, invalid);
+        assertEquals(80, bow.durability);
+        SpellEngine.SpellInfo pastEnd = new SpellEngine.SpellInfo(
+                23436, SpellEngine.EFFECT_DURABILITY_DAMAGE_PCT, 0, 0, 0, 100, 100, 0f,
+                Player.INVENTORY_SLOT_BAG_END);
+        eng.apply(new Player(), p, pastEnd);
+        assertEquals(80, bow.durability);
+        SpellEngine.SpellInfo empty = new SpellEngine.SpellInfo(
+                23436, SpellEngine.EFFECT_DURABILITY_DAMAGE_PCT, 0, 0, 0, 100, 100, 0f,
+                Player.EQUIPMENT_SLOT_OFFHAND);
+        eng.apply(new Player(), p, empty);
+        assertEquals(80, bow.durability);
     }
 }

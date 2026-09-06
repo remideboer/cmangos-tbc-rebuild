@@ -44,5 +44,13 @@ class SpellEngineTeleportUnitsTest {
         npc.relocate(1f, 2f, 3f, 0f);
         eng.apply(p, npc, hs);
         assertEquals(1f, npc.x, 0.01f);
+        SpellEngine.SpellInfo other = new SpellEngine.SpellInfo(
+                3561, SpellEngine.EFFECT_TELEPORT_UNITS, 0, 0, 0, 0, 0, 0f);
+        Player stay = new Player();
+        stay.relocate(7f, 8f, 9f, 0f);
+        stay.setHomebindToLocation(0, 12, -9115.27f, 423.261f, 92.5f);
+        eng.apply(stay, stay, other);
+        assertEquals(7f, stay.x, 0.01f);
+        assertEquals(8f, stay.y, 0.01f);
     }
 }

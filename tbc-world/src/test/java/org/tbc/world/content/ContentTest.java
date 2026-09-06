@@ -457,6 +457,23 @@ class ContentTest {
     }
 
     @Test
+    void vendorBuyInSlotWhenFreeOrPastBackpackEndShouldHonorOrFallBack() {
+        Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
+        p.setMoney(200);
+        content.buy(p, map, buy(vendor.guid, Content.ITEM_WORN_SHORTSWORD, 1), false, nextItem++, this::capture);
+        assertEquals(1, p.items.size());
+        assertEquals(Content.BACKPACK_START, p.items.values().iterator().next().slot);
+        ops.clear();
+        content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_WORN_SHORTSWORD, p.guid, 24, 1), true, nextItem++, this::capture);
+        assertEquals(2, p.items.size());
+        assertTrue(p.items.values().stream().anyMatch(it -> it.slot == 24));
+        content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_WORN_SHORTSWORD, p.guid, Content.BACKPACK_END, 1),
+                true, nextItem++, this::capture);
+        assertEquals(3, p.items.size());
+        assertTrue(p.items.values().stream().anyMatch(it -> it.slot == 25));
+    }
+
+    @Test
     void questAcceptQueryComplete() {
         Creature giver = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
         Creature turn = spawn(Content.NPC_MARSHAL_MCBRIDE, 0, 0);

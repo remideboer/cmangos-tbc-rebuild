@@ -286,6 +286,8 @@ class LaterP0Test {
         c.client.clear();
         c.client.handle(c.world, Opcodes.CMSG_TURN_IN_PETITION, new byte[8]);
         assertEquals(1, c.client.session().player().arenaTeam);
+        c.world.teleport(c.client.session().player(), 489, 0, 0, 0, 0);
+        c.client.clear();
         c.client.handle(c.world, Opcodes.MSG_PVP_LOG_DATA, new byte[0]);
         assertEquals(0, c.client.payload(Opcodes.MSG_PVP_LOG_DATA)[0] & 0xFF);
         c.client.handle(c.world, Opcodes.CMSG_REPORT_PVP_AFK, new byte[8]);

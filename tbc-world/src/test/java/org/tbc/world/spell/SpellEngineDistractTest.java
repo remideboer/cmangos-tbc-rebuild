@@ -36,4 +36,15 @@ class SpellEngineDistractTest {
         eng.apply(rogue, sentry, distract);
         assertEquals(0f, sentry.o, 0.01f);
     }
+
+    @Test
+    void applyDistractWhenNullCasterShouldUseTargetAsDest() {
+        SpellEngine eng = new SpellEngine();
+        Creature sentry = new Creature();
+        sentry.relocate(10f, 0f, 0f, 1.5f);
+        SpellEngine.SpellInfo distract = new SpellEngine.SpellInfo(
+                1725, SpellEngine.EFFECT_DISTRACT, 0, 0, 0, 1, 1, 0f);
+        eng.apply(null, sentry, distract);
+        assertEquals(0f, sentry.o, 0.01f);
+    }
 }

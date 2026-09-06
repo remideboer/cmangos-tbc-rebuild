@@ -29,6 +29,33 @@ class SpellEngineProficiencyTest {
     }
 
     @Test
+    void applyProficiencyWhenArmorOrAlreadyKnownShouldAddOnce() {
+        SpellEngine eng = new SpellEngine();
+        Player p = new Player();
+        Creature dummy = new Creature();
+        SpellEngine.SpellInfo axes = new SpellEngine.SpellInfo(
+                196, SpellEngine.EFFECT_PROFICIENCY, 0, 0, 0, 0, 0, 0f, 1, Player.ITEM_CLASS_WEAPON);
+        SpellEngine.SpellInfo zeroMask = new SpellEngine.SpellInfo(
+                196, SpellEngine.EFFECT_PROFICIENCY, 0, 0, 0, 0, 0, 0f, 0, Player.ITEM_CLASS_WEAPON);
+        eng.apply(p, dummy, zeroMask);
+        assertEquals(0, p.weaponProficiency());
+        eng.apply(p, dummy, axes);
+        eng.apply(p, dummy, axes);
+        assertEquals(1, p.weaponProficiency());
+        SpellEngine.SpellInfo cloth = new SpellEngine.SpellInfo(
+                9078, SpellEngine.EFFECT_PROFICIENCY, 0, 0, 0, 0, 0, 0f, 1, Player.ITEM_CLASS_ARMOR);
+        eng.apply(p, dummy, cloth);
+        assertEquals(1, p.armorProficiency());
+        eng.apply(p, dummy, cloth);
+        assertEquals(1, p.armorProficiency());
+        SpellEngine.SpellInfo other = new SpellEngine.SpellInfo(
+                196, SpellEngine.EFFECT_PROFICIENCY, 0, 0, 0, 0, 0, 0f, 1, 0);
+        eng.apply(p, dummy, other);
+        assertEquals(1, p.weaponProficiency());
+        assertEquals(1, p.armorProficiency());
+    }
+
+    @Test
     void applyProficiencyWhenNonPlayerCasterShouldNoOp() {
         SpellEngine eng = new SpellEngine();
         Creature caster = new Creature();

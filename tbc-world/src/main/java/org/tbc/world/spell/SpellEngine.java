@@ -520,7 +520,7 @@ public final class SpellEngine {
             return apply(caster, target, nested);
         }
         if (sp.effect == EFFECT_ADD_FARSIGHT) {
-            if (caster instanceof Player p && target != null) {
+            if (caster instanceof Player p) {
                 addFarsight(p, target.guid);
             }
             return 0;

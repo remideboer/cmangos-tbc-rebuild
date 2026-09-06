@@ -57,5 +57,26 @@ class SpellEngineDurabilityDamageTest {
                 Player.EQUIPMENT_SLOT_MAINHAND);
         eng.apply(new Player(), p, overkill);
         assertEquals(0, sword.durability);
+        SpellEngine.SpellInfo zero = new SpellEngine.SpellInfo(
+                21388, SpellEngine.EFFECT_DURABILITY_DAMAGE, 0, 0, 0, 0, 0, 0f,
+                Player.EQUIPMENT_SLOT_MAINHAND);
+        sword.durability = 10;
+        eng.apply(new Player(), p, zero);
+        assertEquals(10, sword.durability);
+        Item bagSword = new Item(2, Content.ITEM_WORN_SHORTSWORD);
+        bagSword.bag = 0;
+        bagSword.slot = Content.BACKPACK_START;
+        bagSword.durability = 20;
+        p.items.put(2, bagSword);
+        SpellEngine.SpellInfo allEquip = new SpellEngine.SpellInfo(
+                21388, SpellEngine.EFFECT_DURABILITY_DAMAGE, 0, 0, 0, 5, 5, 0f, -1);
+        eng.apply(new Player(), p, allEquip);
+        assertEquals(5, sword.durability);
+        assertEquals(20, bagSword.durability);
+        SpellEngine.SpellInfo allInv = new SpellEngine.SpellInfo(
+                21388, SpellEngine.EFFECT_DURABILITY_DAMAGE, 0, 0, 0, 5, 5, 0f, -2);
+        eng.apply(new Player(), p, allInv);
+        assertEquals(0, sword.durability);
+        assertEquals(15, bagSword.durability);
     }
 }
