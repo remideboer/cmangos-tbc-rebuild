@@ -63,6 +63,7 @@ public final class SpellEngine {
     public static final int EFFECT_LEARN_PET_SPELL = 57;
     public static final int EFFECT_DISPEL = 38;
     public static final int EFFECT_DISPEL_MECHANIC = 108;
+    public static final int EFFECT_SUMMON_DEAD_PET = 109;
     public static final int EFFECT_SEND_TAXI = 123;
     public static final int EFFECT_PULL_TOWARDS = 124;
     public static final int EFFECT_PULL_TOWARDS_DEST = 145;
@@ -119,7 +120,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
-            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
+            EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
             EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_UNLEARN_SPECIALIZATION,
             EFFECT_LEAP);
@@ -386,6 +387,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_DISPEL_MECHANIC) {
             dispelMechanic(target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
+        if (sp.effect == EFFECT_SUMMON_DEAD_PET) {
+            summonDeadPet(caster);
             return 0;
         }
         if (sp.effect == EFFECT_SEND_TAXI) {
@@ -1011,6 +1016,17 @@ public final class SpellEngine {
             return;
         }
         p.pet = null;
+    }
+
+    /**
+     * Effect 109 — SPELL_EFFECT_SUMMON_DEAD_PET. CMaNGOS revive existing dead pet.
+     * Revive Pet 982. summoned maps IsAlive; missing/living no-op (LoadPetFromDB later).
+     */
+    public void summonDeadPet(Unit caster) {
+        if (!(caster instanceof Player p) || p.pet == null || p.pet.summoned) {
+            return;
+        }
+        p.pet.summoned = true;
     }
 
     /**
