@@ -44,6 +44,7 @@ public final class SpellEngine {
     public static final int EFFECT_NORMALIZED_WEAPON_DMG = 121;
     public static final int EFFECT_DISTRACT = 69;
     public static final int EFFECT_CHARGE = 96;
+    public static final int EFFECT_CHARGE_DEST = 149;
     public static final int EFFECT_PARRY = 22;
     public static final int EFFECT_BLOCK = 23;
     public static final int EFFECT_SPAWN = 46;
@@ -114,7 +115,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
-            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE,
+            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_LEAP_BACK,
             EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_UNLEARN_SPECIALIZATION,
             EFFECT_LEAP);
@@ -383,6 +384,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_CHARGE) {
             charge(caster, target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_CHARGE_DEST) {
+            chargeDest(caster, sp.maxRange);
             return 0;
         }
         if (sp.effect == EFFECT_DISMISS_PET) {
@@ -924,6 +929,20 @@ public final class SpellEngine {
         }
         float o = (float) Math.atan2(target.y - caster.y, target.x - caster.x);
         caster.relocate(target.x, target.y, target.z, o);
+    }
+
+    /**
+     * Effect 149 — SPELL_EFFECT_CHARGE_DEST. CMaNGOS MoveCharge to dest. Eagle Swoop 44732.
+     * v1 dest is SpellInfo.maxRange along caster facing (TARGET_FLAG_DEST_LOCATION stand-in).
+     */
+    public void chargeDest(Unit caster, float dist) {
+        if (caster == null) {
+            return;
+        }
+        float destX = caster.x + dist * (float) Math.cos(caster.o);
+        float destY = caster.y + dist * (float) Math.sin(caster.o);
+        float o = (float) Math.atan2(destY - caster.y, destX - caster.x);
+        caster.relocate(destX, destY, caster.z, o);
     }
 
     /**
