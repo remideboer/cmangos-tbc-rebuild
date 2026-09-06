@@ -321,6 +321,7 @@ public final class WorldSession {
             case Opcodes.CMSG_UNLEARN_SKILL -> handleUnlearnSkill(in);
             case Opcodes.CMSG_GET_MIRRORIMAGE_DATA -> handleGetMirrorImageData(world, in);
             case Opcodes.CMSG_FAR_SIGHT -> handleFarSight(world, in);
+            case Opcodes.CMSG_SUMMON_RESPONSE -> handleSummonResponse(world, in);
             case Opcodes.CMSG_LOOT -> handleLoot(world, in);
             case Opcodes.CMSG_AUTOSTORE_LOOT_ITEM -> LootHandler.autostoreLootItem(this, world, in);
             case Opcodes.CMSG_LOOT_MONEY -> LootHandler.lootMoney(this, world);
@@ -1019,6 +1020,22 @@ public final class WorldSession {
             default -> {
             }
         }
+    }
+
+    /** movement.md CMSG_SUMMON_RESPONSE — SummonIfPossible then TeleportTo. */
+    private void handleSummonResponse(World world, WowBuffer in) {
+        if (!player.alive() || player.inCombat) {
+            return;
+        }
+        if (in.remaining() < 9) {
+            return;
+        }
+        long summoner = in.getU64();
+        boolean agree = (in.getU8() & 0xFF) != 0;
+        if (!player.summonIfPossible(agree, summoner, world.nowMs())) {
+            return;
+        }
+        world.teleport(player, player.summonMapId, player.summonX, player.summonY, player.summonZ, player.o);
     }
 
     private void handleAttackStop(World world) {

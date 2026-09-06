@@ -123,6 +123,24 @@ class Slice27P0Test {
     }
 
     @Test
+    void tpSl27SummonResponseTeleport() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Summoned");
+        Player p = client.session().player();
+        long summoner = 42L;
+        p.offerSummon(summoner, 1, -7200f, -200f, 10f, world.nowMs() + 60_000);
+        client.clear();
+        WowBuffer resp = new WowBuffer(9);
+        resp.putU64(summoner);
+        resp.putU8(1);
+        client.handle(world, Opcodes.CMSG_SUMMON_RESPONSE, resp.array());
+        assertTrue(client.saw(Opcodes.SMSG_NEW_WORLD));
+        assertEquals(1, WowClientDouble.u32le(lastPayload(client, Opcodes.SMSG_NEW_WORLD), 0));
+        assertEquals(1, p.mapId);
+        assertEquals(-7200f, p.x, 0.01f);
+    }
+
+    @Test
     void tpSl27CancelMountAura() {
         World world = World.inMemory();
         WowClientDouble client = login(world, ACC_A, "Mounter");

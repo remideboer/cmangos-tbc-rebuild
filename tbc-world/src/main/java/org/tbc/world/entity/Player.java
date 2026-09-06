@@ -134,6 +134,11 @@ public final class Player extends Unit {
     private int nextMeleeBonus;
     /** Camera viewpoint guid; 0 = self (CMSG_FAR_SIGHT / Camera::SetView). */
     private long cameraViewGuid;
+    /** Pending ritual/GM summon (Player::m_summon_*). */
+    public long summonerGuid;
+    public long summonExpireMs;
+    public int summonMapId;
+    public float summonX, summonY, summonZ;
     public int afkReports;
     public int arenaTeam;
     public int arenaTeamId2, arenaTeamId3, arenaTeamId5;
@@ -337,6 +342,35 @@ public final class Player extends Unit {
     /** Camera::SetView / ResetView with update_far_sight_field=false (CMSG_FAR_SIGHT). */
     public void setCameraViewGuid(long guid) {
         cameraViewGuid = guid;
+    }
+
+    /** Offer a summon destination (SMSG_SUMMON_REQUEST path). */
+    public void offerSummon(long summoner, int mapId, float x, float y, float z, long expireAtMs) {
+        summonerGuid = summoner;
+        summonMapId = mapId;
+        summonX = x;
+        summonY = y;
+        summonZ = z;
+        summonExpireMs = expireAtMs;
+    }
+
+    /**
+     * CMSG_SUMMON_RESPONSE — CMaNGOS SummonIfPossible. Returns true when teleport should run.
+     */
+    public boolean summonIfPossible(boolean agree, long summoner, long nowMs) {
+        if (summoner != summonerGuid) {
+            return false;
+        }
+        if (!agree) {
+            summonExpireMs = 0;
+            return false;
+        }
+        if (summonExpireMs < nowMs) {
+            return false;
+        }
+        summonExpireMs = 0;
+        summonerGuid = 0;
+        return true;
     }
 
     /** PLAYER_BYTES_2 byte 2. CMaNGOS GetBankBagSlotCount. */

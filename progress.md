@@ -42,7 +42,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 24 AV / AB / EY | p0_junit | AB five nodes; EY flag + 2s tower tick (`010`); AV Snowfall/mine/death/Vanndar end (`009`). Slice 24 Build filled. Not `p0_client`. |
 | 25 Outdoor PvP | p0_junit | Silithyst; EP four towers; ZM East+West+GY (banner+32430→33779/969); Halaa; TF lock. Slice 25 Build filled on wire. Not `p0_client`. |
 | 26 Spell algorithms | p0_junit | Named spell.md packets filled; EFFECT_ADD_FARSIGHT **72**. Still hollow: remaining effect/aura catalog ids. |
-| 27 Transports | p0_junit | Board MO + pathProgress; leaveMoTransport; ONTRANSPORT echo; run+swim FORCE speed ACK; mount. Still hollow: spline done, summon response. |
+| 27 Transports | p0_junit | Board MO; leaveMoTransport; ONTRANSPORT; FORCE speed ACKs; mount; summon response teleport. Still hollow: spline done. |
 | 28 Misc packets | p0_junit | Wire: `Slice28P0Test` quest push guid (`001`), master loot `SMSG_ITEM_PUSH_RESULT` (`002`), GMTICKET **0x06** (`003`), LFG accept `SMSG_LFG_UPDATE` (`004`). |
 | 29 GM commands | p0_junit | `Slice29P0Test`: `.help`/`.dismount` SEC_PLAYER; `.appear` LowerSecurity; SQL overlay. |
 | 30 ScriptDevAI registry | p0_junit | `Slice30P0Test`: `boss_gruul` Growth **36300**; missing ScriptName fallback. |
