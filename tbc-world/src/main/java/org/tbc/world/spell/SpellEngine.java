@@ -61,6 +61,7 @@ public final class SpellEngine {
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
     public static final int EFFECT_INEBRIATE = 100;
+    public static final int EFFECT_KNOCK_BACK = 98;
     public static final int EFFECT_DESTROY_ALL_TOTEMS = 110;
     public static final int EFFECT_DURABILITY_DAMAGE = 111;
     public static final int EFFECT_ATTACK_ME = 114;
@@ -86,7 +87,7 @@ public final class SpellEngine {
             EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
-            EFFECT_DURABILITY_DAMAGE);
+            EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -288,6 +289,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_DURABILITY_DAMAGE) {
             durabilityDamage(target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
+        if (sp.effect == EFFECT_KNOCK_BACK) {
+            knockBack(caster, target, sp.misc() / 10f, Math.max(0, (sp.minDmg + sp.maxDmg) / 2) / 10f);
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -611,6 +616,34 @@ public final class SpellEngine {
         if (item != null) {
             p.durabilityPointsLoss(item, points);
         }
+    }
+
+    /**
+     * Effect 98 — SPELL_EFFECT_KNOCK_BACK. CMaNGOS KnockBackFrom(caster, misc/10, damage/10).
+     * Rooted targets skip. Knockback 10689.
+     */
+    public void knockBack(Unit caster, Unit target, float horiz, float vert) {
+        if (caster == null || target == null) {
+            return;
+        }
+        target.knockBackFrom(caster, horiz, vert);
+    }
+
+    /**
+     * movement.md SMSG_MOVE_KNOCK_BACK (0x0EF): packed GUID, counter, vcos, vsin, horiz, -vert.
+     */
+    public static byte[] encodeMoveKnockBack(Unit who, int counter) {
+        if (who == null || !who.hasKnockBack()) {
+            return new byte[0];
+        }
+        WowBuffer b = new WowBuffer(32);
+        b.putPackedGuid(who.guid);
+        b.putU32(counter);
+        b.putFloat(who.knockBackVcos());
+        b.putFloat(who.knockBackVsin());
+        b.putFloat(who.knockBackHoriz());
+        b.putFloat(-who.knockBackVert());
+        return b.array();
     }
 
     /**

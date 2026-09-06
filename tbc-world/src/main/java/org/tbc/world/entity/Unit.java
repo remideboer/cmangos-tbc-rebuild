@@ -35,6 +35,59 @@ public class Unit extends Entity {
     public long victim;
     public boolean inCombat;
     private int extraAttacks;
+    private boolean rooted;
+    private boolean knockBackPending;
+    private float knockBackVcos;
+    private float knockBackVsin;
+    private float knockBackHoriz;
+    private float knockBackVert;
+
+    /** CMaNGOS UNIT_STAT_ROOT — EffectKnockBack returns early. */
+    public boolean rooted() {
+        return rooted;
+    }
+
+    public void setRooted(boolean rooted) {
+        this.rooted = rooted;
+    }
+
+    /**
+     * CMaNGOS Unit::KnockBackFrom — angle from {@code from} to this (self: o+π).
+     * Speeds are what SMSG_MOVE_KNOCK_BACK carries (vert is inverted on the wire).
+     */
+    public void knockBackFrom(Unit from, float horiz, float vert) {
+        if (rooted || from == null) {
+            return;
+        }
+        float angle = from == this
+                ? o + (float) Math.PI
+                : (float) Math.atan2(y - from.y, x - from.x);
+        knockBackVcos = (float) Math.cos(angle);
+        knockBackVsin = (float) Math.sin(angle);
+        knockBackHoriz = horiz;
+        knockBackVert = vert;
+        knockBackPending = true;
+    }
+
+    public boolean hasKnockBack() {
+        return knockBackPending;
+    }
+
+    public float knockBackVcos() {
+        return knockBackVcos;
+    }
+
+    public float knockBackVsin() {
+        return knockBackVsin;
+    }
+
+    public float knockBackHoriz() {
+        return knockBackHoriz;
+    }
+
+    public float knockBackVert() {
+        return knockBackVert;
+    }
 
     /** CMaNGOS Unit::CombatStop — leave combat, clear victim. */
     public void combatStop() {
