@@ -14,6 +14,9 @@ public final class Player extends Unit {
     public static final int AT_LOGIN_FIRST = 0x20;
     public static final int REST_STATE_NORMAL = 0x02;
     public static final int PLAYER_CONTROLLED_DEBUFF_LIMIT = 40;
+    /** ItemPrototype.h ItemClass — EquippedItemClass on proficiency spells. */
+    public static final int ITEM_CLASS_WEAPON = 2;
+    public static final int ITEM_CLASS_ARMOR = 4;
     public static final int EQUIPMENT_SLOT_END = 19;
     public static final int EQUIPMENT_SLOT_MAINHAND = 15;
     public static final int EQUIPMENT_SLOT_OFFHAND = 16;
@@ -79,6 +82,27 @@ public final class Player extends Unit {
 
     public int reputationStanding(int factionId) {
         return reputation.getOrDefault(factionId, 0);
+    }
+
+    private int weaponProficiency;
+    private int armorProficiency;
+
+    public int weaponProficiency() {
+        return weaponProficiency;
+    }
+
+    public int armorProficiency() {
+        return armorProficiency;
+    }
+
+    /** CMaNGOS Player::AddWeaponProficiency. One-Handed Axes 196 mask 1. */
+    public void addWeaponProficiency(int mask) {
+        weaponProficiency |= mask;
+    }
+
+    /** CMaNGOS Player::AddArmorProficiency. Plate Mail 750 mask 16. */
+    public void addArmorProficiency(int mask) {
+        armorProficiency |= mask;
     }
     public int skin, face, hairStyle, hairColor, facialHair;
     public int money;

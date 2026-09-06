@@ -43,6 +43,7 @@ public final class SpellEngine {
     public static final int EFFECT_PARRY = 22;
     public static final int EFFECT_BLOCK = 23;
     public static final int EFFECT_SPAWN = 46;
+    public static final int EFFECT_PROFICIENCY = 60;
     public static final int EFFECT_RESURRECT = 18;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
@@ -96,9 +97,13 @@ public final class SpellEngine {
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
-            EFFECT_SPAWN);
+            EFFECT_SPAWN, EFFECT_PROFICIENCY);
 
-    public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
+    public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
+        public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
+            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, 0);
+        }
+
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
             this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, 0);
         }
@@ -318,6 +323,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SPAWN) {
             spawn(caster);
+            return 0;
+        }
+        if (sp.effect == EFFECT_PROFICIENCY) {
+            proficiency(caster, sp.equippedItemClass(), sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -702,6 +711,30 @@ public final class SpellEngine {
             return;
         }
         caster.clearSpawningFlag();
+    }
+
+    /**
+     * Effect 60 — SPELL_EFFECT_PROFICIENCY. CMaNGOS AddWeapon/ArmorProficiency on player caster.
+     * One-Handed Axes 196 is item class 2 subclass mask 1.
+     */
+    public void proficiency(Unit caster, int itemClass, int subClassMask) {
+        if (!(caster instanceof Player p) || subClassMask == 0) {
+            return;
+        }
+        if (itemClass == Player.ITEM_CLASS_WEAPON && (p.weaponProficiency() & subClassMask) == 0) {
+            p.addWeaponProficiency(subClassMask);
+        }
+        if (itemClass == Player.ITEM_CLASS_ARMOR && (p.armorProficiency() & subClassMask) == 0) {
+            p.addArmorProficiency(subClassMask);
+        }
+    }
+
+    /** SMSG_SET_PROFICIENCY 0x127: uint8 itemClass, uint32 subclassMask. */
+    public static byte[] encodeSetProficiency(int itemClass, int itemSubclassMask) {
+        WowBuffer b = new WowBuffer(5);
+        b.putU8(itemClass);
+        b.putU32(itemSubclassMask);
+        return b.array();
     }
 
     /**
