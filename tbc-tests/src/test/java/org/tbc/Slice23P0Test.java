@@ -275,6 +275,19 @@ class Slice23P0Test {
         assertEquals("Glads", ev.getCString());
     }
 
+    @Test
+    void tpSl23BgPlayerPositionsOnWsgShouldSendEmptyCarriers() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Wsg");
+        Player p = client.session().player();
+        world.teleport(p, 489, 0, 0, 0, 0);
+        client.clear();
+        client.handle(world, Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS, new byte[0]);
+        byte[] pos = lastPayload(client, Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS);
+        assertEquals(0, WowClientDouble.u32le(pos, 0));
+        assertEquals(0, WowClientDouble.u32le(pos, 4));
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);

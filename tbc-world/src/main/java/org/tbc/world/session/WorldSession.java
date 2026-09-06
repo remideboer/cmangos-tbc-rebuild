@@ -410,6 +410,7 @@ public final class WorldSession {
             }
             case Opcodes.CMSG_OPEN_ITEM -> InventoryHandler.openItem(this, in);
             case Opcodes.MSG_PVP_LOG_DATA -> sendPvpLog();
+            case Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS -> sendBgPlayerPositions();
             default -> handleRest(world, opcode, in);
         }
     }
@@ -1196,6 +1197,25 @@ public final class WorldSession {
         log.putU8(0);
         log.putU32(0);
         send(Opcodes.MSG_PVP_LOG_DATA, log.array());
+    }
+
+    /** BattleGroundHandler HandleBattleGroundPlayerPositionsOpcode. */
+    private void sendBgPlayerPositions() {
+        int map = player.mapId;
+        // Arena maps — no reply (default case).
+        if (map == 559 || map == 562 || map == 572) {
+            return;
+        }
+        boolean wsgEy = map == 489 || map == 566;
+        boolean abAv = map == 529 || map == 30;
+        if (!wsgEy && !abAv) {
+            return;
+        }
+        // Empty carriers for now (no flag-carrier tracking on wire yet).
+        WowBuffer data = new WowBuffer(8);
+        data.putU32(0);
+        data.putU32(0);
+        send(Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS, data.array());
     }
 
     private void system(String msg) {

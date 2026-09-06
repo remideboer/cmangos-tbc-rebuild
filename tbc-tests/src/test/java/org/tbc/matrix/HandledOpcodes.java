@@ -181,6 +181,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_ARENA_TEAM_REMOVE,
             Opcodes.CMSG_ARENA_TEAM_DISBAND,
             Opcodes.CMSG_ARENA_TEAM_LEADER,
+            Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS,
             Opcodes.CMSG_CHANNEL_LIST,
             Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE,
             Opcodes.CMSG_TOTEM_DESTROYED,
