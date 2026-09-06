@@ -13,6 +13,7 @@ import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.map.GameMap;
+import org.tbc.world.map.GraveyardManager;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -49,6 +50,7 @@ public final class SpellEngine {
     public static final int EFFECT_DISTRACT = 69;
     public static final int EFFECT_SKINNING = 95;
     public static final int EFFECT_SKIN_PLAYER_CORPSE = 116;
+    public static final int EFFECT_TELEPORT_GRAVEYARD = 120;
     public static final int EFFECT_CHARGE = 96;
     public static final int EFFECT_CHARGE_DEST = 149;
     public static final int EFFECT_PARRY = 22;
@@ -137,7 +139,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
-            EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
+            EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_TELEPORT_GRAVEYARD, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
             EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_PROSPECTING, EFFECT_UNLEARN_SPECIALIZATION,
             EFFECT_LEAP);
@@ -488,6 +490,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SKIN_PLAYER_CORPSE) {
             skinPlayerCorpse(caster, target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_TELEPORT_GRAVEYARD) {
+            teleportGraveyard(target, GraveyardManager.seeded());
             return 0;
         }
         if (sp.effect == EFFECT_DISMISS_PET) {
@@ -1284,9 +1290,31 @@ public final class SpellEngine {
 
     /** CMaNGOS Player::GetBattleGroundId — AV/WSG/AB/EY plus arenas. */
     private static final Set<Integer> BATTLEGROUND_OR_ARENA_MAPS = Set.of(30, 489, 529, 566, 559, 562, 572);
+    /** CMaNGOS Map::IsBattleGround — not arenas. */
+    private static final Set<Integer> BATTLEGROUND_MAPS = Set.of(30, 489, 529, 566);
 
     static boolean isBattlegroundOrArena(int mapId) {
         return BATTLEGROUND_OR_ARENA_MAPS.contains(mapId);
+    }
+
+    static boolean isBattleGround(int mapId) {
+        return BATTLEGROUND_MAPS.contains(mapId);
+    }
+
+    /**
+     * Effect 120 — SPELL_EFFECT_TELEPORT_GRAVEYARD. CMaNGOS player + IsBattleGround
+     * RepopAtGraveyard. Graveyard Teleport Test 24253.
+     */
+    public void teleportGraveyard(Unit target, GraveyardManager yards) {
+        if (!(target instanceof Player p) || yards == null || !isBattleGround(p.mapId)) {
+            return;
+        }
+        GraveyardManager.Loc gy = yards.closest(p.mapId, p.x, p.y, p.z, p.team, 0);
+        if (gy == null) {
+            return;
+        }
+        p.deathTimerEndsAtMs = 0;
+        teleportUnits(p, gy.map(), gy.x(), gy.y(), gy.z(), gy.o());
     }
 
     /**
