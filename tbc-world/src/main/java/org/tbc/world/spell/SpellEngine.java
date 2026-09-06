@@ -41,6 +41,7 @@ public final class SpellEngine {
     public static final int EFFECT_QUEST_COMPLETE = 16;
     public static final int EFFECT_WEAPON_DAMAGE_NOSCHOOL = 17;
     public static final int EFFECT_WEAPON_PERCENT_DAMAGE = 31;
+    public static final int EFFECT_NORMALIZED_WEAPON_DMG = 121;
     public static final int EFFECT_DISTRACT = 69;
     public static final int EFFECT_CHARGE = 96;
     public static final int EFFECT_PARRY = 22;
@@ -109,7 +110,8 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE,
-            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_LEAP_BACK);
+            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_LEAP_BACK,
+            EFFECT_NORMALIZED_WEAPON_DMG);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -343,6 +345,9 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_WEAPON_PERCENT_DAMAGE) {
             return weaponPercentDamage(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+        }
+        if (sp.effect == EFFECT_NORMALIZED_WEAPON_DMG) {
+            return normalizedWeaponDamage(caster, target);
         }
         if (sp.effect == EFFECT_DISTRACT) {
             float destX = caster != null ? caster.x : target.x;
@@ -804,6 +809,14 @@ public final class SpellEngine {
         int dmg = Math.max(1, weapon * pct / 100);
         target.setHealth(target.health() - dmg);
         return dmg;
+    }
+
+    /**
+     * Effect 121 — SPELL_EFFECT_NORMALIZED_WEAPON_DMG. CMaNGOS CalculateDamage(normalized).
+     * Without weapon DBC swing times this is the weapon average. Sinister Strike 1752 Rank 1.
+     */
+    public int normalizedWeaponDamage(Unit caster, Unit target) {
+        return weaponPercentDamage(caster, target, 100);
     }
 
     /**
