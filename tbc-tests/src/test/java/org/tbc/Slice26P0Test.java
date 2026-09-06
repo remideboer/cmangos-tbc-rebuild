@@ -186,6 +186,35 @@ class Slice26P0Test {
         assertEquals(0, WowClientDouble.u32le(data, 19));
     }
 
+    @Test
+    void tpSl26FarSightToggleView() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Caster");
+        Player p = client.session().player();
+        org.tbc.world.entity.Creature totem = new org.tbc.world.entity.Creature();
+        totem.guid = 777L;
+        totem.applyTemplate(1, "Sight", 1, 35, 100, 1);
+        world.map(p.mapId, p.instanceId).creatures.put(totem.guid, totem);
+        p.setFarSightGuid(totem.guid);
+        assertEquals(0L, p.cameraViewGuid());
+        client.clear();
+        WowBuffer setView = new WowBuffer(1);
+        setView.putU8(1);
+        client.handle(world, Opcodes.CMSG_FAR_SIGHT, setView.array());
+        assertEquals(totem.guid, p.cameraViewGuid());
+        assertEquals(totem.guid, p.farSightGuid());
+        WowBuffer reset = new WowBuffer(1);
+        reset.putU8(0);
+        client.handle(world, Opcodes.CMSG_FAR_SIGHT, reset.array());
+        assertEquals(0L, p.cameraViewGuid());
+        assertEquals(totem.guid, p.farSightGuid());
+        world.map(p.mapId, p.instanceId).creatures.remove(totem.guid);
+        WowBuffer missing = new WowBuffer(1);
+        missing.putU8(1);
+        client.handle(world, Opcodes.CMSG_FAR_SIGHT, missing.array());
+        assertEquals(0L, p.cameraViewGuid());
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

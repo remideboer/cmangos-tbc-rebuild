@@ -320,6 +320,7 @@ public final class WorldSession {
             case Opcodes.CMSG_STANDSTATECHANGE -> handleStandStateChange(in);
             case Opcodes.CMSG_UNLEARN_SKILL -> handleUnlearnSkill(in);
             case Opcodes.CMSG_GET_MIRRORIMAGE_DATA -> handleGetMirrorImageData(world, in);
+            case Opcodes.CMSG_FAR_SIGHT -> handleFarSight(world, in);
             case Opcodes.CMSG_LOOT -> handleLoot(world, in);
             case Opcodes.CMSG_AUTOSTORE_LOOT_ITEM -> LootHandler.autostoreLootItem(this, world, in);
             case Opcodes.CMSG_LOOT_MONEY -> LootHandler.lootMoney(this, world);
@@ -984,6 +985,28 @@ public final class WorldSession {
             }
         }
         send(Opcodes.SMSG_MIRRORIMAGE_DATA, out.array());
+    }
+
+    /** spell.md CMSG_FAR_SIGHT — Camera SetView/ResetView, do not rewrite PLAYER_FARSIGHT. */
+    private void handleFarSight(World world, WowBuffer in) {
+        if (in.remaining() < 1) {
+            return;
+        }
+        int op = in.getU8() & 0xFF;
+        long far = player.farSightGuid();
+        if (far == 0) {
+            return;
+        }
+        Creature obj = world.map(player.mapId, player.instanceId).creatures.get(far);
+        if (obj == null) {
+            return;
+        }
+        switch (op) {
+            case 0 -> player.setCameraViewGuid(0);
+            case 1 -> player.setCameraViewGuid(far);
+            default -> {
+            }
+        }
     }
 
     private void handleAttackStop(World world) {

@@ -132,6 +132,8 @@ public final class Player extends Unit {
     public boolean channeling;
     public boolean nextMeleeSwingQueued;
     private int nextMeleeBonus;
+    /** Camera viewpoint guid; 0 = self (CMSG_FAR_SIGHT / Camera::SetView). */
+    private long cameraViewGuid;
     public int afkReports;
     public int arenaTeam;
     public int arenaTeamId2, arenaTeamId3, arenaTeamId5;
@@ -317,6 +319,24 @@ public final class Player extends Unit {
     public void setMoney(int copper) {
         money = Math.max(0, copper);
         setInt(UpdateFields.PLAYER_FIELD_COINAGE, money);
+    }
+
+    /** PLAYER_FARSIGHT — set by SPELL_EFFECT_ADD_FARSIGHT; CMSG_FAR_SIGHT reads it. */
+    public long farSightGuid() {
+        return getGuid(UpdateFields.PLAYER_FARSIGHT);
+    }
+
+    public void setFarSightGuid(long guid) {
+        setGuid(UpdateFields.PLAYER_FARSIGHT, guid);
+    }
+
+    public long cameraViewGuid() {
+        return cameraViewGuid;
+    }
+
+    /** Camera::SetView / ResetView with update_far_sight_field=false (CMSG_FAR_SIGHT). */
+    public void setCameraViewGuid(long guid) {
+        cameraViewGuid = guid;
     }
 
     /** PLAYER_BYTES_2 byte 2. CMaNGOS GetBankBagSlotCount. */
