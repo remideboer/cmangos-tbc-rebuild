@@ -92,6 +92,7 @@ public final class SpellEngine {
     /** CMaNGOS MAX_PLAYER_SUMMON_DELAY (2*MINUTE) in milliseconds. */
     public static final int MAX_PLAYER_SUMMON_DELAY_MS = 120_000;
     public static final int EFFECT_INEBRIATE = 100;
+    public static final int EFFECT_FEED_PET = 101;
     public static final int EFFECT_DISMISS_PET = 102;
     public static final int EFFECT_REPUTATION = 103;
     public static final int EFFECT_KNOCK_BACK = 98;
@@ -120,7 +121,7 @@ public final class SpellEngine {
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
-            EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
+            EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE, EFFECT_FEED_PET,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
@@ -416,6 +417,11 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_CHARGE_DEST) {
             chargeDest(caster, sp.maxRange);
+            return 0;
+        }
+        if (sp.effect == EFFECT_FEED_PET) {
+            Item food = caster instanceof Player p ? p.spellItemTarget() : null;
+            feedPet(caster, food, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_PICKPOCKET) {
@@ -1048,6 +1054,23 @@ public final class SpellEngine {
         float destY = caster.y + dist * (float) Math.sin(caster.o);
         float o = (float) Math.atan2(destY - caster.y, destX - caster.x);
         caster.relocate(destX, destY, caster.z, o);
+    }
+
+    /**
+     * Effect 101 — SPELL_EFFECT_FEED_PET. CMaNGOS player caster, living pet, DestroyItemCount 1.
+     * Feed Pet 6991 trigger is Feed Pet Effect 1539. Diet/itemlevel later.
+     */
+    public void feedPet(Unit caster, Item food, int triggerSpell) {
+        if (!(caster instanceof Player p) || food == null || food.count <= 0) {
+            return;
+        }
+        if (p.pet == null || !p.pet.summoned) {
+            return;
+        }
+        food.count--;
+        if (food.count <= 0) {
+            p.items.remove(Guid.low(food.guid));
+        }
     }
 
     /**

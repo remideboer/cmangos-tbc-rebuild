@@ -164,6 +164,7 @@ public final class Player extends Unit {
     public long nextTimeSyncMs;
     public int zoneClient;
     public Pet pet;
+    private Item spellItemTarget;
     public Group group;
     public TradeData trade;
     public final List<Friend> friends = new ArrayList<>();
@@ -748,6 +749,17 @@ public final class Player extends Unit {
 
     public long lastPickpocketLootGuid() {
         return lastPickpocketLootGuid;
+    }
+
+    /**
+     * CMaNGOS Spell::itemTarget — food for Feed Pet 6991.
+     */
+    public void setSpellItemTarget(Item item) {
+        spellItemTarget = item;
+    }
+
+    public Item spellItemTarget() {
+        return spellItemTarget;
     }
 
     /**
