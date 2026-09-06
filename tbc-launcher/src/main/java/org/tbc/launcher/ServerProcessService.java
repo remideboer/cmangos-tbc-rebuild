@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /** Auth/world process rules. Admin/editor are separate JVMs, not stopped with servers. */
 public final class ServerProcessService {
@@ -25,6 +26,8 @@ public final class ServerProcessService {
     private final long stopWaitMs;
     private Process auth;
     private Process world;
+    private volatile Consumer<String> authLogListener;
+    private volatile Consumer<String> worldLogListener;
 
     public ServerProcessService(Path home) {
         this(home, new ProcessBuilderStarter(), System.getenv("JAVA_HOME"),
@@ -41,6 +44,14 @@ public final class ServerProcessService {
 
     public Path home() {
         return home;
+    }
+
+    public void setAuthLogListener(Consumer<String> listener) {
+        this.authLogListener = listener;
+    }
+
+    public void setWorldLogListener(Consumer<String> listener) {
+        this.worldLogListener = listener;
     }
 
     public boolean isAuthRunning() {
@@ -64,8 +75,8 @@ public final class ServerProcessService {
         Path worldJar = requireJar(WORLD_JAR, "tbc-world");
         Path realmd = resolveConf(LOCAL_REALMD, REALMD);
         Path mangosd = resolveConf(LOCAL_MANGOSD, MANGOSD);
-        auth = spawn("auth", java, authJar, realmd, "auth.log");
-        world = spawn("world", java, worldJar, mangosd, "world.log");
+        auth = spawn("auth", java, authJar, realmd, "auth.log", true, authLogListener);
+        world = spawn("world", java, worldJar, mangosd, "world.log", true, worldLogListener);
     }
 
     public void stopServers() {
@@ -84,17 +95,18 @@ public final class ServerProcessService {
         Path java = resolveJava();
         Path jar = requireJar(ADMIN_JAR, "tbc-admin");
         Path conf = resolveConf(LOCAL_REALMD, REALMD);
-        spawn("admin", java, jar, conf, "admin.log");
+        spawn("admin", java, jar, conf, "admin.log", false, null);
     }
 
     public void openEditor() {
         Path java = resolveJava();
         Path jar = requireJar(EDITOR_JAR, "tbc-editor");
         Path conf = resolveConf(LOCAL_MANGOSD, MANGOSD);
-        spawn("editor", java, jar, conf, "editor.log");
+        spawn("editor", java, jar, conf, "editor.log", false, null);
     }
 
-    private Process spawn(String name, Path java, Path jar, Path conf, String logName) {
+    private Process spawn(String name, Path java, Path jar, Path conf, String logName,
+            boolean pipeOutput, Consumer<String> onLine) {
         Path log = home.resolve("logs").resolve(logName);
         List<String> command = List.of(
                 java.toString(),
@@ -102,7 +114,11 @@ public final class ServerProcessService {
                 relativize(jar),
                 relativize(conf));
         try {
-            return starter.start(command, home, log);
+            Process p = starter.start(command, home, log, pipeOutput);
+            if (pipeOutput) {
+                ProcessLogPump.start(name, p, log, onLine);
+            }
+            return p;
         } catch (IOException e) {
             throw new LauncherException("Could not start " + name + ": " + e.getMessage(), e);
         }

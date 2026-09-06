@@ -6,11 +6,18 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.WindowConstants;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.concurrent.ExecutionException;
@@ -18,9 +25,13 @@ import java.util.function.Supplier;
 
 /** Operator UI. Process rules live in ServerProcessService. */
 public final class LauncherFrame extends JFrame {
+    static final int LOG_ROWS = 10;
+    static final int LOG_MAX_LINES = 500;
     private final ServerProcessService service;
     private final JLabel authStatus = new JLabel("Auth: stopped");
     private final JLabel worldStatus = new JLabel("World: stopped");
+    private final JTextArea authLog = logArea();
+    private final JTextArea worldLog = logArea();
     private final JLabel status = new JLabel("MySQL and the 8606 client stay external. This is not a slice.");
     private final JButton startBtn = new JButton("Start servers");
     private final JButton stopBtn = new JButton("Stop servers");
@@ -33,7 +44,7 @@ public final class LauncherFrame extends JFrame {
         super("TBC Launcher");
         this.service = service;
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-        setSize(520, 260);
+        setSize(640, 520);
         setLocationRelativeTo(null);
         JPanel servers = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         servers.add(startBtn);
@@ -45,26 +56,59 @@ public final class LauncherFrame extends JFrame {
         JPanel buttons = new JPanel(new GridLayout(2, 1, 0, 0));
         buttons.add(servers);
         buttons.add(tools);
-        JPanel running = new JPanel(new GridLayout(2, 1, 0, 4));
-        running.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-        running.add(authStatus);
-        running.add(worldStatus);
+        JPanel center = new JPanel(new GridBagLayout());
+        center.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        GridBagConstraints c = new GridBagConstraints();
+        c.insets = new Insets(0, 0, 4, 8);
+        c.gridx = 0;
+        c.gridy = 0;
+        c.anchor = GridBagConstraints.NORTHWEST;
+        center.add(authStatus, c);
+        c.gridx = 1;
+        c.weightx = 1;
+        c.weighty = 0.5;
+        c.fill = GridBagConstraints.BOTH;
+        c.insets = new Insets(0, 0, 4, 0);
+        center.add(scroll(authLog, "Auth log"), c);
+        c.gridx = 0;
+        c.gridy = 1;
+        c.weightx = 0;
+        c.weighty = 0;
+        c.fill = GridBagConstraints.NONE;
+        c.insets = new Insets(0, 0, 0, 8);
+        center.add(worldStatus, c);
+        c.gridx = 1;
+        c.weightx = 1;
+        c.weighty = 0.5;
+        c.fill = GridBagConstraints.BOTH;
+        c.insets = new Insets(0, 0, 0, 0);
+        center.add(scroll(worldLog, "World log"), c);
         status.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
         add(buttons, BorderLayout.NORTH);
-        add(running, BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
         add(status, BorderLayout.SOUTH);
-        startBtn.addActionListener(e -> run("Starting servers…", () -> {
-            service.startServers();
-            return "Servers started.";
-        }));
+        service.setAuthLogListener(line -> appendLog(authLog, line));
+        service.setWorldLogListener(line -> appendLog(worldLog, line));
+        startBtn.addActionListener(e -> {
+            authLog.setText("");
+            worldLog.setText("");
+            run("Starting servers…", () -> {
+                service.startServers();
+                return "Servers started.";
+            });
+        });
         stopBtn.addActionListener(e -> run("Stopping servers…", () -> {
             service.stopServers();
             return "Servers stopped.";
         }));
-        restartBtn.addActionListener(e -> run("Restarting servers…", () -> {
-            service.restartServers();
-            return "Servers restarted.";
-        }));
+        restartBtn.addActionListener(e -> {
+            authLog.setText("");
+            worldLog.setText("");
+            run("Restarting servers…", () -> {
+                service.restartServers();
+                return "Servers restarted.";
+            });
+        });
         adminBtn.addActionListener(e -> run("Opening admin…", () -> {
             service.openAdmin();
             return "Admin opened.";
@@ -80,6 +124,56 @@ public final class LauncherFrame extends JFrame {
             }
         });
         refreshRunning();
+    }
+
+    JTextArea authLogArea() {
+        return authLog;
+    }
+
+    JTextArea worldLogArea() {
+        return worldLog;
+    }
+
+    private static JTextArea logArea() {
+        JTextArea a = new JTextArea(LOG_ROWS, 48);
+        a.setEditable(false);
+        a.setLineWrap(true);
+        a.setWrapStyleWord(true);
+        a.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        return a;
+    }
+
+    private static JScrollPane scroll(JTextArea area, String title) {
+        JScrollPane sp = new JScrollPane(area);
+        sp.setBorder(BorderFactory.createTitledBorder(title));
+        sp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        return sp;
+    }
+
+    private static void appendLog(JTextArea area, String line) {
+        SwingUtilities.invokeLater(() -> {
+            area.append(line);
+            area.append("\n");
+            String text = area.getText();
+            int lines = 1;
+            for (int i = 0; i < text.length(); i++) {
+                if (text.charAt(i) == '\n') {
+                    lines++;
+                }
+            }
+            if (lines > LOG_MAX_LINES) {
+                int drop = lines - LOG_MAX_LINES;
+                int cut = 0;
+                for (int i = 0; i < text.length() && drop > 0; i++) {
+                    if (text.charAt(i) == '\n') {
+                        drop--;
+                        cut = i + 1;
+                    }
+                }
+                area.setText(text.substring(cut));
+            }
+            area.setCaretPosition(area.getDocument().getLength());
+        });
     }
 
     private void onClose() {

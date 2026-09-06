@@ -6,6 +6,8 @@ import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.JButton;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Container;
@@ -23,6 +25,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
@@ -53,7 +57,6 @@ class LauncherFrameTest {
         try {
             onEdt(() -> {
                 frame.setVisible(true);
-                frame.setSize(520, 260);
                 frame.validate();
             });
             JButton editor = findButton(frame, "Open editor");
@@ -67,6 +70,60 @@ class LauncherFrameTest {
                 assertTrue(b.x + b.width <= parent.getWidth(),
                         "Open editor clipped at x=" + b.x + " w=" + b.width + " parentW=" + parent.getWidth());
             });
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
+    void givenFrameWhenShownThenAuthAndWorldLogPanesAreScrollableTenRows() throws Exception {
+        LauncherFrame frame = constructFrame();
+        try {
+            onEdt(() -> {
+                frame.setVisible(true);
+                frame.validate();
+                JTextArea auth = frame.authLogArea();
+                JTextArea world = frame.worldLogArea();
+                assertEquals(LauncherFrame.LOG_ROWS, auth.getRows());
+                assertEquals(LauncherFrame.LOG_ROWS, world.getRows());
+                assertFalse(auth.isEditable());
+                assertFalse(world.isEditable());
+                assertTrue(auth.getParent().getParent() instanceof JScrollPane);
+                assertTrue(world.getParent().getParent() instanceof JScrollPane);
+            });
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
+    void givenLogListenerWhenLineArrivesThenAuthPaneShowsText() throws Exception {
+        touch(ServerProcessService.AUTH_JAR);
+        touch(ServerProcessService.WORLD_JAR);
+        Files.writeString(home.resolve(ServerProcessService.LOCAL_REALMD), "realmd");
+        LauncherFrame frame = constructFrame();
+        try {
+            starter.authStdout = "auth-line\n";
+            starter.worldStdout = "world-line\n";
+            svc.startServers();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (System.nanoTime() < deadline) {
+                AtomicReference<String> authText = new AtomicReference<>();
+                AtomicReference<String> worldText = new AtomicReference<>();
+                onEdt(() -> {
+                    authText.set(frame.authLogArea().getText());
+                    worldText.set(frame.worldLogArea().getText());
+                });
+                if (authText.get().contains("auth-line") && worldText.get().contains("world-line")) {
+                    break;
+                }
+                Thread.sleep(20);
+            }
+            onEdt(() -> {
+                assertTrue(frame.authLogArea().getText().contains("auth-line"));
+                assertTrue(frame.worldLogArea().getText().contains("world-line"));
+            });
+            svc.stopServers();
         } finally {
             onEdt(frame::dispose);
         }
@@ -124,15 +181,26 @@ class LauncherFrameTest {
 
     private static final class RecordingStarter implements ProcessStarter {
         final List<List<String>> calls = new ArrayList<>();
+        String authStdout = "";
+        String worldStdout = "";
 
         @Override
-        public Process start(List<String> command, Path workDir, Path logFile) {
+        public Process start(List<String> command, Path workDir, Path logFile, boolean pipeOutput) {
             calls.add(List.copyOf(command));
-            return new FakeProcess();
+            String joined = String.join(" ", command).replace('\\', '/');
+            String stdout = joined.contains("tbc-auth/") ? authStdout
+                    : joined.contains("tbc-world/") ? worldStdout : "";
+            return new FakeProcess(stdout);
         }
     }
 
     private static final class FakeProcess extends Process {
+        private final byte[] stdout;
+
+        FakeProcess(String stdout) {
+            this.stdout = stdout.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        }
+
         @Override
         public OutputStream getOutputStream() {
             return new ByteArrayOutputStream();
@@ -140,7 +208,7 @@ class LauncherFrameTest {
 
         @Override
         public InputStream getInputStream() {
-            return new ByteArrayInputStream(new byte[0]);
+            return new ByteArrayInputStream(stdout);
         }
 
         @Override
@@ -160,6 +228,11 @@ class LauncherFrameTest {
 
         @Override
         public void destroy() {
+        }
+
+        @Override
+        public boolean isAlive() {
+            return true;
         }
     }
 }

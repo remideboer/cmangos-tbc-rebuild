@@ -52,13 +52,13 @@ class ServerProcessServiceTest {
         assertTrue(svc.isAuthRunning());
         assertTrue(svc.isWorldRunning());
         assertEquals(2, starter.calls.size());
-        assertCmd(starter.calls.get(0), AUTH_JAR, "local-realmd.conf", "auth.log");
-        assertCmd(starter.calls.get(1), WORLD_JAR, "local-mangosd.conf", "world.log");
+        assertCmd(starter.calls.get(0), AUTH_JAR, "local-realmd.conf", "auth.log", true);
+        assertCmd(starter.calls.get(1), WORLD_JAR, "local-mangosd.conf", "world.log", true);
 
         svc.openAdmin();
         svc.openEditor();
-        assertCmd(starter.calls.get(2), ADMIN_JAR, "local-realmd.conf", "admin.log");
-        assertCmd(starter.calls.get(3), EDITOR_JAR, "local-mangosd.conf", "editor.log");
+        assertCmd(starter.calls.get(2), ADMIN_JAR, "local-realmd.conf", "admin.log", false);
+        assertCmd(starter.calls.get(3), EDITOR_JAR, "local-mangosd.conf", "editor.log", false);
         assertTrue(svc.isAuthRunning());
 
         svc.stopServers();
@@ -110,8 +110,28 @@ class ServerProcessServiceTest {
         Files.writeString(home.resolve(ServerProcessService.REALMD), "r");
         Files.writeString(home.resolve(ServerProcessService.MANGOSD), "m");
         svc.startServers();
-        assertCmd(starter.calls.get(0), AUTH_JAR, "realmd.conf", "auth.log");
-        assertCmd(starter.calls.get(1), WORLD_JAR, "mangosd.conf", "world.log");
+        assertCmd(starter.calls.get(0), AUTH_JAR, "realmd.conf", "auth.log", true);
+        assertCmd(starter.calls.get(1), WORLD_JAR, "mangosd.conf", "world.log", true);
+    }
+
+    @Test
+    void startWhenLogListenersSetShouldDeliverPumpedLines() throws Exception {
+        List<String> authLines = new ArrayList<>();
+        List<String> worldLines = new ArrayList<>();
+        svc.setAuthLogListener(authLines::add);
+        svc.setWorldLogListener(worldLines::add);
+        starter.authStdout = "auth-hi\n";
+        starter.worldStdout = "world-hi\n";
+        svc.startServers();
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while ((authLines.isEmpty() || worldLines.isEmpty()) && System.nanoTime() < deadline) {
+            Thread.sleep(20);
+        }
+        assertEquals(List.of("auth-hi"), authLines);
+        assertEquals(List.of("world-hi"), worldLines);
+        assertEquals("auth-hi\n", Files.readString(home.resolve("logs").resolve("auth.log")));
+        assertEquals("world-hi\n", Files.readString(home.resolve("logs").resolve("world.log")));
+        svc.stopServers();
     }
 
     @Test
@@ -141,6 +161,7 @@ class ServerProcessServiceTest {
         }
         assertTrue(svc.isAuthRunning());
         assertFalse(svc.isWorldRunning());
+        svc.stopServers();
     }
 
     @Test
@@ -191,12 +212,13 @@ class ServerProcessServiceTest {
         assertFalse(w4.forcibly);
     }
 
-    private void assertCmd(StartCall call, String jar, String conf, String log) {
+    private void assertCmd(StartCall call, String jar, String conf, String log, boolean pipeOutput) {
         assertEquals("-jar", call.command().get(1));
         assertTrue(call.command().get(2).replace('\\', '/').endsWith(jar), call.command().get(2));
         assertTrue(call.command().get(3).replace('\\', '/').endsWith(conf), call.command().get(3));
         assertEquals(home.toAbsolutePath().normalize(), call.workDir());
         assertTrue(call.logFile().endsWith(Path.of("logs", log)));
+        assertEquals(pipeOutput, call.pipeOutput());
     }
 
     private void touch(String relative) throws IOException {
@@ -218,9 +240,12 @@ class ServerProcessServiceTest {
     private static final class RecordingStarter implements ProcessStarter {
         final List<StartCall> calls = new ArrayList<>();
         String failName;
+        String authStdout = "";
+        String worldStdout = "";
 
         @Override
-        public Process start(List<String> command, Path workDir, Path logFile) throws IOException {
+        public Process start(List<String> command, Path workDir, Path logFile, boolean pipeOutput)
+                throws IOException {
             String joined = String.join(" ", command).replace('\\', '/');
             String name;
             if (joined.contains("tbc-auth/")) {
@@ -235,13 +260,15 @@ class ServerProcessServiceTest {
             if (name.equals(failName)) {
                 throw new IOException("boom");
             }
-            FakeProcess p = new FakeProcess();
-            calls.add(new StartCall(command, workDir, logFile, p));
+            String stdout = name.equals("auth") ? authStdout : name.equals("world") ? worldStdout : "";
+            FakeProcess p = new FakeProcess(stdout);
+            calls.add(new StartCall(command, workDir, logFile, pipeOutput, p));
             return p;
         }
     }
 
-    private record StartCall(List<String> command, Path workDir, Path logFile, FakeProcess process) {}
+    private record StartCall(List<String> command, Path workDir, Path logFile, boolean pipeOutput,
+            FakeProcess process) {}
 
     private static final class FakeProcess extends Process {
         boolean alive = true;
@@ -249,6 +276,15 @@ class ServerProcessServiceTest {
         boolean waitReturns = true;
         boolean waitInterrupt;
         boolean forcibly;
+        private final byte[] stdout;
+
+        FakeProcess() {
+            this("");
+        }
+
+        FakeProcess(String stdout) {
+            this.stdout = stdout.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        }
 
         @Override
         public OutputStream getOutputStream() {
@@ -257,7 +293,7 @@ class ServerProcessServiceTest {
 
         @Override
         public InputStream getInputStream() {
-            return new ByteArrayInputStream(new byte[0]);
+            return new ByteArrayInputStream(stdout);
         }
 
         @Override
