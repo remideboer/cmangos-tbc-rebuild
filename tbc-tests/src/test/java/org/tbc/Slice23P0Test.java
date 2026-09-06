@@ -83,6 +83,33 @@ class Slice23P0Test {
         assertTrue(target.auras.stream().anyMatch(aura -> aura.spellId() == PvpObjectives.IDLE_AFK));
     }
 
+    @Test
+    void tpSl23ArenaTeamInviteShouldSendInvitePacket() {
+        World world = World.inMemory();
+        WowClientDouble captain = login(world, ACC_A, "Captain");
+        WowClientDouble invitee = login(world, ACC_B, "Invitee");
+        Player cap = captain.session().player();
+        Player inv = invitee.session().player();
+        inv.level = 70;
+        org.tbc.world.entity.ArenaTeam team = new org.tbc.world.entity.ArenaTeam();
+        team.id = 7;
+        team.slot = 0;
+        team.name = "Glads";
+        team.captainGuid = cap.guid;
+        team.members.put(cap.guid, new org.tbc.world.entity.ArenaTeam.Member());
+        world.objectMgr.arenaTeams.put(team.id, team);
+        cap.arenaTeam = team.id;
+        invitee.clear();
+        WowBuffer in = new WowBuffer(32);
+        in.putU32(team.id);
+        in.putCString("Invitee");
+        captain.handle(world, Opcodes.CMSG_ARENA_TEAM_INVITE, in.array());
+        WowBuffer out = new WowBuffer(lastPayload(invitee, Opcodes.SMSG_ARENA_TEAM_INVITE));
+        assertEquals("Captain", out.getCString());
+        assertEquals("Glads", out.getCString());
+        assertEquals(team.id, inv.arenaTeamIdInvited);
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);

@@ -6,9 +6,22 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
 
-/** ArenaTeamHandler.cpp — MSG_INSPECT_ARENA_TEAMS / roster path. */
+/** ArenaTeamHandler.cpp — inspect / invite. */
 public final class ArenaTeamHandler {
     private ArenaTeamHandler() {}
+
+    /** ERR_ARENA_TEAM_PLAYER_NOT_FOUND_S / TARGET_TOO_LOW / … from battleground.md. */
+    static final int ERR_ARENA_TEAM_PLAYER_NOT_FOUND_S = 0x0B;
+    static final int ERR_ARENA_TEAM_TARGET_TOO_LOW_S = 0x15;
+    static final int ERR_ARENA_TEAM_PLAYER_NOT_IN_TEAM = 9;
+    static final int ERR_ALREADY_IN_ARENA_TEAM_S = 3;
+    static final int ERR_ALREADY_INVITED_TO_ARENA_TEAM_S = 5;
+    static final int ERR_ARENA_TEAM_NOT_ALLIED = 0x0C;
+    static final int ERR_ARENA_TEAM_TOO_MANY_MEMBERS_S = 0x16;
+    static final int ERR_ARENA_TEAM_CREATE_S = 0;
+    static final int ERR_ARENA_TEAM_INVITE_SS = 1;
+    /** TBC CONFIG_UINT32_MAX_PLAYER_LEVEL. */
+    static final int MAX_PLAYER_LEVEL = 70;
 
     /** HandleInspectArenaTeamsOpcode + ArenaTeam::InspectStats. */
     public static void inspect(WorldSession s, World world, WowBuffer in) {
@@ -28,6 +41,59 @@ public final class ArenaTeamHandler {
             }
             inspectStats(s, team, target.guid);
         }
+    }
+
+    /** HandleArenaTeamInviteOpcode → SMSG_ARENA_TEAM_INVITE. */
+    public static void invite(WorldSession s, World world, WowBuffer in) {
+        int teamId = in.remaining() >= 4 ? in.getU32() : 0;
+        String invitedName = in.remaining() > 0 ? in.getCString() : "";
+        Player invitee = invitedName.isEmpty() ? null : world.playerByName(invitedName);
+        if (invitee == null) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", invitedName, ERR_ARENA_TEAM_PLAYER_NOT_FOUND_S);
+            return;
+        }
+        if (invitee.level < MAX_PLAYER_LEVEL) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", invitee.name, ERR_ARENA_TEAM_TARGET_TOO_LOW_S);
+            return;
+        }
+        ArenaTeam team = world.objectMgr.arenaTeams.get(teamId);
+        if (team == null) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, "", "", ERR_ARENA_TEAM_PLAYER_NOT_IN_TEAM);
+            return;
+        }
+        Player inviter = s.player();
+        if (invitee.team != inviter.team) {
+            sendCommandResult(s, ERR_ARENA_TEAM_INVITE_SS, "", "", ERR_ARENA_TEAM_NOT_ALLIED);
+            return;
+        }
+        if (arenaTeamId(invitee, team.slot) != 0) {
+            sendCommandResult(s, ERR_ARENA_TEAM_INVITE_SS, "", invitee.name, ERR_ALREADY_IN_ARENA_TEAM_S);
+            return;
+        }
+        if (invitee.arenaTeamIdInvited != 0) {
+            sendCommandResult(s, ERR_ARENA_TEAM_INVITE_SS, "", invitee.name, ERR_ALREADY_INVITED_TO_ARENA_TEAM_S);
+            return;
+        }
+        if (team.members.size() >= team.maxMembers()) {
+            sendCommandResult(s, ERR_ARENA_TEAM_CREATE_S, team.name, "", ERR_ARENA_TEAM_TOO_MANY_MEMBERS_S);
+            return;
+        }
+        invitee.arenaTeamIdInvited = team.id;
+        WowBuffer data = new WowBuffer(64);
+        data.putCString(inviter.name);
+        data.putCString(team.name);
+        if (invitee.session != null) {
+            invitee.session.send(Opcodes.SMSG_ARENA_TEAM_INVITE, data.array());
+        }
+    }
+
+    static void sendCommandResult(WorldSession s, int action, String team, String player, int errorId) {
+        WowBuffer data = new WowBuffer(64);
+        data.putU32(action);
+        data.putCString(team == null ? "" : team);
+        data.putCString(player == null ? "" : player);
+        data.putU32(errorId);
+        s.send(Opcodes.SMSG_ARENA_TEAM_COMMAND_RESULT, data.array());
     }
 
     static void inspectStats(WorldSession session, ArenaTeam team, long guid) {

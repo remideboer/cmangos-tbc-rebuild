@@ -134,6 +134,8 @@ public final class Player extends Unit {
     public int afkReports;
     public int arenaTeam;
     public int arenaTeamId2, arenaTeamId3, arenaTeamId5;
+    /** Pending arena invite team id (Player::m_ArenaTeamIdInvited). */
+    public int arenaTeamIdInvited;
     public int honorToday;
     public int honorYesterday;
     public int yesterdayContrib;
