@@ -17,6 +17,7 @@ public final class Player extends Unit {
     public static final int EQUIPMENT_SLOT_END = 19;
     public static final int EQUIPMENT_SLOT_MAINHAND = 15;
     public static final int EQUIPMENT_SLOT_OFFHAND = 16;
+    public static final int EQUIPMENT_SLOT_RANGED = 17;
     public static final int INVENTORY_SLOT_BAG_START = 19;
     public static final int INVENTORY_SLOT_BAG_END = 23;
     public static final int INVENTORY_SLOT_ITEM_START = 23;
@@ -278,6 +279,18 @@ public final class Player extends Unit {
             return;
         }
         item.durability = Math.max(0, item.durability - points);
+    }
+
+    /** CMaNGOS Player::DurabilityLoss — percent of max durability, at least 1. */
+    public void durabilityLoss(Item item, double percent) {
+        if (item == null || item.maxDurability <= 0 || percent <= 0) {
+            return;
+        }
+        int loss = (int) (item.maxDurability * percent);
+        if (loss < 1) {
+            loss = 1;
+        }
+        durabilityPointsLoss(item, loss);
     }
 
     /**

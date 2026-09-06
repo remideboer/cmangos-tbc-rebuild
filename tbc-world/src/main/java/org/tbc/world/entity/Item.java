@@ -7,6 +7,7 @@ public final class Item {
     public int bag;
     public int slot;
     public int durability;
+    public int maxDurability;
     public int ownerGuid;
     public int displayId;
     public int inventoryType;
