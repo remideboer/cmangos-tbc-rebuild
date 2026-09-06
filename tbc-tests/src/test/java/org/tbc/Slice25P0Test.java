@@ -147,6 +147,21 @@ class Slice25P0Test {
         assertTrue(hasWorldState(client, PvpObjectives.WS_ZM_EAST_N, 0));
     }
 
+    @Test
+    void tpSl25ZmWestBeaconWorldState() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "ZmWest", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(PvpObjectives.GO_ZM_WEST);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_ZM_WEST_A, 1));
+        assertTrue(hasWorldState(client, PvpObjectives.WS_ZM_WEST_N, 0));
+    }
+
     private static boolean hasWorldState(WowClientDouble client, int field, int value) {
         for (int i = 0; i < client.opcodes.size(); i++) {
             if (client.opcodes.get(i) != Opcodes.SMSG_UPDATE_WORLD_STATE) {

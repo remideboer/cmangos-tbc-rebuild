@@ -10,7 +10,12 @@ public final class OutdoorPvp {
     public int silithystHorde;
     public int halaaGuards;
     public int halaaGy;
+    public int zmGy;
     public long terokkarLockMs;
+    private boolean zmEastOwned;
+    private boolean zmEastAlliance;
+    private boolean zmWestOwned;
+    private boolean zmWestAlliance;
     private final java.util.Set<Long> tfAlliance = new java.util.HashSet<>();
     private final java.util.Set<Long> tfHorde = new java.util.HashSet<>();
     private final java.util.ArrayDeque<int[]> pendingWs = new java.util.ArrayDeque<>();
@@ -133,6 +138,8 @@ public final class OutdoorPvp {
 
     /** Zangarmarsh East beacon GO 182523 — UI WS A/H/N 2558/2559/2560 (TP-SL25-005). */
     public void captureZmEast(boolean alliance) {
+        zmEastAlliance = alliance;
+        zmEastOwned = true;
         if (alliance) {
             emit(PvpObjectives.WS_ZM_EAST_A, 1);
             emit(PvpObjectives.WS_ZM_EAST_H, 0);
@@ -141,6 +148,21 @@ public final class OutdoorPvp {
             emit(PvpObjectives.WS_ZM_EAST_A, 0);
             emit(PvpObjectives.WS_ZM_EAST_H, 1);
             emit(PvpObjectives.WS_ZM_EAST_N, 0);
+        }
+    }
+
+    /** Zangarmarsh West beacon GO 182522 — UI WS A/H/N 2555/2556/2557 (TP-SL25-009). */
+    public void captureZmWest(boolean alliance) {
+        zmWestAlliance = alliance;
+        zmWestOwned = true;
+        if (alliance) {
+            emit(PvpObjectives.WS_ZM_WEST_A, 1);
+            emit(PvpObjectives.WS_ZM_WEST_H, 0);
+            emit(PvpObjectives.WS_ZM_WEST_N, 0);
+        } else {
+            emit(PvpObjectives.WS_ZM_WEST_A, 0);
+            emit(PvpObjectives.WS_ZM_WEST_H, 1);
+            emit(PvpObjectives.WS_ZM_WEST_N, 0);
         }
     }
 

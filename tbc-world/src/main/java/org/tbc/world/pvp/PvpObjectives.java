@@ -94,6 +94,17 @@ public final class PvpObjectives {
     public static final int WS_ZM_EAST_A = 2558;
     public static final int WS_ZM_EAST_H = 2559;
     public static final int WS_ZM_EAST_N = 2560;
+    public static final int GO_ZM_WEST = 182522;
+    public static final int WS_ZM_WEST_A = 2555;
+    public static final int WS_ZM_WEST_H = 2556;
+    public static final int WS_ZM_WEST_N = 2557;
+    public static final int GO_ZM_CENTER_N = 182529;
+    public static final int WS_ZM_GY_A = 2648;
+    public static final int WS_ZM_GY_H = 2649;
+    public static final int WS_ZM_GY_N = 2647;
+    public static final int ZM_GY = 969;
+    public static final int ZM_TWIN_SPIRE_BLESSING = 33779;
+    public static final int SPELL_BATTLE_STANDARD_A = 32430;
     public static final int WS_EY_RES_A = 2749;
     public static final int WS_EY_RES_H = 2750;
     public static final int WS_EY_TOWERS_A = 2752;
