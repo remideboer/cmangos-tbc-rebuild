@@ -149,6 +149,19 @@ public final class Player extends Unit {
             }
         }
     }
+
+    /** CMaNGOS Player::FailQuest — QUEST_STATE_FAIL 0x2 (quest.md). Stays in log. */
+    public void failQuest(int questId) {
+        if (questId == 0) {
+            return;
+        }
+        for (int i = 0; i < questLogId.length; i++) {
+            if (questLogId[i] == questId) {
+                questLogState[i] = 0x2;
+                return;
+            }
+        }
+    }
     public int comboPoints;
     private long comboTargetGuid;
 

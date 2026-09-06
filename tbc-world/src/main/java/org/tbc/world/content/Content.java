@@ -83,6 +83,7 @@ public final class Content {
     public static final int AUCTION_LIST_DELAY_MS = 300;
     public static final int EQUIP_ERR_NOT_ENOUGH_MONEY = 29;
     public static final int QUEST_STATE_COMPLETE = 0x1;
+    public static final int QUEST_STATE_FAIL = 0x2;
     public static final int QUEST_A_THREAT_WITHIN = 783;
     public static final int NPC_CORINA_STEELE = 54;
     public static final int NPC_MARSHAL_MCBRIDE = 197;
