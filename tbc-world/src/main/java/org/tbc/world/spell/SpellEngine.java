@@ -60,6 +60,7 @@ public final class SpellEngine {
     public static final int EFFECT_ENERGIZE = 30;
     public static final int EFFECT_ADD_HONOR = 45;
     public static final int EFFECT_LEARN_SPELL = 36;
+    public static final int EFFECT_LEARN_PET_SPELL = 57;
     public static final int EFFECT_DISPEL = 38;
     public static final int EFFECT_DISPEL_MECHANIC = 108;
     public static final int EFFECT_SEND_TAXI = 123;
@@ -108,7 +109,7 @@ public final class SpellEngine {
 
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
-            EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
+            EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
@@ -487,6 +488,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_LEARN_SPELL) {
             learnSpell(target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_LEARN_PET_SPELL) {
+            learnPetSpell(caster, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_CREATE_ITEM) {
@@ -1282,6 +1287,17 @@ public final class SpellEngine {
         if (!p.spells.contains(spellId)) {
             p.spells.add(spellId);
         }
+    }
+
+    /**
+     * Effect 57 — SPELL_EFFECT_LEARN_PET_SPELL. CMaNGOS living pet learnSpell(trigger).
+     * Fire Shield 2949 Rank 1 teaches 2947.
+     */
+    public void learnPetSpell(Unit caster, int spellId) {
+        if (!(caster instanceof Player p) || p.pet == null || !p.pet.summoned) {
+            return;
+        }
+        p.pet.learnSpell(spellId);
     }
 
     /**
