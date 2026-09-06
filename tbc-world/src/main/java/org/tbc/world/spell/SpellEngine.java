@@ -32,6 +32,7 @@ public final class SpellEngine {
     public static final int SPELL_FAILED_NO_POWER = 0x50;
     public static final int SPELL_FAILED_OUT_OF_RANGE = 0x5C;
     public static final int SPELL_CAST_OK = 0xFF;
+    public static final int EFFECT_INSTAKILL = 1;
     public static final int EFFECT_SCHOOL_DAMAGE = 2;
     public static final int EFFECT_HEAL = 10;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
@@ -56,7 +57,7 @@ public final class SpellEngine {
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
-            EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT);
+            EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -172,6 +173,10 @@ public final class SpellEngine {
         if (sp == null || target == null) {
             return 0;
         }
+        if (sp.effect == EFFECT_INSTAKILL) {
+            instakill(target);
+            return 0;
+        }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
@@ -235,6 +240,14 @@ public final class SpellEngine {
             }
         }
         return 0;
+    }
+
+    /** Effect 1 — SPELL_EFFECT_INSTAKILL. CMaNGOS EffectInstaKill: skip if dead, DealDamage INSTAKILL. */
+    public void instakill(Unit target) {
+        if (target == null || !target.alive()) {
+            return;
+        }
+        target.setHealth(0);
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
