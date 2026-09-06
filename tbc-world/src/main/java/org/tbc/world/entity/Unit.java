@@ -168,6 +168,17 @@ public class Unit extends Entity {
         lastTransmittedObject = go;
     }
 
+    /** CMaNGOS EffectSummonType — summoned creature at caster (dest stand-in). */
+    private Creature lastSummon;
+
+    public Creature lastSummon() {
+        return lastSummon;
+    }
+
+    public void setLastSummon(Creature summoned) {
+        lastSummon = summoned;
+    }
+
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
     public void clearSpawningFlag() {
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
