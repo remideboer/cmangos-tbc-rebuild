@@ -51,6 +51,7 @@ public final class SpellEngine {
     public static final int EFFECT_DISPEL = 38;
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
     public static final int EFFECT_CREATE_ITEM = 24;
+    public static final int EFFECT_DUAL_WIELD = 40;
     public static final int EFFECT_OPEN_LOCK = 33;
     public static final int EFFECT_TRIGGER_SPELL = 64;
     public static final int EFFECT_POWER_BURN = 62;
@@ -91,7 +92,7 @@ public final class SpellEngine {
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
-            EFFECT_DURABILITY_DAMAGE_PCT);
+            EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -297,6 +298,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_DURABILITY_DAMAGE_PCT) {
             durabilityDamagePct(target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
+        if (sp.effect == EFFECT_DUAL_WIELD) {
+            dualWield(target);
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -649,6 +654,14 @@ public final class SpellEngine {
         if (item != null) {
             p.durabilityLoss(item, pct / 100.0);
         }
+    }
+
+    /** Effect 40 — SPELL_EFFECT_DUAL_WIELD. CMaNGOS SetCanDualWield(true). Dual Wield 674. */
+    public void dualWield(Unit target) {
+        if (target == null) {
+            return;
+        }
+        target.setCanDualWield(true);
     }
 
     /**

@@ -89,6 +89,17 @@ public class Unit extends Entity {
         return knockBackVert;
     }
 
+    private boolean canDualWield;
+
+    public boolean canDualWield() {
+        return canDualWield;
+    }
+
+    /** CMaNGOS Unit::SetCanDualWield. Dual Wield 674. */
+    public void setCanDualWield(boolean value) {
+        canDualWield = value;
+    }
+
     /** CMaNGOS Unit::CombatStop — leave combat, clear victim. */
     public void combatStop() {
         inCombat = false;
