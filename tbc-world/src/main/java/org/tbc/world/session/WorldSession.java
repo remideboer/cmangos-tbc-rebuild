@@ -176,6 +176,10 @@ public final class WorldSession {
             world.av.advance(world.nowMs());
             flushWorldStates(world.av.drainWorldStates());
         }
+        if (player.mapId == 566) {
+            world.ey.advance(world.nowMs());
+            flushWorldStates(world.ey.drainWorldStates());
+        }
     }
 
     private int swingDelayMs(boolean offhand) {

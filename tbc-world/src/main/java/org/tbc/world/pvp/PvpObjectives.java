@@ -64,6 +64,9 @@ public final class PvpObjectives {
     public static final int WS_AV_SCORE_A = 3127;
     public static final int WS_AV_SCORE_H = 3128;
     public static final int[] EY_FLAG_POINTS = {75, 85, 100, 500};
+    /** battleground-ey.md — every 2000 ms for n towers owned. */
+    public static final int EY_TICK_MS = 2_000;
+    public static final int[] EY_TICK_POINTS = {1, 2, 5, 10};
     public static final int TIMER_TF_LOCK_MS = 6 * 60 * 60 * 1000;
     public static final int WS_TF_LOCK_A = 2767;
     public static final int WS_TF_LOCK_H = 2768;
@@ -114,6 +117,18 @@ public final class PvpObjectives {
             i = EY_FLAG_POINTS.length - 1;
         }
         return EY_FLAG_POINTS[i];
+    }
+
+    /** eyTickPoints[n−1] for n towers owned. */
+    public static int eyTickPoints(int towersOwned) {
+        if (towersOwned <= 0) {
+            return 0;
+        }
+        int i = towersOwned - 1;
+        if (i >= EY_TICK_POINTS.length) {
+            i = EY_TICK_POINTS.length - 1;
+        }
+        return EY_TICK_POINTS[i];
     }
 
     public static boolean isTfTower(long guid) {

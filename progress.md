@@ -39,7 +39,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 21 Guild leftover | p0_junit | Wire: `Slice21P0Test` … ranks: `CMSG_GUILD_RANK` (`015`), `ADD_RANK` (`016`), `DEL_RANK` (`017`). Slice 21 Build ranks filled. Not `p0_client`. |
 | 22 Honor / inspect / duel | p0_junit | Wire: `Slice22P0Test` `SMSG_PVP_CREDIT` + cap 75000 (`001`), inspect packed + 0x3D (`002`), duel **3000** + OOB (`003`), `CMSG_SET_TITLE` → `PLAYER_CHOSEN_TITLE` (`004`), `MSG_INSPECT_ARENA_TEAMS` (`005`), `CMSG_TOGGLE_PVP` desired+UNIT_FLAG_PVP (`006`). Slice 22 Build filled. Not `p0_client`. |
 | 23 Arena teams | p0_junit | Wire: `Slice23P0Test` arena CRUD (`005`–`010`), BG positions (`011`), battlefield list (`012`), area spirit TIME (`013`). Slice 23 Build filled. Not `p0_client`. |
-| 24 AV / AB / EY | p0_junit | AB five nodes; EY flag; AV Snowfall/mine/death; Vanndar kill → ended PVP_LOG (`009`). Still hollow: EY 2s tower tick. Not `p0_client`. |
+| 24 AV / AB / EY | p0_junit | AB five nodes; EY flag + 2s tower tick (`010`); AV Snowfall/mine/death/Vanndar end (`009`). Slice 24 Build filled. Not `p0_client`. |
 | 25 Outdoor PvP | p0_junit | Silithyst; Northpass; ZM East; Halaa **182210** WS **2673**; TF five towers lock WS **2767** + **33377** (`TP-SL25-002`). |
 | 26 Spell algorithms | p0_junit | Door anim; chest open-lock; energize; add honor **45**; talent wipe; cancel channel; `CMSG_CANCEL_AURA` removes UA **30108**. |
 | 27 Transports | p0_junit | Board MO + pathProgress; `leaveMoTransport`; ONTRANSPORT echo; ACK; mount. |

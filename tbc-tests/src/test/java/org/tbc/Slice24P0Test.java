@@ -214,6 +214,24 @@ class Slice24P0Test {
         assertEquals(0, log[2] & 0xFF, "WINNER_HORDE");
     }
 
+    @Test
+    void tpSl24EyTowerTickShouldAddResourcesEveryTwoSeconds() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "EyTick");
+        Player p = client.session().player();
+        world.teleport(p, 566, 0, 0, 0, 0);
+        world.ey.setTowersOwned(1);
+        client.clear();
+        world.advanceMs(PvpObjectives.EY_TICK_MS);
+        client.session().tick(world, 50);
+        assertEquals(0, world.ey.resourcesAlliance(), "first advance arms timer");
+        client.clear();
+        world.advanceMs(PvpObjectives.EY_TICK_MS);
+        client.session().tick(world, 50);
+        assertEquals(1, world.ey.resourcesAlliance());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_EY_RES_A, 1));
+    }
+
     private static byte[] lastPayload(WowClientDouble client, int opcode) {
         for (int i = client.opcodes.size() - 1; i >= 0; i--) {
             if (client.opcodes.get(i) == opcode) {

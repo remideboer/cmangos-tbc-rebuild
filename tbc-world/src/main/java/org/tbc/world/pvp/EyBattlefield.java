@@ -7,10 +7,11 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Eye of the Storm flag score from battleground-ey.md (TP-SL24-003). */
+/** Eye of the Storm flag score + tower ticks from battleground-ey.md. */
 public final class EyBattlefield {
     private int towersAlliance;
     private int resourcesAlliance;
+    private long nextResourceTickAt;
     private final ArrayDeque<int[]> pendingWs = new ArrayDeque<>();
 
     public int towersAlliance() {
@@ -24,6 +25,27 @@ public final class EyBattlefield {
     public void setTowersOwned(int count) {
         towersAlliance = Math.max(0, Math.min(4, count));
         emit(PvpObjectives.WS_EY_TOWERS_A, towersAlliance);
+        if (towersAlliance == 0) {
+            nextResourceTickAt = 0;
+        }
+    }
+
+    /** BattleGroundEY::UpdateResources — every 2000 ms add eyTickPoints. */
+    public void advance(long nowMs) {
+        if (towersAlliance <= 0) {
+            return;
+        }
+        if (nextResourceTickAt == 0) {
+            nextResourceTickAt = nowMs + PvpObjectives.EY_TICK_MS;
+            return;
+        }
+        if (nowMs < nextResourceTickAt) {
+            return;
+        }
+        int pts = PvpObjectives.eyTickPoints(towersAlliance);
+        resourcesAlliance = Math.min(2000, resourcesAlliance + pts);
+        emit(PvpObjectives.WS_EY_RES_A, resourcesAlliance);
+        nextResourceTickAt = nowMs + PvpObjectives.EY_TICK_MS;
     }
 
     /** Carrier scores at an owned tower AT — points by tower count. */
