@@ -141,6 +141,25 @@ class Slice27P0Test {
     }
 
     @Test
+    void tpSl27MoveSplineDoneCounter() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Flyer");
+        Player p = client.session().player();
+        WowBuffer done = new WowBuffer(64);
+        done.putU32(0);
+        done.putU8(0);
+        done.putU32(0);
+        done.putFloat(p.x);
+        done.putFloat(p.y);
+        done.putFloat(p.z);
+        done.putFloat(p.o);
+        done.putU32(0);
+        done.putU32(17);
+        client.handle(world, Opcodes.CMSG_MOVE_SPLINE_DONE, done.array());
+        assertEquals(17, p.lastSplineDoneCounter);
+    }
+
+    @Test
     void tpSl27CancelMountAura() {
         World world = World.inMemory();
         WowClientDouble client = login(world, ACC_A, "Mounter");

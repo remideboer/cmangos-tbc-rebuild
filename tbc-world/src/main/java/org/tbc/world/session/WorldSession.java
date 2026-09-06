@@ -278,6 +278,10 @@ public final class WorldSession {
             handleMove(world, opcode, in, true);
             return;
         }
+        if (opcode == Opcodes.CMSG_MOVE_SPLINE_DONE) {
+            handleMoveSplineDone(in);
+            return;
+        }
         switch (opcode) {
             case Opcodes.CMSG_LOGOUT_REQUEST -> handleLogoutRequest(world);
             case Opcodes.CMSG_LOGOUT_CANCEL -> handleLogoutCancel();
@@ -906,6 +910,17 @@ public final class WorldSession {
         world.meleeHit(player, c);
         player.lastMeleeMs = world.nowMs();
         player.lastOffhandMeleeMs = world.nowMs();
+    }
+
+    /** movement.md CMSG_MOVE_SPLINE_DONE — MovementInfo + uint32 counter (CMaNGOS TaxiHandler). */
+    private void handleMoveSplineDone(WowBuffer in) {
+        try {
+            MovementInfo.readC2s(in);
+            if (in.remaining() >= 4) {
+                player.lastSplineDoneCounter = in.getU32();
+            }
+        } catch (RuntimeException ignored) {
+        }
     }
 
     private void handleSheath(WowBuffer in) {

@@ -149,6 +149,8 @@ public final class Player extends Unit {
     public int yesterdayContrib;
     public final long[] totems = new long[4];
     public float lastAckSpeed;
+    /** Last CMSG_MOVE_SPLINE_DONE movementCounter (movement.md). */
+    public int lastSplineDoneCounter;
 
     public Player() {
         super(UpdateFields.PLAYER_END, TYPEID_PLAYER);
