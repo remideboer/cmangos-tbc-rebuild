@@ -124,6 +124,19 @@ class Slice24P0Test {
         assertEquals(AbBattlefield.STATUS_ALLY_OCC, world.ab.blacksmithStatus());
     }
 
+    @Test
+    void tpSl24AvReinforcementsDropOnDeath() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "AvDie");
+        Player p = client.session().player();
+        world.teleport(p, 30, 0, 0, 0, 0);
+        assertEquals(600, world.av.reinforcementsAlliance());
+        client.clear();
+        org.tbc.world.session.DeathHandler.killPlayer(client.session(), world);
+        assertEquals(599, world.av.reinforcementsAlliance());
+        assertTrue(hasWorldState(client, PvpObjectives.WS_AV_SCORE_A, 599));
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

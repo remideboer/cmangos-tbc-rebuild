@@ -11,6 +11,7 @@ import org.tbc.world.map.GraveyardManager;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.pvp.AvBattlefield;
 import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.world.World;
@@ -41,6 +42,17 @@ public final class DeathHandler {
             p.deathTimerEndsAtMs = world.nowMs() + DEATH_TIMER_MS;
         } else {
             p.deathTimerEndsAtMs = 0;
+        }
+        // BattleGroundAV::HandleKillPlayer — UpdateScore(victim team, -1).
+        if (p.mapId == 30) {
+            int team = p.team == 469 ? AvBattlefield.TEAM_ALLIANCE : AvBattlefield.TEAM_HORDE;
+            world.av.onPlayerDeath(team);
+            for (int[] ws : world.av.drainWorldStates()) {
+                WowBuffer buf = new WowBuffer(8);
+                buf.putU32(ws[0]);
+                buf.putU32(ws[1]);
+                s.send(Opcodes.SMSG_UPDATE_WORLD_STATE, buf.array());
+            }
         }
     }
 

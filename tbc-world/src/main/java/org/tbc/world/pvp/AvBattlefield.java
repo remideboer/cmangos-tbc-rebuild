@@ -68,6 +68,9 @@ public final class AvBattlefield {
         if (defendingTeam == TEAM_ALLIANCE) {
             reinforcementsAlliance = Math.max(0, reinforcementsAlliance - 1);
             emit(PvpObjectives.WS_AV_SCORE_A, reinforcementsAlliance);
+        } else if (defendingTeam == TEAM_HORDE) {
+            reinforcementsHorde = Math.max(0, reinforcementsHorde - 1);
+            emit(PvpObjectives.WS_AV_SCORE_H, reinforcementsHorde);
         }
     }
 
