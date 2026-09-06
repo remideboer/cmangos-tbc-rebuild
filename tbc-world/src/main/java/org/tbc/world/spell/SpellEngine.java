@@ -92,6 +92,7 @@ public final class SpellEngine {
     /** CMaNGOS MAX_PLAYER_SUMMON_DELAY (2*MINUTE) in milliseconds. */
     public static final int MAX_PLAYER_SUMMON_DELAY_MS = 120_000;
     public static final int EFFECT_INEBRIATE = 100;
+    public static final int EFFECT_DISENCHANT = 99;
     public static final int EFFECT_FEED_PET = 101;
     public static final int EFFECT_DISMISS_PET = 102;
     public static final int EFFECT_REPUTATION = 103;
@@ -121,7 +122,7 @@ public final class SpellEngine {
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
-            EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE, EFFECT_FEED_PET,
+            EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_DISENCHANT, EFFECT_INEBRIATE, EFFECT_FEED_PET,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
@@ -417,6 +418,11 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_CHARGE_DEST) {
             chargeDest(caster, sp.maxRange);
+            return 0;
+        }
+        if (sp.effect == EFFECT_DISENCHANT) {
+            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
+            disenchant(caster, item);
             return 0;
         }
         if (sp.effect == EFFECT_FEED_PET) {
@@ -1054,6 +1060,22 @@ public final class SpellEngine {
         float destY = caster.y + dist * (float) Math.sin(caster.o);
         float o = (float) Math.atan2(destY - caster.y, destX - caster.x);
         caster.relocate(destX, destY, caster.z, o);
+    }
+
+    /**
+     * Effect 99 — SPELL_EFFECT_DISENCHANT. CMaNGOS player caster, itemTarget ShowContentTo.
+     * Disenchant 13262. Item loot clientLootType PICKPOCKETING (2).
+     */
+    public void disenchant(Unit caster, Item item) {
+        if (!(caster instanceof Player p) || item == null) {
+            return;
+        }
+        p.showDisenchantLoot(item.guid);
+    }
+
+    /** SMSG_LOOT_RESPONSE 0x160: item guid + clientLootType 2. */
+    public static byte[] encodeDisenchantLoot(long guid) {
+        return encodeSkinningLoot(guid);
     }
 
     /**

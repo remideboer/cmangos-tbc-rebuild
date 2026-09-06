@@ -278,6 +278,7 @@ public final class Player extends Unit {
     private int lastPlayMusic;
     private long lastSkinningLootGuid;
     private long lastPickpocketLootGuid;
+    private long lastDisenchantLootGuid;
     public final int[] taxiMask = new int[16];
     public boolean mounted;
     public String lfgComment = "";
@@ -749,6 +750,17 @@ public final class Player extends Unit {
 
     public long lastPickpocketLootGuid() {
         return lastPickpocketLootGuid;
+    }
+
+    /**
+     * CMaNGOS Loot::ShowContentTo after EffectDisEnchant — item loot pickpocketing.
+     */
+    public void showDisenchantLoot(long guid) {
+        lastDisenchantLootGuid = guid;
+    }
+
+    public long lastDisenchantLootGuid() {
+        return lastDisenchantLootGuid;
     }
 
     /**
