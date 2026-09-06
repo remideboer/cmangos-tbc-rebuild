@@ -128,6 +128,7 @@ public final class SpellEngine {
     public static final int EFFECT_SUMMON_OBJECT_SLOT1 = 104;
     public static final int EFFECT_SUMMON_OBJECT_SLOT2 = 105;
     public static final int EFFECT_KNOCK_BACK = 98;
+    public static final int EFFECT_KNOCKBACK_FROM_POSITION = 144;
     public static final int EFFECT_DESTROY_ALL_TOTEMS = 110;
     public static final int EFFECT_DURABILITY_DAMAGE = 111;
     public static final int EFFECT_DURABILITY_DAMAGE_PCT = 115;
@@ -159,7 +160,7 @@ public final class SpellEngine {
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_DISENCHANT, EFFECT_INEBRIATE, EFFECT_FEED_PET,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
-            EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION, EFFECT_SUMMON_OBJECT_SLOT1,
+            EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_KNOCKBACK_FROM_POSITION, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION, EFFECT_SUMMON_OBJECT_SLOT1,
             EFFECT_SUMMON_OBJECT_SLOT2, EFFECT_SUMMON_OBJECT_WILD, EFFECT_TRANS_DOOR, EFFECT_SUMMON,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_SKILL_STEP, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_SEND_EVENT, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
@@ -691,6 +692,13 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
             knockBack(caster, target, sp.misc() / 10f, Math.max(0, (sp.minDmg + sp.maxDmg) / 2) / 10f);
+            return 0;
+        }
+        if (sp.effect == EFFECT_KNOCKBACK_FROM_POSITION) {
+            if (caster != null) {
+                knockBackFromPosition(target, caster.x, caster.y,
+                        sp.misc() / 10f, Math.max(0, (sp.minDmg + sp.maxDmg) / 2) / 10f);
+            }
             return 0;
         }
         if (sp.effect == EFFECT_MODIFY_THREAT_PERCENT) {
@@ -1981,6 +1989,18 @@ public final class SpellEngine {
             return;
         }
         target.knockBackFrom(caster, horiz, vert);
+    }
+
+    /**
+     * Effect 144 — SPELL_EFFECT_KNOCKBACK_FROM_POSITION. CMaNGOS KnockBackWithAngle away from dest.
+     * Spectral Blast 44866 misc 125 / damage 75. Dest stand-in is caster xyz.
+     */
+    public void knockBackFromPosition(Unit target, float destX, float destY, float horiz, float vert) {
+        if (target == null) {
+            return;
+        }
+        float angle = (float) Math.atan2(destY - target.y, destX - target.x) + (float) Math.PI;
+        target.knockBackWithAngle(angle, horiz, vert);
     }
 
     /**
