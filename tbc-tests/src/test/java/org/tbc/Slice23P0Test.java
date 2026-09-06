@@ -49,11 +49,23 @@ class Slice23P0Test {
     void tpSl23PvpLogTypeBg() {
         World world = World.inMemory();
         WowClientDouble client = login(world, ACC_A, "Arena");
+        Player p = client.session().player();
+        world.teleport(p, 489, 0, 0, 0, 0);
         client.clear();
         client.handle(world, Opcodes.MSG_PVP_LOG_DATA, new byte[0]);
         byte[] log = lastPayload(client, Opcodes.MSG_PVP_LOG_DATA);
-        assertEquals(0, log[0] & 0xFF);
-        assertEquals(1, log[1] & 0xFF);
+        assertEquals(0, log[0] & 0xFF, "BG type");
+        assertEquals(0, log[1] & 0xFF, "not ended");
+        assertEquals(0, WowClientDouble.u32le(log, 2), "scoreCount");
+    }
+
+    @Test
+    void tpSl23PvpLogWhenNotInBgShouldIgnore() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "World");
+        client.clear();
+        client.handle(world, Opcodes.MSG_PVP_LOG_DATA, new byte[0]);
+        assertTrue(client.opcodes.stream().noneMatch(op -> op == Opcodes.MSG_PVP_LOG_DATA));
     }
 
     @Test

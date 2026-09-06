@@ -1148,12 +1148,16 @@ public final class WorldSession {
     }
 
     private void sendPvpLog() {
-        WowBuffer log = new WowBuffer(16);
+        // battleground.md: not in BG → ignore; arena client request ignored.
+        int map = player.mapId;
+        boolean bg = map == 489 || map == 529 || map == 30 || map == 566;
+        if (!bg) {
+            return;
+        }
+        // BuildPvpLogDataPacket — type BG, not ended, empty scores.
+        WowBuffer log = new WowBuffer(8);
         log.putU8(0);
-        log.putU8(1);
-        log.putU8(2);
-        log.putU32(0);
-        log.putU32(0);
+        log.putU8(0);
         log.putU32(0);
         send(Opcodes.MSG_PVP_LOG_DATA, log.array());
     }
