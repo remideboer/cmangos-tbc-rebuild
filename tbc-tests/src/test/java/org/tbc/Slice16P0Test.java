@@ -104,6 +104,29 @@ class Slice16P0Test {
         assertTrue(hasWorldState(client, 1545, -1) || hasWorldState(client, 1546, -1));
     }
 
+    @Test
+    void tpSl16WsgFlagCaptureWhenAreaTriggerShouldScore() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Cap");
+        Player p = client.session().player();
+        world.teleport(p, 489, 0, 0, 0, 0);
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(1);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        int flagSpell = p.auras.stream()
+                .mapToInt(a -> a.spellId())
+                .filter(id -> id == 23333 || id == 23335)
+                .findFirst()
+                .orElseThrow();
+        // Alliance carrier + Horde flag → Silverwing room 3646 (BattleGroundWS::HandleAreaTrigger).
+        int room = flagSpell == 23333 ? 3646 : 3647;
+        client.clear();
+        client.areaTrigger(world, room);
+        assertFalse(p.auras.stream().anyMatch(a -> a.spellId() == flagSpell));
+        assertTrue(hasWorldState(client, 1545, 0) || hasWorldState(client, 1546, 0));
+        assertTrue(hasWorldState(client, 1581, 1) || hasWorldState(client, 1582, 1));
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

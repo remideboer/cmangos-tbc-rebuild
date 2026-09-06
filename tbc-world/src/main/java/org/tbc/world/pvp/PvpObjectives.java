@@ -28,6 +28,11 @@ public final class PvpObjectives {
     public static final int WSG_FLAG_H = 23335;
     public static final int WS_WSG_A = 1545;
     public static final int WS_WSG_H = 1546;
+    public static final int WS_WSG_CAPTURES_A = 1581;
+    public static final int WS_WSG_CAPTURES_H = 1582;
+    /** BattleGroundWS.h Silverwing / Warsong flag rooms. */
+    public static final int AT_WSG_SILVERWING = 3646;
+    public static final int AT_WSG_WARSONG = 3647;
     public static final int WS_HF_TOWER_A = 2476;
     public static final int WS_HF_TOWER_H = 2478;
     public static final int WS_AB_RES_A = 1776;

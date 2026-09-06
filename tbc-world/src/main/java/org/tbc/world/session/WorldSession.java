@@ -395,6 +395,9 @@ public final class WorldSession {
         }
         if (opcode == Opcodes.CMSG_AREATRIGGER) {
             int trigger = in.getU32();
+            if (tryWsgFlagCapture(world, trigger)) {
+                return;
+            }
             var at = world.objectMgr.areaTrigger(trigger);
             if (at != null) {
                 int inst = 0;
@@ -421,6 +424,32 @@ public final class WorldSession {
                 world.teleport(player, at.map(), at.x(), at.y(), at.z(), at.o());
             }
         }
+    }
+
+    /**
+     * BattleGroundWS::HandleAreaTrigger → ProcessPlayerFlagScoreEvent.
+     * Carrier of enemy flag in own room scores; flag returns to base; capture count +1.
+     */
+    private boolean tryWsgFlagCapture(World world, int trigger) {
+        if (player.mapId != 489) {
+            return false;
+        }
+        boolean allianceRoom = trigger == PvpObjectives.AT_WSG_SILVERWING;
+        boolean hordeRoom = trigger == PvpObjectives.AT_WSG_WARSONG;
+        if (!allianceRoom && !hordeRoom) {
+            return false;
+        }
+        // Stub pickup pairs aura 23333 with WS 1545; Alliance room scores that carrier.
+        int flagSpell = allianceRoom ? PvpObjectives.WSG_FLAG_A : PvpObjectives.WSG_FLAG_H;
+        int flagField = allianceRoom ? PvpObjectives.WS_WSG_A : PvpObjectives.WS_WSG_H;
+        int capturesField = allianceRoom ? PvpObjectives.WS_WSG_CAPTURES_A : PvpObjectives.WS_WSG_CAPTURES_H;
+        if (player.auras.stream().noneMatch(a -> a.spellId() == flagSpell)) {
+            return false;
+        }
+        world.spells.cancelAura(player, flagSpell);
+        sendWs(flagField, 0);
+        sendWs(capturesField, 1);
+        return true;
     }
 
     private void handleAuthSession(World world, WowBuffer in) {
