@@ -61,6 +61,7 @@ public final class SpellEngine {
     public static final int EFFECT_SEND_TAXI = 123;
     public static final int EFFECT_PULL_TOWARDS = 124;
     public static final int EFFECT_STEAL_BENEFICIAL_BUFF = 126;
+    public static final int EFFECT_LEAP = 29;
     public static final int EFFECT_LEAP_BACK = 138;
     public static final int EFFECT_KILL_CREDIT_GROUP = 134;
     public static final int EFFECT_PLAY_MUSIC = 132;
@@ -113,7 +114,8 @@ public final class SpellEngine {
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_LEAP_BACK,
-            EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_UNLEARN_SPECIALIZATION);
+            EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_UNLEARN_SPECIALIZATION,
+            EFFECT_LEAP);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -383,6 +385,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_PULL_TOWARDS) {
             pullTowards(caster, target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_LEAP) {
+            leapForward(target, sp.maxRange);
             return 0;
         }
         if (sp.effect == EFFECT_LEAP_BACK) {
@@ -926,6 +932,20 @@ public final class SpellEngine {
         float speedZ = (dz + 0.5f * time * time * MOVEMENT_GRAVITY) / time;
         float angle = (float) Math.atan2(dy, dx);
         target.knockBackWithAngle(angle, speedXY, speedZ);
+    }
+
+    /**
+     * Effect 29 — SPELL_EFFECT_LEAP. CMaNGOS EffectLeapForward NearTeleportTo dest, keep facing.
+     * Blink 1953 dest is TARGET_LOCATION_CASTER_FRONT_LEAP; v1 uses SpellInfo.maxRange along facing
+     * (DBC radius stand-in).
+     */
+    public void leapForward(Unit target, float dist) {
+        if (target == null) {
+            return;
+        }
+        float destX = target.x + dist * (float) Math.cos(target.o);
+        float destY = target.y + dist * (float) Math.sin(target.o);
+        target.relocate(destX, destY, target.z, target.o);
     }
 
     /**
