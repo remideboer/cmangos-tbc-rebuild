@@ -34,6 +34,13 @@ public class Unit extends Entity {
     public MovementInfo movement = new MovementInfo();
     public long victim;
     public boolean inCombat;
+
+    /** CMaNGOS Unit::CombatStop — leave combat, clear victim. */
+    public void combatStop() {
+        inCombat = false;
+        victim = 0;
+    }
+
     public int level = 1;
     public String name = "";
     public int faction;

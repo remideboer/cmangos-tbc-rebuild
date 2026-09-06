@@ -49,6 +49,7 @@ public final class SpellEngine {
     public static final int EFFECT_INTERRUPT_CAST = 68;
     public static final int EFFECT_ADD_FARSIGHT = 72;
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
+    public static final int EFFECT_SANCTUARY = 79;
     public static final int EFFECT_DUMMY = 3;
     public static final int EFFECT_SCRIPT = 77;
     public static final int CAST_FLAG_UNKNOWN2 = 0x2;
@@ -62,7 +63,8 @@ public final class SpellEngine {
             EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
-            EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST);
+            EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
+            EFFECT_SANCTUARY);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -196,6 +198,10 @@ public final class SpellEngine {
             interruptCast(target);
             return 0;
         }
+        if (sp.effect == EFFECT_SANCTUARY) {
+            sanctuary(target);
+            return 0;
+        }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
@@ -315,6 +321,14 @@ public final class SpellEngine {
             return;
         }
         p.interruptCast();
+    }
+
+    /** Effect 79 — SPELL_EFFECT_SANCTUARY. CMaNGOS CombatStop. */
+    public void sanctuary(Unit target) {
+        if (target == null) {
+            return;
+        }
+        target.combatStop();
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
