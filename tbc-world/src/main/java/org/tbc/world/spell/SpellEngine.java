@@ -43,6 +43,7 @@ public final class SpellEngine {
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_OPEN_LOCK = 33;
     public static final int EFFECT_TRIGGER_SPELL = 64;
+    public static final int EFFECT_ADD_FARSIGHT = 72;
     public static final int EFFECT_DUMMY = 3;
     public static final int EFFECT_SCRIPT = 77;
     public static final int CAST_FLAG_UNKNOWN2 = 0x2;
@@ -55,7 +56,7 @@ public final class SpellEngine {
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
-            EFFECT_TRIGGER_SPELL, EFFECT_DUMMY, EFFECT_SCRIPT);
+            EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -221,6 +222,12 @@ public final class SpellEngine {
             }
             return apply(caster, target, nested);
         }
+        if (sp.effect == EFFECT_ADD_FARSIGHT) {
+            if (caster instanceof Player p && target != null) {
+                addFarsight(p, target.guid);
+            }
+            return 0;
+        }
         if (sp.effect == EFFECT_DUMMY || sp.effect == EFFECT_SCRIPT) {
             catalogDummy(sp.effect);
             if (sp.id == ClassScripts.SPELL_EXECUTE) {
@@ -236,6 +243,18 @@ public final class SpellEngine {
             return;
         }
         target.setPower(target.power() + amount);
+    }
+
+    /**
+     * Effect 72 — SPELL_EFFECT_ADD_FARSIGHT. CMaNGOS creates a dynobject focus then
+     * Camera::SetView (updates PLAYER_FARSIGHT). Java: bind focus unit guid + camera.
+     */
+    public void addFarsight(Player caster, long focusGuid) {
+        if (caster == null || focusGuid == 0) {
+            return;
+        }
+        caster.setFarSightGuid(focusGuid);
+        caster.setCameraViewGuid(focusGuid);
     }
 
     /** Effect 24 — add item id × count from damage; SMSG_ITEM_PUSH_RESULT created=1. */
