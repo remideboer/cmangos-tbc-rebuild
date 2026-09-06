@@ -43,4 +43,24 @@ public final class ThreatManager {
         }
         return value;
     }
+
+    /**
+     * CMaNGOS ThreatManager::modifyThreatPercent. −101 drops the ref; −100 zeros;
+     * else threat += threat * percent / 100.
+     */
+    public void modifyThreatPercent(Unit attacker, int percent) {
+        if (attacker == null || !byGuid.containsKey(attacker.guid)) {
+            return;
+        }
+        if (percent < -100) {
+            byGuid.remove(attacker.guid);
+            return;
+        }
+        float threat = byGuid.get(attacker.guid);
+        if (percent == -100) {
+            byGuid.put(attacker.guid, 0f);
+            return;
+        }
+        byGuid.put(attacker.guid, threat + threat * percent / 100.0f);
+    }
 }
