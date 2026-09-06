@@ -9,11 +9,13 @@ import org.tbc.world.world.World;
 public final class ChannelHandler {
     public static final int YOU_JOINED = 0x02;
     public static final int YOU_LEFT = 0x03;
+    public static final int WRONG_PASSWORD = 0x04;
+    public static final int PASSWORD_CHANGED = 0x07;
     public static final int CHANNEL_ID_GENERAL = 1;
 
     private ChannelHandler() {}
 
-    public static void join(WorldSession s, WowBuffer in) {
+    public static void join(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() >= 4) {
             in.getU32();
         }
@@ -24,8 +26,17 @@ public final class ChannelHandler {
             in.getU8();
         }
         String name = in.remaining() > 0 ? in.getCString() : "";
-        if (in.remaining() > 0) {
-            in.getCString();
+        String password = in.remaining() > 0 ? in.getCString() : "";
+        if (name.isEmpty()) {
+            return;
+        }
+        String want = world.channelPasswords.getOrDefault(name, "");
+        if (!want.isEmpty() && !want.equals(password)) {
+            WowBuffer n = new WowBuffer(32);
+            n.putU8(WRONG_PASSWORD);
+            n.putCString(name);
+            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            return;
         }
         s.channels.add(name);
         WowBuffer n = new WowBuffer(32);
@@ -52,6 +63,21 @@ public final class ChannelHandler {
         n.putCString(name);
         n.putU32(CHANNEL_ID_GENERAL);
         n.putU8(0);
+        s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+    }
+
+    /** Channel::SetPassword — member sets password; PASSWORD_CHANGED to self. */
+    public static void password(WorldSession s, World world, WowBuffer in) {
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        String pass = in.remaining() > 0 ? in.getCString() : "";
+        if (name.isEmpty() || !s.channels.contains(name)) {
+            return;
+        }
+        world.channelPasswords.put(name, pass == null ? "" : pass);
+        WowBuffer n = new WowBuffer(32);
+        n.putU8(PASSWORD_CHANGED);
+        n.putCString(name);
+        n.putU64(s.player().guid);
         s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
     }
 

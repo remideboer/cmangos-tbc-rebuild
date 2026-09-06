@@ -99,6 +99,38 @@ class Slice19P0Test {
         assertFalse(client.session().channels.contains("General"));
     }
 
+    @Test
+    void tpSl19PasswordWhenWrongShouldNotifyWrongPassword() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Pass");
+        client.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinGeneral().array());
+        client.clear();
+        WowBuffer set = new WowBuffer(48);
+        set.putCString("General");
+        set.putCString("secret");
+        client.handle(world, Opcodes.CMSG_CHANNEL_PASSWORD, set.array());
+        WowBuffer changed = new WowBuffer(lastPayload(client, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PASSWORD_CHANGED, changed.getU8());
+        assertEquals("General", changed.getCString());
+        assertEquals(client.session().player().guid, changed.getU64());
+        WowBuffer leave = new WowBuffer(32);
+        leave.putU32(0);
+        leave.putCString("General");
+        client.handle(world, Opcodes.CMSG_LEAVE_CHANNEL, leave.array());
+        client.clear();
+        WowBuffer bad = new WowBuffer(48);
+        bad.putU32(0);
+        bad.putU8(0);
+        bad.putU8(0);
+        bad.putCString("General");
+        bad.putCString("wrong");
+        client.handle(world, Opcodes.CMSG_JOIN_CHANNEL, bad.array());
+        WowBuffer n = new WowBuffer(lastPayload(client, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.WRONG_PASSWORD, n.getU8());
+        assertEquals("General", n.getCString());
+        assertFalse(client.session().channels.contains("General"));
+    }
+
     private static WowBuffer joinGeneral() {
         WowBuffer join = new WowBuffer(32);
         join.putU32(0);

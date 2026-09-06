@@ -83,6 +83,8 @@ public final class World implements Runnable {
     public final GameEventMgr events = new GameEventMgr();
     public final WorldTimers timers = new WorldTimers();
     public final Map<Long, Corpse> corpses = new ConcurrentHashMap<>();
+    /** Channel name → password for CMSG_CHANNEL_PASSWORD / join checks. */
+    public final Map<String, String> channelPasswords = new ConcurrentHashMap<>();
     public final Terrain terrain;
     public final GraveyardManager graveyards;
     public final String motd;
