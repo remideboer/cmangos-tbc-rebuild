@@ -42,6 +42,7 @@ public final class SpellEngine {
     public static final int EFFECT_WEAPON_DAMAGE_NOSCHOOL = 17;
     public static final int EFFECT_WEAPON_PERCENT_DAMAGE = 31;
     public static final int EFFECT_DISTRACT = 69;
+    public static final int EFFECT_CHARGE = 96;
     public static final int EFFECT_PARRY = 22;
     public static final int EFFECT_BLOCK = 23;
     public static final int EFFECT_SPAWN = 46;
@@ -103,7 +104,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
-            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP);
+            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -354,6 +355,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_KILL_CREDIT_GROUP) {
             killCreditGroup(target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_CHARGE) {
+            charge(caster, target);
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -811,6 +816,18 @@ public final class SpellEngine {
             return;
         }
         p.killedMonsterCredit(creatureId);
+    }
+
+    /**
+     * Effect 96 — SPELL_EFFECT_CHARGE. CMaNGOS MoveCharge to unitTarget.
+     * Charge 100 Rank 1 relocates the caster to the target (no spline in v1).
+     */
+    public void charge(Unit caster, Unit target) {
+        if (caster == null || target == null) {
+            return;
+        }
+        float o = (float) Math.atan2(target.y - caster.y, target.x - caster.x);
+        caster.relocate(target.x, target.y, target.z, o);
     }
 
     /**
