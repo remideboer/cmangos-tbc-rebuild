@@ -130,6 +130,7 @@ public final class SpellEngine {
     public static final int EFFECT_ENERGIZE_PCT = 137;
     public static final int EFFECT_QUEST_FAIL = 147;
     public static final int EFFECT_DUMMY = 3;
+    public static final int EFFECT_TRANS_DOOR = 50;
     public static final int EFFECT_SUMMON_OBJECT_WILD = 76;
     public static final int EFFECT_SCRIPT = 77;
     public static final int EFFECT_SELF_RESURRECT = 94;
@@ -151,7 +152,7 @@ public final class SpellEngine {
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_DISENCHANT, EFFECT_INEBRIATE, EFFECT_FEED_PET,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION, EFFECT_SUMMON_OBJECT_SLOT1,
-            EFFECT_SUMMON_OBJECT_SLOT2, EFFECT_SUMMON_OBJECT_WILD,
+            EFFECT_SUMMON_OBJECT_SLOT2, EFFECT_SUMMON_OBJECT_WILD, EFFECT_TRANS_DOOR,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_TELEPORT_GRAVEYARD, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
@@ -665,6 +666,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SUMMON_OBJECT_WILD) {
             summonObjectWild(caster, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_TRANS_DOOR) {
+            transmitted(caster, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -1498,6 +1503,21 @@ public final class SpellEngine {
         go.guid = Guid.HIGH_GAMEOBJECT | (caster.guid & 0xFFFFFFFFL);
         go.relocate(caster.x, caster.y, caster.z, caster.o);
         caster.setLastWildObject(go);
+    }
+
+    /**
+     * Effect 50 — SPELL_EFFECT_TRANS_DOOR. CMaNGOS EffectTransmitted: GO at caster.
+     * Lightwell 724 misc GO 181102. No object slot (unlike SLOT1/2).
+     */
+    public void transmitted(Unit caster, int goEntry) {
+        if (caster == null || goEntry <= 0) {
+            return;
+        }
+        GameObject go = new GameObject();
+        go.entry = goEntry;
+        go.guid = Guid.HIGH_GAMEOBJECT | (caster.guid & 0xFFFFFFFFL);
+        go.relocate(caster.x, caster.y, caster.z, caster.o);
+        caster.setLastTransmittedObject(go);
     }
 
     /** SMSG_TOTEM_CREATED 0x412: slot, GO guid, extra 0, duration 0. */

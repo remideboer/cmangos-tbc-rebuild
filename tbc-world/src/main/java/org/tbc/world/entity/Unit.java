@@ -157,6 +157,17 @@ public class Unit extends Entity {
         lastWildObject = go;
     }
 
+    /** CMaNGOS EffectTransmitted — summoned GO at caster (portals / Lightwell). */
+    private GameObject lastTransmittedObject;
+
+    public GameObject lastTransmittedObject() {
+        return lastTransmittedObject;
+    }
+
+    public void setLastTransmittedObject(GameObject go) {
+        lastTransmittedObject = go;
+    }
+
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
     public void clearSpawningFlag() {
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
