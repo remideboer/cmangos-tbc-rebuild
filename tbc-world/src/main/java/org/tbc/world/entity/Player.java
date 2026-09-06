@@ -70,6 +70,8 @@ public final class Player extends Unit {
     public boolean online;
     public boolean ghost;
     public long ghostTimeMs;
+    /** 0 = inactive; else wall clock when KillPlayer timer forces repop. */
+    public long deathTimerEndsAtMs;
     public final java.util.Set<Long> afkReporterGuids = new java.util.HashSet<>();
     public long logoutAtMs;
     public boolean logoutRequest;

@@ -154,6 +154,21 @@ class Slice17P0Test {
         assertEquals(requestHp, p.health());
     }
 
+    @Test
+    void tpSl17KillPlayerTimerWhenExpiredShouldAutoRepop() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Timer");
+        Player p = client.session().player();
+        DeathHandler.killPlayer(client.session(), world);
+        assertFalse(p.ghost);
+        client.clear();
+        world.advanceMs(DeathHandler.DEATH_TIMER_MS);
+        DeathHandler.tickDeathTimers(world);
+        assertTrue(p.ghost);
+        assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.GHOST_AURA));
+        assertNotNull(lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC));
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

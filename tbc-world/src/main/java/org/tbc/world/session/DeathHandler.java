@@ -22,14 +22,47 @@ public final class DeathHandler {
     public static final float GY_ELWYNN_Z = 92.5f;
     public static final int CORPSE_RECLAIM_DELAY_FIRST_MS = 30_000;
     public static final float CORPSE_RECLAIM_RADIUS = 39f;
+    /** Player::KillPlayer — 6 × MINUTE × IN_MILLISECONDS. */
+    public static final int DEATH_TIMER_MS = 6 * 60 * 1000;
 
     private DeathHandler() {}
+
+    /** Player::KillPlayer — start continent death timer; no corpse yet. */
+    public static void killPlayer(WorldSession s, World world) {
+        Player p = s.player();
+        if (p.ghost || !p.alive()) {
+            return;
+        }
+        p.setHealth(0);
+        // Non-instance maps only (death.md); continents 0/1/530.
+        if (p.mapId == 0 || p.mapId == 1 || p.mapId == 530) {
+            p.deathTimerEndsAtMs = world.nowMs() + DEATH_TIMER_MS;
+        } else {
+            p.deathTimerEndsAtMs = 0;
+        }
+    }
+
+    /** Player Update: m_deathTimer expired → BuildPlayerRepop + RepopAtGraveyard. */
+    public static void tickDeathTimers(World world) {
+        long now = world.nowMs();
+        for (Player p : world.playersOnline()) {
+            if (p.session == null || p.deathTimerEndsAtMs == 0 || now < p.deathTimerEndsAtMs) {
+                continue;
+            }
+            if (p.ghost || p.alive()) {
+                p.deathTimerEndsAtMs = 0;
+                continue;
+            }
+            repop(p.session, world);
+        }
+    }
 
     public static void repop(WorldSession s, World world) {
         Player p = s.player();
         if (p.alive() || p.ghost) {
             return;
         }
+        p.deathTimerEndsAtMs = 0;
         float deathX = p.x;
         float deathY = p.y;
         float deathZ = p.z;

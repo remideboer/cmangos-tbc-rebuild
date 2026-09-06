@@ -214,6 +214,7 @@ public final class World implements Runnable {
     /** Test / domain clock advance (logout delay, BG capture timers). */
     public void advanceMs(long deltaMs) {
         nowMs.addAndGet(deltaMs);
+        DeathHandler.tickDeathTimers(this);
     }
 
     public GameMap map(int mapId, int instanceId) {
