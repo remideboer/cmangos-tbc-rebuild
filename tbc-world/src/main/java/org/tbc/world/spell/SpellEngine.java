@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.tbc.common.Codes;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
+import org.tbc.world.entity.Corpse;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
@@ -47,6 +48,7 @@ public final class SpellEngine {
     public static final int EFFECT_NORMALIZED_WEAPON_DMG = 121;
     public static final int EFFECT_DISTRACT = 69;
     public static final int EFFECT_SKINNING = 95;
+    public static final int EFFECT_SKIN_PLAYER_CORPSE = 116;
     public static final int EFFECT_CHARGE = 96;
     public static final int EFFECT_CHARGE_DEST = 149;
     public static final int EFFECT_PARRY = 22;
@@ -135,7 +137,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
-            EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
+            EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
             EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_PROSPECTING, EFFECT_UNLEARN_SPECIALIZATION,
             EFFECT_LEAP);
@@ -482,6 +484,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SKINNING) {
             skinning(caster, target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_SKIN_PLAYER_CORPSE) {
+            skinPlayerCorpse(caster, target);
             return 0;
         }
         if (sp.effect == EFFECT_DISMISS_PET) {
@@ -1231,6 +1237,56 @@ public final class SpellEngine {
         b.putU32(0);
         b.putU8(0);
         return b.array();
+    }
+
+    /**
+     * Effect 116 — SPELL_EFFECT_SKIN_PLAYER_CORPSE. CMaNGOS player caster, BG victim
+     * RemovedInsignia. Remove Insignia 22027. SMSG_PLAYER_SKINNED + CLIENT_LOOT_CORPSE.
+     */
+    public void skinPlayerCorpse(Unit caster, Unit target) {
+        if (!(caster instanceof Player looter) || !(target instanceof Player victim)) {
+            return;
+        }
+        if (!isBattlegroundOrArena(victim.mapId)) {
+            return;
+        }
+        boolean repop = false;
+        if (victim.deathTimerEndsAtMs > 0) {
+            victim.deathTimerEndsAtMs = 0;
+            repop = true;
+        }
+        Corpse bones = victim.corpse;
+        if (bones == null) {
+            return;
+        }
+        victim.setLastSkinnedRepop(repop ? 1 : 0);
+        bones.corpseType = Corpse.CORPSE_BONES;
+        bones.setInt(UpdateFields.CORPSE_FIELD_DYNAMIC_FLAGS, Corpse.CORPSE_DYNFLAG_LOOTABLE);
+        looter.showInsigniaLoot(bones.guid);
+    }
+
+    /** SMSG_PLAYER_SKINNED 0x2BC: uint8 repop (Released spirit this skin). */
+    public static byte[] encodePlayerSkinned(int repop) {
+        WowBuffer b = new WowBuffer(1);
+        b.putU8(repop);
+        return b.array();
+    }
+
+    /** SMSG_LOOT_RESPONSE 0x160: corpse guid + CLIENT_LOOT_CORPSE (1). */
+    public static byte[] encodeInsigniaLoot(long guid) {
+        WowBuffer b = new WowBuffer(16);
+        b.putU64(guid);
+        b.putU8(1);
+        b.putU32(0);
+        b.putU8(0);
+        return b.array();
+    }
+
+    /** CMaNGOS Player::GetBattleGroundId — AV/WSG/AB/EY plus arenas. */
+    private static final Set<Integer> BATTLEGROUND_OR_ARENA_MAPS = Set.of(30, 489, 529, 566, 559, 562, 572);
+
+    static boolean isBattlegroundOrArena(int mapId) {
+        return BATTLEGROUND_OR_ARENA_MAPS.contains(mapId);
     }
 
     /**

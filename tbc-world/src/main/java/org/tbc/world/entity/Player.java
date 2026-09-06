@@ -278,6 +278,8 @@ public final class Player extends Unit {
     public int taxiPath;
     private int lastPlayMusic;
     private long lastSkinningLootGuid;
+    private long lastInsigniaLootGuid;
+    private int lastSkinnedRepop;
     private long lastPickpocketLootGuid;
     private long lastDisenchantLootGuid;
     private long lastProspectingLootGuid;
@@ -742,6 +744,26 @@ public final class Player extends Unit {
 
     public long lastSkinningLootGuid() {
         return lastSkinningLootGuid;
+    }
+
+    /**
+     * CMaNGOS Loot::ShowContentTo after RemovedInsignia — SMSG_LOOT_RESPONSE corpse.
+     */
+    public void showInsigniaLoot(long guid) {
+        lastInsigniaLootGuid = guid;
+    }
+
+    public long lastInsigniaLootGuid() {
+        return lastInsigniaLootGuid;
+    }
+
+    /** CMaNGOS SMSG_PLAYER_SKINNED uint8 — 1 when death timer forced repop. */
+    public void setLastSkinnedRepop(int repop) {
+        lastSkinnedRepop = repop;
+    }
+
+    public int lastSkinnedRepop() {
+        return lastSkinnedRepop;
     }
 
     /**
