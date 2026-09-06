@@ -179,6 +179,17 @@ public class Unit extends Entity {
         lastSummon = summoned;
     }
 
+    /** CMaNGOS EffectPersistentAA — dynobject at dest. */
+    private DynamicObject lastDynObject;
+
+    public DynamicObject lastDynObject() {
+        return lastDynObject;
+    }
+
+    public void setLastDynObject(DynamicObject dyn) {
+        lastDynObject = dyn;
+    }
+
     /** CMaNGOS StartEvents_Event — dbscripts_on_event id from EffectSendEvent. */
     private int lastSendEvent;
 

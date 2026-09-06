@@ -7,6 +7,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
 import org.tbc.world.entity.Corpse;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.DynamicObject;
 import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
@@ -66,6 +67,7 @@ public final class SpellEngine {
     public static final int EFFECT_SPIRIT_HEAL = 117;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
+    public static final int EFFECT_PERSISTENT_AREA_AURA = 27;
     public static final int EFFECT_APPLY_AREA_AURA_PARTY = 35;
     public static final int EFFECT_ENVIRONMENTAL_DAMAGE = 7;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
@@ -162,6 +164,7 @@ public final class SpellEngine {
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_KNOCKBACK_FROM_POSITION, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION, EFFECT_SUMMON_OBJECT_SLOT1,
             EFFECT_SUMMON_OBJECT_SLOT2, EFFECT_SUMMON_OBJECT_WILD, EFFECT_TRANS_DOOR, EFFECT_SUMMON,
+            EFFECT_PERSISTENT_AREA_AURA,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_SKILL_STEP, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_SEND_EVENT, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_TELEPORT_GRAVEYARD, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
@@ -727,6 +730,12 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SUMMON) {
             summon(caster, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_PERSISTENT_AREA_AURA) {
+            if (caster != null) {
+                persistentAreaAura(caster, sp.id, caster.x, caster.y, caster.z, 0f);
+            }
             return 0;
         }
         if (sp.effect == EFFECT_SEND_EVENT) {
@@ -1672,6 +1681,30 @@ public final class SpellEngine {
         summoned.guid = Guid.HIGH_CREATURE | (caster.guid & 0xFFFFFFFFL);
         summoned.relocate(caster.x, caster.y, caster.z, caster.o);
         caster.setLastSummon(summoned);
+    }
+
+    /**
+     * Effect 27 — SPELL_EFFECT_PERSISTENT_AREA_AURA. CMaNGOS EffectPersistentAA:
+     * dynobject at dest (caster xyz stand-in). Blizzard 10 EffectRadiusIndex1 is 0.
+     */
+    public void persistentAreaAura(Unit caster, int spellId, float x, float y, float z, float radius) {
+        if (caster == null || spellId <= 0) {
+            return;
+        }
+        DynamicObject dyn = new DynamicObject();
+        dyn.spellId = spellId;
+        dyn.radius = radius;
+        dyn.guid = Guid.HIGH_DYNAMICOBJECT | (caster.guid & 0xFFFFFFFFL);
+        dyn.relocate(x, y, z, 0f);
+        dyn.setInt(UpdateFields.OBJECT_FIELD_ENTRY, spellId);
+        dyn.setGuid(UpdateFields.DYNAMICOBJECT_CASTER, caster.guid);
+        dyn.setInt(UpdateFields.DYNAMICOBJECT_BYTES, DynamicObject.DYNAMIC_OBJECT_AREA_SPELL);
+        dyn.setInt(UpdateFields.DYNAMICOBJECT_SPELLID, spellId);
+        dyn.setFloat(UpdateFields.DYNAMICOBJECT_RADIUS, radius);
+        dyn.setFloat(UpdateFields.DYNAMICOBJECT_POS_X, x);
+        dyn.setFloat(UpdateFields.DYNAMICOBJECT_POS_Y, y);
+        dyn.setFloat(UpdateFields.DYNAMICOBJECT_POS_Z, z);
+        caster.setLastDynObject(dyn);
     }
 
     /**
