@@ -130,6 +130,30 @@ class Slice17P0Test {
         assertEquals(0, p.getInt(UpdateFields.PLAYER_SELF_RES_SPELL));
     }
 
+    @Test
+    void tpSl17ResurrectResponseAcceptShouldApplyRequestHp() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Rez");
+        Player p = client.session().player();
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        long caster = 0x0000000000000064L;
+        int requestHp = 42;
+        client.clear();
+        DeathHandler.offerResurrect(client.session(), caster, "Healer", false, requestHp, 0);
+        byte[] req = lastPayload(client, Opcodes.SMSG_RESURRECT_REQUEST);
+        assertEquals(caster, WowClientDouble.u64le(req, 0));
+        client.clear();
+        WowBuffer resp = new WowBuffer(9);
+        resp.putU64(caster);
+        resp.putU8(1);
+        client.handle(world, Opcodes.CMSG_RESURRECT_RESPONSE, resp.array());
+        assertFalse(p.ghost);
+        assertEquals(requestHp, p.health());
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

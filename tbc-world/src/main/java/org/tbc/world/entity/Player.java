@@ -106,6 +106,12 @@ public final class Player extends Unit {
     public int duelPhase;
     public Corpse corpse;
     public long deleteDateMs;
+    /** Pending resurrect from SMSG_RESURRECT_REQUEST (Player.cpp m_resurrect*). */
+    public long resurrectGuid;
+    public int resurrectMap;
+    public float resurrectX, resurrectY, resurrectZ;
+    public int resurrectHealth;
+    public int resurrectMana;
     public int taxiPath;
     public final int[] taxiMask = new int[16];
     public boolean mounted;

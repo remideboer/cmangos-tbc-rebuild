@@ -156,6 +156,66 @@ public final class DeathHandler {
         p.setInt(UpdateFields.PLAYER_SELF_RES_SPELL, 0);
     }
 
+    /** Player::SendResurrectRequest — stores pending data and emits SMSG_RESURRECT_REQUEST. */
+    public static void offerResurrect(WorldSession s, long casterGuid, String name,
+                                      boolean spiritHealer, int health, int mana) {
+        Player p = s.player();
+        p.resurrectGuid = casterGuid;
+        p.resurrectMap = p.mapId;
+        p.resurrectX = p.x;
+        p.resurrectY = p.y;
+        p.resurrectZ = p.z;
+        p.resurrectHealth = health;
+        p.resurrectMana = mana;
+        String n = name == null ? "" : name;
+        byte[] nameBytes = n.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        WowBuffer out = new WowBuffer(8 + 4 + nameBytes.length + 1 + 2);
+        out.putU64(casterGuid);
+        out.putU32(nameBytes.length + 1);
+        out.putBytes(nameBytes);
+        out.putU8(0);
+        out.putU8(spiritHealer ? 1 : 0);
+        out.putU8(0);
+        s.send(Opcodes.SMSG_RESURRECT_REQUEST, out.array());
+    }
+
+    /** WorldSession::HandleResurrectResponseOpcode. */
+    public static void resurrectResponse(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 9) {
+            return;
+        }
+        long guid = in.getU64();
+        int status = in.getU8();
+        Player p = s.player();
+        // Ghosts keep HP 1; Unit.alive() is true — CMaNGOS IsAlive() is false for ghosts.
+        if (!p.ghost) {
+            return;
+        }
+        if (status == 0) {
+            clearResurrectRequest(p);
+            return;
+        }
+        if (p.resurrectGuid != guid) {
+            return;
+        }
+        resurrect(s, p);
+        int max = p.maxHealth() == 0 ? 100 : p.maxHealth();
+        int hp = p.resurrectHealth;
+        p.setHealth(hp > 0 && hp < max ? hp : max);
+        if (p.resurrectMana > 0) {
+            p.setPower(p.resurrectMana);
+        }
+        clearResurrectRequest(p);
+    }
+
+    private static void clearResurrectRequest(Player p) {
+        p.resurrectGuid = 0;
+        p.resurrectMap = 0;
+        p.resurrectX = p.resurrectY = p.resurrectZ = 0;
+        p.resurrectHealth = 0;
+        p.resurrectMana = 0;
+    }
+
     private static void resurrect(WorldSession s, Player p) {
         p.setGhost(false);
         p.auras.removeIf(a -> a.spellId() == PvpObjectives.GHOST_AURA);
