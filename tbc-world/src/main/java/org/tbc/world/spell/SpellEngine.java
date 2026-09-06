@@ -46,6 +46,7 @@ public final class SpellEngine {
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_OPEN_LOCK = 33;
     public static final int EFFECT_TRIGGER_SPELL = 64;
+    public static final int EFFECT_INTERRUPT_CAST = 68;
     public static final int EFFECT_ADD_FARSIGHT = 72;
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_DUMMY = 3;
@@ -61,7 +62,7 @@ public final class SpellEngine {
             EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
-            EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS);
+            EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -191,6 +192,10 @@ public final class SpellEngine {
             addComboPoints(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
+        if (sp.effect == EFFECT_INTERRUPT_CAST) {
+            interruptCast(target);
+            return 0;
+        }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
@@ -302,6 +307,14 @@ public final class SpellEngine {
             return;
         }
         p.addComboPoints(target, count);
+    }
+
+    /** Effect 68 — SPELL_EFFECT_INTERRUPT_CAST. CMaNGOS InterruptSpell on living target. */
+    public void interruptCast(Unit target) {
+        if (!(target instanceof Player p) || !p.alive()) {
+            return;
+        }
+        p.interruptCast();
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */

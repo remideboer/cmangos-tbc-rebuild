@@ -155,6 +155,12 @@ public final class Player extends Unit {
     public int guildBankTabs;
     public boolean looking;
     public boolean channeling;
+
+    /** CMaNGOS Unit::InterruptSpell — stop current channeled/generic cast. */
+    public void interruptCast() {
+        channeling = false;
+    }
+
     public boolean nextMeleeSwingQueued;
     private int nextMeleeBonus;
     /** Camera viewpoint guid; 0 = self (CMSG_FAR_SIGHT / Camera::SetView). */
