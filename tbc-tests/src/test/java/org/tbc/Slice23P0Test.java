@@ -288,6 +288,22 @@ class Slice23P0Test {
         assertEquals(0, WowClientDouble.u32le(pos, 4));
     }
 
+    @Test
+    void tpSl23BattlefieldListShouldUsePlayerGuid() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Lister");
+        Player p = client.session().player();
+        client.clear();
+        WowBuffer in = new WowBuffer(4);
+        in.putU32(2);
+        client.handle(world, Opcodes.CMSG_BATTLEFIELD_LIST, in.array());
+        WowBuffer out = new WowBuffer(lastPayload(client, Opcodes.SMSG_BATTLEFIELD_LIST));
+        assertEquals(p.guid, out.getU64());
+        assertEquals(2, out.getU32());
+        assertEquals(0, out.getU8());
+        assertEquals(0, out.getU32());
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);

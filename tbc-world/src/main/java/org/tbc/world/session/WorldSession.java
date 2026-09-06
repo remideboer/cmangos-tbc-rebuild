@@ -411,6 +411,7 @@ public final class WorldSession {
             case Opcodes.CMSG_OPEN_ITEM -> InventoryHandler.openItem(this, in);
             case Opcodes.MSG_PVP_LOG_DATA -> sendPvpLog();
             case Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS -> sendBgPlayerPositions();
+            case Opcodes.CMSG_BATTLEFIELD_LIST -> sendBattlefieldList(in);
             default -> handleRest(world, opcode, in);
         }
     }
@@ -1216,6 +1217,26 @@ public final class WorldSession {
         data.putU32(0);
         data.putU32(0);
         send(Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS, data.array());
+    }
+
+    /** BattleGroundHandler HandleBattlefieldListOpcode — player guid as battlemaster. */
+    private void sendBattlefieldList(WowBuffer in) {
+        int bgTypeId = in.remaining() >= 4 ? in.getU32() : 0;
+        if (bgTypeId == 0) {
+            return;
+        }
+        // BATTLEGROUND_AA = 6
+        WowBuffer data = new WowBuffer(24);
+        data.putU64(player.guid);
+        data.putU32(bgTypeId);
+        if (bgTypeId == 6) {
+            data.putU8(5);
+            data.putU32(0);
+        } else {
+            data.putU8(0);
+            data.putU32(0);
+        }
+        send(Opcodes.SMSG_BATTLEFIELD_LIST, data.array());
     }
 
     private void system(String msg) {
