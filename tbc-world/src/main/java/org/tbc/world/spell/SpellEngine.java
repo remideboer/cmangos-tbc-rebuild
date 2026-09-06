@@ -47,6 +47,7 @@ public final class SpellEngine {
     public static final int EFFECT_QUEST_COMPLETE = 16;
     public static final int EFFECT_WEAPON_DAMAGE_NOSCHOOL = 17;
     public static final int EFFECT_WEAPON_PERCENT_DAMAGE = 31;
+    public static final int EFFECT_TRIGGER_MISSILE = 32;
     public static final int EFFECT_NORMALIZED_WEAPON_DMG = 121;
     public static final int EFFECT_DISTRACT = 69;
     public static final int EFFECT_SKINNING = 95;
@@ -140,7 +141,7 @@ public final class SpellEngine {
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
             EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE, EFFECT_SUMMON_PET,
-            EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_FORCE_CAST, EFFECT_FORCE_CAST_WITH_VALUE, EFFECT_TRIGGER_SPELL_WITH_VALUE, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
+            EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_TRIGGER_MISSILE, EFFECT_FORCE_CAST, EFFECT_FORCE_CAST_WITH_VALUE, EFFECT_TRIGGER_SPELL_WITH_VALUE, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ACTIVATE_OBJECT, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
@@ -259,6 +260,21 @@ public final class SpellEngine {
      * Ritual of Summoning 698 SQL trigger is 46546 (SUMMON later). Nested uses catalog.
      */
     public int triggerRitualOfSummoning(Unit caster, Unit target, int triggerSpellId) {
+        if (caster == null) {
+            return 0;
+        }
+        SpellInfo nested = info(triggerSpellId);
+        if (nested == null) {
+            return 0;
+        }
+        return apply(caster, target, nested);
+    }
+
+    /**
+     * Effect 32 — SPELL_EFFECT_TRIGGER_MISSILE. CMaNGOS caster CastSpell at dest/unit.
+     * Arcane Orb 34172 SQL trigger is 34190 (later). Nested uses catalog. Fireball 133 vehicle.
+     */
+    public int triggerMissile(Unit caster, Unit target, int triggerSpellId) {
         if (caster == null) {
             return 0;
         }
@@ -689,6 +705,9 @@ public final class SpellEngine {
                 return 0;
             }
             return apply(caster, target, nested);
+        }
+        if (sp.effect == EFFECT_TRIGGER_MISSILE) {
+            return triggerMissile(caster, target, sp.misc());
         }
         if (sp.effect == EFFECT_TRIGGER_SPELL_2) {
             return triggerRitualOfSummoning(caster, target, sp.misc());
