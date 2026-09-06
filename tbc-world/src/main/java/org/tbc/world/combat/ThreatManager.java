@@ -32,4 +32,15 @@ public final class ThreatManager {
         }
         return guid;
     }
+
+    /** CMaNGOS ThreatManager::GetHighestThreat — taunt equalize. */
+    public float highestThreat() {
+        float value = 0f;
+        for (float t : byGuid.values()) {
+            if (t > value) {
+                value = t;
+            }
+        }
+        return value;
+    }
 }

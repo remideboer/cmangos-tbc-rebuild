@@ -52,6 +52,7 @@ public final class SpellEngine {
     public static final int EFFECT_ADD_FARSIGHT = 72;
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
+    public static final int EFFECT_ATTACK_ME = 114;
     public static final int EFFECT_DUMMY = 3;
     public static final int EFFECT_SCRIPT = 77;
     public static final int CAST_FLAG_UNKNOWN2 = 0x2;
@@ -66,7 +67,7 @@ public final class SpellEngine {
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
-            EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND);
+            EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -212,6 +213,10 @@ public final class SpellEngine {
             bindHearth(target);
             return 0;
         }
+        if (sp.effect == EFFECT_ATTACK_ME) {
+            attackMe(caster, target);
+            return 0;
+        }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
@@ -355,6 +360,22 @@ public final class SpellEngine {
             return;
         }
         p.setHomebindToLocation(p.mapId, p.zoneId, p.x, p.y, p.z);
+    }
+
+    /**
+     * Effect 114 — SPELL_EFFECT_ATTACK_ME. CMaNGOS EffectTaunt: skip if already
+     * attacking caster; equalize threat to highest and force victim.
+     */
+    public void attackMe(Unit caster, Unit target) {
+        if (caster == null || !(target instanceof Creature c)) {
+            return;
+        }
+        if (c.victim == caster.guid) {
+            return;
+        }
+        float added = c.threatManager.highestThreat() - c.threatManager.threatOf(caster);
+        c.threatManager.add(caster, added);
+        c.victim = caster.guid;
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
