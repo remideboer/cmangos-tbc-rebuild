@@ -173,6 +173,7 @@ public final class Player extends Unit {
     public final Map<Integer, Item> buyback = new HashMap<>();
     public final int[] questLogId = new int[25];
     public final int[] questLogState = new int[25];
+    private final Map<Integer, Integer> killCredits = new HashMap<>();
 
     /**
      * CMaNGOS Player::AreaExploredOrEventHappens — mark quest complete in log
@@ -202,6 +203,22 @@ public final class Player extends Unit {
             }
         }
     }
+
+    /**
+     * CMaNGOS Player::KilledMonsterCredit — SPELL_EFFECT_KILL_CREDIT_GROUP
+     * RewardPlayerAndGroupAtEventCredit(misc). Solo records the creature entry.
+     */
+    public void killedMonsterCredit(int creatureId) {
+        if (creatureId <= 0) {
+            return;
+        }
+        killCredits.merge(creatureId, 1, Integer::sum);
+    }
+
+    public int killCreditCount(int creatureId) {
+        return killCredits.getOrDefault(creatureId, 0);
+    }
+
     public int comboPoints;
     private long comboTargetGuid;
 

@@ -57,6 +57,7 @@ public final class SpellEngine {
     public static final int EFFECT_DISPEL = 38;
     public static final int EFFECT_DISPEL_MECHANIC = 108;
     public static final int EFFECT_SEND_TAXI = 123;
+    public static final int EFFECT_KILL_CREDIT_GROUP = 134;
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_DUAL_WIELD = 40;
@@ -102,7 +103,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
-            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI);
+            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -349,6 +350,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SEND_TAXI) {
             sendTaxi(target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_KILL_CREDIT_GROUP) {
+            killCreditGroup(target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -795,6 +800,17 @@ public final class SpellEngine {
             return;
         }
         p.startTaxiFlight(pathId);
+    }
+
+    /**
+     * Effect 134 — SPELL_EFFECT_KILL_CREDIT_GROUP. CMaNGOS RewardPlayerAndGroupAtEventCredit(misc).
+     * Kill Credit Greater Diemetradon 37907 is creature 21924. Solo only in v1.
+     */
+    public void killCreditGroup(Unit target, int creatureId) {
+        if (!(target instanceof Player p)) {
+            return;
+        }
+        p.killedMonsterCredit(creatureId);
     }
 
     /**
