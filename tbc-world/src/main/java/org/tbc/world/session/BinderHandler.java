@@ -46,12 +46,7 @@ public final class BinderHandler {
     /** NPCHandler.cpp SendBindPoint then Spell::EffectBind. */
     static void sendBindPoint(Player p, Creature npc, Terrain terrain, BiConsumer<Integer, byte[]> send) {
         int areaId = terrain == null ? 0 : terrain.area(p.mapId, p.x, p.y);
-        p.bindX = p.x;
-        p.bindY = p.y;
-        p.bindZ = p.z;
-        p.bindMap = p.mapId;
-        p.bindZone = areaId;
-        p.dirty = true;
+        p.setHomebindToLocation(p.mapId, areaId, p.x, p.y, p.z);
         WowBuffer bind = new WowBuffer(20);
         bind.putFloat(p.bindX);
         bind.putFloat(p.bindY);

@@ -37,6 +37,7 @@ public final class SpellEngine {
     public static final int EFFECT_POWER_DRAIN = 8;
     public static final int EFFECT_HEALTH_LEECH = 9;
     public static final int EFFECT_HEAL = 10;
+    public static final int EFFECT_BIND = 11;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
@@ -65,7 +66,7 @@ public final class SpellEngine {
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
-            EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS);
+            EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -207,6 +208,10 @@ public final class SpellEngine {
             addExtraAttacks(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
+        if (sp.effect == EFFECT_BIND) {
+            bindHearth(target);
+            return 0;
+        }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
@@ -342,6 +347,14 @@ public final class SpellEngine {
             return;
         }
         target.addExtraAttacks(count);
+    }
+
+    /** Effect 11 — SPELL_EFFECT_BIND. CMaNGOS EffectBind: player target only, hearth at current loc. */
+    public void bindHearth(Unit target) {
+        if (!(target instanceof Player p)) {
+            return;
+        }
+        p.setHomebindToLocation(p.mapId, p.zoneId, p.x, p.y, p.z);
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */

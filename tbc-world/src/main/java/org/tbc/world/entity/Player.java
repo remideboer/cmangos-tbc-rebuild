@@ -69,6 +69,16 @@ public final class Player extends Unit {
     public int team; // 67 horde / 469 alliance
     public int bindMap, bindZone;
     public float bindX, bindY, bindZ;
+
+    /** CMaNGOS Player::SetHomebindToLocation — hearth map/area/xyz. */
+    public void setHomebindToLocation(int mapId, int areaId, float x, float y, float z) {
+        bindMap = mapId;
+        bindZone = areaId;
+        bindX = x;
+        bindY = y;
+        bindZ = z;
+        dirty = true;
+    }
     public boolean online;
     public boolean ghost;
     public long ghostTimeMs;
