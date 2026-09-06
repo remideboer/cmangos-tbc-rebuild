@@ -114,6 +114,22 @@ public final class Player extends Unit {
     public final Map<Integer, Item> buyback = new HashMap<>();
     public final int[] questLogId = new int[25];
     public final int[] questLogState = new int[25];
+
+    /**
+     * CMaNGOS Player::AreaExploredOrEventHappens — mark quest complete in log
+     * (SPELL_EFFECT_QUEST_COMPLETE). Does not turn in.
+     */
+    public void areaExploredOrEventHappens(int questId) {
+        if (questId == 0) {
+            return;
+        }
+        for (int i = 0; i < questLogId.length; i++) {
+            if (questLogId[i] == questId) {
+                questLogState[i] = 1;
+                return;
+            }
+        }
+    }
     public int comboPoints;
     private long comboTargetGuid;
 

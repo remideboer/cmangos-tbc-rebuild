@@ -38,6 +38,7 @@ public final class SpellEngine {
     public static final int EFFECT_HEALTH_LEECH = 9;
     public static final int EFFECT_HEAL = 10;
     public static final int EFFECT_BIND = 11;
+    public static final int EFFECT_QUEST_COMPLETE = 16;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
@@ -67,7 +68,7 @@ public final class SpellEngine {
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
-            EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME);
+            EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -215,6 +216,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_ATTACK_ME) {
             attackMe(caster, target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_QUEST_COMPLETE) {
+            questComplete(target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -376,6 +381,14 @@ public final class SpellEngine {
         float added = c.threatManager.highestThreat() - c.threatManager.threatOf(caster);
         c.threatManager.add(caster, added);
         c.victim = caster.guid;
+    }
+
+    /** Effect 16 — SPELL_EFFECT_QUEST_COMPLETE. CMaNGOS AreaExploredOrEventHappens(misc). */
+    public void questComplete(Unit target, int questId) {
+        if (!(target instanceof Player p)) {
+            return;
+        }
+        p.areaExploredOrEventHappens(questId);
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
