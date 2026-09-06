@@ -92,6 +92,7 @@ public final class SpellEngine {
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_DUAL_WIELD = 40;
+    public static final int EFFECT_SKILL_STEP = 44;
     public static final int EFFECT_OPEN_LOCK = 33;
     public static final int EFFECT_SUMMON_CHANGE_ITEM = 34;
     public static final int EFFECT_OPEN_LOCK_ITEM = 59;
@@ -159,7 +160,7 @@ public final class SpellEngine {
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION, EFFECT_SUMMON_OBJECT_SLOT1,
             EFFECT_SUMMON_OBJECT_SLOT2, EFFECT_SUMMON_OBJECT_WILD, EFFECT_TRANS_DOOR, EFFECT_SUMMON,
-            EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
+            EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_SKILL_STEP, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_SEND_EVENT, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_TELEPORT_GRAVEYARD, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PLAY_SOUND, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
@@ -498,6 +499,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_DUAL_WIELD) {
             dualWield(target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_SKILL_STEP) {
+            skillStep(target, sp.misc(), (sp.minDmg + sp.maxDmg) / 2);
             return 0;
         }
         if (sp.effect == EFFECT_PARRY) {
@@ -1385,6 +1390,26 @@ public final class SpellEngine {
             return;
         }
         target.auras.add(new Unit.Aura(spellId, 30_000, 1));
+    }
+
+    /**
+     * Effect 44 — SPELL_EFFECT_SKILL_STEP. CMaNGOS SetSkillStep(misc, damage).
+     * Apprentice Blacksmith 2020 skill 164 step 1. SkillTiers caps later.
+     */
+    public void skillStep(Unit target, int skillId, int step) {
+        if (!(target instanceof Player p)) {
+            return;
+        }
+        if (skillId <= 0) {
+            return;
+        }
+        if (step <= 0) {
+            return;
+        }
+        if (step > 16) {
+            return;
+        }
+        p.learnSkill(skillId, 1, 1, step);
     }
 
     /** SMSG_LOOT_RESPONSE 0x160: item guid + clientLootType 2. */

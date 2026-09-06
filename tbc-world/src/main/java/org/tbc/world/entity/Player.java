@@ -640,6 +640,18 @@ public final class Player extends Unit {
         return false;
     }
 
+    /** CMaNGOS GetSkillStep — PAIR32 high part of PLAYER_SKILL_INFO. */
+    public int skillStep(int skillId) {
+        int want = skillId & 0xFFFF;
+        for (int slot = 0; slot < 127; slot++) {
+            int packed = getInt(UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3);
+            if ((packed & 0xFFFF) == want) {
+                return (packed >>> 16) & 0xFFFF;
+            }
+        }
+        return 0;
+    }
+
     public void learnSkill(int skillId, int value, int max, int step) {
         learnSkill(skillId, value, max, step, false);
     }
