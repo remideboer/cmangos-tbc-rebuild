@@ -49,6 +49,7 @@ public final class SpellEngine {
     public static final int EFFECT_SPAWN = 46;
     public static final int EFFECT_PROFICIENCY = 60;
     public static final int EFFECT_RESURRECT = 18;
+    public static final int EFFECT_RESURRECT_NEW = 113;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
     public static final int EFFECT_ENVIRONMENTAL_DAMAGE = 7;
@@ -106,7 +107,7 @@ public final class SpellEngine {
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
-            EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
+            EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
@@ -275,6 +276,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_RESURRECT) {
             resurrect(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
+        }
+        if (sp.effect == EFFECT_RESURRECT_NEW) {
+            resurrectNew(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_ENVIRONMENTAL_DAMAGE) {
@@ -603,6 +608,24 @@ public final class SpellEngine {
         int health = maxHp * damagePct / 100;
         int mana = p.maxPower() * damagePct / 100;
         p.addResurrectRequest(caster.guid, caster.mapId, caster.x, caster.y, caster.z, health, mana);
+    }
+
+    /**
+     * Effect 113 — SPELL_EFFECT_RESURRECT_NEW. CMaNGOS EffectResurrect: health = damage,
+     * mana = EffectMiscValue (not percent). Resurrection 2006 Rank 1 is 69 HP.
+     */
+    public void resurrectNew(Unit caster, Unit target, int health, int mana) {
+        if (caster == null || !(target instanceof Player p)) {
+            return;
+        }
+        if (p.alive() && !p.ghost) {
+            return;
+        }
+        if (p.resurrectGuid != 0) {
+            return;
+        }
+        p.addResurrectRequest(caster.guid, caster.mapId, caster.x, caster.y, caster.z,
+                Math.max(0, health), Math.max(0, mana));
     }
 
     /**
