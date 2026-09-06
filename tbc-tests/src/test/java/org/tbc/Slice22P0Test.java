@@ -89,6 +89,39 @@ class Slice22P0Test {
         assertTrue(client.saw(Opcodes.SMSG_UPDATE_OBJECT) || client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
     }
 
+    @Test
+    void tpSl22InspectArenaTeams() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Viewer");
+        WowClientDouble b = login(world, ACC_B, "Target");
+        Player target = b.session().player();
+        org.tbc.world.entity.ArenaTeam team = new org.tbc.world.entity.ArenaTeam();
+        team.id = 42;
+        team.slot = 0;
+        team.rating = 1600;
+        team.gamesSeason = 20;
+        team.winsSeason = 12;
+        org.tbc.world.entity.ArenaTeam.Member mem = new org.tbc.world.entity.ArenaTeam.Member();
+        mem.gamesSeason = 10;
+        mem.personalRating = 1500;
+        team.members.put(target.guid, mem);
+        world.objectMgr.arenaTeams.put(team.id, team);
+        target.arenaTeam = team.id;
+        a.clear();
+        WowBuffer in = new WowBuffer(8);
+        in.putU64(target.guid);
+        a.handle(world, Opcodes.MSG_INSPECT_ARENA_TEAMS, in.array());
+        WowBuffer out = new WowBuffer(lastPayload(a, Opcodes.MSG_INSPECT_ARENA_TEAMS));
+        assertEquals(target.guid, out.getU64());
+        assertEquals(0, out.getU8());
+        assertEquals(42, out.getU32());
+        assertEquals(1600, out.getU32());
+        assertEquals(20, out.getU32());
+        assertEquals(12, out.getU32());
+        assertEquals(10, out.getU32());
+        assertEquals(1500, out.getU32());
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);

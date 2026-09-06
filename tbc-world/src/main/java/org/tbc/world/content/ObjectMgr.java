@@ -10,6 +10,7 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Guild;
+import org.tbc.world.entity.ArenaTeam;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.DbcFile;
@@ -314,6 +315,7 @@ public final class ObjectMgr {
     public final Map<Integer, ZoneWeather> weather = new HashMap<>();
     public final List<Auction> auctions = new ArrayList<>();
     public final Map<Integer, Guild> guilds = new HashMap<>();
+    public final Map<Integer, ArenaTeam> arenaTeams = new HashMap<>();
     /** Talent.dbc / TalentTab.dbc. Player.cpp LearnTalent. */
     public record Talent(int id, int tab, int row, int col, int rank0, int rank1, int rank2, int rank3, int rank4,
                          int dependsOn, int dependsOnRank, int dependsOnSpell) {

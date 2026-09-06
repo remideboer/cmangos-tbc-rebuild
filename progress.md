@@ -37,7 +37,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 19 Channels | p0_junit | Wire: `Slice19P0Test` YOU_JOINED **0x02** (`001`), list (`002`), text emote (`003`), voice ignored (`004`), YOU_LEFT (`005`), password **0x07/0x04** (`006`), moderator not-member **0x05** (`007`). Join/leave/password/moderation on the wire. |
 | 20 Items leftover | p0_junit | Wire: `Slice20P0Test` buyback slot **74** VALUES (`001`), socket bonus vs meta **25890** (`002`), repair coinage (`003`), buy-in-slot bagslot placement (`004`). |
 | 21 Guild leftover | p0_junit | Wire: `Slice21P0Test` … ranks: `CMSG_GUILD_RANK` (`015`), `ADD_RANK` (`016`), `DEL_RANK` (`017`). Slice 21 Build ranks filled. Not `p0_client`. |
-| 22 Honor / inspect / duel | p0_junit | Wire: `Slice22P0Test` `SMSG_PVP_CREDIT` + cap 75000 (`001`), inspect packed + 0x3D (`002`), duel **3000** + OOB (`003`), `CMSG_SET_TITLE` → `PLAYER_CHOSEN_TITLE` (`004`). |
+| 22 Honor / inspect / duel | p0_junit | Wire: `Slice22P0Test` `SMSG_PVP_CREDIT` + cap 75000 (`001`), inspect packed + 0x3D (`002`), duel **3000** + OOB (`003`), `CMSG_SET_TITLE` → `PLAYER_CHOSEN_TITLE` (`004`), `MSG_INSPECT_ARENA_TEAMS` (`005`). |
 | 23 Arena teams | p0_junit | Wire: `Slice23P0Test` arena roster personalRating (`001`), PvP log type 0 on WSG map (`002`), AFK **43680** (`003`), not-in-BG PVP_LOG ignored (`004`). |
 | 24 AV / AB / EY | p0_junit | AB stables/blacksmith WS; EY flag score; AV Snowfall; Irondeep mine tick **+1 / 45s** WS **3127**. |
 | 25 Outdoor PvP | p0_junit | Silithyst; Northpass; ZM East; Halaa **182210** WS **2673**; TF five towers lock WS **2767** + **33377** (`TP-SL25-002`). |

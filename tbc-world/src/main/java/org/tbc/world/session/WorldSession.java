@@ -382,6 +382,7 @@ public final class WorldSession {
             case Opcodes.CMSG_GAMEOBJ_USE -> handleGoUse(world, in);
             case Opcodes.CMSG_GMTICKET_CREATE -> handleTicket(in);
             case Opcodes.CMSG_INSPECT -> handleInspect(in);
+            case Opcodes.MSG_INSPECT_ARENA_TEAMS -> ArenaTeamHandler.inspect(this, world, in);
             case Opcodes.CMSG_DUEL_ACCEPTED -> handleDuel(world);
             case Opcodes.CMSG_TOGGLE_PVP -> player.pvpFlagged = !player.pvpFlagged;
             case Opcodes.CMSG_SET_TITLE -> {
