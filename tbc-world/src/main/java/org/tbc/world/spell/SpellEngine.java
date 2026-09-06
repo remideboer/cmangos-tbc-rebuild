@@ -63,6 +63,7 @@ public final class SpellEngine {
     public static final int EFFECT_DISPEL_MECHANIC = 108;
     public static final int EFFECT_SEND_TAXI = 123;
     public static final int EFFECT_PULL_TOWARDS = 124;
+    public static final int EFFECT_PULL_TOWARDS_DEST = 145;
     public static final int EFFECT_STEAL_BENEFICIAL_BUFF = 126;
     public static final int EFFECT_LEAP = 29;
     public static final int EFFECT_LEAP_BACK = 138;
@@ -116,7 +117,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
-            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_LEAP_BACK,
+            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
             EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_UNLEARN_SPECIALIZATION,
             EFFECT_LEAP);
 
@@ -400,6 +401,14 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_PULL_TOWARDS) {
             pullTowards(caster, target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_PULL_TOWARDS_DEST) {
+            if (caster != null) {
+                float destX = caster.x + sp.maxRange * (float) Math.cos(caster.o);
+                float destY = caster.y + sp.maxRange * (float) Math.sin(caster.o);
+                pullTowardsDest(target, destX, destY, caster.z, sp.misc());
+            }
             return 0;
         }
         if (sp.effect == EFFECT_LEAP) {
@@ -995,6 +1004,28 @@ public final class SpellEngine {
         float speedXY = Math.max(1, misc) * 0.1f;
         float time = dist / speedXY;
         float speedZ = (dz + 0.5f * time * time * MOVEMENT_GRAVITY) / time;
+        float angle = (float) Math.atan2(dy, dx);
+        target.knockBackWithAngle(angle, speedXY, speedZ);
+    }
+
+    /**
+     * Effect 145 — SPELL_EFFECT_PULL_TOWARDS_DEST. CMaNGOS EffectPullTowards dest branch:
+     * 2D dist to dest, projectile Z from dest. Black Hole Effect 46230 misc 150 is speedXY 15.
+     * v1 dest is caster xyz offset by SpellInfo.maxRange along facing.
+     */
+    public void pullTowardsDest(Unit target, float destX, float destY, float destZ, int misc) {
+        if (target == null) {
+            return;
+        }
+        float dx = destX - target.x;
+        float dy = destY - target.y;
+        float dist = (float) Math.sqrt(dx * dx + dy * dy);
+        if (dist < 0.1f) {
+            return;
+        }
+        float speedXY = Math.max(1, misc) * 0.1f;
+        float time = dist / speedXY;
+        float speedZ = (destZ - target.z + 0.5f * time * time * MOVEMENT_GRAVITY) / time;
         float angle = (float) Math.atan2(dy, dx);
         target.knockBackWithAngle(angle, speedXY, speedZ);
     }
