@@ -131,6 +131,20 @@ class Slice19P0Test {
         assertFalse(client.session().channels.contains("General"));
     }
 
+    @Test
+    void tpSl19ModeratorWhenNotMemberShouldNotify() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Mod");
+        client.clear();
+        WowBuffer mod = new WowBuffer(48);
+        mod.putCString("General");
+        mod.putCString("Someone");
+        client.handle(world, Opcodes.CMSG_CHANNEL_MODERATOR, mod.array());
+        WowBuffer n = new WowBuffer(lastPayload(client, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MEMBER, n.getU8());
+        assertEquals("General", n.getCString());
+    }
+
     private static WowBuffer joinGeneral() {
         WowBuffer join = new WowBuffer(32);
         join.putU32(0);

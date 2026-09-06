@@ -10,6 +10,7 @@ public final class ChannelHandler {
     public static final int YOU_JOINED = 0x02;
     public static final int YOU_LEFT = 0x03;
     public static final int WRONG_PASSWORD = 0x04;
+    public static final int NOT_MEMBER = 0x05;
     public static final int PASSWORD_CHANGED = 0x07;
     public static final int CHANNEL_ID_GENERAL = 1;
 
@@ -79,6 +80,23 @@ public final class ChannelHandler {
         n.putCString(name);
         n.putU64(s.player().guid);
         s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+    }
+
+    /** Channel::SetModerator — not a member → NOT_MEMBER. */
+    public static void moderator(WorldSession s, WowBuffer in) {
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        if (in.remaining() > 0) {
+            in.getCString();
+        }
+        if (name.isEmpty()) {
+            return;
+        }
+        if (!s.channels.contains(name)) {
+            WowBuffer n = new WowBuffer(32);
+            n.putU8(NOT_MEMBER);
+            n.putCString(name);
+            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+        }
     }
 
     public static void list(WorldSession s, WowBuffer in) {
