@@ -146,6 +146,17 @@ public class Unit extends Entity {
         objectSlots[slot] = go;
     }
 
+    /** CMaNGOS EffectSummonObjectWild — GO has no owner / object slot. */
+    private GameObject lastWildObject;
+
+    public GameObject lastWildObject() {
+        return lastWildObject;
+    }
+
+    public void setLastWildObject(GameObject go) {
+        lastWildObject = go;
+    }
+
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
     public void clearSpawningFlag() {
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
