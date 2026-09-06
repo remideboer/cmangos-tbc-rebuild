@@ -34,6 +34,7 @@ public final class SpellEngine {
     public static final int SPELL_CAST_OK = 0xFF;
     public static final int EFFECT_INSTAKILL = 1;
     public static final int EFFECT_SCHOOL_DAMAGE = 2;
+    public static final int EFFECT_HEALTH_LEECH = 9;
     public static final int EFFECT_HEAL = 10;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
     public static final int EFFECT_APPLY_AURA = 6;
@@ -57,7 +58,8 @@ public final class SpellEngine {
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
-            EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL);
+            EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
+            EFFECT_HEALTH_LEECH);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -177,6 +179,9 @@ public final class SpellEngine {
             instakill(target);
             return 0;
         }
+        if (sp.effect == EFFECT_HEALTH_LEECH) {
+            return healthLeech(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+        }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
@@ -248,6 +253,22 @@ public final class SpellEngine {
             return;
         }
         target.setHealth(0);
+    }
+
+    /**
+     * Effect 9 — SPELL_EFFECT_HEALTH_LEECH. CMaNGOS EffectHealthLeech: damage living
+     * target (capped at current HP), heal caster if still alive.
+     */
+    public int healthLeech(Unit caster, Unit target, int amount) {
+        if (caster == null || target == null || !target.alive() || amount <= 0) {
+            return 0;
+        }
+        int dealt = Math.min(amount, target.health());
+        target.setHealth(target.health() - dealt);
+        if (caster.alive()) {
+            caster.setHealth(caster.health() + dealt);
+        }
+        return dealt;
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
