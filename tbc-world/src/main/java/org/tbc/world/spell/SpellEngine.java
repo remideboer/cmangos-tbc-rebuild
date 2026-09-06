@@ -83,6 +83,7 @@ public final class SpellEngine {
     public static final int EFFECT_HEAL_MECHANICAL = 75;
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
+    public static final int EFFECT_STUCK = 84;
     public static final int EFFECT_INEBRIATE = 100;
     public static final int EFFECT_DISMISS_PET = 102;
     public static final int EFFECT_REPUTATION = 103;
@@ -110,7 +111,7 @@ public final class SpellEngine {
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
-            EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
+            EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
@@ -266,6 +267,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SANCTUARY) {
             sanctuary(target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_STUCK) {
+            stuck(caster);
             return 0;
         }
         if (sp.effect == EFFECT_ADD_EXTRA_ATTACKS) {
@@ -589,6 +594,22 @@ public final class SpellEngine {
             return;
         }
         target.combatStop();
+    }
+
+    /**
+     * Effect 84 — SPELL_EFFECT_STUCK. CMaNGOS player caster, taxi no-op; continent nudge
+     * GetNearPoint 10 yd along facing (hearth/dungeon paths later). Stuck 7355.
+     */
+    public void stuck(Unit caster) {
+        if (!(caster instanceof Player p)) {
+            return;
+        }
+        if ((p.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_TAXI_FLIGHT) != 0) {
+            return;
+        }
+        float destX = p.x + 10f * (float) Math.cos(p.o);
+        float destY = p.y + 10f * (float) Math.sin(p.o);
+        p.relocate(destX, destY, p.z, p.o);
     }
 
     /** Effect 19 — SPELL_EFFECT_ADD_EXTRA_ATTACKS. CMaNGOS m_extraAttacks += damage, cap 5. */
