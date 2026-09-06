@@ -72,6 +72,7 @@ public final class SpellEngine {
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
     public static final int EFFECT_INEBRIATE = 100;
+    public static final int EFFECT_DISMISS_PET = 102;
     public static final int EFFECT_REPUTATION = 103;
     public static final int EFFECT_KNOCK_BACK = 98;
     public static final int EFFECT_DESTROY_ALL_TOTEMS = 110;
@@ -104,7 +105,8 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
-            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE);
+            EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE,
+            EFFECT_DISMISS_PET);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -359,6 +361,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_CHARGE) {
             charge(caster, target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_DISMISS_PET) {
+            dismissPet(caster);
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -828,6 +834,17 @@ public final class SpellEngine {
         }
         float o = (float) Math.atan2(target.y - caster.y, target.x - caster.x);
         caster.relocate(target.x, target.y, target.z, o);
+    }
+
+    /**
+     * Effect 102 — SPELL_EFFECT_DISMISS_PET. CMaNGOS player caster, living pet Unsummon.
+     * Dismiss Pet 2641. summoned maps IsAlive; missing or not summoned is a no-op.
+     */
+    public void dismissPet(Unit caster) {
+        if (!(caster instanceof Player p) || p.pet == null || !p.pet.summoned) {
+            return;
+        }
+        p.pet = null;
     }
 
     /**
