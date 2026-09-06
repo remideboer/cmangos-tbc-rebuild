@@ -253,6 +253,7 @@ public final class Player extends Unit {
     /** Sanctuary zone — HandleTogglePvP ignores (AREA_FLAG_SANCTUARY stand-in until AreaTable). */
     public boolean pvpSanctuary;
     public Player duelOpponent;
+    private GameObject duelFlag;
     public int duelPhase;
     public Corpse corpse;
     public long deleteDateMs;
@@ -712,6 +713,14 @@ public final class Player extends Unit {
         other.duelOpponent = this;
         duelPhase = 1;
         other.duelPhase = 1;
+    }
+
+    public GameObject duelFlag() {
+        return duelFlag;
+    }
+
+    public void setDuelFlag(GameObject flag) {
+        duelFlag = flag;
     }
 
     /** Domain setup: taxi flight in progress (logout.md InstantLogout). */

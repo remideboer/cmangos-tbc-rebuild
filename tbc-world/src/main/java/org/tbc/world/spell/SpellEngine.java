@@ -107,6 +107,7 @@ public final class SpellEngine {
     public static final int EFFECT_HEAL_MECHANICAL = 75;
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
     public static final int EFFECT_SANCTUARY = 79;
+    public static final int EFFECT_DUEL = 83;
     public static final int EFFECT_STUCK = 84;
     public static final int EFFECT_SUMMON_PLAYER = 85;
     public static final int EFFECT_ACTIVATE_OBJECT = 86;
@@ -145,7 +146,7 @@ public final class SpellEngine {
             EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE, EFFECT_SUMMON_PET, EFFECT_SUMMON_CHANGE_ITEM,
             EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_TRIGGER_MISSILE, EFFECT_FORCE_CAST, EFFECT_FORCE_CAST_WITH_VALUE, EFFECT_TRIGGER_SPELL_WITH_VALUE, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
-            EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ACTIVATE_OBJECT, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
+            EFFECT_SANCTUARY, EFFECT_DUEL, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ACTIVATE_OBJECT, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_DISENCHANT, EFFECT_INEBRIATE, EFFECT_FEED_PET,
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
@@ -391,6 +392,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SANCTUARY) {
             sanctuary(target);
+            return 0;
+        }
+        if (sp.effect == EFFECT_DUEL) {
+            duel(caster, target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_STUCK) {
@@ -1502,6 +1507,40 @@ public final class SpellEngine {
         b.putU64(guid);
         b.putU32(0);
         b.putU32(0);
+        return b.array();
+    }
+
+    /**
+     * Effect 83 — SPELL_EFFECT_DUEL. CMaNGOS arbiter GO at midpoint; SMSG_DUEL_REQUESTED.
+     * Duel 7266 misc GO 21680.
+     */
+    public void duel(Unit caster, Unit target, int flagEntry) {
+        if (!(caster instanceof Player a)) {
+            return;
+        }
+        if (!(target instanceof Player b) || a == b) {
+            return;
+        }
+        if (a.duelOpponent != null || b.duelOpponent != null) {
+            return;
+        }
+        if (flagEntry <= 0) {
+            return;
+        }
+        GameObject flag = new GameObject();
+        flag.entry = flagEntry;
+        flag.guid = Guid.HIGH_GAMEOBJECT | (a.guid & 0xFFFFFFFFL);
+        flag.relocate((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f, a.z, a.o);
+        a.setDuelFlag(flag);
+        a.duelOpponent = b;
+        b.duelOpponent = a;
+    }
+
+    /** SMSG_DUEL_REQUESTED 0x167: raw arbiter GO guid, raw caster guid. */
+    public static byte[] encodeDuelRequested(long flagGuid, long casterGuid) {
+        WowBuffer b = new WowBuffer(16);
+        b.putU64(flagGuid);
+        b.putU64(casterGuid);
         return b.array();
     }
 
