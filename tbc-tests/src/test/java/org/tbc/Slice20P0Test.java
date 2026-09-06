@@ -2,6 +2,8 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -11,6 +13,7 @@ import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL20-* from spec/03-protocol/packets/inventory.md */
@@ -97,6 +100,28 @@ class Slice20P0Test {
         assertEquals(100, it.durability);
         assertEquals(9, p.money);
         assertEquals(9, p.getInt(UpdateFields.PLAYER_FIELD_COINAGE));
+    }
+
+    @Test
+    void tpSl20BuyInSlotWhenBagSlotShouldPlaceThere() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Buyer");
+        Player p = client.session().player();
+        p.money = 10_000;
+        Creature vendor = world.objectMgr.spawnCreature(Content.NPC_CORINA_STEELE,
+                0, p.x, p.y, p.z, p.o, world.scripts);
+        vendor.npcFlags |= Content.UNIT_NPC_FLAG_VENDOR;
+        world.map(p.mapId, p.instanceId).add(vendor);
+        int bagSlot = 30;
+        client.clear();
+        client.buyItemInSlot(world, vendor.guid, Content.ITEM_WORN_SHORTSWORD,
+                p.guid, bagSlot, 1);
+        assertTrue(client.saw(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        Item bought = p.items.values().stream()
+                .filter(i -> i.entry == Content.ITEM_WORN_SHORTSWORD && i.slot == bagSlot)
+                .findFirst()
+                .orElse(null);
+        assertNotNull(bought, "item should land in bagslot " + bagSlot);
     }
 
     private static WowClientDouble login(World world, String name) {

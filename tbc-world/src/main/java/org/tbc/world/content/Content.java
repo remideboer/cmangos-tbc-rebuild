@@ -230,10 +230,11 @@ public final class Content {
         }
         long vendor = in.getU64();
         int itemId = in.getU32();
+        int requestedSlot = -1;
         if (inSlot) {
             if (in.remaining() >= 9) {
                 in.getU64();
-                in.getU8();
+                requestedSlot = in.getU8() & 0xFF;
             }
         }
         int count = in.remaining() > 0 ? Math.max(1, in.getU8()) : 1;
@@ -254,7 +255,10 @@ public final class Content {
             send.accept(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE, encodeEquipErr(EQUIP_ERR_NOT_ENOUGH_MONEY));
             return;
         }
-        int slot = nextBackpackSlot(p);
+        int slot = requestedSlot;
+        if (slot < BACKPACK_START || slot >= BACKPACK_END || slotOccupied(p, slot)) {
+            slot = nextBackpackSlot(p);
+        }
         if (slot < 0) {
             return;
         }
@@ -385,18 +389,20 @@ public final class Content {
 
     static int nextBackpackSlot(Player p) {
         for (int slot = BACKPACK_START; slot < BACKPACK_END; slot++) {
-            boolean used = false;
-            for (Item it : p.items.values()) {
-                if (it.bag == 0 && it.slot == slot) {
-                    used = true;
-                    break;
-                }
-            }
-            if (!used) {
+            if (!slotOccupied(p, slot)) {
                 return slot;
             }
         }
         return -1;
+    }
+
+    static boolean slotOccupied(Player p, int slot) {
+        for (Item it : p.items.values()) {
+            if (it.bag == 0 && it.slot == slot) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static void writeLogField(Player p, int slot) {
