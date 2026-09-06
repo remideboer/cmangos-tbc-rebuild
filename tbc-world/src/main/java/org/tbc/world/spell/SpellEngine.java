@@ -93,6 +93,7 @@ public final class SpellEngine {
     public static final int EFFECT_OPEN_LOCK = 33;
     public static final int EFFECT_SUMMON_CHANGE_ITEM = 34;
     public static final int EFFECT_OPEN_LOCK_ITEM = 59;
+    public static final int EFFECT_ENCHANT_ITEM = 53;
     public static final int EFFECT_ENCHANT_HELD_ITEM = 92;
     public static final int EFFECT_CREATE_PET = 153;
     public static final int EFFECT_TRIGGER_SPELL = 64;
@@ -146,7 +147,7 @@ public final class SpellEngine {
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_TELEPORT_UNITS_FACE_CASTER, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
-            EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE, EFFECT_SUMMON_PET, EFFECT_SUMMON_CHANGE_ITEM,
+            EFFECT_ENCHANT_HELD_ITEM, EFFECT_ENCHANT_ITEM, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE, EFFECT_SUMMON_PET, EFFECT_SUMMON_CHANGE_ITEM,
             EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_TRIGGER_MISSILE, EFFECT_FORCE_CAST, EFFECT_FORCE_CAST_WITH_VALUE, EFFECT_TRIGGER_SPELL_WITH_VALUE, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_DUEL, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ACTIVATE_OBJECT, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
@@ -577,6 +578,11 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_ENCHANT_HELD_ITEM) {
             enchantHeldItem(target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_ENCHANT_ITEM) {
+            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
+            enchantItem(caster, item, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_PROSPECTING) {
@@ -1312,6 +1318,23 @@ public final class SpellEngine {
             return;
         }
         item.tempEnchant = enchantId;
+    }
+
+    /**
+     * Effect 53 — SPELL_EFFECT_ENCHANT_ITEM. CMaNGOS PERM_ENCHANTMENT_SLOT on itemTarget.
+     * Sharpen Blade 2605 misc enchant 1.
+     */
+    public void enchantItem(Unit caster, Item item, int enchantId) {
+        if (!(caster instanceof Player)) {
+            return;
+        }
+        if (item == null) {
+            return;
+        }
+        if (enchantId == 0) {
+            return;
+        }
+        item.enchant = enchantId;
     }
 
     /** SMSG_LOOT_RESPONSE 0x160: item guid + clientLootType 2. */
