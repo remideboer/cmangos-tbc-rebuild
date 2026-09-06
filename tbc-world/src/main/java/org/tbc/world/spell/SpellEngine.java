@@ -40,6 +40,7 @@ public final class SpellEngine {
     public static final int EFFECT_INSTAKILL = 1;
     public static final int EFFECT_SCHOOL_DAMAGE = 2;
     public static final int EFFECT_TELEPORT_UNITS = 5;
+    public static final int EFFECT_TELEPORT_UNITS_FACE_CASTER = 43;
     public static final int EFFECT_POWER_DRAIN = 8;
     public static final int EFFECT_HEALTH_LEECH = 9;
     public static final int EFFECT_HEAL = 10;
@@ -139,7 +140,7 @@ public final class SpellEngine {
     private static final double MAGIC_MISS = 0.04;
 
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
-            EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
+            EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_TELEPORT_UNITS_FACE_CASTER, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
             EFFECT_ENCHANT_HELD_ITEM, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE, EFFECT_SUMMON_PET, EFFECT_SUMMON_CHANGE_ITEM,
             EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_TRIGGER_MISSILE, EFFECT_FORCE_CAST, EFFECT_FORCE_CAST_WITH_VALUE, EFFECT_TRIGGER_SPELL_WITH_VALUE, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
@@ -368,6 +369,10 @@ public final class SpellEngine {
             if (sp.id == 8690 && target instanceof Player p) {
                 teleportUnits(p, p.bindMap, p.bindX, p.bindY, p.bindZ, p.o);
             }
+            return 0;
+        }
+        if (sp.effect == EFFECT_TELEPORT_UNITS_FACE_CASTER) {
+            teleportUnitsFaceCaster(caster, target);
             return 0;
         }
         if (sp.effect == EFFECT_HEALTH_LEECH) {
@@ -763,6 +768,17 @@ public final class SpellEngine {
         }
         target.mapId = mapId;
         target.relocate(x, y, z, o);
+    }
+
+    /**
+     * Effect 43 — SPELL_EFFECT_TELEPORT_UNITS_FACE_CASTER. CMaNGOS NearTeleportTo dest
+     * facing -caster orientation. Summon Player 20279. Dest stand-in is caster xyz.
+     */
+    public void teleportUnitsFaceCaster(Unit caster, Unit target) {
+        if (caster == null || target == null) {
+            return;
+        }
+        teleportUnits(target, target.mapId, caster.x, caster.y, caster.z, -caster.o);
     }
 
     /**
