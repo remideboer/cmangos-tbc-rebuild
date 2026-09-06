@@ -34,11 +34,27 @@ public class Unit extends Entity {
     public MovementInfo movement = new MovementInfo();
     public long victim;
     public boolean inCombat;
+    private int extraAttacks;
 
     /** CMaNGOS Unit::CombatStop — leave combat, clear victim. */
     public void combatStop() {
         inCombat = false;
         victim = 0;
+    }
+
+    public int extraAttacks() {
+        return extraAttacks;
+    }
+
+    /** CMaNGOS m_extraAttacks += damage, cap 5. */
+    public void addExtraAttacks(int count) {
+        if (!alive() || count <= 0) {
+            return;
+        }
+        extraAttacks += count;
+        if (extraAttacks > 5) {
+            extraAttacks = 5;
+        }
     }
 
     public int level = 1;
