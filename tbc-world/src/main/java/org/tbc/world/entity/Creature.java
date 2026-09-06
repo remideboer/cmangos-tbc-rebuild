@@ -49,6 +49,8 @@ public final class Creature extends Unit {
     public static final int IDLE_UPDATE_MS = 500;
     public static final int RANDOM_UPDATE_MS = 250;
     public int nextUpdateMs;
+    /** Caster guid when SPELL_AURA_MIRROR_IMAGE is active (spell.md CMSG_GET_MIRRORIMAGE_DATA). */
+    public long mirrorImageCasterGuid;
 
     public Creature() {
         super(UpdateFields.UNIT_END, TYPEID_UNIT);

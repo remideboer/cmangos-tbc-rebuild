@@ -41,6 +41,8 @@ public final class WorldSession {
     public static final int STATUS_LOGGEDIN = 2;
     public static final float MELEE_RANGE = 5f;
     public static final int MAX_SHEATH_STATE = 3;
+    /** Netherstorm mirror-image aura spell used as SPELL_AURA_MIRROR_IMAGE marker (TP-SL26-006). */
+    public static final int SPELL_MIRROR_IMAGE = 36847;
     /** CMSG_LOGOUT_REQUEST sit timer (`ShouldLogOut` = request + 20 s). */
     public static final int LOGOUT_DELAY_MS = 20_000;
     /** TCP close (`ShouldDisconnect` = request + 60 s). C++ comment says 20; follow 60. */
@@ -317,6 +319,7 @@ public final class WorldSession {
             case Opcodes.CMSG_SETSHEATHED -> handleSheath(in);
             case Opcodes.CMSG_STANDSTATECHANGE -> handleStandStateChange(in);
             case Opcodes.CMSG_UNLEARN_SKILL -> handleUnlearnSkill(in);
+            case Opcodes.CMSG_GET_MIRRORIMAGE_DATA -> handleGetMirrorImageData(world, in);
             case Opcodes.CMSG_LOOT -> handleLoot(world, in);
             case Opcodes.CMSG_AUTOSTORE_LOOT_ITEM -> LootHandler.autostoreLootItem(this, world, in);
             case Opcodes.CMSG_LOOT_MONEY -> LootHandler.lootMoney(this, world);
@@ -937,6 +940,50 @@ public final class WorldSession {
             return;
         }
         player.unlearnSkill(in.getU32());
+    }
+
+    /** spell.md CMSG_GET_MIRRORIMAGE_DATA — SMSG_MIRRORIMAGE_DATA (CMaNGOS HandleGetMirrorimageData). */
+    private void handleGetMirrorImageData(World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Creature clone = world.map(player.mapId, player.instanceId).creatures.get(guid);
+        if (clone == null) {
+            return;
+        }
+        if (clone.auras.stream().noneMatch(a -> a.spellId() == SPELL_MIRROR_IMAGE)) {
+            return;
+        }
+        Player caster = world.playerByGuid(clone.mirrorImageCasterGuid);
+        WowBuffer out = new WowBuffer(68);
+        out.putU64(guid);
+        out.putU32(clone.getInt(UpdateFields.UNIT_FIELD_DISPLAYID));
+        int bytes0 = clone.getInt(UpdateFields.UNIT_FIELD_BYTES_0);
+        out.putU8(bytes0 & 0xFF);
+        out.putU8((bytes0 >> 16) & 0xFF);
+        if (caster != null) {
+            out.putU8(caster.skin & 0xFF);
+            out.putU8(caster.face & 0xFF);
+            out.putU8(caster.hairStyle & 0xFF);
+            out.putU8(caster.hairColor & 0xFF);
+            out.putU8(caster.facialHair & 0xFF);
+            out.putU32(caster.guildId);
+            for (int i = 0; i < 11; i++) {
+                out.putU32(0);
+            }
+        } else {
+            out.putU8(0);
+            out.putU8(0);
+            out.putU8(0);
+            out.putU8(0);
+            out.putU8(0);
+            out.putU32(0);
+            for (int i = 0; i < 11; i++) {
+                out.putU32(0);
+            }
+        }
+        send(Opcodes.SMSG_MIRRORIMAGE_DATA, out.array());
     }
 
     private void handleAttackStop(World world) {

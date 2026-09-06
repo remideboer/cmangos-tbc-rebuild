@@ -147,6 +147,45 @@ class Slice26P0Test {
         assertTrue(p.hasSkill(98));
     }
 
+    @Test
+    void tpSl26MirrorImageData() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Caster");
+        Player p = client.session().player();
+        p.skin = 2;
+        p.face = 3;
+        p.hairStyle = 4;
+        p.hairColor = 5;
+        p.facialHair = 6;
+        p.displayId = 49;
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_BYTES,
+                (p.skin & 0xFF) | ((p.face & 0xFF) << 8) | ((p.hairStyle & 0xFF) << 16) | ((p.hairColor & 0xFF) << 24));
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_BYTES_2, p.facialHair & 0xFF);
+        org.tbc.world.entity.Creature clone = new org.tbc.world.entity.Creature();
+        clone.guid = 500L;
+        clone.applyTemplate(1, "Image", 49, 35, 100, 70);
+        clone.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BYTES_0,
+                (p.race & 0xFF) | ((p.clazz & 0xFF) << 8) | ((p.gender & 0xFF) << 16));
+        clone.auras.add(new org.tbc.world.entity.Unit.Aura(36847, 0, 1));
+        clone.mirrorImageCasterGuid = p.guid;
+        world.map(p.mapId, p.instanceId).creatures.put(clone.guid, clone);
+        client.clear();
+        WowBuffer req = new WowBuffer(8);
+        req.putU64(clone.guid);
+        client.handle(world, Opcodes.CMSG_GET_MIRRORIMAGE_DATA, req.array());
+        byte[] data = lastPayload(client, Opcodes.SMSG_MIRRORIMAGE_DATA);
+        assertEquals(clone.guid, WowClientDouble.u64le(data, 0));
+        assertEquals(49, WowClientDouble.u32le(data, 8));
+        assertEquals(p.race & 0xFF, data[12] & 0xFF);
+        assertEquals(p.gender & 0xFF, data[13] & 0xFF);
+        assertEquals(2, data[14] & 0xFF);
+        assertEquals(3, data[15] & 0xFF);
+        assertEquals(4, data[16] & 0xFF);
+        assertEquals(5, data[17] & 0xFF);
+        assertEquals(6, data[18] & 0xFF);
+        assertEquals(0, WowClientDouble.u32le(data, 19));
+    }
+
     private static WowClientDouble login(World world, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);
