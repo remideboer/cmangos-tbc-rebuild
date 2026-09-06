@@ -34,6 +34,7 @@ public final class SpellEngine {
     public static final int SPELL_CAST_OK = 0xFF;
     public static final int EFFECT_INSTAKILL = 1;
     public static final int EFFECT_SCHOOL_DAMAGE = 2;
+    public static final int EFFECT_POWER_DRAIN = 8;
     public static final int EFFECT_HEALTH_LEECH = 9;
     public static final int EFFECT_HEAL = 10;
     public static final int EFFECT_HEAL_MAX_HEALTH = 67;
@@ -59,7 +60,7 @@ public final class SpellEngine {
             EFFECT_SCHOOL_DAMAGE, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
-            EFFECT_HEALTH_LEECH);
+            EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -182,6 +183,9 @@ public final class SpellEngine {
         if (sp.effect == EFFECT_HEALTH_LEECH) {
             return healthLeech(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
         }
+        if (sp.effect == EFFECT_POWER_DRAIN) {
+            return powerDrain(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+        }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
         }
@@ -269,6 +273,22 @@ public final class SpellEngine {
             caster.setHealth(caster.health() + dealt);
         }
         return dealt;
+    }
+
+    /**
+     * Effect 8 — SPELL_EFFECT_POWER_DRAIN. CMaNGOS EffectPowerDrain: take power from
+     * living target; EnergizeBySpell caster only when caster != target.
+     */
+    public int powerDrain(Unit caster, Unit target, int amount) {
+        if (caster == null || target == null || !target.alive() || amount <= 0) {
+            return 0;
+        }
+        int taken = Math.min(amount, target.power());
+        target.setPower(target.power() - taken);
+        if (caster != target) {
+            caster.setPower(caster.power() + taken);
+        }
+        return taken;
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
