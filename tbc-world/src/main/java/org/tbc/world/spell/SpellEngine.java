@@ -66,6 +66,7 @@ public final class SpellEngine {
     public static final int EFFECT_QUEST_FAIL = 147;
     public static final int EFFECT_DUMMY = 3;
     public static final int EFFECT_SCRIPT = 77;
+    public static final int EFFECT_SELF_RESURRECT = 94;
     public static final int CAST_FLAG_UNKNOWN2 = 0x2;
     public static final int CAST_FLAG_UNKNOWN9 = 0x100;
     public static final int FIREBALL = 133;
@@ -81,7 +82,7 @@ public final class SpellEngine {
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
             EFFECT_POWER_BURN, EFFECT_THREAT, EFFECT_HEAL_PCT, EFFECT_ENERGIZE_PCT, EFFECT_INEBRIATE,
-            EFFECT_QUEST_FAIL);
+            EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -267,6 +268,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_QUEST_FAIL) {
             questFail(target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_SELF_RESURRECT) {
+            selfResurrect(caster, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -547,6 +552,21 @@ public final class SpellEngine {
             return;
         }
         p.failQuest(questId);
+    }
+
+    /**
+     * Effect 94 — SPELL_EFFECT_SELF_RESURRECT. CMaNGOS: player caster, percent of max HP.
+     * Soulstone is for dead/ghost.
+     */
+    public void selfResurrect(Unit caster, int pct) {
+        if (!(caster instanceof Player p) || pct <= 0) {
+            return;
+        }
+        if (p.alive() && !p.ghost) {
+            return;
+        }
+        p.setGhost(false);
+        p.setHealth(p.maxHealth() * pct / 100);
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
