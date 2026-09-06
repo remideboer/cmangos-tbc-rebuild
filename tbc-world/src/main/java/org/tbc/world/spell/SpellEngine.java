@@ -69,6 +69,7 @@ public final class SpellEngine {
     public static final int EFFECT_PULL_TOWARDS = 124;
     public static final int EFFECT_PULL_TOWARDS_DEST = 145;
     public static final int EFFECT_STEAL_BENEFICIAL_BUFF = 126;
+    public static final int EFFECT_PROSPECTING = 127;
     public static final int EFFECT_LEAP = 29;
     public static final int EFFECT_LEAP_BACK = 138;
     public static final int EFFECT_KILL_CREDIT_GROUP = 134;
@@ -129,7 +130,7 @@ public final class SpellEngine {
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
-            EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_UNLEARN_SPECIALIZATION,
+            EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_PROSPECTING, EFFECT_UNLEARN_SPECIALIZATION,
             EFFECT_LEAP);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
@@ -418,6 +419,11 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_CHARGE_DEST) {
             chargeDest(caster, sp.maxRange);
+            return 0;
+        }
+        if (sp.effect == EFFECT_PROSPECTING) {
+            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
+            prospecting(caster, item);
             return 0;
         }
         if (sp.effect == EFFECT_DISENCHANT) {
@@ -1060,6 +1066,22 @@ public final class SpellEngine {
         float destY = caster.y + dist * (float) Math.sin(caster.o);
         float o = (float) Math.atan2(destY - caster.y, destX - caster.x);
         caster.relocate(destX, destY, caster.z, o);
+    }
+
+    /**
+     * Effect 127 — SPELL_EFFECT_PROSPECTING. CMaNGOS player caster, itemTarget ShowContentTo.
+     * Prospecting 31252. Item loot clientLootType PICKPOCKETING (2).
+     */
+    public void prospecting(Unit caster, Item item) {
+        if (!(caster instanceof Player p) || item == null) {
+            return;
+        }
+        p.showProspectingLoot(item.guid);
+    }
+
+    /** SMSG_LOOT_RESPONSE 0x160: item guid + clientLootType 2. */
+    public static byte[] encodeProspectingLoot(long guid) {
+        return encodeSkinningLoot(guid);
     }
 
     /**
