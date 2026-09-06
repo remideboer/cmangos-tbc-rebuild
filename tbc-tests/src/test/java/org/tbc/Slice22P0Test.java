@@ -75,6 +75,20 @@ class Slice22P0Test {
         assertTrue(a.saw(Opcodes.SMSG_DUEL_OUTOFBOUNDS));
     }
 
+    @Test
+    void tpSl22SetTitleWhenKnownShouldSetChosenTitle() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Titled");
+        Player p = client.session().player();
+        p.knownTitles.add(1);
+        client.clear();
+        WowBuffer in = new WowBuffer(4);
+        in.putU32(1);
+        client.handle(world, Opcodes.CMSG_SET_TITLE, in.array());
+        assertEquals(1, p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_CHOSEN_TITLE));
+        assertTrue(client.saw(Opcodes.SMSG_UPDATE_OBJECT) || client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);

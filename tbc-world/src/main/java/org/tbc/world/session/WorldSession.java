@@ -384,6 +384,22 @@ public final class WorldSession {
             case Opcodes.CMSG_INSPECT -> handleInspect(in);
             case Opcodes.CMSG_DUEL_ACCEPTED -> handleDuel(world);
             case Opcodes.CMSG_TOGGLE_PVP -> player.pvpFlagged = !player.pvpFlagged;
+            case Opcodes.CMSG_SET_TITLE -> {
+                int title = in.remaining() >= 4 ? in.getU32() : 0;
+                // HandleSetTitleOpcode — title>0 && <64 require known; else clear to 0.
+                if (title > 0 && title < 64) {
+                    if (!player.knownTitles.contains(title)) {
+                        return;
+                    }
+                } else {
+                    title = 0;
+                }
+                player.setInt(UpdateFields.PLAYER_CHOSEN_TITLE, title);
+                player.selectedTitle = title;
+                var upd = UpdateBuilder.maybeCompress(
+                        UpdateBuilder.values(player, UpdateFields.PLAYER_CHOSEN_TITLE));
+                send(upd.opcode(), upd.payload());
+            }
             case Opcodes.CMSG_OPEN_ITEM -> InventoryHandler.openItem(this, in);
             case Opcodes.MSG_PVP_LOG_DATA -> sendPvpLog();
             default -> handleRest(world, opcode, in);
