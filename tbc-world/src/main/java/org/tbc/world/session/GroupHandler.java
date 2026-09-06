@@ -96,6 +96,65 @@ public final class GroupHandler {
         }
     }
 
+    /** GroupHandler.cpp HandleRaidTargetUpdateOpcode (group.md). */
+    public static void raidTargetUpdate(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        Group g = p.group;
+        if (g == null || in.remaining() < 1) {
+            return;
+        }
+        int x = in.getU8() & 0xFF;
+        if (x == 0xFF) {
+            sendTargetIconList(s, g);
+            return;
+        }
+        if (!canManageRaid(p, g)) {
+            return;
+        }
+        if (in.remaining() < 8) {
+            return;
+        }
+        long target = in.getU64();
+        setTargetIcon(g, x, target);
+    }
+
+    private static void setTargetIcon(Group g, int id, long targetGuid) {
+        if (id < 0 || id >= g.icons.length) {
+            return;
+        }
+        if (targetGuid != 0) {
+            for (int i = 0; i < g.icons.length; i++) {
+                if (i != id && g.icons[i] == targetGuid) {
+                    setTargetIcon(g, i, 0);
+                }
+            }
+        }
+        g.icons[id] = targetGuid;
+        WowBuffer data = new WowBuffer(10);
+        data.putU8(0);
+        data.putU8(id);
+        data.putU64(targetGuid);
+        byte[] payload = data.array();
+        for (Player m : g.members) {
+            if (m.session != null) {
+                m.session.send(Opcodes.MSG_RAID_TARGET_UPDATE, payload);
+            }
+        }
+    }
+
+    private static void sendTargetIconList(WorldSession s, Group g) {
+        WowBuffer data = new WowBuffer(1 + g.icons.length * 9);
+        data.putU8(1);
+        for (int i = 0; i < g.icons.length; i++) {
+            if (g.icons[i] == 0) {
+                continue;
+            }
+            data.putU8(i);
+            data.putU64(g.icons[i]);
+        }
+        s.send(Opcodes.MSG_RAID_TARGET_UPDATE, data.array());
+    }
+
     public static void requestRaidInfo(WorldSession s) {
         WowBuffer data = new WowBuffer(4);
         data.putU32(0);

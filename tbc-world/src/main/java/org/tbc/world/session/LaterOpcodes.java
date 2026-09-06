@@ -105,6 +105,14 @@ public final class LaterOpcodes {
             }
             return true;
         }
+        if (opcode == Opcodes.MSG_SET_DUNGEON_DIFFICULTY) {
+            setDungeonDifficulty(s, p, in);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_LEAVE_BATTLEFIELD) {
+            leaveBattlefield(s, world, p, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_BATTLEFIELD_PORT) {
             if (in.remaining() > 0) {
                 in.getU8();
@@ -120,6 +128,12 @@ public final class LaterOpcodes {
             }
             int action = in.remaining() > 0 ? in.getU8() : 1;
             if (action == 1 && s.bgQueue != 0) {
+                p.bgEntryMap = p.mapId;
+                p.bgEntryX = p.x;
+                p.bgEntryY = p.y;
+                p.bgEntryZ = p.z;
+                p.bgEntryO = p.o;
+                p.hasBgEntry = true;
                 world.teleport(p, s.bgQueue, 0, 0, 0, 0);
                 if (s.bgQueue == 489) {
                     WowBuffer ws = new WowBuffer(24);
@@ -170,6 +184,10 @@ public final class LaterOpcodes {
         }
         if (opcode == Opcodes.MSG_RAID_READY_CHECK) {
             GroupHandler.readyCheck(s, in);
+            return true;
+        }
+        if (opcode == Opcodes.MSG_RAID_TARGET_UPDATE) {
+            GroupHandler.raidTargetUpdate(s, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_GUILD_CREATE) {
@@ -434,5 +452,83 @@ public final class LaterOpcodes {
             return false;
         }
         return false;
+    }
+
+    /** MiscHandler / BattleGroundHandler HandleLeaveBattlefieldOpcode (battleground.md). */
+    private static void leaveBattlefield(WorldSession s, World world, Player p, WowBuffer in) {
+        if (in.remaining() >= 8) {
+            long packedBg = in.getU64();
+            int bgTypeId = (int) ((packedBg & 0x0000FFFFFFFF0000L) >> 16);
+            if (bgTypeId >= 9) {
+                return;
+            }
+        }
+        if (p.mapId != 489 && p.mapId != 559 && p.mapId != 562 && p.mapId != 572) {
+            return;
+        }
+        // STATUS_WAIT_LEAVE not modeled yet — combat always blocks leave (CMaNGOS).
+        if (p.inCombat) {
+            return;
+        }
+        if (!p.hasBgEntry) {
+            return;
+        }
+        int map = p.bgEntryMap;
+        float x = p.bgEntryX;
+        float y = p.bgEntryY;
+        float z = p.bgEntryZ;
+        float o = p.bgEntryO;
+        p.hasBgEntry = false;
+        s.bgQueue = 0;
+        world.teleport(p, map, x, y, z, o);
+    }
+
+    /** MiscHandler.cpp HandleSetDungeonDifficultyOpcode + SendDungeonDifficulty (instance.md). */
+    private static void setDungeonDifficulty(WorldSession s, Player p, WowBuffer in) {
+        if (in.remaining() < 4) {
+            return;
+        }
+        int mode = in.getU32();
+        if (mode >= 2) {
+            return;
+        }
+        if (mode == p.difficulty) {
+            return;
+        }
+        if (p.instanceId != 0) {
+            return;
+        }
+        if (p.level < 70 && mode > 0) {
+            return;
+        }
+        Group g = p.group;
+        if (g != null) {
+            if (g.leaderGuid != p.guid) {
+                return;
+            }
+            g.instanceId = 0;
+            g.bindMap = 0;
+            g.difficulty = mode;
+            for (Player m : g.members) {
+                if (m.level < 70) {
+                    continue;
+                }
+                m.difficulty = mode;
+                if (m.session != null) {
+                    m.session.send(Opcodes.MSG_SET_DUNGEON_DIFFICULTY, difficultyPacket(mode, true));
+                }
+            }
+            return;
+        }
+        p.difficulty = mode;
+        s.send(Opcodes.MSG_SET_DUNGEON_DIFFICULTY, difficultyPacket(mode, false));
+    }
+
+    private static byte[] difficultyPacket(int mode, boolean inGroup) {
+        WowBuffer b = new WowBuffer(12);
+        b.putU32(mode);
+        b.putU32(1);
+        b.putU32(inGroup ? 1 : 0);
+        return b.array();
     }
 }

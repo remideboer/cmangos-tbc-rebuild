@@ -51,7 +51,14 @@ public final class Player extends Unit {
     public int cinematic;
     public int atLogin;
     public int difficulty;
+    /** CMaNGOS m_bgData.joinPos — saved when porting into a BG. */
+    public int bgEntryMap;
+    public float bgEntryX, bgEntryY, bgEntryZ, bgEntryO;
+    public boolean hasBgEntry;
     public int guildId;
+    /** CMaNGOS m_enteredInstances — account hourly new-instance cap (Player.h). */
+    public static final int NEW_INSTANCE_LIMIT_PER_HOUR = 5;
+    public final java.util.Map<Integer, Long> enteredInstances = new java.util.HashMap<>();
     public int guildIdInvited;
     public int guildRank;
     public int guildRankRights;
@@ -462,5 +469,25 @@ public final class Player extends Unit {
 
     public int gossipActionPoi(int listId) {
         return gossipActionPois[listId];
+    }
+
+    /** CMaNGOS Player::CanEnterNewInstance — GM skip; re-enter same id free; else size < 5/hour. */
+    public boolean canEnterNewInstance(int instanceId) {
+        if (gmLevel > 0) {
+            return true;
+        }
+        long now = System.currentTimeMillis();
+        enteredInstances.entrySet().removeIf(e -> e.getValue() < now);
+        if (enteredInstances.containsKey(instanceId)) {
+            return true;
+        }
+        return enteredInstances.size() < NEW_INSTANCE_LIMIT_PER_HOUR;
+    }
+
+    /** CMaNGOS Player::AddNewInstanceId — records id for one hour. */
+    public void addNewInstanceId(int instanceId) {
+        if (!enteredInstances.containsKey(instanceId)) {
+            enteredInstances.put(instanceId, System.currentTimeMillis() + 3_600_000L);
+        }
     }
 }

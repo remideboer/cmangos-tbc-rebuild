@@ -435,6 +435,26 @@ public final class World implements Runnable {
         }
     }
 
+    /** CMaNGOS UnitAI::EnterEvadeMode → CombatStop / SendMeleeAttackStop + full health VALUES. */
+    private void enterEvadeMode(GameMap m, Creature c, EventAi.SpellCast sink) {
+        long victimGuid = c.victim;
+        combat.evade(c, sink);
+        byte[] stop = victimGuid != 0 ? combat.encodeAttackStop(c.guid, victimGuid, false) : null;
+        var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
+        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+            if (pl.session == null) {
+                continue;
+            }
+            if (stop != null) {
+                pl.session.send(Opcodes.SMSG_ATTACKSTOP, stop);
+            }
+            pl.session.send(hp.opcode(), hp.payload());
+        }
+        if (!c.evading) {
+            c.startOocMotion();
+        }
+    }
+
     public void creatureMeleeHit(Creature c, Player p) {
         GameMap hitMap = map(p.mapId, p.instanceId);
         MeleeTable.Result r = combat.swing(c, p, nowMs(), (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
@@ -521,27 +541,14 @@ public final class World implements Runnable {
                 if (c.inCombat) {
                     Player leashVictim = m.players.get(c.victim);
                     if (combat.shouldEvade(c, leashVictim, nowMs())) {
-                        combat.evade(c, sink);
-                        if (!c.evading) {
-                            c.startOocMotion();
-                        }
+                        enterEvadeMode(m, c, sink);
                     }
                 }
                 Player victim = m.players.get(c.victim);
                 if (c.ai != null) {
-                    c.ai.update(c, victim, diff, sink, () -> {
-                        combat.evade(c, sink);
-                        if (!c.evading) {
-                            c.startOocMotion();
-                        }
-                    });
+                    c.ai.update(c, victim, diff, sink, () -> enterEvadeMode(m, c, sink));
                 } else if (c.eventAi != null) {
-                    c.eventAi.update(c, victim, diff, sink, () -> {
-                        combat.evade(c, sink);
-                        if (!c.evading) {
-                            c.startOocMotion();
-                        }
-                    });
+                    c.eventAi.update(c, victim, diff, sink, () -> enterEvadeMode(m, c, sink));
                 }
                 if (c.script != null && c.inCombat && !(c.ai instanceof ScriptedCreatureAI)) {
                     Unit scriptVictim = m.players.values().stream().findFirst().orElse(null);

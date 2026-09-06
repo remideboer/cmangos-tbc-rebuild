@@ -399,13 +399,22 @@ public final class WorldSession {
             if (at != null) {
                 int inst = 0;
                 if (at.map() != 0 && at.map() != 1 && at.map() != 530) {
-                    inst = player.group != null && player.group.bindMap == at.map() && player.group.instanceId != 0
-                            ? player.group.instanceId : world.allocInstance();
+                    boolean reuse = player.group != null && player.group.bindMap == at.map()
+                            && player.group.instanceId != 0;
+                    inst = reuse ? player.group.instanceId : world.allocInstance();
+                    if (!player.canEnterNewInstance(inst)) {
+                        WowBuffer abort = new WowBuffer(5);
+                        abort.putU32(at.map());
+                        abort.putU8(0x03);
+                        send(Opcodes.SMSG_TRANSFER_ABORTED, abort.array());
+                        return;
+                    }
                     if (player.group != null) {
                         player.group.bindMap = at.map();
                         player.group.instanceId = inst;
                     }
                     player.instanceId = inst;
+                    player.addNewInstanceId(inst);
                 } else {
                     player.instanceId = 0;
                 }

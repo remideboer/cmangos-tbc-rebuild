@@ -412,6 +412,12 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_RESET_INSTANCES, new byte[0]);
     }
 
+    public void setDungeonDifficulty(World world, int mode) {
+        WowBuffer b = new WowBuffer(4);
+        b.putU32(mode);
+        handle(world, Opcodes.MSG_SET_DUNGEON_DIFFICULTY, b.array());
+    }
+
     public void battlemasterJoin(World world) {
         WowBuffer b = new WowBuffer(17);
         b.putU64(0);
@@ -468,6 +474,13 @@ public final class WowClientDouble implements PacketSink {
         b.putU16(0x1F90);
         b.putU8(action);
         handle(world, Opcodes.CMSG_BATTLEFIELD_PORT, b.array());
+    }
+
+    /** CMSG_LEAVE_BATTLEFIELD — packedBg encodes bgTypeId in bits 16–47 (battleground.md). */
+    public void leaveBattlefield(World world, int bgTypeId) {
+        WowBuffer b = new WowBuffer(8);
+        b.putU64(((long) bgTypeId) << 16);
+        handle(world, Opcodes.CMSG_LEAVE_BATTLEFIELD, b.array());
     }
 
     public static long u64le(byte[] p, int off) {

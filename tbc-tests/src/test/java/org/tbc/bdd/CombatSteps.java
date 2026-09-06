@@ -35,8 +35,26 @@ public class CombatSteps {
         client.login(world, created.guid);
         kobold = find(entry);
         Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
         p.relocate(kobold.x, kobold.y, kobold.z, kobold.o);
-        world.map(p.mapId, p.instanceId).add(p);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+    }
+
+    @Given("the kobold respawn delay is {int} ms")
+    public void koboldRespawnDelay(int ms) {
+        kobold.respawnDelayMs = ms;
+    }
+
+    @Then("the kobold is alive with full health")
+    public void koboldAliveFullHealth() {
+        assertTrue(kobold.alive());
+        assertEquals(kobold.maxHealth(), kobold.health());
+    }
+
+    @Then("the server has sent an update object for unit health")
+    public void sawHealthUpdate() {
+        assertTrue(client.saw(Opcodes.SMSG_UPDATE_OBJECT) || client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
     }
 
     @And("the player has an offhand weapon")
@@ -64,7 +82,10 @@ public class CombatSteps {
     @Given("the player is {int} yards from the kobold")
     public void attackerYardsFromKobold(int yards) {
         Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
         p.relocate(kobold.x + yards, kobold.y, kobold.z, kobold.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
     }
 
     @When("{int} ms elapse on the world")
@@ -231,9 +252,45 @@ public class CombatSteps {
     @When("the player runs past the {int} yard leash")
     public void runPastLeash(int yards) {
         Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
         p.relocate(kobold.spawnX + yards + 5, kobold.spawnY, kobold.spawnZ, 0);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
         client.clear();
         world.tick(50);
+    }
+
+    @Then("SMSG_ATTACKSTOP is the kobold stopping attack on the player")
+    public void attackStopKoboldOnPlayer() {
+        Player p = client.session().player();
+        boolean saw = false;
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKSTOP) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            int off = 0;
+            long attacker = packedGuid(payload, off);
+            off = WowClientDouble.skipPackedGuid(payload, off);
+            long victim = packedGuid(payload, off);
+            off = WowClientDouble.skipPackedGuid(payload, off);
+            int nowDead = WowClientDouble.u32le(payload, off);
+            if (attacker == kobold.guid && victim == p.guid && nowDead == 0) {
+                saw = true;
+            }
+        }
+        assertTrue(saw);
+    }
+
+    private static long packedGuid(byte[] p, int off) {
+        int mask = p[off++] & 0xFF;
+        long g = 0;
+        for (int i = 0; i < 8; i++) {
+            if ((mask & (1 << i)) != 0) {
+                g |= (long) (p[off++] & 0xFF) << (8 * i);
+            }
+        }
+        return g;
     }
 
     @Then("the kobold is at spawn with full health and an empty threat list")

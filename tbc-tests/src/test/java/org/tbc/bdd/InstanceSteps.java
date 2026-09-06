@@ -123,4 +123,74 @@ public class InstanceSteps {
         assertTrue(alpha.saw(Opcodes.SMSG_NEW_WORLD));
         assertEquals(map, WowClientDouble.u32le(alpha.payload(Opcodes.SMSG_NEW_WORLD), 0));
     }
+
+    @Given("Alpha is level {int}")
+    public void alphaLevel(int level) {
+        alpha.session().player().level = level;
+        // Solo difficulty path (Background starts grouped).
+        alpha.session().player().group = null;
+        bravo.session().player().group = null;
+    }
+
+    @When("Alpha sets dungeon difficulty to {int}")
+    public void alphaSetDifficulty(int mode) {
+        alpha.clear();
+        alpha.setDungeonDifficulty(world, mode);
+    }
+
+    @Then("Alpha difficulty is {int}")
+    public void alphaDifficulty(int mode) {
+        assertEquals(mode, alpha.session().player().difficulty);
+    }
+
+    @And("Alpha received MSG_SET_DUNGEON_DIFFICULTY mode {int} inGroup {int}")
+    public void alphaDifficultyEcho(int mode, int inGroup) {
+        byte[] p = alpha.payload(Opcodes.MSG_SET_DUNGEON_DIFFICULTY);
+        assertEquals(12, p.length);
+        assertEquals(mode, WowClientDouble.u32le(p, 0));
+        assertEquals(1, WowClientDouble.u32le(p, 4));
+        assertEquals(inGroup, WowClientDouble.u32le(p, 8));
+    }
+
+    @Given("Alpha is a non-GM player")
+    public void alphaNonGm() {
+        alpha.session().player().gmLevel = 0;
+        alpha.session().player().group = null;
+        bravo.session().player().group = null;
+    }
+
+    @When("Alpha enters five new Ragefire instances then leaves each")
+    public void fiveEnters() {
+        Player p = alpha.session().player();
+        for (int i = 0; i < 5; i++) {
+            alpha.clear();
+            alpha.areaTrigger(world, 2230);
+            alpha.worldportAck(world);
+            assertEquals(389, p.mapId);
+            world.teleport(p, 0, -8949f, -132f, 83f, 0f);
+            p.instanceId = 0;
+        }
+        assertEquals(5, p.enteredInstances.size());
+    }
+
+    @When("Alpha enters Ragefire trigger {int} again")
+    public void alphaEnterAgain(int trigger) {
+        alpha.clear();
+        alpha.areaTrigger(world, trigger);
+    }
+
+    @Then("Alpha received SMSG_TRANSFER_ABORTED for map {int} reason {int}")
+    public void transferAborted(int map, int reason) {
+        assertTrue(alpha.saw(Opcodes.SMSG_TRANSFER_ABORTED));
+        byte[] p = alpha.payload(Opcodes.SMSG_TRANSFER_ABORTED);
+        assertEquals(5, p.length);
+        assertEquals(map, WowClientDouble.u32le(p, 0));
+        assertEquals(reason, p[4] & 0xFF);
+    }
+
+    @When("Alpha leaves the battlefield type {int}")
+    public void leaveBattlefield(int bgTypeId) {
+        alpha.clear();
+        alpha.leaveBattlefield(world, bgTypeId);
+    }
 }

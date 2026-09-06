@@ -375,5 +375,41 @@ class Slice15P0Test {
         throw new AssertionError("no guild charter");
     }
 
+    @Test
+    void tpSl15RaidTargetIconSetAndList() {
+        World world = World.inMemory();
+        WowClientDouble a = new WowClientDouble();
+        WowClientDouble b = new WowClientDouble();
+        a.connect(ACC_A);
+        b.connect(ACC_B);
+        Player pa = world.characters.create(ACC_A.id(), "Lead", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player pb = world.characters.create(ACC_B.id(), "Mark", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        a.login(world, pa.guid);
+        b.login(world, pb.guid);
+        a.groupInvite(world, "Mark");
+        b.groupAccept(world);
+        a.clear();
+        b.clear();
+        WowBuffer set = new WowBuffer(9);
+        set.putU8(0);
+        set.putU64(pb.guid);
+        a.handle(world, Opcodes.MSG_RAID_TARGET_UPDATE, set.array());
+        byte[] toA = lastPayload(a, Opcodes.MSG_RAID_TARGET_UPDATE);
+        byte[] toB = lastPayload(b, Opcodes.MSG_RAID_TARGET_UPDATE);
+        assertEquals(0, toA[0] & 0xFF);
+        assertEquals(0, toA[1] & 0xFF);
+        assertEquals(pb.guid, WowClientDouble.u64le(toA, 2));
+        assertEquals(0, toB[0] & 0xFF);
+        assertEquals(pb.guid, WowClientDouble.u64le(toB, 2));
+        a.clear();
+        WowBuffer list = new WowBuffer(1);
+        list.putU8(0xFF);
+        a.handle(world, Opcodes.MSG_RAID_TARGET_UPDATE, list.array());
+        byte[] listed = lastPayload(a, Opcodes.MSG_RAID_TARGET_UPDATE);
+        assertEquals(1, listed[0] & 0xFF);
+        assertEquals(0, listed[1] & 0xFF);
+        assertEquals(pb.guid, WowClientDouble.u64le(listed, 2));
+    }
+
     private record Pair(World world, WowClientDouble a, WowClientDouble b) {}
 }

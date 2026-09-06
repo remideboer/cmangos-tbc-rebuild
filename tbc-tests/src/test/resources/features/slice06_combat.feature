@@ -49,6 +49,21 @@ Feature: Slice 6 melee combat and loot
     And the server has sent SMSG_LOOT_CLEAR_MONEY
     And the server has not sent SMSG_LOOT_MONEY_NOTIFY
 
+  @tp-sl06-008
+  Scenario: Corpse respawns after delay with health update
+    Given the kobold respawn delay is 1 ms
+    When the player auto-attacks until the kobold is dead
+    And 50 ms elapse on the world
+    Then the kobold is alive with full health
+    And the server has sent an update object for unit health
+
+  @tp-sl06-009
+  Scenario: Leash evade sends attack stop and health update
+    Given the player is in combat with the kobold
+    When the player runs past the 30 yard leash
+    Then SMSG_ATTACKSTOP is the kobold stopping attack on the player
+    And the server has sent an update object for unit health
+
   @negative
   Scenario: Living creature has no loot window
     When the player loots the living kobold

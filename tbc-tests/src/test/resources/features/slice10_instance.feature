@@ -29,3 +29,27 @@ Feature: Slice 10 instances and WSG
     When Alpha ports into the battleground
     Then Alpha is on map 489
     And Alpha received SMSG_NEW_WORLD for map 489
+
+  @tp-sl10-004
+  Scenario: Solo sets dungeon difficulty to heroic
+    Given Alpha is level 70
+    When Alpha sets dungeon difficulty to 1
+    Then Alpha difficulty is 1
+    And Alpha received MSG_SET_DUNGEON_DIFFICULTY mode 1 inGroup 0
+
+  @tp-sl10-005
+  Scenario: Sixth new instance this hour is aborted
+    Given Alpha is a non-GM player
+    When Alpha enters five new Ragefire instances then leaves each
+    And Alpha enters Ragefire trigger 2230 again
+    Then Alpha received SMSG_TRANSFER_ABORTED for map 389 reason 3
+    And Alpha is on map 0
+
+  @tp-sl10-006
+  Scenario: Leave WSG returns to entry point
+    When Alpha joins the WSG queue
+    And Alpha ports into the battleground
+    Then Alpha is on map 489
+    When Alpha leaves the battlefield type 2
+    Then Alpha is on map 0
+    And Alpha received SMSG_NEW_WORLD for map 0
