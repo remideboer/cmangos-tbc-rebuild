@@ -100,6 +100,17 @@ public class Unit extends Entity {
         canDualWield = value;
     }
 
+    private boolean canParry;
+
+    public boolean canParry() {
+        return canParry;
+    }
+
+    /** CMaNGOS Unit::SetCanParry. Parry 3127. */
+    public void setCanParry(boolean value) {
+        canParry = value;
+    }
+
     /** CMaNGOS Unit::CombatStop — leave combat, clear victim. */
     public void combatStop() {
         inCombat = false;
