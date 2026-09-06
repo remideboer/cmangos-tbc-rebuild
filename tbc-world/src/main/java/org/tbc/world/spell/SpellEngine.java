@@ -102,6 +102,7 @@ public final class SpellEngine {
     public static final int EFFECT_CREATE_PET = 153;
     public static final int EFFECT_TRIGGER_SPELL = 64;
     public static final int EFFECT_TRIGGER_SPELL_2 = 151;
+    public static final int EFFECT_SUMMON_RAF_FRIEND = 152;
     public static final int EFFECT_FORCE_CAST = 140;
     public static final int EFFECT_FORCE_CAST_WITH_VALUE = 141;
     public static final int EFFECT_TRIGGER_SPELL_WITH_VALUE = 142;
@@ -152,7 +153,7 @@ public final class SpellEngine {
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_TELEPORT_UNITS_FACE_CASTER, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_APPLY_AREA_AURA_PARTY, EFFECT_WEAPON_DAMAGE,
             EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
             EFFECT_ENCHANT_HELD_ITEM, EFFECT_ENCHANT_ITEM, EFFECT_ENCHANT_ITEM_TEMPORARY, EFFECT_CREATE_PET, EFFECT_TAME_CREATURE, EFFECT_SUMMON_PET, EFFECT_SUMMON_CHANGE_ITEM,
-            EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_TRIGGER_MISSILE, EFFECT_FORCE_CAST, EFFECT_FORCE_CAST_WITH_VALUE, EFFECT_TRIGGER_SPELL_WITH_VALUE, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
+            EFFECT_TRIGGER_SPELL, EFFECT_TRIGGER_SPELL_2, EFFECT_SUMMON_RAF_FRIEND, EFFECT_TRIGGER_MISSILE, EFFECT_FORCE_CAST, EFFECT_FORCE_CAST_WITH_VALUE, EFFECT_TRIGGER_SPELL_WITH_VALUE, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_DUEL, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ACTIVATE_OBJECT, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_RESURRECT_NEW, EFFECT_SPIRIT_HEAL, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
@@ -279,6 +280,25 @@ public final class SpellEngine {
             return 0;
         }
         return apply(caster, target, nested);
+    }
+
+    /**
+     * Effect 152 — SPELL_EFFECT_SUMMON_RAF_FRIEND. CMaNGOS caster CastSpell on recruiting friend.
+     * Summon Friend 45927 SQL trigger is 48955 (later). Nested uses catalog. Fireball 133 vehicle.
+     */
+    public int summonRafFriend(Unit caster, int triggerSpellId) {
+        if (!(caster instanceof Player p)) {
+            return 0;
+        }
+        Player friend = p.recruitingFriend();
+        if (friend == null) {
+            return 0;
+        }
+        SpellInfo nested = info(triggerSpellId);
+        if (nested == null) {
+            return 0;
+        }
+        return apply(p, friend, nested);
     }
 
     /**
@@ -769,6 +789,9 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_TRIGGER_SPELL_2) {
             return triggerRitualOfSummoning(caster, target, sp.misc());
+        }
+        if (sp.effect == EFFECT_SUMMON_RAF_FRIEND) {
+            return summonRafFriend(caster, sp.misc());
         }
         if (sp.effect == EFFECT_FORCE_CAST) {
             return forceCast(target, sp.misc());

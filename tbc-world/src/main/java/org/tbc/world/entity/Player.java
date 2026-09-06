@@ -280,6 +280,7 @@ public final class Player extends Unit {
     public int taxiPath;
     private int lastPlayMusic;
     private int lastPlaySound;
+    private Player recruitingFriend;
     private int lastTotemCreatedSlot;
     private long lastTotemCreatedGuid;
     private long lastSkinningLootGuid;
@@ -773,6 +774,15 @@ public final class Player extends Unit {
 
     public int lastPlaySound() {
         return lastPlaySound;
+    }
+
+    /** CMaNGOS GetRecruitingFriendId session player — Refer-a-Friend summon target. */
+    public void setRecruitingFriend(Player friend) {
+        recruitingFriend = friend;
+    }
+
+    public Player recruitingFriend() {
+        return recruitingFriend;
     }
 
     /**
