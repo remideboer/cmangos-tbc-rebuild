@@ -60,6 +60,7 @@ public final class SpellEngine {
     public static final int EFFECT_DISPEL_MECHANIC = 108;
     public static final int EFFECT_SEND_TAXI = 123;
     public static final int EFFECT_PULL_TOWARDS = 124;
+    public static final int EFFECT_STEAL_BENEFICIAL_BUFF = 126;
     public static final int EFFECT_LEAP_BACK = 138;
     public static final int EFFECT_KILL_CREDIT_GROUP = 134;
     public static final int EFFECT_PLAY_MUSIC = 132;
@@ -111,7 +112,7 @@ public final class SpellEngine {
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS, EFFECT_LEAP_BACK,
-            EFFECT_NORMALIZED_WEAPON_DMG);
+            EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -385,6 +386,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_LEAP_BACK) {
             leapBack(caster, target, sp.misc() / 10f, (sp.minDmg + sp.maxDmg) / 2 / 10f);
+            return 0;
+        }
+        if (sp.effect == EFFECT_STEAL_BENEFICIAL_BUFF) {
+            stealBeneficialBuff(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -930,6 +935,41 @@ public final class SpellEngine {
             return;
         }
         caster.knockBackFrom(target, horiz, vert);
+    }
+
+    /**
+     * Effect 126 — SPELL_EFFECT_STEAL_BENEFICIAL_BUFF. CMaNGOS cannot steal from self;
+     * RemoveAurasDueToSpellBySteal onto caster. Spellsteal 30449.
+     */
+    public void stealBeneficialBuff(Unit caster, Unit target, int max) {
+        if (caster == null || target == null || caster == target) {
+            return;
+        }
+        int n = max <= 0 ? 1 : max;
+        int stolen = 0;
+        var it = target.auras.iterator();
+        while (it.hasNext() && stolen < n) {
+            Unit.Aura aura = it.next();
+            it.remove();
+            caster.auras.add(aura);
+            stolen++;
+        }
+    }
+
+    /**
+     * SMSG_SPELLSTEALLOG 0x333: packed victim, packed caster, steal spell, unk 0,
+     * count, then each stolen spellId + uint8 0 (steal not transfer).
+     */
+    public static byte[] encodeSpellStealLog(Unit victim, Unit caster, int stealSpellId, int stolenSpellId) {
+        WowBuffer b = new WowBuffer(32);
+        b.putPackedGuid(victim.guid);
+        b.putPackedGuid(caster.guid);
+        b.putU32(stealSpellId);
+        b.putU8(0);
+        b.putU32(1);
+        b.putU32(stolenSpellId);
+        b.putU8(0);
+        return b.array();
     }
 
     /**
