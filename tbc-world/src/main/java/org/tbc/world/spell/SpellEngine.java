@@ -80,6 +80,7 @@ public final class SpellEngine {
     public static final int EFFECT_CREATE_ITEM = 24;
     public static final int EFFECT_DUAL_WIELD = 40;
     public static final int EFFECT_OPEN_LOCK = 33;
+    public static final int EFFECT_OPEN_LOCK_ITEM = 59;
     public static final int EFFECT_TRIGGER_SPELL = 64;
     public static final int EFFECT_POWER_BURN = 62;
     public static final int EFFECT_THREAT = 63;
@@ -119,7 +120,7 @@ public final class SpellEngine {
 
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_WEAPON_DAMAGE,
-            EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK,
+            EFFECT_ENERGIZE, EFFECT_ADD_HONOR, EFFECT_LEARN_SPELL, EFFECT_LEARN_PET_SPELL, EFFECT_CREATE_ITEM, EFFECT_OPEN_LOCK, EFFECT_OPEN_LOCK_ITEM,
             EFFECT_TRIGGER_SPELL, EFFECT_ADD_FARSIGHT, EFFECT_PICKPOCKET, EFFECT_DUMMY, EFFECT_SCRIPT, EFFECT_INSTAKILL,
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_STUCK, EFFECT_SUMMON_PLAYER, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
@@ -423,6 +424,11 @@ public final class SpellEngine {
             return 0;
         }
         if (sp.effect == EFFECT_OPEN_LOCK) {
+            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
+            openLock(caster, item);
+            return 0;
+        }
+        if (sp.effect == EFFECT_OPEN_LOCK_ITEM) {
             Item item = caster instanceof Player p ? p.spellItemTarget() : null;
             openLock(caster, item);
             return 0;
@@ -1075,8 +1081,8 @@ public final class SpellEngine {
     }
 
     /**
-     * Effect 33 — SPELL_EFFECT_OPEN_LOCK. CMaNGOS player caster, itemTarget.
-     * Opening 3365. ITEM_DYNFLAG_UNLOCKED; loot.md clientLootType PICKPOCKETING (2).
+     * Effect 33 / 59 — SPELL_EFFECT_OPEN_LOCK / OPEN_LOCK_ITEM. CMaNGOS player caster, itemTarget.
+     * Opening 3365 / 3366. ITEM_DYNFLAG_UNLOCKED; loot.md clientLootType PICKPOCKETING (2).
      */
     public void openLock(Unit caster, Item item) {
         if (!(caster instanceof Player p) || item == null) {
