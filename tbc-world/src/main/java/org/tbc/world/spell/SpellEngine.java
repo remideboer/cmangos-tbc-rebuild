@@ -58,6 +58,7 @@ public final class SpellEngine {
     public static final int EFFECT_DISPEL = 38;
     public static final int EFFECT_DISPEL_MECHANIC = 108;
     public static final int EFFECT_SEND_TAXI = 123;
+    public static final int EFFECT_PULL_TOWARDS = 124;
     public static final int EFFECT_KILL_CREDIT_GROUP = 134;
     public static final int EFFECT_PLAY_MUSIC = 132;
     public static final int EFFECT_ADD_EXTRA_ATTACKS = 19;
@@ -107,7 +108,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_CHARGE,
-            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC);
+            EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PULL_TOWARDS);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -370,6 +371,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_PLAY_MUSIC) {
             playMusic(target, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_PULL_TOWARDS) {
+            pullTowards(caster, target, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_KNOCK_BACK) {
@@ -868,6 +873,31 @@ public final class SpellEngine {
         WowBuffer b = new WowBuffer(4);
         b.putU32(soundId);
         return b.array();
+    }
+
+    /** CMaNGOS Movement::gravity — EffectPullTowards projectile Z. */
+    public static final float MOVEMENT_GRAVITY = 19.29110527038574f;
+
+    /**
+     * Effect 124 — SPELL_EFFECT_PULL_TOWARDS. CMaNGOS KnockBackWithAngle toward caster.
+     * Magnetic Pull 28337 misc 300 is speedXY 30. Dist below 0.1 is a no-op.
+     */
+    public void pullTowards(Unit caster, Unit target, int misc) {
+        if (caster == null || target == null) {
+            return;
+        }
+        float dx = caster.x - target.x;
+        float dy = caster.y - target.y;
+        float dz = caster.z - target.z;
+        float dist = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist < 0.1f) {
+            return;
+        }
+        float speedXY = Math.max(1, misc) * 0.1f;
+        float time = dist / speedXY;
+        float speedZ = (dz + 0.5f * time * time * MOVEMENT_GRAVITY) / time;
+        float angle = (float) Math.atan2(dy, dx);
+        target.knockBackWithAngle(angle, speedXY, speedZ);
     }
 
     /**

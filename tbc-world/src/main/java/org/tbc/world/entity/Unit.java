@@ -62,6 +62,11 @@ public class Unit extends Entity {
         float angle = from == this
                 ? o + (float) Math.PI
                 : (float) Math.atan2(y - from.y, x - from.x);
+        knockBackWithAngle(angle, horiz, vert);
+    }
+
+    /** CMaNGOS Unit::KnockBackWithAngle — SMSG_MOVE_KNOCK_BACK direction. */
+    public void knockBackWithAngle(float angle, float horiz, float vert) {
         knockBackVcos = (float) Math.cos(angle);
         knockBackVsin = (float) Math.sin(angle);
         knockBackHoriz = horiz;
