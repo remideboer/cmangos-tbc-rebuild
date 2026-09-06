@@ -54,6 +54,7 @@ public final class SpellEngine {
     public static final int EFFECT_OPEN_LOCK = 33;
     public static final int EFFECT_TRIGGER_SPELL = 64;
     public static final int EFFECT_POWER_BURN = 62;
+    public static final int EFFECT_THREAT = 63;
     public static final int EFFECT_INTERRUPT_CAST = 68;
     public static final int EFFECT_ADD_FARSIGHT = 72;
     public static final int EFFECT_ADD_COMBO_POINTS = 80;
@@ -75,7 +76,7 @@ public final class SpellEngine {
             EFFECT_HEALTH_LEECH, EFFECT_POWER_DRAIN, EFFECT_ADD_COMBO_POINTS, EFFECT_INTERRUPT_CAST,
             EFFECT_SANCTUARY, EFFECT_ADD_EXTRA_ATTACKS, EFFECT_BIND, EFFECT_ATTACK_ME, EFFECT_QUEST_COMPLETE,
             EFFECT_RESURRECT, EFFECT_ENVIRONMENTAL_DAMAGE, EFFECT_WEAPON_DAMAGE_NOSCHOOL, EFFECT_DISPEL,
-            EFFECT_POWER_BURN);
+            EFFECT_POWER_BURN, EFFECT_THREAT);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
@@ -242,6 +243,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_POWER_BURN) {
             return powerBurn(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), sp.misc());
+        }
+        if (sp.effect == EFFECT_THREAT) {
+            addThreat(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
             return 0;
@@ -472,6 +477,14 @@ public final class SpellEngine {
         int dealt = Math.min(taken, target.health());
         target.setHealth(target.health() - dealt);
         return dealt;
+    }
+
+    /** Effect 63 — SPELL_EFFECT_THREAT. CMaNGOS: living creature threat list, AddThreat(caster, damage). */
+    public void addThreat(Unit caster, Unit target, int amount) {
+        if (caster == null || !(target instanceof Creature c) || !caster.alive() || !c.alive() || amount <= 0) {
+            return;
+        }
+        c.threatManager.add(caster, amount);
     }
 
     /** Effect 30 — restore power (spell-algorithms.md). */
