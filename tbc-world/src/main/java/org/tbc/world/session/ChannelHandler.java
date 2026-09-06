@@ -8,6 +8,7 @@ import org.tbc.world.world.World;
 /** Channels and text emote. Layout: spec/03-protocol/packets/chat.md */
 public final class ChannelHandler {
     public static final int YOU_JOINED = 0x02;
+    public static final int YOU_LEFT = 0x03;
     public static final int CHANNEL_ID_GENERAL = 1;
 
     private ChannelHandler() {}
@@ -35,6 +36,23 @@ public final class ChannelHandler {
         n.putU32(0);
         s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
         sendList(s, name);
+    }
+
+    public static void leave(WorldSession s, WowBuffer in) {
+        if (in.remaining() >= 4) {
+            in.getU32();
+        }
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        if (name.isEmpty()) {
+            return;
+        }
+        s.channels.remove(name);
+        WowBuffer n = new WowBuffer(32);
+        n.putU8(YOU_LEFT);
+        n.putCString(name);
+        n.putU32(CHANNEL_ID_GENERAL);
+        n.putU8(0);
+        s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
     }
 
     public static void list(WorldSession s, WowBuffer in) {

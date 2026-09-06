@@ -80,6 +80,25 @@ class Slice19P0Test {
         assertFalse(client.saw(Opcodes.SMSG_VOICE_SESSION_ROSTER_UPDATE));
     }
 
+    @Test
+    void tpSl19YouLeftWhenLeaveChannel() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Leaver");
+        client.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinGeneral().array());
+        assertTrue(client.session().channels.contains("General"));
+        client.clear();
+        WowBuffer leave = new WowBuffer(32);
+        leave.putU32(0);
+        leave.putCString("General");
+        client.handle(world, Opcodes.CMSG_LEAVE_CHANNEL, leave.array());
+        WowBuffer n = new WowBuffer(lastPayload(client, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.YOU_LEFT, n.getU8());
+        assertEquals("General", n.getCString());
+        assertEquals(ChannelHandler.CHANNEL_ID_GENERAL, n.getU32());
+        assertEquals(0, n.getU8());
+        assertFalse(client.session().channels.contains("General"));
+    }
+
     private static WowBuffer joinGeneral() {
         WowBuffer join = new WowBuffer(32);
         join.putU32(0);

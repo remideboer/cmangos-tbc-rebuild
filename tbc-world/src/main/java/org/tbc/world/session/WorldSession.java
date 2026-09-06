@@ -366,6 +366,7 @@ public final class WorldSession {
             case Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE ->
                     org.tbc.world.session.LaterOpcodes.handle(this, world, opcode, in);
             case Opcodes.CMSG_JOIN_CHANNEL -> ChannelHandler.join(this, in);
+            case Opcodes.CMSG_LEAVE_CHANNEL -> ChannelHandler.leave(this, in);
             case Opcodes.CMSG_BUY_ITEM -> handleBuy(world, in);
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
             case Opcodes.CMSG_LEARN_TALENT -> TalentHandler.learn(this, world, in);
