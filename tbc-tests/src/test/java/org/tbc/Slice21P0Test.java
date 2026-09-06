@@ -378,6 +378,28 @@ class Slice21P0Test {
         assertTrue(lead.saw(Opcodes.SMSG_GUILD_ROSTER));
     }
 
+    @Test
+    void tpSl21GuildDelRankWhenAboveMinShouldRemoveLast() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        WowBuffer add = new WowBuffer(16);
+        add.putCString("Scout");
+        lead.handle(world, Opcodes.CMSG_GUILD_ADD_RANK, add.array());
+        lead.clear();
+        lead.handle(world, Opcodes.CMSG_GUILD_DEL_RANK, new byte[0]);
+        WowBuffer q = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_QUERY_RESPONSE));
+        q.getU32();
+        q.getCString();
+        String[] ranks = new String[10];
+        for (int i = 0; i < 10; i++) {
+            ranks[i] = q.getCString();
+        }
+        assertEquals("Initiate", ranks[4]);
+        assertEquals("", ranks[5]);
+        assertTrue(lead.saw(Opcodes.SMSG_GUILD_ROSTER));
+    }
+
     private static org.tbc.world.entity.Creature petitioner(World world) {
         for (org.tbc.world.entity.Creature c : world.map(0, 0).creatures.values()) {
             if (c.entry == org.tbc.world.content.Content.NPC_REBECCA_LAUGHLIN) {
