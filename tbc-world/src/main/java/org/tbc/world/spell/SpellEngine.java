@@ -60,6 +60,7 @@ public final class SpellEngine {
     public static final int EFFECT_BLOCK = 23;
     public static final int EFFECT_SPAWN = 46;
     public static final int EFFECT_PROFICIENCY = 60;
+    public static final int EFFECT_SEND_EVENT = 61;
     public static final int EFFECT_RESURRECT = 18;
     public static final int EFFECT_RESURRECT_NEW = 113;
     public static final int EFFECT_SPIRIT_HEAL = 117;
@@ -157,7 +158,7 @@ public final class SpellEngine {
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION, EFFECT_SUMMON_OBJECT_SLOT1,
             EFFECT_SUMMON_OBJECT_SLOT2, EFFECT_SUMMON_OBJECT_WILD, EFFECT_TRANS_DOOR, EFFECT_SUMMON,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_PARRY, EFFECT_BLOCK,
-            EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
+            EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_SEND_EVENT, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_TELEPORT_GRAVEYARD, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
             EFFECT_DISMISS_PET, EFFECT_PLAY_MUSIC, EFFECT_PLAY_SOUND, EFFECT_PULL_TOWARDS, EFFECT_PULL_TOWARDS_DEST, EFFECT_LEAP_BACK,
             EFFECT_NORMALIZED_WEAPON_DMG, EFFECT_STEAL_BENEFICIAL_BUFF, EFFECT_PROSPECTING, EFFECT_UNLEARN_SPECIALIZATION,
@@ -686,6 +687,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SUMMON) {
             summon(caster, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_SEND_EVENT) {
+            sendEvent(caster, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -1566,6 +1571,17 @@ public final class SpellEngine {
         summoned.guid = Guid.HIGH_CREATURE | (caster.guid & 0xFFFFFFFFL);
         summoned.relocate(caster.x, caster.y, caster.z, caster.o);
         caster.setLastSummon(summoned);
+    }
+
+    /**
+     * Effect 61 — SPELL_EFFECT_SEND_EVENT. CMaNGOS StartEvents_Event(misc).
+     * Summon Myzrael 4141 misc event 420. dbscripts_on_event later.
+     */
+    public void sendEvent(Unit caster, int eventId) {
+        if (caster == null || eventId <= 0) {
+            return;
+        }
+        caster.setLastSendEvent(eventId);
     }
 
     /** SMSG_TOTEM_CREATED 0x412: slot, GO guid, extra 0, duration 0. */

@@ -179,6 +179,17 @@ public class Unit extends Entity {
         lastSummon = summoned;
     }
 
+    /** CMaNGOS StartEvents_Event — dbscripts_on_event id from EffectSendEvent. */
+    private int lastSendEvent;
+
+    public int lastSendEvent() {
+        return lastSendEvent;
+    }
+
+    public void setLastSendEvent(int eventId) {
+        lastSendEvent = eventId;
+    }
+
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
     public void clearSpawningFlag() {
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
