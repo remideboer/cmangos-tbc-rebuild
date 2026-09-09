@@ -322,6 +322,31 @@ class ContentTest {
     }
 
     @Test
+    void rewardQuestWhenChoiceIndexOneShouldStoreOnlyThatChoiceItem() {
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
+        mgr.questInvolved.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_BROTHERHOOD_OF_THIEVES)));
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        ops.clear();
+        last.clear();
+        content.completeQuest(p, map, chooseReward(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES, 1),
+                nextItem++, this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        assertTrue(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_MILITIA_HAMMER && it.count == 1));
+        assertFalse(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_MILITIA_DAGGER));
+        ops.clear();
+        last.clear();
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        content.completeQuest(p, map, chooseReward(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES, 6),
+                nextItem++, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        content.completeQuest(p, map, chooseReward(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES, 2),
+                nextItem++, this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        assertEquals(1, p.items.values().stream().filter(it -> it.entry == Content.ITEM_MILITIA_HAMMER).count());
+        assertFalse(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_MILITIA_DAGGER));
+    }
+
+    @Test
     void gossipMobHasEmptyMenu() {
         Creature kobold = spawn(6, 0, 0);
         content.gossipHello(p, map, u64(kobold.guid), this::capture);
@@ -959,6 +984,14 @@ class ContentTest {
         WowBuffer b = new WowBuffer(12);
         b.putU64(guid);
         b.putU32(questId);
+        return b;
+    }
+
+    private static WowBuffer chooseReward(long guid, int questId, int reward) {
+        WowBuffer b = new WowBuffer(16);
+        b.putU64(guid);
+        b.putU32(questId);
+        b.putU32(reward);
         return b;
     }
 }

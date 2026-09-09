@@ -115,6 +115,12 @@ public final class Content {
     /** gossip_menu_option.option_text on Farley menu 1291. */
     public static final String GOSSIP_FARLEY_INN_INFO = "What can I do at an inn?";
     public static final int ITEM_WORN_SHORTSWORD = 25;
+    /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
+    public static final int QUEST_REWARD_CHOICES_COUNT = 6;
+    /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */
+    public static final int ITEM_MILITIA_DAGGER = 2224;
+    /** locales_item 5580 Militia Hammer; quest 18 RewChoiceItemId2. */
+    public static final int ITEM_MILITIA_HAMMER = 5580;
     /** locales_item 159 Refreshing Spring Water; quest 2158 RewItemId1. */
     public static final int ITEM_REFRESHING_SPRING_WATER = 159;
     /** locales_item 752 Red Burlap Bandana; quest 18 ReqItemId1. */
@@ -410,6 +416,13 @@ public final class Content {
         }
         long guid = in.getU64();
         int questId = in.getU32();
+        int reward = 0;
+        if (in.remaining() >= 4) {
+            reward = in.getU32();
+        }
+        if (reward >= QUEST_REWARD_CHOICES_COUNT) {
+            return;
+        }
         Creature c = creature(map, guid);
         if (c == null || outOfRange(p, c) || !involves(c.entry, questId)) {
             return;
@@ -438,25 +451,8 @@ public final class Content {
             money += q.rewMoneyMaxLevel();
         }
         p.setMoney(p.money + money);
-        if (q.rewItemId1() > 0 && q.rewItemCount1() > 0 && nextItemGuid != 0) {
-            int bagSlot = nextBackpackSlot(p);
-            if (bagSlot >= 0) {
-                Item it = new Item(nextItemGuid, q.rewItemId1());
-                it.ownerGuid = Guid.low(p.guid);
-                it.bag = 0;
-                it.slot = bagSlot;
-                it.count = q.rewItemCount1();
-                ObjectMgr.ItemTemplate t = mgr.items.get(q.rewItemId1());
-                if (t != null) {
-                    it.displayId = t.displayId;
-                    it.inventoryType = t.inventoryType;
-                    it.quality = t.quality;
-                }
-                p.items.put(Guid.low(it.guid), it);
-                p.dirty = true;
-                send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, it.count));
-            }
-        }
+        storeRewardItem(p, q.rewItemId1(), q.rewItemCount1(), nextItemGuid, send);
+        storeRewardItem(p, q.rewChoiceItemId(reward), q.rewChoiceItemCount(reward), nextItemGuid, send);
         p.questLogId[slot] = 0;
         p.questLogState[slot] = 0;
         p.questLogCounts[slot][0] = 0;
@@ -466,6 +462,31 @@ public final class Content {
         p.questLogItemCount[slot] = 0;
         writeLogField(p, slot);
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q, xp, money, 0));
+    }
+
+    private void storeRewardItem(Player p, int itemId, int count, long nextItemGuid,
+                                 BiConsumer<Integer, byte[]> send) {
+        if (itemId <= 0 || count <= 0 || nextItemGuid == 0) {
+            return;
+        }
+        int bagSlot = nextBackpackSlot(p);
+        if (bagSlot < 0) {
+            return;
+        }
+        Item it = new Item(nextItemGuid, itemId);
+        it.ownerGuid = Guid.low(p.guid);
+        it.bag = 0;
+        it.slot = bagSlot;
+        it.count = count;
+        ObjectMgr.ItemTemplate t = mgr.items.get(itemId);
+        if (t != null) {
+            it.displayId = t.displayId;
+            it.inventoryType = t.inventoryType;
+            it.quality = t.quality;
+        }
+        p.items.put(Guid.low(it.guid), it);
+        p.dirty = true;
+        send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, it.count));
     }
 
     public static boolean outOfRange(Player p, Creature c) {

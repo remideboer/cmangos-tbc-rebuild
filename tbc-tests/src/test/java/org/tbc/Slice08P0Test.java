@@ -12,6 +12,7 @@ import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL08-004: MovementType 1 creatures wander OOC so the 8606 client sees them walk. */
@@ -281,6 +282,35 @@ class Slice08P0Test {
         assertEquals(5, innDone.getU32());
         assertTrue(p.items.values().stream().anyMatch(it ->
                 it.entry == Content.ITEM_REFRESHING_SPRING_WATER && it.count == 5));
+    }
+
+    /**
+     * TP-SL08-024 — HandleQuestgiverChooseRewardOpcode reward index.
+     * Quest 18 RewChoiceItemId[1] is Militia Hammer 5580; index 0 is Dagger 2224.
+     */
+    @Test
+    void tpSl08ChoiceRewardIndex() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Chooser", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(willem);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(willem.guid);
+        accept.putU32(Content.QUEST_BROTHERHOOD_OF_THIEVES);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(willem.guid);
+        choose.putU32(Content.QUEST_BROTHERHOOD_OF_THIEVES);
+        choose.putU32(1);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        assertTrue(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_MILITIA_HAMMER && it.count == 1));
+        assertFalse(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_MILITIA_DAGGER));
     }
 
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
