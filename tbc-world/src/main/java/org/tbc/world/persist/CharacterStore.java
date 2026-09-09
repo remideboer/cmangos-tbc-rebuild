@@ -1022,7 +1022,7 @@ public final class CharacterStore {
         List<Mail> out = new ArrayList<>();
         for (int id : inbox.getOrDefault(receiver, List.of())) {
             Mail m = mails.get(id);
-            if (m != null && m.deliverTime <= nowUnix) {
+            if (m != null && m.deliverTime <= nowUnix && m.state != Mail.MAIL_STATE_DELETED) {
                 out.add(m);
             }
         }

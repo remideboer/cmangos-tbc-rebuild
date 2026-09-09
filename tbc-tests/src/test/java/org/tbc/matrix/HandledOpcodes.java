@@ -83,6 +83,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_GET_MAIL_LIST,
             Opcodes.CMSG_MAIL_TAKE_ITEM,
             Opcodes.CMSG_MAIL_TAKE_MONEY,
+            Opcodes.CMSG_MAIL_DELETE,
             Opcodes.MSG_AUCTION_HELLO,
             Opcodes.CMSG_AUCTION_SELL_ITEM,
             Opcodes.CMSG_AUCTION_PLACE_BID,

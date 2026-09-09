@@ -13,7 +13,10 @@ public final class Mail {
     public int cod;
     public int checked;
     public int stationery = 41;
+    public int state;
     public long deliverTime;
     public long expireTime;
     public final List<Item> items = new ArrayList<>();
+
+    public static final int MAIL_STATE_DELETED = 3;
 }

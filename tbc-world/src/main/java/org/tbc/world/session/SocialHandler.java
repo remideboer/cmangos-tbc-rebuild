@@ -26,6 +26,8 @@ public final class SocialHandler {
     public static final int MAIL_SEND = 0;
     public static final int MAIL_MONEY_TAKEN = 1;
     public static final int MAIL_ITEM_TAKEN = 2;
+    public static final int MAIL_RETURNED_TO_SENDER = 3;
+    public static final int MAIL_DELETED = 4;
     public static final int MAIL_OK = 0;
     public static final int MAIL_ERR_EQUIP = 1;
     public static final int MAIL_ERR_SELF = 2;
@@ -550,7 +552,7 @@ public final class SocialHandler {
         int mailId = in.getU32();
         int itemLow = in.getU32();
         Mail m = world.characters.mail(mailId);
-        if (m == null || m.receiver != Guid.low(s.player().guid)) {
+        if (m == null || m.receiver != Guid.low(s.player().guid) || m.state == Mail.MAIL_STATE_DELETED) {
             mailResult(s, mailId, MAIL_ITEM_TAKEN, MAIL_ERR_INTERNAL, 0, 0);
             return;
         }
@@ -589,7 +591,8 @@ public final class SocialHandler {
         int mailId = in.getU32();
         Mail m = world.characters.mail(mailId);
         long now = world.nowMs() / 1000;
-        if (m == null || m.receiver != Guid.low(s.player().guid) || m.deliverTime > now) {
+        if (m == null || m.receiver != Guid.low(s.player().guid) || m.deliverTime > now
+                || m.state == Mail.MAIL_STATE_DELETED) {
             mailResult(s, mailId, MAIL_MONEY_TAKEN, MAIL_ERR_INTERNAL, 0, 0);
             return;
         }
@@ -601,6 +604,29 @@ public final class SocialHandler {
         world.characters.save(p);
         var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
         s.send(pkt.opcode(), pkt.payload());
+    }
+
+    /** MailHandler.cpp HandleMailDelete — COD cannot be deleted; missing mail still MAIL_OK. */
+    public static void deleteMail(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            mailResult(s, 0, MAIL_DELETED, MAIL_ERR_INTERNAL, 0, 0);
+            return;
+        }
+        in.getU64();
+        int mailId = in.getU32();
+        if (in.remaining() >= 4) {
+            in.getU32();
+        }
+        Mail m = world.characters.mail(mailId);
+        if (m != null && m.receiver == Guid.low(s.player().guid)) {
+            if (m.cod != 0) {
+                mailResult(s, mailId, MAIL_DELETED, MAIL_ERR_INTERNAL, 0, 0);
+                return;
+            }
+            m.state = Mail.MAIL_STATE_DELETED;
+            world.characters.storeMail(m);
+        }
+        mailResult(s, mailId, MAIL_DELETED, MAIL_OK, 0, 0);
     }
 
     private static boolean swapTraded(Player a, Player b) {

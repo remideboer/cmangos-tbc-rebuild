@@ -69,4 +69,66 @@ class Slice09MailTest {
         assertEquals(SocialHandler.MAIL_MONEY_TAKEN, WowClientDouble.u32le(r, 4));
         assertEquals(SocialHandler.MAIL_ERR_INTERNAL, WowClientDouble.u32le(r, 8));
     }
+
+    @Test
+    void tpSl09MailDelete() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Delmail", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Mail m = new Mail();
+        m.id = world.characters.nextMailId();
+        m.receiver = Guid.low(p.guid);
+        m.subject = "gone";
+        m.deliverTime = world.nowMs() / 1000;
+        world.characters.storeMail(m);
+
+        client.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putU64(1);
+        in.putU32(m.id);
+        in.putU32(0);
+        client.handle(world, Opcodes.CMSG_MAIL_DELETE, in.array());
+        assertTrue(client.saw(Opcodes.SMSG_SEND_MAIL_RESULT));
+        byte[] r = client.payload(Opcodes.SMSG_SEND_MAIL_RESULT);
+        assertEquals(m.id, WowClientDouble.u32le(r, 0));
+        assertEquals(SocialHandler.MAIL_DELETED, WowClientDouble.u32le(r, 4));
+        assertEquals(SocialHandler.MAIL_OK, WowClientDouble.u32le(r, 8));
+
+        client.clear();
+        client.getMailList(world, 1);
+        assertEquals(0, client.payload(Opcodes.SMSG_MAIL_LIST_RESULT)[0] & 0xFF);
+    }
+
+    @Test
+    void tpSl09MailDeleteWhenCodShouldInternalError() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Codmail", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Mail m = new Mail();
+        m.id = world.characters.nextMailId();
+        m.receiver = Guid.low(p.guid);
+        m.cod = 50;
+        m.deliverTime = world.nowMs() / 1000;
+        world.characters.storeMail(m);
+
+        client.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putU64(1);
+        in.putU32(m.id);
+        in.putU32(0);
+        client.handle(world, Opcodes.CMSG_MAIL_DELETE, in.array());
+        byte[] r = client.payload(Opcodes.SMSG_SEND_MAIL_RESULT);
+        assertEquals(SocialHandler.MAIL_DELETED, WowClientDouble.u32le(r, 4));
+        assertEquals(SocialHandler.MAIL_ERR_INTERNAL, WowClientDouble.u32le(r, 8));
+
+        client.clear();
+        client.getMailList(world, 1);
+        assertEquals(1, client.payload(Opcodes.SMSG_MAIL_LIST_RESULT)[0] & 0xFF);
+    }
 }
