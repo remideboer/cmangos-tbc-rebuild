@@ -74,6 +74,47 @@ class Slice07P0Test {
         assertTrue(client.saw(Opcodes.SMSG_LOOT_RESPONSE));
     }
 
+    /**
+     * TP-SL07-004 / TP-SL07-012 — Spell::update: caster position differs from the cast position while the
+     * timer runs and SPELL_INTERRUPT_FLAG_MOVEMENT is set → cancel(): SendInterrupted (SMSG_SPELL_FAILURE +
+     * SMSG_SPELL_FAILED_OTHER to the set) and SendCastResult(SPELL_FAILED_INTERRUPTED) to the caster.
+     */
+    @Test
+    void tpSl07MovingCancelsCastBar() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        Creature c = kobold(world, p);
+        int manaBefore = p.power();
+        int hpBefore = c.health();
+        client.clear();
+        client.castSpell(world, FIREBALL, 1, c.guid);
+        world.tick(500);
+        client.heartbeat(world, p.x + 1f, p.y, p.z, p.o);
+        world.tick(100);
+
+        byte[] res = client.payload(Opcodes.SMSG_CAST_RESULT);
+        assertEquals(FIREBALL, WowClientDouble.u32le(res, 0));
+        assertEquals(SPELL_FAILED_INTERRUPTED, res[4] & 0xFF);
+        assertEquals(1, res[5] & 0xFF, "castCount echoed");
+        byte[] fail = client.payload(Opcodes.SMSG_SPELL_FAILURE);
+        int off = WowClientDouble.skipPackedGuid(fail, 0);
+        assertEquals(FIREBALL, WowClientDouble.u32le(fail, off));
+        assertEquals(SPELL_FAILED_INTERRUPTED, fail[off + 4] & 0xFF);
+        assertEquals(off + 5, fail.length);
+        byte[] other = client.payload(Opcodes.SMSG_SPELL_FAILED_OTHER);
+        int off2 = WowClientDouble.skipPackedGuid(other, 0);
+        assertEquals(FIREBALL, WowClientDouble.u32le(other, off2));
+        assertEquals(off2 + 4, other.length, "no result byte");
+
+        world.tick(FIREBALL_CAST_MS);
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO), "cancelled cast never lands");
+        assertEquals(manaBefore, p.power());
+        assertEquals(hpBefore, c.health());
+    }
+
+    private static final int SPELL_FAILED_INTERRUPTED = 0x25;
+
     private static Player mageWithFireball(World world, WowClientDouble client) {
         client.connect(ACC);
         Player created = world.characters.create(ACC.id(), "Pyro", 1, 8, 0, 1, 1, 1, 1, 0, world.objectMgr);

@@ -236,8 +236,16 @@ public final class SpellEngine {
     }
 
     /** Spell::m_currentSpells[CURRENT_GENERIC_SPELL] while SPELL_STATE_PREPARING (cast bar running). */
-    private record PendingCast(Player caster, Unit target, SpellInfo sp, int castCount, SpellCastTargets targets,
-                               BiConsumer<Integer, byte[]> send, Runnable onFinished, int[] timerMs) {}
+    private record PendingCast(Player caster, GameMap map, Unit target, SpellInfo sp, int castCount,
+                               SpellCastTargets targets, BiConsumer<Integer, byte[]> send, Runnable onFinished,
+                               int[] timerMs, float castX, float castY, float castZ) {
+        /** Spell::update: m_castPosition differs from the caster's position. */
+        boolean casterMoved() {
+            return caster.x != castX || caster.y != castY || caster.z != castZ;
+        }
+    }
+
+    public static final int SPELL_FAILED_INTERRUPTED = 0x25;
 
     private final Map<Long, PendingCast> pendingCasts = new HashMap<>();
     /** Fireball 133 / Lesser Heal 2050 rank 1: CastingTimeIndex 16 = 1500 ms. */
@@ -442,8 +450,8 @@ public final class SpellEngine {
         }
         send.accept(Opcodes.SMSG_SPELL_START, encodeStart(caster.guid, sp.id, castCount, sp.castTimeMs, targets));
         if (sp.castTimeMs > 0) {
-            pendingCasts.put(caster.guid, new PendingCast(caster, target, sp, castCount, targets, send, onFinished,
-                    new int[]{sp.castTimeMs}));
+            pendingCasts.put(caster.guid, new PendingCast(caster, map, target, sp, castCount, targets, send,
+                    onFinished, new int[]{sp.castTimeMs}, caster.x, caster.y, caster.z));
             return true;
         }
         finishCast(caster, target, sp, castCount, targets, nowMs, send);
@@ -457,6 +465,12 @@ public final class SpellEngine {
         List<PendingCast> due = new ArrayList<>();
         while (it.hasNext()) {
             PendingCast pc = it.next();
+            // Seeded timed spells (Fireball, Lesser Heal) carry SPELL_INTERRUPT_FLAG_MOVEMENT in Spell.dbc.
+            if (pc.casterMoved()) {
+                it.remove();
+                cancel(pc);
+                continue;
+            }
             pc.timerMs[0] -= diff;
             if (pc.timerMs[0] <= 0) {
                 it.remove();
@@ -471,6 +485,26 @@ public final class SpellEngine {
             finishCast(pc.caster, pc.target, pc.sp, pc.castCount, pc.targets, nowMs, pc.send);
             pc.onFinished.run();
         }
+    }
+
+    /** Spell::cancel while SPELL_STATE_CASTING: SendInterrupted to the set, SendCastResult to the caster. */
+    private void cancel(PendingCast pc) {
+        WowBuffer failure = new WowBuffer(16);
+        failure.putPackedGuid(pc.caster.guid);
+        failure.putU32(pc.sp.id);
+        failure.putU8(SPELL_FAILED_INTERRUPTED);
+        WowBuffer other = new WowBuffer(16);
+        other.putPackedGuid(pc.caster.guid);
+        other.putU32(pc.sp.id);
+        for (Player pl : pc.map.nearbyPlayers(pc.caster, GameMap.VISIBILITY)) {
+            if (pl.session != null) {
+                pl.session.send(Opcodes.SMSG_SPELL_FAILURE, failure.array());
+                pl.session.send(Opcodes.SMSG_SPELL_FAILED_OTHER, other.array());
+            }
+        }
+        pc.send.accept(Opcodes.SMSG_SPELL_FAILURE, failure.array());
+        pc.send.accept(Opcodes.SMSG_SPELL_FAILED_OTHER, other.array());
+        sendFail(pc.send, pc.sp.id, SPELL_FAILED_INTERRUPTED, pc.castCount);
     }
 
     /** Spell::cast: TakePower, effects, SMSG_SPELL_GO (+ miss / damage log). */

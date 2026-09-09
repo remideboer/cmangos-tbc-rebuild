@@ -135,6 +135,71 @@ class SpellEngineTest {
         assertEquals(70, p.power());
     }
 
+    /** TP-SL07-004 — Spell::update cancel(): any axis of the cast position changing interrupts; the cast is gone. */
+    @Test
+    void castFireballWhenCasterMovesOnYShouldInterruptAndDropCast() {
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        p.relocate(0, 1, 0, 0);
+        engine.update(100, 10);
+        assertEquals(SpellEngine.SPELL_FAILED_INTERRUPTED, lastCastResult[4] & 0xFF);
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_FAILURE));
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_FAILED_OTHER));
+        engine.update(2000, 10);
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertEquals(100, p.power());
+    }
+
+    @Test
+    void castFireballWhenCasterMovesOnZShouldInterrupt() {
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        p.relocate(0, 0, 1, 0);
+        engine.update(100, 10);
+        assertEquals(SpellEngine.SPELL_FAILED_INTERRUPTED, lastCastResult[4] & 0xFF);
+    }
+
+    @Test
+    void castFireballWhenOnlyOrientationChangesShouldKeepCasting() {
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        p.relocate(0, 0, 0, 1.5f);
+        engine.update(1500, 10);
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_FAILURE));
+    }
+
+    /** Two casters: only the one who moved is cancelled, the other still lands. */
+    @Test
+    void updateWhenOneOfTwoCastersMovesShouldCancelOnlyThatCast() {
+        Player other = new Player();
+        other.guid = 7;
+        other.spells.add(SpellEngine.FIREBALL);
+        other.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 100);
+        other.setPower(100);
+        other.relocate(0, 0, 0, 0);
+        map.add(other);
+        List<Integer> otherOps = new ArrayList<>();
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        engine.cast(other, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), (op, b) -> otherOps.add(op));
+        p.relocate(0, 1, 0, 0);
+        engine.update(1500, 10);
+        assertEquals(SpellEngine.SPELL_FAILED_INTERRUPTED, lastCastResult[4] & 0xFF);
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertTrue(otherOps.contains(Opcodes.SMSG_SPELL_GO));
+        assertEquals(70, other.power());
+    }
+
+    /** SendInterrupted goes to the set; a nearby player without a session is skipped. */
+    @Test
+    void castFireballWhenInterruptedShouldSkipSessionlessNeighbour() {
+        Player ghost = new Player();
+        ghost.guid = 9;
+        ghost.relocate(1, 0, 0, 0);
+        map.add(ghost);
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        p.relocate(1, 0, 0, 0);
+        engine.update(100, 10);
+        assertEquals(SpellEngine.SPELL_FAILED_INTERRUPTED, lastCastResult[4] & 0xFF);
+    }
+
     /** Spell::cast re-checks power: mana lost during the cast bar fails with NO_POWER and no GO. */
     @Test
     void castFireballWhenManaGoneAtTimerShouldFailNoPower() {
