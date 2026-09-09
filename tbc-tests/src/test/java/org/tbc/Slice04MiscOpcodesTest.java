@@ -90,6 +90,57 @@ class Slice04MiscOpcodesTest {
         assertEquals(0, r.remaining());
     }
 
+    /**
+     * TP-SL04-009 / TP-SL04-016 — CMSG_UPDATE_ACCOUNT_DATA then CMSG_REQUEST_ACCOUNT_DATA
+     * returns the same decompressed string (session-misc.md).
+     */
+    @Test
+    void tpSl04AccountDataRoundTrip() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "Macros");
+        client.clear();
+        byte[] raw = "layout-v1\0".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        WowBuffer upd = new WowBuffer(8 + 64);
+        upd.putU32(6);
+        upd.putU32(raw.length);
+        upd.putBytes(deflate(raw));
+        client.handle(world, Opcodes.CMSG_UPDATE_ACCOUNT_DATA, upd.array());
+        WowBuffer req = new WowBuffer(4);
+        req.putU32(6);
+        client.handle(world, Opcodes.CMSG_REQUEST_ACCOUNT_DATA, req.array());
+        assertTrue(client.saw(Opcodes.SMSG_UPDATE_ACCOUNT_DATA));
+        WowBuffer out = new WowBuffer(client.payload(Opcodes.SMSG_UPDATE_ACCOUNT_DATA));
+        assertEquals(6, out.getU32());
+        int len = out.getU32();
+        assertEquals(9, len);
+        byte[] inflated = inflate(out.remainingBytes(), len);
+        assertEquals("layout-v1", new String(inflated, java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private static byte[] deflate(byte[] raw) {
+        java.util.zip.Deflater def = new java.util.zip.Deflater();
+        def.setInput(raw);
+        def.finish();
+        byte[] z = new byte[128];
+        int n = def.deflate(z);
+        def.end();
+        return java.util.Arrays.copyOf(z, n);
+    }
+
+    private static byte[] inflate(byte[] z, int size) {
+        byte[] raw = new byte[size];
+        java.util.zip.Inflater inf = new java.util.zip.Inflater();
+        inf.setInput(z);
+        try {
+            assertEquals(size, inf.inflate(raw));
+        } catch (java.util.zip.DataFormatException e) {
+            throw new AssertionError(e);
+        } finally {
+            inf.end();
+        }
+        return raw;
+    }
+
     private static WowClientDouble enter(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);

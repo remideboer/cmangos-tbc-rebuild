@@ -65,6 +65,7 @@ public final class WorldSession {
     private final Set<Long> seen = new HashSet<>();
     private final AtomicInteger timeSync = new AtomicInteger();
     private final AtomicInteger moveOrder = new AtomicInteger();
+    private final AccountData accountData = new AccountData();
     public Player pendingInviteFrom;
     public final List<String> channels = new ArrayList<>();
     public String lastTicket = "";
@@ -327,6 +328,8 @@ public final class WorldSession {
                 }
             }
             case Opcodes.CMSG_PLAYED_TIME -> handlePlayedTime();
+            case Opcodes.CMSG_UPDATE_ACCOUNT_DATA -> accountData.update(in);
+            case Opcodes.CMSG_REQUEST_ACCOUNT_DATA -> handleRequestAccountData(in);
             case Opcodes.CMSG_SHOWING_HELM -> handleShowingHelm();
             case Opcodes.CMSG_SHOWING_CLOAK -> handleShowingCloak();
             case Opcodes.CMSG_NEXT_CINEMATIC_CAMERA, Opcodes.CMSG_COMPLETE_CINEMATIC -> {
@@ -947,6 +950,13 @@ public final class WorldSession {
         out.putU32(player.totalPlayedTime);
         out.putU32(player.levelPlayedTime);
         send(Opcodes.SMSG_PLAYED_TIME, out.array());
+    }
+
+    private void handleRequestAccountData(WowBuffer in) {
+        byte[] payload = accountData.request(in);
+        if (payload != null) {
+            send(Opcodes.SMSG_UPDATE_ACCOUNT_DATA, payload);
+        }
     }
 
     /** CharacterHandler::HandleShowingHelmOpcode — ToggleFlag PLAYER_FLAGS_HIDE_HELM. */
