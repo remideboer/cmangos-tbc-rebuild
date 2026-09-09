@@ -62,6 +62,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 
 public final class World implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(World.class);
@@ -578,6 +579,7 @@ public final class World implements Runnable {
         }
         // Unit::Update → m_currentSpells[i]->update(diff): cast bars finish here.
         spells.update(diff, nowMs());
+        tickPeriodicAuras();
         expirePlayerAuras();
         if (timers.weatherPassed()) {
             timers.resetWeather();
@@ -690,6 +692,42 @@ public final class World implements Runnable {
             timers.setInterval(WorldTimers.EVENTS, next);
             timers.reset(WorldTimers.EVENTS);
         }
+    }
+
+    /** Unit::_UpdateSpells — periodic ticks before expiry so the last Amplitude is not lost. */
+    private void tickPeriodicAuras() {
+        long now = nowMs();
+        for (GameMap m : maps.values()) {
+            for (Player p : m.players()) {
+                pulseUnitPeriodic(m, p, now);
+            }
+            for (Creature c : m.creaturesNearPlayers(GameMap.VISIBILITY)) {
+                pulseUnitPeriodic(m, c, now);
+            }
+        }
+    }
+
+    private void pulseUnitPeriodic(GameMap m, Unit u, long now) {
+        AuraSlots.pulsePeriodic(u, now, a -> {
+            Unit caster = m.players.get(a.casterGuid());
+            if (caster == null) {
+                caster = m.creatures.get(a.casterGuid());
+            }
+            if (caster == null) {
+                return;
+            }
+            BiConsumer<Integer, byte[]> send = (op, payload) -> {
+                if (u instanceof Player self && self.session != null) {
+                    self.session.send(op, payload);
+                }
+                for (Player pl : m.nearbyPlayers(u, GameMap.VISIBILITY)) {
+                    if (pl.session != null) {
+                        pl.session.send(op, payload);
+                    }
+                }
+            };
+            spells.tickPeriodic(caster, u, spells.info(a.spellId()), send);
+        });
     }
 
     /** Unit::_UpdateSpells — expire timed holders on in-map players (AURA_REMOVE_BY_EXPIRE). */

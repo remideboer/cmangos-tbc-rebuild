@@ -116,4 +116,19 @@ class AuraSlotsTest {
         });
         assertTrue(p.auras.isEmpty());
     }
+
+    @Test
+    void pulsePeriodicWhenAmplitudeElapsedShouldFireOnceAndReschedule() {
+        Player p = new Player();
+        p.auras.add(new org.tbc.world.entity.Unit.Aura(30108, 18_000, 1, 0, 0, 3000, 5000, 1));
+        int[] ticks = {0};
+        AuraSlots.pulsePeriodic(p, 4999, a -> ticks[0]++);
+        assertEquals(0, ticks[0]);
+        AuraSlots.pulsePeriodic(p, 5000, a -> ticks[0]++);
+        assertEquals(1, ticks[0]);
+        assertEquals(8000, p.auras.get(0).nextTickAtMs());
+        AuraSlots.pulsePeriodic(null, 1, a -> ticks[0]++);
+        AuraSlots.pulsePeriodic(p, 8000, null);
+        assertEquals(1, ticks[0]);
+    }
 }

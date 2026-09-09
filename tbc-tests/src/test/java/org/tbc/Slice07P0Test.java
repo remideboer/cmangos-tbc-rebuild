@@ -265,6 +265,35 @@ class Slice07P0Test {
         assertFalse(p.hasAura(FROST_ARMOR), "holder removed (AURA_REMOVE_BY_EXPIRE)");
     }
 
+    private static final int UNSTABLE_AFFLICTION = 30108;
+
+    /**
+     * TP-SL07-008 — Aura::Update m_isPeriodic → PeriodicTick from Unit::_UpdateSpells in the world
+     * loop (not SpellEngine.tickPeriodic from a test). combat-log.md SMSG_PERIODICAURALOG + HEALTH VALUES.
+     */
+    @Test
+    void tpSl07PeriodicTickFromWorldLoop() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(UNSTABLE_AFFLICTION);
+        Creature c = kobold(world, p);
+        int hpBefore = c.health();
+        client.castSpell(world, UNSTABLE_AFFLICTION, 1, c.guid);
+        assertTrue(c.hasAura(UNSTABLE_AFFLICTION));
+        client.clear();
+        world.advanceMs(org.tbc.world.spell.SpellEngine.UA_AMPLITUDE_MS);
+        world.tick(org.tbc.world.spell.SpellEngine.UA_AMPLITUDE_MS);
+        assertTrue(client.saw(Opcodes.SMSG_PERIODICAURALOG));
+        byte[] log = client.payload(Opcodes.SMSG_PERIODICAURALOG);
+        int off = WowClientDouble.skipPackedGuid(log, 0);
+        off = WowClientDouble.skipPackedGuid(log, off);
+        assertEquals(UNSTABLE_AFFLICTION, WowClientDouble.u32le(log, off));
+        assertEquals(1, WowClientDouble.u32le(log, off + 4));
+        assertEquals(3, WowClientDouble.u32le(log, off + 8), "SPELL_AURA_PERIODIC_DAMAGE");
+        assertEquals(hpBefore, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_HEALTH));
+    }
+
     /** login-burst.md SMSG_INITIAL_SPELLS: unk u8, spellCount u16, spells, cooldownCount u16, then entries. */
     private static int[] initialSpellCooldown(byte[] p, int spellId) {
         int off = 1;

@@ -178,6 +178,8 @@ public final class SpellEngine {
     public static final int FROST_ARMOR = 168;
     public static final int FROST_ARMOR_DURATION_MS = 1_800_000;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
+    /** Spell.dbc EffectAmplitude1 for Unstable Affliction rank 1. */
+    public static final int UA_AMPLITUDE_MS = 3000;
     public static final int LOGINEFFECT = 836;
     public static final int SPELL_MISS_MISS = 1;
     private static final double MAGIC_MISS = 0.04;
@@ -224,10 +226,11 @@ public final class SpellEngine {
             EFFECT_APPLY_AREA_AURA_PET, EFFECT_APPLY_AREA_AURA_OWNER);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
-                            int misc, int equippedItemClass, int castTimeMs, int gcdMs, int recoveryMs, int durationMs) {
+                            int misc, int equippedItemClass, int castTimeMs, int gcdMs, int recoveryMs, int durationMs,
+                            int amplitudeMs) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
                          int misc, int equippedItemClass) {
-            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, 0, 0, 0, 0);
+            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, 0, 0, 0, 0, 0);
         }
 
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -241,25 +244,31 @@ public final class SpellEngine {
         /** Spell.dbc CastingTimeIndex → SpellCastTimes.dbc base (ms). */
         public SpellInfo withCastTime(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, ms,
-                    gcdMs, recoveryMs, durationMs);
+                    gcdMs, recoveryMs, durationMs, amplitudeMs);
         }
 
         /** Spell.dbc StartRecoveryTime (StartRecoveryCategory 133). */
         public SpellInfo withGcd(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
-                    castTimeMs, ms, recoveryMs, durationMs);
+                    castTimeMs, ms, recoveryMs, durationMs, amplitudeMs);
         }
 
         /** Spell.dbc RecoveryTime (ms). Applied at Spell::cast, not at prepare. */
         public SpellInfo withRecovery(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
-                    castTimeMs, gcdMs, ms, durationMs);
+                    castTimeMs, gcdMs, ms, durationMs, amplitudeMs);
         }
 
         /** Spell.dbc DurationIndex → SpellDuration.dbc (ms). */
         public SpellInfo withDuration(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
-                    castTimeMs, gcdMs, recoveryMs, ms);
+                    castTimeMs, gcdMs, recoveryMs, ms, amplitudeMs);
+        }
+
+        /** Spell.dbc EffectAmplitude (ms) for periodic auras. */
+        public SpellInfo withAmplitude(int ms) {
+            return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
+                    castTimeMs, gcdMs, recoveryMs, durationMs, ms);
         }
     }
 
@@ -302,7 +311,7 @@ public final class SpellEngine {
         spells.put(ClassScripts.SPELL_EXECUTE, new SpellInfo(ClassScripts.SPELL_EXECUTE, EFFECT_DUMMY, 0, 0, 0, 0, 0, 5f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(30108, new SpellInfo(30108, EFFECT_APPLY_AURA, 3, 5, 0, 0, 0, 30f)
-                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withAmplitude(UA_AMPLITUDE_MS));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
     }
@@ -983,7 +992,10 @@ public final class SpellEngine {
             int duration = auraDurationMs(sp);
             // auraDurationMs is always > 0; expireAt 0 means permanent (apply without a world clock).
             long expireAt = nowMs > 0 ? nowMs + duration : 0;
-            target.auras.add(new Unit.Aura(sp.id, duration, 1, 0, expireAt));
+            int amp = sp.amplitudeMs();
+            long nextTick = amp > 0 && nowMs > 0 ? nowMs + amp : 0;
+            long casterGuid = caster == null ? 0 : caster.guid;
+            target.auras.add(new Unit.Aura(sp.id, duration, 1, 0, expireAt, amp, nextTick, casterGuid));
             int level = caster == null ? target.level : caster.level;
             AuraSlots.applyVisible(target, sp.id, level, 1);
             auras.apply(target, sp);
@@ -2451,6 +2463,8 @@ public final class SpellEngine {
         target.setHealth(before - dmg);
         int dealt = before - target.health();
         send.accept(Opcodes.SMSG_PERIODICAURALOG, encodePeriodicDamageLog(target.guid, caster.guid, sp, dealt));
+        var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
+        send.accept(hp.opcode(), hp.payload());
     }
 
     byte[] encodePeriodicDamageLog(long target, long caster, SpellInfo sp, int damage) {

@@ -9,6 +9,7 @@ import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.ArrayList;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * SpellAuraHolder::_AddAura visible slot (MAX_AURAS 56) and SendAuraDuration.
@@ -107,6 +108,23 @@ public final class AuraSlots {
                             UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + slot / 4));
                     send.accept(upd.opcode(), upd.payload());
                 }
+            }
+        }
+    }
+
+    /**
+     * Aura::Update m_isPeriodic: holders whose Amplitude has elapsed fire PeriodicTick
+     * and schedule the next tick (one tick per pulse, matching CMaNGOS Unit::Update).
+     */
+    public static void pulsePeriodic(Unit target, long nowMs, Consumer<Unit.Aura> onTick) {
+        if (target == null || onTick == null) {
+            return;
+        }
+        for (int i = 0; i < target.auras.size(); i++) {
+            Unit.Aura a = target.auras.get(i);
+            if (a.amplitudeMs() > 0 && a.nextTickAtMs() > 0 && nowMs >= a.nextTickAtMs()) {
+                onTick.accept(a);
+                target.auras.set(i, a.withNextTick(a.nextTickAtMs() + a.amplitudeMs()));
             }
         }
     }

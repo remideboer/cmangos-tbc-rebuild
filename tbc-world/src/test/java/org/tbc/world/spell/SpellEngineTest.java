@@ -400,6 +400,19 @@ class SpellEngineTest {
     }
 
     @Test
+    void applyWhenPeriodicAndNowMsSetShouldStampNextTick() {
+        engine.apply(p, c, engine.info(30108), 1000);
+        org.tbc.world.entity.Unit.Aura a = c.auras.get(c.auras.size() - 1);
+        assertEquals(SpellEngine.UA_AMPLITUDE_MS, a.amplitudeMs());
+        assertEquals(1000 + SpellEngine.UA_AMPLITUDE_MS, a.nextTickAtMs());
+        assertEquals(p.guid, a.casterGuid());
+        engine.apply(p, c, engine.info(30108));
+        assertEquals(0, c.auras.get(c.auras.size() - 1).nextTickAtMs());
+        engine.apply(null, c, engine.info(30108), 2000);
+        assertEquals(0, c.auras.get(c.auras.size() - 1).casterGuid());
+    }
+
+    @Test
     void castFrostArmorWhenInstantShouldSendAuraDuration() {
         p.spells.add(SpellEngine.FROST_ARMOR);
         p.setInt(UpdateFields.UNIT_FIELD_POWER1, 200);
