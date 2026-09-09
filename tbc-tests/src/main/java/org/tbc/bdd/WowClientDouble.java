@@ -522,6 +522,14 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_MAIL_TAKE_MONEY, b.array());
     }
 
+    public void returnMailToSender(World world, long mailbox, int mailId, long senderGuid) {
+        WowBuffer b = new WowBuffer(20);
+        b.putU64(mailbox);
+        b.putU32(mailId);
+        b.putU64(senderGuid);
+        handle(world, Opcodes.CMSG_MAIL_RETURN_TO_SENDER, b.array());
+    }
+
     public void markMailRead(World world, long mailbox, int mailId) {
         WowBuffer b = new WowBuffer(12);
         b.putU64(mailbox);

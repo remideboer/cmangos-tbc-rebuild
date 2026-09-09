@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * TP-SL09-009 — mail take-money, delete, and mark-as-read.
+ * TP-SL09-009 — mail take-money, delete, mark-as-read, and return-to-sender.
  */
 class Slice09MailTest {
     private static final World.Account ACC =
@@ -167,9 +167,100 @@ class Slice09MailTest {
         assertEquals(0x10, after & 0x10);
     }
 
+    @Test
+    void tpSl09MailReturnToSender() {
+        World world = World.inMemory();
+        WowClientDouble sender = new WowClientDouble();
+        WowClientDouble receiver = new WowClientDouble();
+        sender.connect(ACC);
+        receiver.connect(new World.Account(2, "OTHER", new byte[40], 0, 1, "Win", "x86"));
+        Player from = world.characters.create(ACC.id(), "Frommail", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player to = world.characters.create(2, "Tomail", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        sender.login(world, from.guid);
+        receiver.login(world, to.guid);
+        Mail m = new Mail();
+        m.id = world.characters.nextMailId();
+        m.sender = Guid.low(from.guid);
+        m.receiver = Guid.low(to.guid);
+        m.subject = "hello";
+        m.money = 50;
+        m.deliverTime = world.nowMs() / 1000;
+        world.characters.storeMail(m);
+
+        sender.clear();
+        receiver.clear();
+        WowBuffer in = new WowBuffer(20);
+        in.putU64(1);
+        in.putU32(m.id);
+        in.putU64(from.guid);
+        receiver.handle(world, Opcodes.CMSG_MAIL_RETURN_TO_SENDER, in.array());
+        byte[] r = receiver.payload(Opcodes.SMSG_SEND_MAIL_RESULT);
+        assertEquals(m.id, WowClientDouble.u32le(r, 0));
+        assertEquals(SocialHandler.MAIL_RETURNED_TO_SENDER, WowClientDouble.u32le(r, 4));
+        assertEquals(SocialHandler.MAIL_OK, WowClientDouble.u32le(r, 8));
+        assertTrue(sender.saw(Opcodes.SMSG_RECEIVED_MAIL));
+
+        receiver.clear();
+        receiver.getMailList(world, 1);
+        assertEquals(0, receiver.payload(Opcodes.SMSG_MAIL_LIST_RESULT)[0] & 0xFF);
+
+        sender.clear();
+        sender.getMailList(world, 1);
+        byte[] list = sender.payload(Opcodes.SMSG_MAIL_LIST_RESULT);
+        assertEquals(1, list[0] & 0xFF);
+        assertEquals(Guid.low(to.guid), firstMailSender(list));
+        assertEquals(50, firstMailMoney(list));
+        assertEquals(0x02, firstMailChecked(list) & 0x02);
+    }
+
+    @Test
+    void tpSl09MailReturnToSenderWhenMissingShouldInternalError() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Noreturn", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        WowBuffer in = new WowBuffer(20);
+        in.putU64(1);
+        in.putU32(99);
+        in.putU64(0);
+        client.handle(world, Opcodes.CMSG_MAIL_RETURN_TO_SENDER, in.array());
+        byte[] r = client.payload(Opcodes.SMSG_SEND_MAIL_RESULT);
+        assertEquals(99, WowClientDouble.u32le(r, 0));
+        assertEquals(SocialHandler.MAIL_RETURNED_TO_SENDER, WowClientDouble.u32le(r, 4));
+        assertEquals(SocialHandler.MAIL_ERR_INTERNAL, WowClientDouble.u32le(r, 8));
+    }
+
     /** mail.md SMSG_MAIL_LIST_RESULT: count, row size, then id/type/sender/COD/itemText/package/stationery/money/checked. */
     private static int firstMailChecked(byte[] list) {
+        WowBuffer b = firstMailAfterMoney(list);
+        return b.getU32();
+    }
+
+    private static int firstMailMoney(byte[] list) {
         WowBuffer b = new WowBuffer(list);
+        skipToMailMoney(b);
+        return b.getU32();
+    }
+
+    private static int firstMailSender(byte[] list) {
+        WowBuffer b = new WowBuffer(list);
+        b.getU8();
+        b.getU16();
+        b.getU32();
+        b.getU8();
+        return Guid.low(b.getU64());
+    }
+
+    private static WowBuffer firstMailAfterMoney(byte[] list) {
+        WowBuffer b = new WowBuffer(list);
+        skipToMailMoney(b);
+        b.getU32();
+        return b;
+    }
+
+    private static void skipToMailMoney(WowBuffer b) {
         b.getU8();
         b.getU16();
         b.getU32();
@@ -179,7 +270,5 @@ class Slice09MailTest {
         b.getU32();
         b.getU32();
         b.getU32();
-        b.getU32();
-        return b.getU32();
     }
 }

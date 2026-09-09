@@ -606,6 +606,54 @@ public final class SocialHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** MailHandler.cpp HandleMailReturnToSender — delete inbox row, mail the original sender. */
+    public static void returnMailToSender(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            mailResult(s, 0, MAIL_RETURNED_TO_SENDER, MAIL_ERR_INTERNAL, 0, 0);
+            return;
+        }
+        in.getU64();
+        int mailId = in.getU32();
+        if (in.remaining() >= 8) {
+            in.getU64();
+        }
+        Mail m = world.characters.mail(mailId);
+        long now = world.nowMs() / 1000;
+        if (m == null || m.receiver != Guid.low(s.player().guid)
+                || m.state == Mail.MAIL_STATE_DELETED || m.deliverTime > now) {
+            mailResult(s, mailId, MAIL_RETURNED_TO_SENDER, MAIL_ERR_INTERNAL, 0, 0);
+            return;
+        }
+        m.state = Mail.MAIL_STATE_DELETED;
+        world.characters.storeMail(m);
+        if (m.sender != 0) {
+            Mail back = new Mail();
+            back.id = world.characters.nextMailId();
+            back.sender = Guid.low(s.player().guid);
+            back.receiver = m.sender;
+            back.subject = m.subject;
+            back.body = m.body;
+            back.money = m.money;
+            back.stationery = m.stationery;
+            back.checked = Mail.MAIL_CHECK_MASK_RETURNED;
+            Player dest = world.playerByGuid(Guid.player(m.sender));
+            long delay = 0;
+            if (!m.items.isEmpty() && dest != null && dest.accountId != s.player().accountId) {
+                delay = 3600;
+            }
+            back.deliverTime = now + delay;
+            back.expireTime = back.deliverTime + 30L * 24 * 3600;
+            back.items.addAll(m.items);
+            m.items.clear();
+            world.characters.storeMail(m);
+            world.characters.storeMail(back);
+            if (dest != null && dest.session != null && back.deliverTime <= now) {
+                dest.session.send(Opcodes.SMSG_RECEIVED_MAIL, u32(0));
+            }
+        }
+        mailResult(s, mailId, MAIL_RETURNED_TO_SENDER, MAIL_OK, 0, 0);
+    }
+
     /** MailHandler.cpp HandleMailMarkAsRead — OR MAIL_CHECK_MASK_READ; no SMSG. */
     public static void markMailRead(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() < 12) {

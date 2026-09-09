@@ -21,4 +21,5 @@ public final class Mail {
     public static final int MAIL_STATE_CHANGED = 2;
     public static final int MAIL_STATE_DELETED = 3;
     public static final int MAIL_CHECK_MASK_READ = 0x01;
+    public static final int MAIL_CHECK_MASK_RETURNED = 0x02;
 }
