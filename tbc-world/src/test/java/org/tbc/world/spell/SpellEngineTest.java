@@ -383,6 +383,27 @@ class SpellEngineTest {
         assertFalse(ops.contains(Opcodes.SMSG_PERIODICAURALOG));
     }
 
+    @Test
+    void applyWhenFrostArmorShouldWriteVisibleSlotUsingTargetLevelIfCasterNull() {
+        p.level = 3;
+        engine.apply(null, p, engine.info(SpellEngine.FROST_ARMOR));
+        assertEquals(SpellEngine.FROST_ARMOR, p.getInt(UpdateFields.UNIT_FIELD_AURA));
+        assertEquals(3, p.getInt(UpdateFields.UNIT_FIELD_AURALEVELS) & 0xFF);
+        assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, p.auras.get(p.auras.size() - 1).durationMs());
+    }
+
+    @Test
+    void castFrostArmorWhenInstantShouldSendAuraDuration() {
+        p.spells.add(SpellEngine.FROST_ARMOR);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER1, 200);
+        engine.cast(p, map, 0, SpellEngine.FROST_ARMOR, 1, unitTarget(p.guid), this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_UPDATE_AURA_DURATION));
+        byte[] dur = last.get(Opcodes.SMSG_UPDATE_AURA_DURATION);
+        assertEquals(0, dur[0] & 0xFF);
+        int remain = (dur[1] & 0xFF) | ((dur[2] & 0xFF) << 8) | ((dur[3] & 0xFF) << 16) | ((dur[4] & 0xFF) << 24);
+        assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, remain);
+    }
+
     private void capture(int opcode, byte[] payload) {
         ops.add(opcode);
         last.put(opcode, payload);

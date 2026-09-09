@@ -174,6 +174,10 @@ public final class SpellEngine {
     public static final int FROST_NOVA = 122;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
+    /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
+    public static final int FROST_ARMOR = 168;
+    public static final int FROST_ARMOR_DURATION_MS = 1_800_000;
+    public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     public static final int LOGINEFFECT = 836;
     public static final int SPELL_MISS_MISS = 1;
     private static final double MAGIC_MISS = 0.04;
@@ -220,10 +224,10 @@ public final class SpellEngine {
             EFFECT_APPLY_AREA_AURA_PET, EFFECT_APPLY_AREA_AURA_OWNER);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
-                            int misc, int equippedItemClass, int castTimeMs, int gcdMs, int recoveryMs) {
+                            int misc, int equippedItemClass, int castTimeMs, int gcdMs, int recoveryMs, int durationMs) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
                          int misc, int equippedItemClass) {
-            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, 0, 0, 0);
+            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, 0, 0, 0, 0);
         }
 
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -237,19 +241,25 @@ public final class SpellEngine {
         /** Spell.dbc CastingTimeIndex → SpellCastTimes.dbc base (ms). */
         public SpellInfo withCastTime(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, ms,
-                    gcdMs, recoveryMs);
+                    gcdMs, recoveryMs, durationMs);
         }
 
         /** Spell.dbc StartRecoveryTime (StartRecoveryCategory 133). */
         public SpellInfo withGcd(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
-                    castTimeMs, ms, recoveryMs);
+                    castTimeMs, ms, recoveryMs, durationMs);
         }
 
         /** Spell.dbc RecoveryTime (ms). Applied at Spell::cast, not at prepare. */
         public SpellInfo withRecovery(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
-                    castTimeMs, gcdMs, ms);
+                    castTimeMs, gcdMs, ms, durationMs);
+        }
+
+        /** Spell.dbc DurationIndex → SpellDuration.dbc (ms). */
+        public SpellInfo withDuration(int ms) {
+            return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
+                    castTimeMs, gcdMs, recoveryMs, ms);
         }
     }
 
@@ -285,6 +295,8 @@ public final class SpellEngine {
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(FROST_NOVA, new SpellInfo(FROST_NOVA, EFFECT_APPLY_AURA, 0, 4, 55, 0, 0, 0f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withRecovery(FROST_NOVA_RECOVERY_MS));
+        spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 0, 0, 0f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
         spells.put(2050, new SpellInfo(2050, EFFECT_HEAL, 0, 1, 20, 10, 14, 0f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(ClassScripts.SPELL_EXECUTE, new SpellInfo(ClassScripts.SPELL_EXECUTE, EFFECT_DUMMY, 0, 0, 0, 0, 0, 5f)
@@ -571,7 +583,15 @@ public final class SpellEngine {
                 var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
                 send.accept(hp.opcode(), hp.payload());
             }
+            if (sp.effect == EFFECT_APPLY_AURA) {
+                AuraSlots.sendApply(target, sp.id, auraDurationMs(sp), send);
+            }
         }
+    }
+
+    /** SpellDuration.dbc when DurationIndex is seeded; otherwise the v1 30 s holder default. */
+    static int auraDurationMs(SpellInfo sp) {
+        return sp.durationMs() > 0 ? sp.durationMs() : 30_000;
     }
 
     public int apply(Unit caster, Unit target, SpellInfo sp) {
@@ -956,7 +976,10 @@ public final class SpellEngine {
             return 0;
         }
         if (sp.effect == EFFECT_APPLY_AURA) {
-            target.auras.add(new Unit.Aura(sp.id, 30_000, 1));
+            int duration = auraDurationMs(sp);
+            target.auras.add(new Unit.Aura(sp.id, duration, 1));
+            int level = caster == null ? target.level : caster.level;
+            AuraSlots.applyVisible(target, sp.id, level, 1);
             auras.apply(target, sp);
             return 0;
         }

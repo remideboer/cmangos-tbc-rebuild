@@ -219,6 +219,33 @@ class Slice07P0Test {
         assertEquals(SPELL_FAILED_NOT_READY, res[4] & 0xFF);
     }
 
+    private static final int FROST_ARMOR = 168;
+    /** SpellDuration.dbc for DurationIndex 30 (Frost Armor rank 1) — 30 minutes. */
+    private static final int FROST_ARMOR_DURATION_MS = 1_800_000;
+    /** SpellAuraDefines AFLAG_EFFECT_0 | AFLAG_CANCELABLE for a positive one-effect buff. */
+    private static final int AFLAG_VISIBLE_CANCELABLE = 0x11;
+
+    /**
+     * TP-SL07-006 — Aura::_AddAura writes UNIT_FIELD_AURA / FLAGS / LEVELS / APPLICATIONS and
+     * SendAuraDuration (SMSG_UPDATE_AURA_DURATION slot u8 + remaining ms u32) to the target.
+     */
+    @Test
+    void tpSl07AuraSlotVisible() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(FROST_ARMOR);
+        client.clear();
+        client.castSpell(world, FROST_ARMOR, 1, p.guid);
+        assertEquals(FROST_ARMOR, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+        assertEquals(AFLAG_VISIBLE_CANCELABLE, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURAFLAGS) & 0xFF);
+        assertEquals(p.level, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURALEVELS) & 0xFF);
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURAAPPLICATIONS) & 0xFF);
+        byte[] dur = client.payload(Opcodes.SMSG_UPDATE_AURA_DURATION);
+        assertEquals(0, dur[0] & 0xFF, "slot");
+        assertEquals(FROST_ARMOR_DURATION_MS, WowClientDouble.u32le(dur, 1));
+    }
+
     /** login-burst.md SMSG_INITIAL_SPELLS: unk u8, spellCount u16, spells, cooldownCount u16, then entries. */
     private static int[] initialSpellCooldown(byte[] p, int spellId) {
         int off = 1;
