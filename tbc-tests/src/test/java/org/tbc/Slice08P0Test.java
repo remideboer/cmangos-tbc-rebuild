@@ -433,6 +433,35 @@ class Slice08P0Test {
         assertEquals(0x01, flags & 0x01);
     }
 
+    /**
+     * TP-SL08-027 — CMSG_SET_FACTION_ATWAR Booty Bay list 1; next login
+     * SMSG_INITIALIZE_FACTIONS slot 1 has FACTION_FLAG_AT_WAR.
+     */
+    @Test
+    void tpSl08SetFactionAtWar() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "RepWar", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        long guid = client.session().player().guid;
+        client.clear();
+        WowBuffer in = new WowBuffer(5);
+        in.putU32(1);
+        in.putU8(1);
+        client.handle(world, Opcodes.CMSG_SET_FACTION_ATWAR, in.array());
+        client.session().logout(world, true);
+        WowClientDouble relog = new WowClientDouble();
+        relog.connect(ACC);
+        relog.login(world, guid);
+        WowBuffer fac = new WowBuffer(relog.payload(Opcodes.SMSG_INITIALIZE_FACTIONS));
+        assertEquals(0x80, fac.getU32());
+        fac.getU8();
+        fac.getU32();
+        int flags = fac.getU8();
+        assertEquals(0x02, flags & 0x02);
+    }
+
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
     private static final int DIALOG_STATUS_AVAILABLE = 6;
 }

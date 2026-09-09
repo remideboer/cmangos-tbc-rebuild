@@ -90,4 +90,53 @@ class ReputationMgrTest {
         assertEquals(ReputationMgr.STORMWIND_ALLIANCE_FLAGS, in.getU8());
         assertEquals(0, in.getU32());
     }
+
+    @Test
+    void setAtWarWhenBootyBayShouldSetFlag() {
+        ReputationMgr r = new ReputationMgr();
+        r.seedCreateDefaults(ReputationMgr.TEAM_ALLIANCE);
+        r.setAtWar(ReputationMgr.LIST_BOOTY_BAY, true);
+        assertEquals(ReputationMgr.FLAG_AT_WAR, r.flags(ReputationMgr.LIST_BOOTY_BAY) & ReputationMgr.FLAG_AT_WAR);
+    }
+
+    @Test
+    void setAtWarWhenStormwindPeaceForcedShouldNoOp() {
+        ReputationMgr r = new ReputationMgr();
+        r.seedCreateDefaults(ReputationMgr.TEAM_ALLIANCE);
+        r.setAtWar(ReputationMgr.LIST_STORMWIND, true);
+        assertEquals(0, r.flags(ReputationMgr.LIST_STORMWIND) & ReputationMgr.FLAG_AT_WAR);
+    }
+
+    @Test
+    void setAtWarWhenHatedPeaceForcedShouldSetFlag() {
+        ReputationMgr r = new ReputationMgr();
+        r.seedCreateDefaults(ReputationMgr.TEAM_ALLIANCE);
+        r.setStanding(ReputationMgr.LIST_STORMWIND, -7000);
+        r.setAtWar(ReputationMgr.LIST_STORMWIND, true);
+        assertEquals(ReputationMgr.FLAG_AT_WAR, r.flags(ReputationMgr.LIST_STORMWIND) & ReputationMgr.FLAG_AT_WAR);
+    }
+
+    @Test
+    void setAtWarWhenHiddenShouldNoOp() {
+        ReputationMgr r = new ReputationMgr();
+        r.put(ReputationMgr.LIST_BOOTY_BAY, ReputationMgr.FLAG_HIDDEN);
+        r.setAtWar(ReputationMgr.LIST_BOOTY_BAY, true);
+        assertEquals(0, r.flags(ReputationMgr.LIST_BOOTY_BAY) & ReputationMgr.FLAG_AT_WAR);
+    }
+
+    @Test
+    void setAtWarWhenOffShouldClearFlag() {
+        ReputationMgr r = new ReputationMgr();
+        r.seedCreateDefaults(ReputationMgr.TEAM_ALLIANCE);
+        r.setAtWar(ReputationMgr.LIST_BOOTY_BAY, true);
+        r.setAtWar(ReputationMgr.LIST_BOOTY_BAY, false);
+        assertEquals(0, r.flags(ReputationMgr.LIST_BOOTY_BAY) & ReputationMgr.FLAG_AT_WAR);
+    }
+
+    @Test
+    void setAtWarWhenUnknownListShouldNoOp() {
+        ReputationMgr r = new ReputationMgr();
+        r.setAtWar(ReputationMgr.LIST_BOOTY_BAY, true);
+        assertEquals(0, r.flags(ReputationMgr.LIST_BOOTY_BAY));
+    }
 }
