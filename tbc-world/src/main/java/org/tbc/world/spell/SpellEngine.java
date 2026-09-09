@@ -568,6 +568,24 @@ public final class SpellEngine {
         sendFail(pc.send, pc.sp.id, SPELL_FAILED_INTERRUPTED, pc.castCount);
     }
 
+    /**
+     * HandleCancelCastOpcode → InterruptNonMeleeSpells. spellId 0 matches any preparing cast.
+     */
+    public void cancelCast(Player caster, int spellId) {
+        if (caster == null) {
+            return;
+        }
+        PendingCast pc = pendingCasts.get(caster.guid);
+        if (pc == null) {
+            return;
+        }
+        if (spellId != 0 && pc.sp.id != spellId) {
+            return;
+        }
+        pendingCasts.remove(caster.guid);
+        cancel(pc);
+    }
+
     /** Spell::cast: TakePower, effects, SMSG_SPELL_GO (+ miss / damage log). */
     private void finishCast(Player caster, Unit target, SpellInfo sp, int castCount, SpellCastTargets targets,
                             long nowMs, BiConsumer<Integer, byte[]> send) {

@@ -306,6 +306,11 @@ public final class LaterOpcodes {
             s.send(Opcodes.MSG_TALENT_WIPE_CONFIRM, confirm.array());
             return true;
         }
+        if (opcode == Opcodes.CMSG_CANCEL_CAST) {
+            int spellId = in.remaining() >= 4 ? in.getU32() : 0;
+            world.spells.cancelCast(p, spellId);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_CANCEL_CHANNELLING) {
             world.spells.cancelChannel(p, s::send);
             WowBuffer fail = new WowBuffer(12);

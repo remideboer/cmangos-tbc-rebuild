@@ -114,6 +114,35 @@ class Slice07P0Test {
         assertEquals(hpBefore, c.health());
     }
 
+    /**
+     * TP-SL07-010 — HandleCancelCastOpcode: InterruptNonMeleeSpells while SPELL_STATE_PREPARING
+     * → same cancel() as movement (CAST_RESULT INTERRUPTED + SPELL_FAILURE, no GO).
+     */
+    @Test
+    void tpSl07CancelCast() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        Creature c = kobold(world, p);
+        int manaBefore = p.power();
+        int hpBefore = c.health();
+        client.clear();
+        client.castSpell(world, FIREBALL, 1, c.guid);
+        world.tick(500);
+        org.tbc.common.WowBuffer cancel = new org.tbc.common.WowBuffer(4);
+        cancel.putU32(FIREBALL);
+        client.handle(world, Opcodes.CMSG_CANCEL_CAST, cancel.array());
+
+        byte[] res = client.payload(Opcodes.SMSG_CAST_RESULT);
+        assertEquals(FIREBALL, WowClientDouble.u32le(res, 0));
+        assertEquals(SPELL_FAILED_INTERRUPTED, res[4] & 0xFF);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_FAILURE));
+        world.tick(FIREBALL_CAST_MS);
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO), "cancelled cast never lands");
+        assertEquals(manaBefore, p.power());
+        assertEquals(hpBefore, c.health());
+    }
+
     private static final int SPELL_FAILED_INTERRUPTED = 0x25;
 
     /**

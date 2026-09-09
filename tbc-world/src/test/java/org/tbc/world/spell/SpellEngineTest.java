@@ -456,6 +456,24 @@ class SpellEngineTest {
         assertFalse(p.channeling);
     }
 
+    @Test
+    void cancelCastWhenPreparingShouldInterruptLikeMovement() {
+        engine.cancelCast(p, SpellEngine.FIREBALL);
+        p.spells.add(SpellEngine.FIREBALL);
+        engine.cast(p, map, 0, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        ops.clear();
+        last.clear();
+        engine.cancelCast(null, SpellEngine.FIREBALL);
+        engine.cancelCast(p, 999);
+        assertFalse(ops.contains(Opcodes.SMSG_CAST_RESULT));
+        engine.cancelCast(p, SpellEngine.FIREBALL);
+        assertTrue(ops.contains(Opcodes.SMSG_CAST_RESULT));
+        engine.cast(p, map, 2000, SpellEngine.FIREBALL, 2, unitTarget(c.guid), this::capture);
+        ops.clear();
+        engine.cancelCast(p, 0);
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_FAILURE));
+    }
+
     private void capture(int opcode, byte[] payload) {
         ops.add(opcode);
         last.put(opcode, payload);
