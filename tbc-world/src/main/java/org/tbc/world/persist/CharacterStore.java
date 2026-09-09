@@ -180,7 +180,7 @@ public final class CharacterStore {
         List<Player> out = new ArrayList<>();
         try (Connection c = chars.get()) {
             PreparedStatement ps = c.prepareStatement(
-                    "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,guildId,playerFlags FROM characters WHERE account = ? AND deleteDate IS NULL");
+                    "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,guildId,playerFlags FROM characters WHERE account = ? AND deleteDate IS NULL");
             ps.setInt(1, accountId);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
@@ -195,7 +195,7 @@ public final class CharacterStore {
         } catch (Exception e) {
             try (Connection c = chars.get()) {
                 PreparedStatement ps = c.prepareStatement(
-                        "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1 FROM characters WHERE account = ? AND deleteDate IS NULL");
+                        "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4 FROM characters WHERE account = ? AND deleteDate IS NULL");
                 ps.setInt(1, accountId);
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
@@ -262,6 +262,8 @@ public final class CharacterStore {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, col(rs, "health", 50)));
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER1,
                 Math.min(col(rs, "power1", 0), p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER1)));
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER4,
+                Math.min(col(rs, "power4", 0), p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER4)));
         return p;
     }
 
@@ -455,8 +457,8 @@ public final class CharacterStore {
 
     private Player loadRow(Connection c, int accountId, int g, ObjectMgr mgr, boolean withRest) throws Exception {
         String sql = withRest
-                ? "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,is_logout_resting,rest_bonus FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL"
-                : "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1 FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL";
+                ? "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,is_logout_resting,rest_bonus FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL"
+                : "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4 FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL";
         PreparedStatement ps = c.prepareStatement(sql);
         ps.setInt(1, g);
         ps.setInt(2, accountId);
@@ -630,7 +632,7 @@ public final class CharacterStore {
         ins.setInt(i++, p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER1));
         ins.setInt(i++, 0);
         ins.setInt(i++, 0);
-        ins.setInt(i++, 0);
+        ins.setInt(i++, p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER4));
         ins.setInt(i++, 0);
         ins.setLong(i++, Integer.toUnsignedLong(p.watchedFaction));
         ins.executeUpdate();

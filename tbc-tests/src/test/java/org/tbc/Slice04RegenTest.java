@@ -19,6 +19,7 @@ class Slice04RegenTest {
     private static final int HUMAN = 1;
     private static final int WARRIOR = 1;
     private static final int MAGE = 8;
+    private static final int ROGUE = 4;
 
     @Test
     void tpSl04OocRegenRaisesHealthAndMana() {
@@ -140,6 +141,25 @@ class Slice04RegenTest {
         world.tick(2000);
 
         assertEquals(500, p.rage());
+    }
+
+    /** TP-SL04-018 — Regenerate(POWER_ENERGY): uint32(diff / 100) * EnergyRate; not gated on combat. */
+    @Test
+    void tpSl04EnergyRegensTwentyPerTickEvenInCombat() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, HUMAN, ROGUE, "Stabber");
+        Player p = client.session().player();
+        p.setPower(40);
+        p.inCombat = true;
+        client.clear();
+
+        world.tick(2000);
+
+        assertEquals(60, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER4));
+        p.setPower(95);
+        client.clear();
+        world.tick(2000);
+        assertEquals(100, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER4), "clamped at max");
     }
 
     private static WowClientDouble enter(World world, int race, int clazz, String name) {

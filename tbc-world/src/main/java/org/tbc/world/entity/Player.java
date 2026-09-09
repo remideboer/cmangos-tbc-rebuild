@@ -36,6 +36,9 @@ public final class Player extends Unit {
     public static final int MAX_VISIBLE_ITEM_OFFSET = 16;
     public static final int POWER_RAGE = 1;
     public static final int POWER_RAGE_MAX = 1000;
+    /** SharedDefines.h POWER_ENERGY / POWER_ENERGY_DEFAULT (Unit::GetCreatePowers for players). */
+    public static final int POWER_ENERGY = 3;
+    public static final int POWER_ENERGY_MAX = 100;
     /** ChrClasses.dbc. CLASSMASK_WAND_USERS in SharedDefines.h. spec/03-protocol/enums.md */
     public static final int CLASS_HUNTER = 3;
     public static final int CLASS_PRIEST = 5;
@@ -415,6 +418,7 @@ public final class Player extends Unit {
         applyLevelStats();
         setInt(UpdateFields.UNIT_FIELD_HEALTH, maxHealth());
         setInt(UpdateFields.UNIT_FIELD_POWER1, getInt(UpdateFields.UNIT_FIELD_MAXPOWER1));
+        setInt(UpdateFields.UNIT_FIELD_POWER4, getInt(UpdateFields.UNIT_FIELD_MAXPOWER4));
     }
 
     /**
@@ -532,10 +536,24 @@ public final class Player extends Unit {
                 changed.add(UpdateFields.UNIT_FIELD_POWER2);
             }
         }
+        if (regenerateEnergy(d)) {
+            changed.add(UpdateFields.UNIT_FIELD_POWER4);
+        }
         if (regenerateMana(d)) {
             changed.add(UpdateFields.UNIT_FIELD_POWER1);
         }
         return changed.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    /** Player::Regenerate(POWER_ENERGY): uint32(diff / 100) * Rate.Power.Energy 1.0, in and out of combat. */
+    private boolean regenerateEnergy(int diff) {
+        int cur = getInt(UpdateFields.UNIT_FIELD_POWER4);
+        int max = getInt(UpdateFields.UNIT_FIELD_MAXPOWER4);
+        if (cur >= max) {
+            return false;
+        }
+        setInt(UpdateFields.UNIT_FIELD_POWER4, Math.min(max, cur + diff / 100));
+        return true;
     }
 
     /** Player::RegenerateHealth: OCTRegenHPPerSpirit * diff / 1000 (×1.5 while sitting). */
@@ -606,6 +624,13 @@ public final class Player extends Unit {
         // Unit::UpdateMaxPower(POWER_MANA): create mana + intellect bonus; basemana 0 keeps the bar hidden.
         setInt(UpdateFields.UNIT_FIELD_MAXPOWER1,
                 createMana == 0 ? 0 : createMana + manaBonusFromIntellect(createStats[3]));
+        // InitStatsForLevel SetMaxPower(GetCreatePowers) — only the class's own bar is shown by the client.
+        if (powerType == POWER_RAGE) {
+            setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, POWER_RAGE_MAX);
+        }
+        if (powerType == POWER_ENERGY) {
+            setInt(UpdateFields.UNIT_FIELD_MAXPOWER4, POWER_ENERGY_MAX);
+        }
         setInt(UpdateFields.PLAYER_NEXT_LEVEL_XP, nextLevelXp);
         setInt(UpdateFields.PLAYER_XP, xp);
         setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, manaRegenPerSecond);
@@ -667,9 +692,6 @@ public final class Player extends Unit {
         setInt(UpdateFields.UNIT_FIELD_LEVEL, level);
         setInt(UpdateFields.PLAYER_FIELD_COINAGE, money);
         setInt(UpdateFields.PLAYER_FIELD_WATCHED_FACTION_INDEX, watchedFaction);
-        if (powerType == POWER_RAGE) {
-            setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, POWER_RAGE_MAX);
-        }
         applyLevelStats();
         applyLanguageSkills();
         movement.x = x;

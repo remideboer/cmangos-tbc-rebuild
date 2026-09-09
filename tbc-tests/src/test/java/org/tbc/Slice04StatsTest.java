@@ -24,6 +24,7 @@ class Slice04StatsTest {
     private static final int RACE_HUMAN = 1;
     private static final int CLASS_WARRIOR = 1;
     private static final int CLASS_MAGE = 8;
+    private static final int CLASS_ROGUE = 4;
 
     @Test
     void tpSl04CreateSelfStatsFromLevelStats() {
@@ -61,6 +62,33 @@ class Slice04StatsTest {
 
         assertNull(self.get(UpdateFields.UNIT_FIELD_MAXPOWER1), "basemana 0 → no mana bar for a warrior");
         assertEquals(1000, self.get(UpdateFields.UNIT_FIELD_MAXPOWER2));
+    }
+
+    /** TP-SL04-018 — InitStatsForLevel: SetMaxPower(POWER_ENERGY, POWER_ENERGY_DEFAULT) then SetPower full. */
+    @Test
+    void tpSl04RogueHasFullEnergyBar() {
+        World world = World.inMemory();
+        Map<Integer, Integer> self = enterAndDecodeSelf(world, RACE_HUMAN, CLASS_ROGUE, "Stabber");
+
+        assertEquals(100, self.get(UpdateFields.UNIT_FIELD_MAXPOWER4));
+        assertEquals(100, self.get(UpdateFields.UNIT_FIELD_POWER4), "full energy at create");
+        assertNull(self.get(UpdateFields.UNIT_FIELD_MAXPOWER1), "basemana 0 → no mana bar for a rogue");
+    }
+
+    /** TP-SL04-018 — LoadFromDB restores characters.power4 (clamped to max), like power1. */
+    @Test
+    void tpSl04RogueEnergySurvivesRelog() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Relogrogue", RACE_HUMAN, CLASS_ROGUE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        created.setPower(37);
+        world.characters.save(created);
+        client.login(world, created.guid);
+        Map<Integer, Integer> self = client.selfCreateValues();
+
+        assertEquals(37, self.get(UpdateFields.UNIT_FIELD_POWER4));
     }
 
     @Test
