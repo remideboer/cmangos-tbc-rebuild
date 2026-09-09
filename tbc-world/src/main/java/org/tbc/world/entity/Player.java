@@ -174,6 +174,8 @@ public final class Player extends Unit {
     public final Map<Integer, Item> items = new HashMap<>();
     /** CMaNGOS ReputationMgr standing keyed by Faction.dbc id (spell EffectMiscValue). */
     private final Map<Integer, Integer> reputation = new HashMap<>();
+    /** CMaNGOS ReputationMgr list-id flags for SMSG_INITIALIZE_FACTIONS. */
+    public final ReputationMgr reputations = new ReputationMgr();
     public final List<Integer> knownTitles = new ArrayList<>();
     public int honorPoints;
     public int arenaPoints;

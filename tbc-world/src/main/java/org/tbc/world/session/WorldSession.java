@@ -346,6 +346,7 @@ public final class WorldSession {
             case Opcodes.CMSG_SHOWING_HELM -> handleShowingHelm();
             case Opcodes.CMSG_SHOWING_CLOAK -> handleShowingCloak();
             case Opcodes.CMSG_SET_WATCHED_FACTION -> handleSetWatchedFaction(in);
+            case Opcodes.CMSG_SET_FACTION_INACTIVE -> handleSetFactionInactive(in);
             case Opcodes.CMSG_NEXT_CINEMATIC_CAMERA, Opcodes.CMSG_COMPLETE_CINEMATIC -> {
             }
             case Opcodes.CMSG_SET_SELECTION -> player.selection = in.remaining() >= 8 ? in.getU64() : 0;
@@ -1039,6 +1040,16 @@ public final class WorldSession {
         player.setInt(UpdateFields.PLAYER_FLAGS, flags);
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, UpdateFields.PLAYER_FLAGS));
         send(upd.opcode(), upd.payload());
+    }
+
+    /** CharacterHandler::HandleSetFactionInactiveOpcode — ReputationMgr::SetInactive, no SMSG. */
+    private void handleSetFactionInactive(WowBuffer in) {
+        if (in.remaining() < 5) {
+            return;
+        }
+        int listId = in.getU32();
+        int inactive = in.getU8();
+        player.reputations.setInactive(listId, inactive != 0);
     }
 
     /** CharacterHandler::HandleSetWatchedFactionOpcode — PLAYER_FIELD_WATCHED_FACTION_INDEX. */

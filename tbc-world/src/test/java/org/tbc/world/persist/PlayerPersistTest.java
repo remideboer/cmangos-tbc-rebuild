@@ -2,6 +2,7 @@ package org.tbc.world.persist;
 
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.ReputationMgr;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -66,5 +67,19 @@ class PlayerPersistTest {
         assertTrue(d.cooldowns.isSpellReady(122, 26_000));
         src.cooldowns.addSpell(122, 1, 1_000);
         assertFalse(d.cooldowns.isSpellReady(122, 25_999), "clone is independent");
+    }
+
+    @Test
+    void copyWhenFactionInactiveShouldKeepFlags() {
+        Player src = new Player();
+        src.guid = 10;
+        src.reputations.seedCreateDefaults(ReputationMgr.TEAM_ALLIANCE);
+        src.reputations.setInactive(ReputationMgr.LIST_STORMWIND, true);
+        Player d = PlayerPersist.copy(src);
+        assertEquals(ReputationMgr.FLAG_INACTIVE,
+                d.reputations.flags(ReputationMgr.LIST_STORMWIND) & ReputationMgr.FLAG_INACTIVE);
+        src.reputations.setInactive(ReputationMgr.LIST_STORMWIND, false);
+        assertEquals(ReputationMgr.FLAG_INACTIVE,
+                d.reputations.flags(ReputationMgr.LIST_STORMWIND) & ReputationMgr.FLAG_INACTIVE);
     }
 }

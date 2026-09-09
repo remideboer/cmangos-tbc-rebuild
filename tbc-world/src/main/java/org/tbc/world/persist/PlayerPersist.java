@@ -46,6 +46,7 @@ public final class PlayerPersist {
         d.restBonus = src.restBonus;
         d.deleteDateMs = src.deleteDateMs;
         d.watchedFaction = src.watchedFaction;
+        d.reputations.copyFrom(src.reputations);
         System.arraycopy(src.actionButtons, 0, d.actionButtons, 0, 132);
         System.arraycopy(src.tut, 0, d.tut, 0, 8);
         d.copyCreateStatsFrom(src);

@@ -4,6 +4,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.content.ChrStatic;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.ReputationMgr;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -112,12 +113,8 @@ public final class LoginBurst {
         }
         s.send(Opcodes.SMSG_ACTION_BUTTONS, ab.array());
         sent.add(Opcodes.SMSG_ACTION_BUTTONS);
-        WowBuffer fac = new WowBuffer(4 + 128 * 5);
-        fac.putU32(0x80);
-        for (int i = 0; i < 128; i++) {
-            fac.putU8(0);
-            fac.putU32(0);
-        }
+        WowBuffer fac = new WowBuffer(4 + ReputationMgr.SLOTS * 5);
+        p.reputations.writeInitial(fac);
         s.send(Opcodes.SMSG_INITIALIZE_FACTIONS, fac.array());
         sent.add(Opcodes.SMSG_INITIALIZE_FACTIONS);
         WowBuffer time = new WowBuffer(8);

@@ -401,6 +401,38 @@ class Slice08P0Test {
         assertEquals(72, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_WATCHED_FACTION_INDEX));
     }
 
+    /**
+     * TP-SL08-027 — CMSG_SET_FACTION_INACTIVE Stormwind list 19; next login
+     * SMSG_INITIALIZE_FACTIONS slot 19 has FACTION_FLAG_INACTIVE.
+     */
+    @Test
+    void tpSl08SetFactionInactive() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "RepHide", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        long guid = client.session().player().guid;
+        client.clear();
+        WowBuffer in = new WowBuffer(5);
+        in.putU32(19);
+        in.putU8(1);
+        client.handle(world, Opcodes.CMSG_SET_FACTION_INACTIVE, in.array());
+        client.session().logout(world, true);
+        WowClientDouble relog = new WowClientDouble();
+        relog.connect(ACC);
+        relog.login(world, guid);
+        WowBuffer fac = new WowBuffer(relog.payload(Opcodes.SMSG_INITIALIZE_FACTIONS));
+        assertEquals(0x80, fac.getU32());
+        for (int i = 0; i < 19; i++) {
+            fac.getU8();
+            fac.getU32();
+        }
+        int flags = fac.getU8();
+        assertEquals(0x20, flags & 0x20);
+        assertEquals(0x01, flags & 0x01);
+    }
+
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
     private static final int DIALOG_STATUS_AVAILABLE = 6;
 }

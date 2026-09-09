@@ -317,6 +317,7 @@ public final class CharacterStore {
         p.atLogin = Player.AT_LOGIN_FIRST;
         p.cinematic = 0;
         fillRace(p);
+        p.reputations.seedCreateDefaults(p.team);
         var ci = mgr.create(race, clazz);
         p.mapId = ci.map();
         p.zoneId = ci.zone();
