@@ -38,6 +38,7 @@ class SpellEngineTest {
         p = new Player();
         p.guid = 1;
         p.spells.add(SpellEngine.FIREBALL);
+        p.spells.add(SpellEngine.FROST_NOVA);
         p.spells.add(78);
         p.spells.add(2050);
         p.spells.add(ClassScripts.SPELL_EXECUTE);
@@ -147,6 +148,54 @@ class SpellEngineTest {
         engine.update(2000, 10);
         assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
         assertEquals(100, p.power());
+    }
+
+    /** Spell::cancel → ResetGCD: after a movement cancel the caster may recast at once. */
+    @Test
+    void castFireballWhenCancelledByMovementShouldResetGcd() {
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        p.relocate(0, 1, 0, 0);
+        engine.update(100, 10);
+        ops.clear();
+        assertTrue(engine.cast(p, map, 20, SpellEngine.FIREBALL, 2, unitTarget(c.guid), this::capture));
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_START));
+    }
+
+    /** TP-SL07-005 — CheckCast HasGCD → SPELL_FAILED_NOT_READY; the second cast is not started. */
+    @Test
+    void castLesserHealDuringFireballGcdShouldFailNotReady() {
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        ops.clear();
+        assertFalse(engine.cast(p, map, 1000, 2050, 2, empty(), this::capture));
+        assertEquals(SpellEngine.SPELL_FAILED_NOT_READY, lastCastResult[4] & 0xFF);
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_START));
+        assertTrue(engine.cast(p, map, 1510, 2050, 3, empty(), this::capture));
+    }
+
+    /** TP-SL07-005 — Spell::cast AddCooldown(RecoveryTime); after the GCD the spell is still NOT_READY. */
+    @Test
+    void castFrostNovaWhenRecoveryActiveShouldFailNotReady() {
+        assertTrue(engine.cast(p, map, 10, SpellEngine.FROST_NOVA, 1, empty(), this::capture));
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_COOLDOWN));
+        ops.clear();
+        assertFalse(engine.cast(p, map, 10 + SpellCooldowns.GCD_NORMAL_MS,
+                SpellEngine.FROST_NOVA, 2, empty(), this::capture));
+        assertEquals(SpellEngine.SPELL_FAILED_NOT_READY, lastCastResult[4] & 0xFF);
+        p.setPower(100);
+        assertTrue(engine.cast(p, map, 10 + SpellEngine.FROST_NOVA_RECOVERY_MS,
+                SpellEngine.FROST_NOVA, 3, empty(), this::capture));
+    }
+
+    /** Heroic Strike is on-next-swing (StartRecoveryTime 0): it neither checks nor starts the GCD. */
+    @Test
+    void castHeroicStrikeDuringGcdShouldBeAccepted() {
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setPower(200);
+        ops.clear();
+        assertTrue(engine.cast(p, map, 20, 78, 2, unitTarget(c.guid), this::capture));
+        assertFalse(ops.contains(Opcodes.SMSG_CAST_RESULT));
     }
 
     @Test
@@ -259,7 +308,8 @@ class SpellEngineTest {
         engine.apply(c, p, engine.info(2050));
         assertEquals(52, p.health());
         ops.clear();
-        engine.cast(p, map, 0, 30108, 1, unitTarget(c.guid), this::capture);
+        // Lesser Heal started the 1500 ms GCD at t=0; the next spell waits for it.
+        engine.cast(p, map, 2000, 30108, 1, unitTarget(c.guid), this::capture);
         assertEquals(1, c.auras.size());
         ops.clear();
         p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);

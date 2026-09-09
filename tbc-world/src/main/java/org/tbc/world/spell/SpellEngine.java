@@ -37,6 +37,7 @@ public final class SpellEngine {
 
     public static final int SPELL_FAILED_BAD_TARGETS = 0x0B;
     public static final int SPELL_FAILED_NOT_KNOWN = 0x3B;
+    public static final int SPELL_FAILED_NOT_READY = 0x3F;
     public static final int SPELL_FAILED_NO_POWER = 0x50;
     public static final int SPELL_FAILED_OUT_OF_RANGE = 0x5C;
     public static final int SPELL_CAST_OK = 0xFF;
@@ -169,6 +170,10 @@ public final class SpellEngine {
     public static final int CAST_FLAG_UNKNOWN2 = 0x2;
     public static final int CAST_FLAG_UNKNOWN9 = 0x100;
     public static final int FIREBALL = 133;
+    /** Frost Nova rank 1: Spell.dbc RecoveryTime 25000, StartRecoveryTime 1500. */
+    public static final int FROST_NOVA = 122;
+    /** Spell.dbc RecoveryTime for Frost Nova 122. */
+    public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     public static final int LOGINEFFECT = 836;
     public static final int SPELL_MISS_MISS = 1;
     private static final double MAGIC_MISS = 0.04;
@@ -215,10 +220,10 @@ public final class SpellEngine {
             EFFECT_APPLY_AREA_AURA_PET, EFFECT_APPLY_AREA_AURA_OWNER);
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
-                            int misc, int equippedItemClass, int castTimeMs) {
+                            int misc, int equippedItemClass, int castTimeMs, int gcdMs, int recoveryMs) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
                          int misc, int equippedItemClass) {
-            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, 0);
+            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, 0, 0, 0);
         }
 
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -231,7 +236,20 @@ public final class SpellEngine {
 
         /** Spell.dbc CastingTimeIndex → SpellCastTimes.dbc base (ms). */
         public SpellInfo withCastTime(int ms) {
-            return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, ms);
+            return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, ms,
+                    gcdMs, recoveryMs);
+        }
+
+        /** Spell.dbc StartRecoveryTime (StartRecoveryCategory 133). */
+        public SpellInfo withGcd(int ms) {
+            return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
+                    castTimeMs, ms, recoveryMs);
+        }
+
+        /** Spell.dbc RecoveryTime (ms). Applied at Spell::cast, not at prepare. */
+        public SpellInfo withRecovery(int ms) {
+            return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
+                    castTimeMs, gcdMs, ms);
         }
     }
 
@@ -262,11 +280,17 @@ public final class SpellEngine {
     public SpellEngine(DoubleSupplier missRoll) {
         this.missRoll = missRoll;
         spells.put(78, new SpellInfo(78, EFFECT_WEAPON_DAMAGE, 0, 0, 150, 1, 3, 5f));
+        // Spell.dbc StartRecoveryTime 1500 / StartRecoveryCategory 133; on-next-swing Heroic Strike has none.
         spells.put(FIREBALL, new SpellInfo(FIREBALL, EFFECT_SCHOOL_DAMAGE, 0, 4, 30, 8, 12, 30f)
-                .withCastTime(CAST_TIME_INDEX_16_MS));
-        spells.put(2050, new SpellInfo(2050, EFFECT_HEAL, 0, 1, 20, 10, 14, 0f).withCastTime(CAST_TIME_INDEX_16_MS));
-        spells.put(ClassScripts.SPELL_EXECUTE, new SpellInfo(ClassScripts.SPELL_EXECUTE, EFFECT_DUMMY, 0, 0, 0, 0, 0, 5f));
-        spells.put(30108, new SpellInfo(30108, EFFECT_APPLY_AURA, 3, 5, 0, 0, 0, 30f));
+                .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(FROST_NOVA, new SpellInfo(FROST_NOVA, EFFECT_APPLY_AURA, 0, 4, 55, 0, 0, 0f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withRecovery(FROST_NOVA_RECOVERY_MS));
+        spells.put(2050, new SpellInfo(2050, EFFECT_HEAL, 0, 1, 20, 10, 14, 0f)
+                .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(ClassScripts.SPELL_EXECUTE, new SpellInfo(ClassScripts.SPELL_EXECUTE, EFFECT_DUMMY, 0, 0, 0, 0, 0, 5f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(30108, new SpellInfo(30108, EFFECT_APPLY_AURA, 3, 5, 0, 0, 0, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
     }
@@ -434,6 +458,14 @@ public final class SpellEngine {
             sendFail(send, spellId, SPELL_FAILED_NOT_KNOWN, castCount);
             return false;
         }
+        if (!caster.cooldowns.isSpellReady(spellId, nowMs)) {
+            sendFail(send, spellId, SPELL_FAILED_NOT_READY, castCount);
+            return false;
+        }
+        if (caster.cooldowns.hasGcd(SpellCooldowns.GCD_CATEGORY_NORMAL, nowMs) && sp.gcdMs > 0) {
+            sendFail(send, spellId, SPELL_FAILED_NOT_READY, castCount);
+            return false;
+        }
         SpellCastTargets targets = SpellCastTargets.read(rest);
         Unit target = resolve(caster, map, targets.unitGuid);
         if (target == null) {
@@ -448,6 +480,8 @@ public final class SpellEngine {
             sendFail(send, spellId, SPELL_FAILED_NO_POWER, castCount);
             return false;
         }
+        // Spell::prepare → AddGCD at cast start; nothing is sent (client runs its own GCD timer).
+        caster.cooldowns.addGcd(SpellCooldowns.GCD_CATEGORY_NORMAL, sp.gcdMs, nowMs);
         send.accept(Opcodes.SMSG_SPELL_START, encodeStart(caster.guid, sp.id, castCount, sp.castTimeMs, targets));
         if (sp.castTimeMs > 0) {
             pendingCasts.put(caster.guid, new PendingCast(caster, map, target, sp, castCount, targets, send,
@@ -487,8 +521,9 @@ public final class SpellEngine {
         }
     }
 
-    /** Spell::cancel while SPELL_STATE_CASTING: SendInterrupted to the set, SendCastResult to the caster. */
+    /** Spell::cancel while SPELL_STATE_CASTING: ResetGCD, SendInterrupted to the set, SendCastResult to the caster. */
     private void cancel(PendingCast pc) {
+        pc.caster.cooldowns.resetGcd(SpellCooldowns.GCD_CATEGORY_NORMAL);
         WowBuffer failure = new WowBuffer(16);
         failure.putPackedGuid(pc.caster.guid);
         failure.putU32(pc.sp.id);
@@ -510,6 +545,8 @@ public final class SpellEngine {
     /** Spell::cast: TakePower, effects, SMSG_SPELL_GO (+ miss / damage log). */
     private void finishCast(Player caster, Unit target, SpellInfo sp, int castCount, SpellCastTargets targets,
                             long nowMs, BiConsumer<Integer, byte[]> send) {
+        // Spell::cast → SendSpellCooldown → AddCooldown(RecoveryTime); nothing is sent (client uses Spell.dbc).
+        caster.cooldowns.addSpell(sp.id, sp.recoveryMs, nowMs);
         if (sp.mana > 0) {
             caster.setPower(caster.power() - sp.mana);
             caster.noteManaUse();

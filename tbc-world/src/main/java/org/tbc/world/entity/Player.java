@@ -154,6 +154,8 @@ public final class Player extends Unit {
     public int restFlags;
     public final int[] actionButtons = new int[132];
     public final List<Integer> spells = new ArrayList<>();
+    /** WorldObject::m_GCDCatMap / m_cooldownMap — not persisted across the in-memory snapshot (GCD is 1.5 s). */
+    public final org.tbc.world.spell.SpellCooldowns cooldowns = new org.tbc.world.spell.SpellCooldowns();
     private final java.util.Set<Integer> unlearnableSkills = new java.util.HashSet<>();
     public final int[] tut = new int[8];
     public final Map<Integer, Item> items = new HashMap<>();

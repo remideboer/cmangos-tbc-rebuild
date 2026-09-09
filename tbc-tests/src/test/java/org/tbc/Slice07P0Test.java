@@ -115,6 +115,80 @@ class Slice07P0Test {
 
     private static final int SPELL_FAILED_INTERRUPTED = 0x25;
 
+    /**
+     * TP-SL07-005 — Spell::prepare AddGCD(StartRecoveryCategory 133, 1500 ms) at cast start; CheckCast
+     * HasGCD → SPELL_FAILED_NOT_READY (0x3F) for any spell in that category until it expires. Nothing is
+     * sent for the GCD itself (Player::AddGCD updateClient=false; the client runs its own GCD timer).
+     */
+    @Test
+    void tpSl07GlobalCooldownRefusesRecast() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(LESSER_HEAL);
+        Creature c = kobold(world, p);
+        client.clear();
+        client.castSpell(world, FIREBALL, 1, c.guid);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_START));
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_COOLDOWN), "no cooldown packet for a plain GCD");
+        client.clear();
+        world.advanceMs(100);
+        world.tick(100);
+
+        client.castSpell(world, LESSER_HEAL, 2, p.guid);
+
+        byte[] res = client.payload(Opcodes.SMSG_CAST_RESULT);
+        assertEquals(LESSER_HEAL, WowClientDouble.u32le(res, 0));
+        assertEquals(SPELL_FAILED_NOT_READY, res[4] & 0xFF);
+        assertEquals(2, res[5] & 0xFF);
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_START));
+        world.advanceMs(1400);
+        world.tick(1400);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO), "the first cast still lands");
+        client.clear();
+        client.castSpell(world, LESSER_HEAL, 3, p.guid);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_START), "GCD over → accepted");
+        assertFalse(client.saw(Opcodes.SMSG_CAST_RESULT));
+    }
+
+    private static final int LESSER_HEAL = 2050;
+    private static final int FROST_NOVA = 122;
+    /** Spell.dbc RecoveryTime for Frost Nova rank 1. */
+    private static final int FROST_NOVA_RECOVERY_MS = 25_000;
+    private static final int SPELL_FAILED_NOT_READY = 0x3F;
+
+    /**
+     * TP-SL07-005 — Spell::cast → AddCooldown(RecoveryTime); CheckCast IsSpellReady → NOT_READY.
+     * No SMSG_SPELL_COOLDOWN on a normal cast (the client mirrors Spell.dbc). GCD 1500 ms is shorter
+     * than the 25 s recovery, so after the GCD the spell is still blocked.
+     */
+    @Test
+    void tpSl07RecoveryTimeRefusesRecast() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(FROST_NOVA);
+        client.clear();
+        client.castSpell(world, FROST_NOVA, 1, p.guid);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_COOLDOWN), "client tracks RecoveryTime from Spell.dbc");
+        world.advanceMs(org.tbc.world.spell.SpellCooldowns.GCD_NORMAL_MS);
+        world.tick(org.tbc.world.spell.SpellCooldowns.GCD_NORMAL_MS);
+        client.clear();
+        client.castSpell(world, FROST_NOVA, 2, p.guid);
+        byte[] res = client.payload(Opcodes.SMSG_CAST_RESULT);
+        assertEquals(FROST_NOVA, WowClientDouble.u32le(res, 0));
+        assertEquals(SPELL_FAILED_NOT_READY, res[4] & 0xFF);
+        assertEquals(2, res[5] & 0xFF);
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_START));
+        world.advanceMs(FROST_NOVA_RECOVERY_MS - org.tbc.world.spell.SpellCooldowns.GCD_NORMAL_MS);
+        world.tick(FROST_NOVA_RECOVERY_MS - org.tbc.world.spell.SpellCooldowns.GCD_NORMAL_MS);
+        client.clear();
+        client.castSpell(world, FROST_NOVA, 3, p.guid);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO), "RecoveryTime over → accepted");
+        assertFalse(client.saw(Opcodes.SMSG_CAST_RESULT));
+    }
+
     private static Player mageWithFireball(World world, WowClientDouble client) {
         client.connect(ACC);
         Player created = world.characters.create(ACC.id(), "Pyro", 1, 8, 0, 1, 1, 1, 1, 0, world.objectMgr);
