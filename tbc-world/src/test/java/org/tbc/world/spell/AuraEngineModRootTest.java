@@ -84,13 +84,13 @@ class AuraEngineModRootTest {
     }
 
     @Test
-    void applyAuraWhenNotRootShouldNotSendForceMoveRoot() {
+    void applyAuraWhenNotImmobilizingShouldNotSendForceMoveRoot() {
         World world = World.inMemory();
         Sink victim = login(world, "Victim");
         Player target = victim.session.player();
-        SpellEngine.SpellInfo stun = new SpellEngine.SpellInfo(
-                853, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STUN, 2, 0, 0, 0, 0f);
-        new SpellEngine().apply(new Player(), target, stun);
+        SpellEngine.SpellInfo corruption = new SpellEngine.SpellInfo(
+                172, SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_PERIODIC_DAMAGE, 32, 0, 0, 0, 0f);
+        new SpellEngine().apply(new Player(), target, corruption);
         assertFalse(victim.ops.contains(Opcodes.SMSG_FORCE_MOVE_ROOT));
     }
 

@@ -26,18 +26,24 @@ public final class AuraEngine {
             return;
         }
         if (sp.aura() == SPELL_AURA_MOD_STUN) {
-            target.setStunned(true);
+            modStun(target);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
-            modRoot(target);
+            immobilize(target);
         }
     }
 
+    /** Aura 12 — CMaNGOS SetStunned: SetImmobilizedState(stun=true) then UNIT_FLAG_STUNNED. */
+    private static void modStun(Unit target) {
+        immobilize(target);
+        target.setStunned(true);
+    }
+
     /**
-     * Aura 26 — CMaNGOS HandleAuraModRoot → SetImmobilizedState(apply, stun=false) → SendMoveRoot(true).
-     * Root has no UNIT_FIELD_FLAGS bit; the controlling player is told via SMSG_FORCE_MOVE_ROOT.
+     * CMaNGOS Unit::SetImmobilizedState → SendMoveRoot(true). Root itself has no UNIT_FIELD_FLAGS
+     * bit; the controlling player is told via SMSG_FORCE_MOVE_ROOT (aura 26 HandleAuraModRoot).
      */
-    private static void modRoot(Unit target) {
+    private static void immobilize(Unit target) {
         if (target instanceof Player p) {
             p.sendMoveRoot(true);
         }
