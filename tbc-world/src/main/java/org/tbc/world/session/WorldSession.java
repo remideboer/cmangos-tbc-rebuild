@@ -155,6 +155,13 @@ public final class WorldSession {
             send(Opcodes.SMSG_TIME_SYNC_REQ, b.array());
             player.nextTimeSyncMs = world.nowMs() + 10_000;
         }
+        if (player.alive()) {
+            int[] regen = player.regenerateAll(diff);
+            if (regen.length > 0) {
+                var v = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, regen));
+                send(v.opcode(), v.payload());
+            }
+        }
         if (player.inCombat && player.lastMeleeMs + swingDelayMs(false) <= world.nowMs()) {
             Creature c = meleeTarget(world);
             if (c != null) {

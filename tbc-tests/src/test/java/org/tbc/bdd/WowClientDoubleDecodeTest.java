@@ -40,6 +40,28 @@ class WowClientDoubleDecodeTest {
     }
 
     @Test
+    void valuesFieldWhenLatestValuesBlockCarriesFieldShouldReturnIt() {
+        Player p = player();
+        p.setHealth(1);
+        WowClientDouble client = new WowClientDouble();
+        client.send(Opcodes.SMSG_UPDATE_OBJECT, UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_HEALTH));
+        client.send(Opcodes.SMSG_UPDATE_OBJECT, UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+        assertEquals(1, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        assertEquals(7, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COINAGE));
+    }
+
+    @Test
+    void valuesFieldWhenOtherGuidCreateBlockOrMissingFieldShouldThrow() {
+        Player p = player();
+        WowClientDouble client = new WowClientDouble();
+        client.send(Opcodes.SMSG_UPDATE_OBJECT, UpdateBuilder.createUnit(p, true, 0));
+        client.send(Opcodes.SMSG_MESSAGECHAT, new byte[] {1});
+        client.send(Opcodes.SMSG_UPDATE_OBJECT, UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+        assertThrows(AssertionError.class, () -> client.valuesField(p.guid + 1, UpdateFields.PLAYER_FIELD_COINAGE));
+        assertThrows(AssertionError.class, () -> client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
+    }
+
+    @Test
     void selfCreateValuesWhenNoSelfBlockReceivedShouldBeEmpty() {
         WowClientDouble client = new WowClientDouble();
         client.send(Opcodes.SMSG_MESSAGECHAT, new byte[] {1});

@@ -370,6 +370,7 @@ public final class ObjectMgr {
             seedQueryDefaults();
             loadStartOutfit(dataDir);
             loadTalents(dataDir);
+            levelStats.loadGt(dataDir);
             return;
         }
         try (Connection c = world.get()) {
@@ -430,6 +431,7 @@ public final class ObjectMgr {
         seedQueryDefaults();
         loadStartOutfit(dataDir);
         loadTalents(dataDir);
+        levelStats.loadGt(dataDir);
     }
 
     private void loadCreate(Connection c) throws Exception {

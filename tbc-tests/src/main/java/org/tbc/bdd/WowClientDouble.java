@@ -191,6 +191,47 @@ public final class WowClientDouble implements PacketSink {
         return Map.of();
     }
 
+    /** Latest UPDATETYPE_VALUES block for {@code guid} that carries {@code field} (update-object.md). */
+    public int valuesField(long guid, int field) {
+        for (int i = opcodes.size() - 1; i >= 0; i--) {
+            Integer v = decodeValuesField(inflateUpdate(opcodes.get(i), payloads.get(i)), guid, field);
+            if (v != null) {
+                return v;
+            }
+        }
+        throw new AssertionError("no VALUES update for field " + field);
+    }
+
+    static Integer decodeValuesField(byte[] raw, long guid, int field) {
+        if (raw == null) {
+            return null;
+        }
+        WowBuffer b = new WowBuffer(raw);
+        b.getU32();
+        b.getU8();
+        if (b.getU8() != UpdateBuilder.UPDATETYPE_VALUES) {
+            return null;
+        }
+        if (b.getPackedGuid() != guid) {
+            return null;
+        }
+        int nblocks = b.getU8();
+        int[] mask = new int[nblocks];
+        for (int k = 0; k < nblocks; k++) {
+            mask[k] = b.getU32();
+        }
+        Integer value = null;
+        for (int f = 0; f < nblocks * 32; f++) {
+            if ((mask[f / 32] & (1 << (f % 32))) != 0) {
+                int v = b.getU32();
+                if (f == field) {
+                    value = v;
+                }
+            }
+        }
+        return value;
+    }
+
     /** First block only; self create is always its own packet with PLAYER_CREATE_FLAGS (LIVING + HIGHGUID). */
     static Map<Integer, Integer> decodeSelfCreate(byte[] raw) {
         if (raw == null) {

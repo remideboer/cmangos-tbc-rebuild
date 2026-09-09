@@ -411,6 +411,7 @@ public final class SpellEngine {
         send.accept(Opcodes.SMSG_SPELL_START, encodeStart(caster.guid, sp.id, castCount, targets));
         if (sp.mana > 0) {
             caster.setPower(caster.power() - sp.mana);
+            caster.noteManaUse();
             var pwr = UpdateBuilder.maybeCompress(
                     UpdateBuilder.values(caster, UpdateFields.UNIT_FIELD_POWER1 + caster.powerType));
             send.accept(pwr.opcode(), pwr.payload());

@@ -2,7 +2,10 @@ package org.tbc.world.content;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tbc.world.net.wow8606.DbcFile;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -34,6 +37,19 @@ public final class LevelStats {
     private final Map<Integer, ClassLevel> classLevels = new HashMap<>();
     private final Map<Integer, Stats> raceClassLevels = new HashMap<>();
     private final Map<Integer, Integer> xpForLevel = new HashMap<>();
+    /** gtOCTRegenHP / gtRegenHPPerSpt / gtRegenMPPerSpt ratios keyed by class+level (GT_MAX_LEVEL 100 rows per class). */
+    private final Map<Integer, Float> hpRegenBase = new HashMap<>();
+    private final Map<Integer, Float> hpRegenMore = new HashMap<>();
+    private final Map<Integer, Float> mpRegenPerSpirit = new HashMap<>();
+    private static final int GT_MAX_LEVEL = 100;
+
+    private static final int[] GT_CLASSES = {1, 2, 3, 4, 5, 7, 8, 9, 11};
+    private static final float[] GT_OCT_REGEN_HP_L1 =
+        {0.131579f, 0.092593f, 0.089286f, 0.121951f, 0.119048f, 0.086207f, 0.079365f, 0.080645f, 0.081967f};
+    private static final float[] GT_REGEN_HP_PER_SPT_L1 =
+        {0.5f, 0.125f, 0.125f, 0.333333f, 0.041667f, 0.071429f, 0.041667f, 0.045455f, 0.0625f};
+    private static final float[] GT_REGEN_MP_PER_SPT_L1 =
+        {0f, 0.034965f, 0.034965f, 0f, 0.034965f, 0.034965f, 0.034965f, 0.034965f, 0.034965f};
 
     /** tbc-db player_xp_for_level 1..69 (XP needed to leave that level; level 70 is the cap). */
     private static final int[] XP_FOR_LEVEL = {
@@ -60,6 +76,11 @@ public final class LevelStats {
     public void seedDefaults() {
         for (int i = 0; i < XP_FOR_LEVEL.length; i++) {
             xpForLevel.put(i + 1, XP_FOR_LEVEL[i]);
+        }
+        for (int i = 0; i < GT_CLASSES.length; i++) {
+            hpRegenBase.put(classKey(GT_CLASSES[i], 1), GT_OCT_REGEN_HP_L1[i]);
+            hpRegenMore.put(classKey(GT_CLASSES[i], 1), GT_REGEN_HP_PER_SPT_L1[i]);
+            mpRegenPerSpirit.put(classKey(GT_CLASSES[i], 1), GT_REGEN_MP_PER_SPT_L1[i]);
         }
         putClassLevel(1, 1, 20, 0);
         putClassLevel(2, 1, 28, 60);
@@ -137,6 +158,51 @@ public final class LevelStats {
             s = raceClassLevels.get(raceKey(race, clazz, 1));
         }
         return s != null ? s : new Stats(20, 20, 20, 20, 20);
+    }
+
+    /** DataDir/dbc gt*.dbc: one float per row, row = (class - 1) * 100 + level - 1. Missing files keep the seeds. */
+    public void loadGt(Path dataDir) {
+        if (dataDir == null) {
+            return;
+        }
+        loadGt(dataDir.resolve("dbc").resolve("gtOCTRegenHP.dbc"), hpRegenBase);
+        loadGt(dataDir.resolve("dbc").resolve("gtRegenHPPerSpt.dbc"), hpRegenMore);
+        loadGt(dataDir.resolve("dbc").resolve("gtRegenMPPerSpt.dbc"), mpRegenPerSpirit);
+    }
+
+    private static void loadGt(Path file, Map<Integer, Float> into) {
+        if (!Files.isRegularFile(file)) {
+            return;
+        }
+        try {
+            DbcFile dbc = DbcFile.load(file);
+            for (int row = 0; row < dbc.records.size(); row++) {
+                into.put(classKey(row / GT_MAX_LEVEL + 1, row % GT_MAX_LEVEL + 1),
+                        Float.intBitsToFloat(dbc.records.get(row)[0]));
+            }
+        } catch (Exception e) {
+            log.warn("{} load failed: {}", file.getFileName(), e.getMessage());
+        }
+    }
+
+    /** CMaNGOS Unit::OCTRegenHPPerSpirit: health per second out of combat from spirit (first 50 at base ratio). */
+    public float hpRegenPerSpirit(int clazz, int level, int spirit) {
+        float baseSpirit = Math.min(spirit, 50);
+        float moreSpirit = spirit - baseSpirit;
+        return baseSpirit * gt(hpRegenBase, clazz, level) + moreSpirit * gt(hpRegenMore, clazz, level);
+    }
+
+    /** CMaNGOS Unit::OCTRegenMPPerSpirit: spirit * ratio; UpdateManaRegen multiplies by sqrt(intellect). */
+    public float manaRegenPerSpirit(int clazz, int level, int spirit) {
+        return spirit * gt(mpRegenPerSpirit, clazz, level);
+    }
+
+    private static float gt(Map<Integer, Float> table, int clazz, int level) {
+        Float v = table.get(classKey(clazz, level));
+        if (v == null) {
+            v = table.get(classKey(clazz, 1));
+        }
+        return v != null ? v : 0f;
     }
 
     /** CMaNGOS ObjectMgr::GetXPForLevel: XP needed to leave {@code level}; 0 when the table has no row (cap). */

@@ -1,6 +1,7 @@
 package org.tbc.world.entity;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.LevelStats;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.WorldSession;
@@ -383,23 +384,120 @@ public final class Player extends Unit {
     private int createHealth;
     private int createMana;
     private int nextLevelXp;
+    /** OCTRegenHPPerSpirit (health per second OOC) and PLAYER_FIELD_MOD_MANA_REGEN (mana per second). */
+    private float hpRegenPerSecond;
+    private float manaRegenPerSecond;
+    /** CMaNGOS Unit::m_regenTimer / m_lastManaUseTimer (five-second rule). */
+    private int regenTimerMs;
+    private int lastManaUseTimerMs;
+
+    public static final int REGEN_TIME_FULL = 2000;
+    private static final int LAST_MANA_USE_MS = 5000;
 
     /**
      * CMaNGOS Player::InitStatsForLevel (the level-stats subset): remember the create values, then
      * write BASE_HEALTH/BASE_MANA/STAT0-4, armor = agi * 2, max health from stamina, max mana from
-     * intellect and PLAYER_NEXT_LEVEL_XP; health and mana full.
+     * intellect, PLAYER_NEXT_LEVEL_XP and the regen rates (UpdateManaRegen); health and mana full.
      */
-    public void initStatsForLevel(org.tbc.world.content.LevelStats.ClassLevel cl,
-                                  org.tbc.world.content.LevelStats.Stats st, int xpForLevel) {
+    public void initStatsForLevel(LevelStats ls) {
+        LevelStats.ClassLevel cl = ls.classLevel(clazz, level);
+        LevelStats.Stats st = ls.stats(race, clazz, level);
         createHealth = cl.baseHealth();
         createMana = cl.baseMana();
-        nextLevelXp = xpForLevel;
+        nextLevelXp = ls.xpForLevel(level);
         for (int i = 0; i < 5; i++) {
             createStats[i] = st.stat(i);
         }
+        hpRegenPerSecond = ls.hpRegenPerSpirit(clazz, level, st.spi());
+        manaRegenPerSecond = (float) Math.sqrt(st.inte()) * ls.manaRegenPerSpirit(clazz, level, st.spi());
         applyLevelStats();
         setInt(UpdateFields.UNIT_FIELD_HEALTH, maxHealth());
         setInt(UpdateFields.UNIT_FIELD_POWER1, getInt(UpdateFields.UNIT_FIELD_MAXPOWER1));
+    }
+
+    /** Spell::TakePower → SetLastManaUse: spirit-based mana regen pauses for 5 s (MOD_MANA_REGEN_INTERRUPT). */
+    public void noteManaUse() {
+        lastManaUseTimerMs = LAST_MANA_USE_MS;
+    }
+
+    /**
+     * CMaNGOS Player::Update → RegenerateAll every REGEN_TIME_FULL: health and rage decay only out of
+     * combat, mana always (five-second rule drops the spirit part). Returns the unit fields that changed.
+     */
+    public int[] regenerateAll(int diff) {
+        lastManaUseTimerMs = Math.max(0, lastManaUseTimerMs - diff);
+        regenTimerMs += diff;
+        if (regenTimerMs < REGEN_TIME_FULL) {
+            return new int[0];
+        }
+        int d = regenTimerMs / 100 * 100;
+        regenTimerMs -= d;
+        List<Integer> changed = new ArrayList<>();
+        if (!inCombat) {
+            if (regenerateHealth(d)) {
+                changed.add(UpdateFields.UNIT_FIELD_HEALTH);
+            }
+            if (regenerateRage(d)) {
+                changed.add(UpdateFields.UNIT_FIELD_POWER2);
+            }
+        }
+        if (regenerateMana(d)) {
+            changed.add(UpdateFields.UNIT_FIELD_POWER1);
+        }
+        return changed.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    /** Player::RegenerateHealth: OCTRegenHPPerSpirit * diff / 1000 (×1.5 while sitting). */
+    private boolean regenerateHealth(int diff) {
+        int cur = health();
+        if (cur >= maxHealth()) {
+            return false;
+        }
+        float add = hpRegenPerSecond;
+        if (!isStanding()) {
+            add *= 1.5f;
+        }
+        int gain = (int) (add * diff / 1000f);
+        if (gain == 0) {
+            return false;
+        }
+        setHealth(cur + gain);
+        return true;
+    }
+
+    /** Player::Regenerate(POWER_MANA): MOD_MANA_REGEN (or the interrupt rate) * whole seconds. */
+    private boolean regenerateMana(int diff) {
+        int cur = power();
+        if (cur >= maxPower()) {
+            return false;
+        }
+        float rate = lastManaUseTimerMs > 0 ? 0f : manaRegenPerSecond;
+        int gain = (int) (rate * (diff / 1000));
+        if (gain == 0) {
+            return false;
+        }
+        setPower(cur + gain);
+        return true;
+    }
+
+    /** Player::Regenerate(POWER_RAGE): uint32(diff / 200) * 2.5 stored rage lost per tick, floor 0. */
+    private boolean regenerateRage(int diff) {
+        int cur = rage();
+        if (cur == 0) {
+            return false;
+        }
+        int loss = (int) ((diff / 200) * 2.5f);
+        setRage(Math.max(0, cur - loss));
+        return true;
+    }
+
+    /** UNIT_FIELD_POWER2 in tenths (client shows rage / 10). */
+    public int rage() {
+        return getInt(UpdateFields.UNIT_FIELD_POWER2);
+    }
+
+    public void setRage(int rage10) {
+        setInt(UpdateFields.UNIT_FIELD_POWER2, Math.max(0, Math.min(rage10, POWER_RAGE_MAX)));
     }
 
     /** Re-writes the level-stat fields from the remembered create values (also after a persist copy). */
@@ -419,6 +517,7 @@ public final class Player extends Unit {
                 createMana == 0 ? 0 : createMana + manaBonusFromIntellect(createStats[3]));
         setInt(UpdateFields.PLAYER_NEXT_LEVEL_XP, nextLevelXp);
         setInt(UpdateFields.PLAYER_XP, xp);
+        setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, manaRegenPerSecond);
     }
 
     /** CMaNGOS Unit::GetHealthBonusFromStamina: first 20 stamina 1 hp each, then 10 hp per point. */
@@ -438,6 +537,8 @@ public final class Player extends Unit {
         createHealth = src.createHealth;
         createMana = src.createMana;
         nextLevelXp = src.nextLevelXp;
+        hpRegenPerSecond = src.hpRegenPerSecond;
+        manaRegenPerSecond = src.manaRegenPerSecond;
         System.arraycopy(src.createStats, 0, createStats, 0, 5);
     }
 

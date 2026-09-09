@@ -342,9 +342,7 @@ public final class CharacterStore {
 
     /** CMaNGOS Player::Create / LoadFromDB → InitStatsForLevel; a null ObjectMgr uses the level-1 seed rows. */
     private static void initStatsForLevel(Player p, ObjectMgr mgr) {
-        LevelStats ls = mgr != null ? mgr.levelStats : LevelStats.defaults();
-        p.initStatsForLevel(ls.classLevel(p.clazz, p.level), ls.stats(p.race, p.clazz, p.level),
-                ls.xpForLevel(p.level));
+        p.initStatsForLevel(mgr != null ? mgr.levelStats : LevelStats.defaults());
     }
 
     private void fillRace(Player p) {
