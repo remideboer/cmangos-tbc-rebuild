@@ -40,6 +40,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_CONTACT_LIST,
             Opcodes.CMSG_SET_ACTION_BUTTON,
             Opcodes.CMSG_TUTORIAL_FLAG,
+            Opcodes.CMSG_TUTORIAL_CLEAR,
             Opcodes.CMSG_NEXT_CINEMATIC_CAMERA,
             Opcodes.CMSG_COMPLETE_CINEMATIC,
             Opcodes.CMSG_ATTACKSWING,
