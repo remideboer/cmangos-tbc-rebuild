@@ -177,6 +177,28 @@ class Slice04MiscOpcodesTest {
         assertEquals(0, flags.remaining());
     }
 
+    /**
+     * CMSG_SET_TAXI_BENCHMARK_MODE — SetFlag/RemoveFlag PLAYER_FLAGS_TAXI_BENCHMARK (0x20000).
+     */
+    @Test
+    void tpSl04TaxiBenchmarkMode() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "Timetest");
+        Player p = client.session().player();
+        client.clear();
+        WowBuffer on = new WowBuffer(1);
+        on.putU8(1);
+        client.handle(world, Opcodes.CMSG_SET_TAXI_BENCHMARK_MODE, on.array());
+        int flagged = client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS);
+        assertEquals(Player.PLAYER_FLAGS_TAXI_BENCHMARK, flagged & Player.PLAYER_FLAGS_TAXI_BENCHMARK);
+        client.clear();
+        WowBuffer off = new WowBuffer(1);
+        off.putU8(0);
+        client.handle(world, Opcodes.CMSG_SET_TAXI_BENCHMARK_MODE, off.array());
+        int cleared = client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS);
+        assertEquals(0, cleared & Player.PLAYER_FLAGS_TAXI_BENCHMARK);
+    }
+
     private static byte[] deflate(byte[] raw) {
         java.util.zip.Deflater def = new java.util.zip.Deflater();
         def.setInput(raw);

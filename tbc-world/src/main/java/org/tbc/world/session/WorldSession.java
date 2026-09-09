@@ -341,6 +341,7 @@ public final class WorldSession {
             case Opcodes.CMSG_UPDATE_ACCOUNT_DATA -> accountData.update(in);
             case Opcodes.CMSG_REQUEST_ACCOUNT_DATA -> handleRequestAccountData(in);
             case Opcodes.CMSG_SET_ACTIONBAR_TOGGLES -> handleSetActionBarToggles(in);
+            case Opcodes.CMSG_SET_TAXI_BENCHMARK_MODE -> handleSetTaxiBenchmarkMode(in);
             case Opcodes.CMSG_SHOWING_HELM -> handleShowingHelm();
             case Opcodes.CMSG_SHOWING_CLOAK -> handleShowingCloak();
             case Opcodes.CMSG_NEXT_CINEMATIC_CAMERA, Opcodes.CMSG_COMPLETE_CINEMATIC -> {
@@ -992,6 +993,22 @@ public final class WorldSession {
     /** CharacterHandler::HandleShowingCloakOpcode — ToggleFlag PLAYER_FLAGS_HIDE_CLOAK. */
     private void handleShowingCloak() {
         togglePlayerFlag(Player.PLAYER_FLAGS_HIDE_CLOAK);
+    }
+
+    /** MiscHandler::HandleSetTaxiBenchmarkOpcode — SetFlag/RemoveFlag PLAYER_FLAGS_TAXI_BENCHMARK. */
+    private void handleSetTaxiBenchmarkMode(WowBuffer in) {
+        if (in.remaining() < 1) {
+            return;
+        }
+        int flags = player.getInt(UpdateFields.PLAYER_FLAGS);
+        if (in.getU8() != 0) {
+            flags |= Player.PLAYER_FLAGS_TAXI_BENCHMARK;
+        } else {
+            flags &= ~Player.PLAYER_FLAGS_TAXI_BENCHMARK;
+        }
+        player.setInt(UpdateFields.PLAYER_FLAGS, flags);
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, UpdateFields.PLAYER_FLAGS));
+        send(upd.opcode(), upd.payload());
     }
 
     private void togglePlayerFlag(int mask) {

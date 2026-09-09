@@ -42,6 +42,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_TUTORIAL_FLAG,
             Opcodes.CMSG_TUTORIAL_CLEAR,
             Opcodes.CMSG_TUTORIAL_RESET,
+            Opcodes.CMSG_SET_TAXI_BENCHMARK_MODE,
             Opcodes.CMSG_NEXT_CINEMATIC_CAMERA,
             Opcodes.CMSG_COMPLETE_CINEMATIC,
             Opcodes.CMSG_ATTACKSWING,
