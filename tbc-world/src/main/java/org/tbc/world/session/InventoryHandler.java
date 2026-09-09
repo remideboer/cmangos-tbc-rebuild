@@ -436,6 +436,10 @@ public final class InventoryHandler {
     public static final int META_GEM_SKYFIRE = 25890;
     /** loot.md clientLootType for item open / pickpocket / skin. */
     public static final int LOOT_PICKPOCKETING = 2;
+    /** ItemPrototype.h ITEM_SPELLTRIGGER_ON_USE. */
+    public static final int ITEM_SPELLTRIGGER_ON_USE = 0;
+    /** ItemPrototype.h INVTYPE_NON_EQUIP. */
+    public static final int INVTYPE_NON_EQUIP = 0;
 
     /** bag, slot. Non-wrapped → SMSG_LOOT_RESPONSE pickpocketing. inventory.md */
     public static void openItem(WorldSession s, WowBuffer in) {
@@ -459,6 +463,42 @@ public final class InventoryHandler {
         loot.putU32(0);
         loot.putU8(0);
         s.send(Opcodes.SMSG_LOOT_RESPONSE, loot.array());
+    }
+
+    /**
+     * CMSG_USE_ITEM: bag, slot, spell_index, cast_count, raw item GUID, SpellCastTargets.
+     * SpellHandler.cpp HandleUseItemOpcode → Player::CastItemUseSpell.
+     */
+    public static void useItem(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 12) {
+            return;
+        }
+        int bag = in.getU8();
+        int slot = in.getU8();
+        int spellIndex = in.getU8();
+        int castCount = in.getU8();
+        long itemGuid = in.getU64();
+        Item it = p.itemAt(bag, slot);
+        if (it == null || UpdateBuilder.itemGuid(it) != itemGuid) {
+            return;
+        }
+        ObjectMgr.ItemTemplate proto = world.objectMgr.items.get(it.entry);
+        if (proto == null) {
+            return;
+        }
+        if (proto.inventoryType != INVTYPE_NON_EQUIP && it.slot >= Player.EQUIPMENT_SLOT_END) {
+            return;
+        }
+        for (int i = 0; i < proto.spellId.length; i++) {
+            int spellId = proto.spellId[i];
+            if (spellId == 0 || proto.spellTrigger[i] != ITEM_SPELLTRIGGER_ON_USE || i != spellIndex) {
+                continue;
+            }
+            world.spells.castFromItem(p, world.map(p.mapId, p.instanceId), world.nowMs(), spellId, castCount,
+                    new WowBuffer(in.remainingBytes()), s::send);
+            return;
+        }
     }
 
     public static void sellItem(WorldSession s, WowBuffer in) {

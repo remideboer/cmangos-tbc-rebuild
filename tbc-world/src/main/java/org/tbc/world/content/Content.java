@@ -103,6 +103,8 @@ public final class Content {
     /** gossip_menu_option.option_text on Farley menu 1291. */
     public static final String GOSSIP_FARLEY_INN_INFO = "What can I do at an inn?";
     public static final int ITEM_WORN_SHORTSWORD = 25;
+    /** locales_item 6948 Hearthstone; item_template spellid_1 8690. */
+    public static final int ITEM_HEARTHSTONE = 6948;
     public static final int ITEM_ROUGH_ARROW = 2512;
     public static final int ITEM_SMALL_BROWN_POUCH = 4496;
     /** locales_item 889; PageText 16 is locales_page_text (Stalvan to Crillian). */

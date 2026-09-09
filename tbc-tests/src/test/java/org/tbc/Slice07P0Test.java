@@ -1,9 +1,12 @@
 package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
+import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
@@ -142,6 +145,49 @@ class Slice07P0Test {
         assertEquals(manaBefore, p.power());
         assertEquals(hpBefore, c.health());
     }
+
+    /**
+     * TP-SL07-010 — HandleUseItemOpcode / CastItemUseSpell: Hearthstone item 6948 ON_USE spell 8690.
+     * Spell.dbc CastingTimeIndex 7 → SpellCastTimes.dbc 10000 ms on SMSG_SPELL_START. The player does
+     * not know 8690; item use is not CMSG_CAST_SPELL.
+     */
+    @Test
+    void tpSl07UseItemHearthstone() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        int slot = p.firstFreeBagSlot();
+        Item hs = new Item(world.nextItemGuid(), HEARTHSTONE_ITEM);
+        hs.slot = slot;
+        p.items.put((int) hs.guid, hs);
+
+        client.clear();
+        WowBuffer use = new WowBuffer(20);
+        use.putU8(INVENTORY_SLOT_BAG_0);
+        use.putU8(slot);
+        use.putU8(0);
+        use.putU8(1);
+        use.putU64(UpdateBuilder.itemGuid(hs));
+        use.putU32(0);
+        client.handle(world, Opcodes.CMSG_USE_ITEM, use.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_START));
+        byte[] start = client.payload(Opcodes.SMSG_SPELL_START);
+        int off = WowClientDouble.skipPackedGuid(start, 0);
+        off = WowClientDouble.skipPackedGuid(start, off);
+        assertEquals(HEARTHSTONE_SPELL, WowClientDouble.u32le(start, off));
+        assertEquals(1, start[off + 4] & 0xFF);
+        assertEquals(HEARTHSTONE_CAST_MS, WowClientDouble.u32le(start, off + 4 + 1 + 2));
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO), "10 s bar still running");
+    }
+
+    /** Player.h INVENTORY_SLOT_BAG_0 — backpack / equipped in CMSG_USE_ITEM bagIndex. */
+    private static final int INVENTORY_SLOT_BAG_0 = 255;
+    /** locales_item 6948 Hearthstone; item_template spellid_1 8690. */
+    private static final int HEARTHSTONE_ITEM = 6948;
+    /** Spell.dbc 8690 CastingTimeIndex 7. */
+    private static final int HEARTHSTONE_SPELL = 8690;
+    private static final int HEARTHSTONE_CAST_MS = 10_000;
 
     private static final int SPELL_FAILED_INTERRUPTED = 0x25;
 

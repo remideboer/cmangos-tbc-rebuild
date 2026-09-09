@@ -180,6 +180,9 @@ public final class SpellEngine {
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     /** Spell.dbc EffectAmplitude1 for Unstable Affliction rank 1. */
     public static final int UA_AMPLITUDE_MS = 3000;
+    /** Hearthstone. Spell.dbc CastingTimeIndex 7 → SpellCastTimes.dbc 10000 ms, StartRecoveryTime 1500. */
+    public static final int HEARTHSTONE = 8690;
+    public static final int HEARTHSTONE_CAST_MS = 10_000;
     /** Drain Life rank 1. Spell.dbc AttributesEx SPELL_ATTR_EX_IS_CHANNELED, DurationIndex 28 → 5000 ms. */
     public static final int DRAIN_LIFE = 689;
     public static final int DRAIN_LIFE_DURATION_MS = 5000;
@@ -317,6 +320,8 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withAmplitude(UA_AMPLITUDE_MS));
         spells.put(DRAIN_LIFE, new SpellInfo(DRAIN_LIFE, EFFECT_APPLY_AURA, 53, 32, 55, 0, 0, 30f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(DRAIN_LIFE_DURATION_MS));
+        spells.put(HEARTHSTONE, new SpellInfo(HEARTHSTONE, EFFECT_TELEPORT_UNITS, 0, 0, 0, 0, 0, 0f)
+                .withCastTime(HEARTHSTONE_CAST_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
     }
@@ -473,6 +478,19 @@ public final class SpellEngine {
      */
     public boolean cast(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
                      BiConsumer<Integer, byte[]> send, Runnable onFinished) {
+        return cast(caster, map, nowMs, spellId, castCount, rest, send, onFinished, false);
+    }
+
+    /**
+     * Player::CastItemUseSpell — item ON_USE is not a known-spell check (spell.md).
+     */
+    public boolean castFromItem(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
+                                BiConsumer<Integer, byte[]> send) {
+        return cast(caster, map, nowMs, spellId, castCount, rest, send, () -> { }, true);
+    }
+
+    boolean cast(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
+                     BiConsumer<Integer, byte[]> send, Runnable onFinished, boolean fromItem) {
         if (spellId == 0) {
             return false;
         }
@@ -480,7 +498,7 @@ public final class SpellEngine {
         if (sp == null) {
             return false;
         }
-        if (!caster.spells.contains(spellId) && spellId != LOGINEFFECT) {
+        if (!(fromItem || spellId == LOGINEFFECT || caster.spells.contains(spellId))) {
             sendFail(send, spellId, SPELL_FAILED_NOT_KNOWN, castCount);
             return false;
         }

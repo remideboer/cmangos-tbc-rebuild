@@ -24,6 +24,8 @@ public final class Player extends Unit {
     public static final int EQUIPMENT_SLOT_MAINHAND = 15;
     public static final int EQUIPMENT_SLOT_OFFHAND = 16;
     public static final int EQUIPMENT_SLOT_RANGED = 17;
+    /** Player.h INVENTORY_SLOT_BAG_0 — backpack / paper-doll in CMSG bagIndex. */
+    public static final int INVENTORY_SLOT_BAG_0 = 255;
     public static final int INVENTORY_SLOT_BAG_START = 19;
     public static final int INVENTORY_SLOT_BAG_END = 23;
     public static final int INVENTORY_SLOT_ITEM_START = 23;
@@ -743,6 +745,9 @@ public final class Player extends Unit {
     }
 
     public Item itemAt(int bag, int slot) {
+        if (bag == INVENTORY_SLOT_BAG_0) {
+            bag = 0;
+        }
         for (Item it : items.values()) {
             if (it.bag == bag && it.slot == slot) {
                 return it;

@@ -286,6 +286,21 @@ class SpellEngineTest {
     }
 
     @Test
+    void castFromItemWhenHearthstoneUnknownShouldSendStartWithTenSecondTimer() {
+        assertFalse(p.spells.contains(SpellEngine.HEARTHSTONE));
+        assertTrue(engine.castFromItem(p, map, 10, SpellEngine.HEARTHSTONE, 1, empty(), this::capture));
+        WowBuffer start = new WowBuffer(last.get(Opcodes.SMSG_SPELL_START));
+        start.getPackedGuid();
+        start.getPackedGuid();
+        assertEquals(SpellEngine.HEARTHSTONE, start.getU32());
+        assertEquals(1, start.getU8());
+        start.getU16();
+        assertEquals(SpellEngine.HEARTHSTONE_CAST_MS, start.getU32());
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertFalse(ops.contains(Opcodes.SMSG_CAST_RESULT));
+    }
+
+    @Test
     void tpSl13CatalogDummyAndKnownEffects() {
         assertTrue(engine.knownEffect(SpellEngine.EFFECT_SCHOOL_DAMAGE));
         assertTrue(engine.knownEffect(SpellEngine.EFFECT_DUMMY));

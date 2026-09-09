@@ -224,6 +224,9 @@ public final class ObjectMgr {
         public int requiredDisenchantSkill = -1;
         public float armorDamageModifier;
         public int duration;
+        /** item_template spellid_1..5 / spelltrigger_1..5. ItemPrototype.h MAX_ITEM_PROTO_SPELLS. */
+        public final int[] spellId = new int[5];
+        public final int[] spellTrigger = new int[5];
 
         /** Worn Shortsword — item 25 from CMaNGOS item_template, used by handleBuy. */
         public static ItemTemplate wornShortsword() {
@@ -264,6 +267,18 @@ public final class ObjectMgr {
             t.buyPrice = Content.GUILD_CHARTER_COST;
             t.stackable = 1;
             t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
+        /** Hearthstone — item 6948 ON_USE spell 8690 (ITEM_SPELLTRIGGER_ON_USE). */
+        public static ItemTemplate hearthstone() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_HEARTHSTONE;
+            t.name = "Hearthstone";
+            t.quality = 1;
+            t.stackable = 1;
+            t.requiredDisenchantSkill = -1;
+            t.spellId[0] = 8690;
             return t;
         }
     }
@@ -967,6 +982,7 @@ public final class ObjectMgr {
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         items.putIfAbsent(25, ItemTemplate.wornShortsword());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
+        items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0));
         vendorItems.putIfAbsent(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
         creatureLoot.computeIfAbsent(6, k -> new ArrayList<>());

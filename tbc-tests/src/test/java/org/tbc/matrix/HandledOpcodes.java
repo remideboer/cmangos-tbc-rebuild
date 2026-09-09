@@ -96,6 +96,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_DUEL_ACCEPTED,
             Opcodes.CMSG_TOGGLE_PVP,
             Opcodes.CMSG_OPEN_ITEM,
+            Opcodes.CMSG_USE_ITEM,
             Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE,
             Opcodes.MSG_PVP_LOG_DATA,
             Opcodes.CMSG_VOICE_SESSION_ENABLE,
