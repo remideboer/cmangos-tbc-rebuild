@@ -345,6 +345,7 @@ public final class WorldSession {
             case Opcodes.CMSG_SET_TAXI_BENCHMARK_MODE -> handleSetTaxiBenchmarkMode(in);
             case Opcodes.CMSG_SHOWING_HELM -> handleShowingHelm();
             case Opcodes.CMSG_SHOWING_CLOAK -> handleShowingCloak();
+            case Opcodes.CMSG_SET_WATCHED_FACTION -> handleSetWatchedFaction(in);
             case Opcodes.CMSG_NEXT_CINEMATIC_CAMERA, Opcodes.CMSG_COMPLETE_CINEMATIC -> {
             }
             case Opcodes.CMSG_SET_SELECTION -> player.selection = in.remaining() >= 8 ? in.getU64() : 0;
@@ -1037,6 +1038,18 @@ public final class WorldSession {
         }
         player.setInt(UpdateFields.PLAYER_FLAGS, flags);
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, UpdateFields.PLAYER_FLAGS));
+        send(upd.opcode(), upd.payload());
+    }
+
+    /** CharacterHandler::HandleSetWatchedFactionOpcode — PLAYER_FIELD_WATCHED_FACTION_INDEX. */
+    private void handleSetWatchedFaction(WowBuffer in) {
+        if (in.remaining() < 4) {
+            return;
+        }
+        int repId = in.getU32();
+        player.watchedFaction = repId;
+        player.setInt(UpdateFields.PLAYER_FIELD_WATCHED_FACTION_INDEX, repId);
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, UpdateFields.PLAYER_FIELD_WATCHED_FACTION_INDEX));
         send(upd.opcode(), upd.payload());
     }
 

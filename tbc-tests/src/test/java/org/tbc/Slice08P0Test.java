@@ -383,6 +383,24 @@ class Slice08P0Test {
         assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_QUEST_LOG_1_3));
     }
 
+    /**
+     * TP-SL08-027 — CMSG_SET_WATCHED_FACTION int32 → PLAYER_FIELD_WATCHED_FACTION_INDEX VALUES.
+     */
+    @Test
+    void tpSl08SetWatchedFaction() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "RepWatch", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        client.clear();
+        WowBuffer in = new WowBuffer(4);
+        in.putU32(72);
+        client.handle(world, Opcodes.CMSG_SET_WATCHED_FACTION, in.array());
+        assertEquals(72, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_WATCHED_FACTION_INDEX));
+    }
+
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
     private static final int DIALOG_STATUS_AVAILABLE = 6;
 }
