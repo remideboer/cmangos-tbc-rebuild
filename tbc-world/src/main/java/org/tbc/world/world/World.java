@@ -52,7 +52,9 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -488,17 +490,25 @@ public final class World implements Runnable {
         GameMap hitMap = map(p.mapId, p.instanceId);
         boolean wasAlive = p.alive();
         MeleeTable.Result r = combat.swing(c, p, nowMs(), (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
-        if (p.session != null) {
-            p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(c, p, r));
-            var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_HEALTH));
-            p.session.send(hp.opcode(), hp.payload());
-            if (!p.alive()) {
-                p.session.send(Opcodes.SMSG_ATTACKSTOP, combat.encodeAttackStop(c.guid, p.guid, false));
+        // SendAttackStateUpdate + the victim's public UNIT_FIELD_HEALTH go SendMessageToSet (victim included).
+        byte[] log = combat.encodeAttack(c, p, r);
+        var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_HEALTH));
+        byte[] stop = p.alive() ? null : combat.encodeAttackStop(c.guid, p.guid, false);
+        List<Player> set = new ArrayList<>(hitMap.nearbyPlayers(p, GameMap.VISIBILITY));
+        set.add(p);
+        for (Player pl : set) {
+            if (pl.session == null) {
+                continue;
             }
-            // Unit::Kill → SetDeathState(JUST_DIED) → Player::Update KillPlayer.
-            if (wasAlive && !p.alive()) {
-                DeathHandler.killPlayer(p.session, this);
+            pl.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, log);
+            pl.session.send(hp.opcode(), hp.payload());
+            if (stop != null) {
+                pl.session.send(Opcodes.SMSG_ATTACKSTOP, stop);
             }
+        }
+        // Unit::Kill → SetDeathState(JUST_DIED) → Player::Update KillPlayer.
+        if (wasAlive && !p.alive() && p.session != null) {
+            DeathHandler.killPlayer(p.session, this);
         }
     }
 

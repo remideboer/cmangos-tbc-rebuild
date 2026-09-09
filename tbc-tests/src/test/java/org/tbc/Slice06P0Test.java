@@ -318,6 +318,31 @@ class Slice06P0Test {
         assertEquals(c.maxHealth(), client.valuesField(c.guid, UpdateFields.UNIT_FIELD_HEALTH));
     }
 
+    /** TP-SL06-014 — UNIT_FIELD_HEALTH is a public field: Map::SendObjectUpdates delivers the victim's VALUES to nearby players. */
+    @Test
+    void tpSl06VictimHealthBroadcastToNearby() {
+        World world = World.inMemory();
+        WowClientDouble a = new WowClientDouble();
+        a.connect(ACC);
+        Player createdA = world.characters.create(ACC.id(), "Tank", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        a.login(world, createdA.guid);
+        Player victim = a.session().player();
+        WowClientDouble b = new WowClientDouble();
+        b.connect(new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86"));
+        Player createdB = world.characters.create(2, "Healer", 1, 5, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        b.login(world, createdB.guid);
+        Creature c = world.objectMgr.spawnCreature(6, 0, victim.x, victim.y, victim.z, victim.o, world.scripts);
+        world.map(victim.mapId, victim.instanceId).add(c);
+        int hpBefore = victim.health();
+        b.clear();
+        int n = 0;
+        while (victim.health() == hpBefore && n++ < 200) {
+            world.creatureMeleeHit(c, victim);
+        }
+        assertTrue(victim.health() < hpBefore);
+        assertEquals(victim.health(), b.valuesField(victim.guid, UpdateFields.UNIT_FIELD_HEALTH));
+    }
+
     private static Creature killKobold(World world, WowClientDouble client, Player p) {
         Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
         world.map(p.mapId, p.instanceId).add(c);
