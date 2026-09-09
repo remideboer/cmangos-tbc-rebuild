@@ -68,4 +68,52 @@ class AuraSlotsTest {
         AuraSlots.sendApply(c, 168, 1000, null);
         assertEquals(1, ops.size());
     }
+
+    @Test
+    void expireTimedWhenExpireReachedShouldClearSlotAndRemoveHolder() {
+        Player p = new Player();
+        p.guid = 1;
+        p.auras.add(new org.tbc.world.entity.Unit.Aura(168, 1000, 1, 0, 5000));
+        AuraSlots.applyVisible(p, 168, 1, 1);
+        List<Integer> ops = new ArrayList<>();
+        AuraSlots.expireTimed(p, 4999, (op, payload) -> ops.add(op));
+        assertEquals(168, p.getInt(UpdateFields.UNIT_FIELD_AURA));
+        AuraSlots.expireTimed(p, 5000, (op, payload) -> ops.add(op));
+        assertEquals(0, p.getInt(UpdateFields.UNIT_FIELD_AURA));
+        assertTrue(p.auras.isEmpty());
+        assertTrue(ops.contains(Opcodes.SMSG_UPDATE_OBJECT) || ops.contains(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
+    @Test
+    void expireTimedWhenPermanentOrNullShouldKeepOrSkip() {
+        AuraSlots.expireTimed(null, 1, null);
+        Player p = new Player();
+        p.auras.add(new org.tbc.world.entity.Unit.Aura(8326, 0, 1));
+        AuraSlots.applyVisible(p, 8326, 1, 1);
+        AuraSlots.expireTimed(p, Long.MAX_VALUE, null);
+        assertEquals(8326, p.getInt(UpdateFields.UNIT_FIELD_AURA));
+        AuraSlots.clearVisible(p, -1);
+        AuraSlots.clearVisible(p, AuraSlots.MAX_AURAS);
+        assertEquals(8326, p.getInt(UpdateFields.UNIT_FIELD_AURA));
+    }
+
+    @Test
+    void expireTimedWhenSendNullShouldStillClearSlot() {
+        Player p = new Player();
+        p.auras.add(new org.tbc.world.entity.Unit.Aura(168, 1000, 1, 0, 1));
+        AuraSlots.applyVisible(p, 168, 1, 1);
+        AuraSlots.expireTimed(p, 1, null);
+        assertEquals(0, p.getInt(UpdateFields.UNIT_FIELD_AURA));
+        assertTrue(p.auras.isEmpty());
+    }
+
+    @Test
+    void expireTimedWhenNoVisibleSlotShouldStillDropHolder() {
+        Player p = new Player();
+        p.auras.add(new org.tbc.world.entity.Unit.Aura(168, 1000, 1, 0, 1));
+        AuraSlots.expireTimed(p, 1, (op, payload) -> {
+            throw new AssertionError("no VALUES without a visible slot");
+        });
+        assertTrue(p.auras.isEmpty());
+    }
 }

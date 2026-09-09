@@ -375,9 +375,13 @@ public class Unit extends Entity {
         return false;
     }
 
-    public record Aura(int spellId, int durationMs, int stacks, int mechanic) {
+    public record Aura(int spellId, int durationMs, int stacks, int mechanic, long expireAtMs) {
         public Aura(int spellId, int durationMs, int stacks) {
-            this(spellId, durationMs, stacks, 0);
+            this(spellId, durationMs, stacks, 0, 0);
+        }
+
+        public Aura(int spellId, int durationMs, int stacks, int mechanic) {
+            this(spellId, durationMs, stacks, mechanic, 0);
         }
     }
 }

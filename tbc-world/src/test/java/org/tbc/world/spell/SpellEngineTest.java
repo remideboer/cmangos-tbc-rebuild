@@ -390,6 +390,13 @@ class SpellEngineTest {
         assertEquals(SpellEngine.FROST_ARMOR, p.getInt(UpdateFields.UNIT_FIELD_AURA));
         assertEquals(3, p.getInt(UpdateFields.UNIT_FIELD_AURALEVELS) & 0xFF);
         assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, p.auras.get(p.auras.size() - 1).durationMs());
+        assertEquals(0, p.auras.get(p.auras.size() - 1).expireAtMs());
+    }
+
+    @Test
+    void applyWhenNowMsSetShouldStampExpireAt() {
+        engine.apply(p, p, engine.info(SpellEngine.FROST_ARMOR), 1000);
+        assertEquals(1000 + SpellEngine.FROST_ARMOR_DURATION_MS, p.auras.get(p.auras.size() - 1).expireAtMs());
     }
 
     @Test

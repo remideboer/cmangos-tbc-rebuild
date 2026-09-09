@@ -570,7 +570,7 @@ public final class SpellEngine {
         if (sp.id == 78) {
             caster.queueNextMeleeSwing(Math.max(1, (sp.minDmg + sp.maxDmg) / 2));
         } else {
-            dmg = apply(caster, target, sp);
+            dmg = apply(caster, target, sp, nowMs);
         }
         boolean schoolMiss = sp.effect == EFFECT_SCHOOL_DAMAGE && dmg == 0;
         if (schoolMiss) {
@@ -595,6 +595,10 @@ public final class SpellEngine {
     }
 
     public int apply(Unit caster, Unit target, SpellInfo sp) {
+        return apply(caster, target, sp, 0L);
+    }
+
+    public int apply(Unit caster, Unit target, SpellInfo sp, long nowMs) {
         if (sp == null || target == null) {
             return 0;
         }
@@ -977,7 +981,9 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_APPLY_AURA) {
             int duration = auraDurationMs(sp);
-            target.auras.add(new Unit.Aura(sp.id, duration, 1));
+            // auraDurationMs is always > 0; expireAt 0 means permanent (apply without a world clock).
+            long expireAt = nowMs > 0 ? nowMs + duration : 0;
+            target.auras.add(new Unit.Aura(sp.id, duration, 1, 0, expireAt));
             int level = caster == null ? target.level : caster.level;
             AuraSlots.applyVisible(target, sp.id, level, 1);
             auras.apply(target, sp);

@@ -7,6 +7,7 @@ import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 
+import java.util.ArrayList;
 import java.util.function.BiConsumer;
 
 /**
@@ -65,6 +66,48 @@ public final class AuraSlots {
             dur.putU8(slot);
             dur.putU32(remainMs);
             send.accept(Opcodes.SMSG_UPDATE_AURA_DURATION, dur.array());
+        }
+    }
+
+    /** SpellAuraHolder remove visible slot (SetAura 0, flags/levels/applications cleared). */
+    public static void clearVisible(Unit target, int slot) {
+        if (slot < 0 || slot >= MAX_AURAS) {
+            return;
+        }
+        target.setInt(UpdateFields.UNIT_FIELD_AURA + slot, 0);
+        setPackedByte(target, UpdateFields.UNIT_FIELD_AURAFLAGS, slot, 0);
+        setPackedByte(target, UpdateFields.UNIT_FIELD_AURALEVELS, slot, 0);
+        setPackedByte(target, UpdateFields.UNIT_FIELD_AURAAPPLICATIONS, slot, 0);
+    }
+
+    /**
+     * Unit::_UpdateSpells: holders whose remaining duration has elapsed
+     * (not permanent: duration 0 / expireAt 0) are removed AURA_REMOVE_BY_EXPIRE.
+     */
+    public static void expireTimed(Unit target, long nowMs, BiConsumer<Integer, byte[]> send) {
+        if (target == null) {
+            return;
+        }
+        ArrayList<Integer> expired = new ArrayList<>();
+        for (Unit.Aura a : target.auras) {
+            if (a.durationMs() > 0 && a.expireAtMs() > 0 && nowMs >= a.expireAtMs()) {
+                expired.add(a.spellId());
+            }
+        }
+        for (int spellId : expired) {
+            int slot = slotOf(target, spellId);
+            target.auras.removeIf(a -> a.spellId() == spellId);
+            if (slot >= 0) {
+                clearVisible(target, slot);
+                if (send != null) {
+                    var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(target,
+                            UpdateFields.UNIT_FIELD_AURA + slot,
+                            UpdateFields.UNIT_FIELD_AURAFLAGS + slot / 4,
+                            UpdateFields.UNIT_FIELD_AURALEVELS + slot / 4,
+                            UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + slot / 4));
+                    send.accept(upd.opcode(), upd.payload());
+                }
+            }
         }
     }
 

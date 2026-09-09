@@ -246,6 +246,25 @@ class Slice07P0Test {
         assertEquals(FROST_ARMOR_DURATION_MS, WowClientDouble.u32le(dur, 1));
     }
 
+    /**
+     * TP-SL07-007 — Unit::_UpdateSpells → holder duration reaches 0 → RemoveAura AURA_REMOVE_BY_EXPIRE.
+     * Slot VALUES go back to 0; the holder is gone (modifier unapplied).
+     */
+    @Test
+    void tpSl07AuraExpires() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(FROST_ARMOR);
+        client.castSpell(world, FROST_ARMOR, 1, p.guid);
+        assertEquals(FROST_ARMOR, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+        client.clear();
+        world.advanceMs(FROST_ARMOR_DURATION_MS);
+        world.tick(FROST_ARMOR_DURATION_MS);
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+        assertFalse(p.hasAura(FROST_ARMOR), "holder removed (AURA_REMOVE_BY_EXPIRE)");
+    }
+
     /** login-burst.md SMSG_INITIAL_SPELLS: unk u8, spellCount u16, spells, cooldownCount u16, then entries. */
     private static int[] initialSpellCooldown(byte[] p, int spellId) {
         int off = 1;

@@ -43,6 +43,7 @@ import org.tbc.world.session.DeathHandler;
 import org.tbc.world.session.GroupHandler;
 import org.tbc.world.session.WeatherHandler;
 import org.tbc.world.session.WorldSession;
+import org.tbc.world.spell.AuraSlots;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.events.GameEventMgr;
@@ -577,6 +578,7 @@ public final class World implements Runnable {
         }
         // Unit::Update → m_currentSpells[i]->update(diff): cast bars finish here.
         spells.update(diff, nowMs());
+        expirePlayerAuras();
         if (timers.weatherPassed()) {
             timers.resetWeather();
             WeatherHandler.onTimer(this);
@@ -687,6 +689,16 @@ public final class World implements Runnable {
             int next = events.update(this, nowMs());
             timers.setInterval(WorldTimers.EVENTS, next);
             timers.reset(WorldTimers.EVENTS);
+        }
+    }
+
+    /** Unit::_UpdateSpells — expire timed holders on in-map players (AURA_REMOVE_BY_EXPIRE). */
+    private void expirePlayerAuras() {
+        long now = nowMs();
+        for (GameMap m : maps.values()) {
+            for (Player p : m.players()) {
+                AuraSlots.expireTimed(p, now, p.session != null ? p.session::send : null);
+            }
         }
     }
 
