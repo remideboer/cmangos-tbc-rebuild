@@ -49,6 +49,8 @@ public final class Player extends Unit {
     public static final int PLAYER_FLAGS_GHOST = 0x00000010;
     /** Player.h PLAYER_FLAGS_PVP_DESIRED — permanent PvP preference. */
     public static final int PLAYER_FLAGS_PVP_DESIRED = 0x00000200;
+    /** Player.h PLAYER_FLAGS_HIDE_HELM. */
+    public static final int PLAYER_FLAGS_HIDE_HELM = 0x00000400;
 
     public WorldSession session;
     public int accountId;

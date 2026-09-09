@@ -4,6 +4,7 @@ import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,24 @@ class Slice04MiscOpcodesTest {
         assertEquals(0, b.getU32());
         assertEquals(0, b.getU32());
         assertEquals(0, b.remaining());
+    }
+
+    /**
+     * CMSG_SHOWING_HELM — ToggleFlag PLAYER_FLAGS_HIDE_HELM (0x400) on PLAYER_FLAGS VALUES.
+     */
+    @Test
+    void tpSl04ShowingHelmTogglesHideHelm() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "Helmer");
+        Player p = client.session().player();
+        client.clear();
+        client.handle(world, Opcodes.CMSG_SHOWING_HELM, new byte[0]);
+        int hidden = client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS);
+        assertEquals(Player.PLAYER_FLAGS_HIDE_HELM, hidden & Player.PLAYER_FLAGS_HIDE_HELM);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_SHOWING_HELM, new byte[0]);
+        int shown = client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS);
+        assertEquals(0, shown & Player.PLAYER_FLAGS_HIDE_HELM);
     }
 
     private static WowClientDouble enter(World world, World.Account acc, String name) {
