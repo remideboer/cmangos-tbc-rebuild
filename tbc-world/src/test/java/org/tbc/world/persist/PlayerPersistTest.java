@@ -5,6 +5,7 @@ import org.tbc.world.entity.Player;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -53,5 +54,17 @@ class PlayerPersistTest {
         assertEquals(23, c.slot);
         it.count = 9;
         assertEquals(3, c.count);
+    }
+
+    @Test
+    void copyWhenSpellCooldownSetShouldCloneExpireTime() {
+        Player src = new Player();
+        src.guid = 9;
+        src.cooldowns.addSpell(122, 25_000, 1_000);
+        Player d = PlayerPersist.copy(src);
+        assertFalse(d.cooldowns.isSpellReady(122, 25_999));
+        assertTrue(d.cooldowns.isSpellReady(122, 26_000));
+        src.cooldowns.addSpell(122, 1, 1_000);
+        assertFalse(d.cooldowns.isSpellReady(122, 25_999), "clone is independent");
     }
 }

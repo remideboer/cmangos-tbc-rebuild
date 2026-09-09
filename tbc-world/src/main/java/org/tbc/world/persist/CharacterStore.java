@@ -446,6 +446,11 @@ public final class CharacterStore {
             } catch (Exception e) {
                 log.warn("load social {}", e.getMessage());
             }
+            try {
+                loadSpellCooldowns(c, p);
+            } catch (Exception e) {
+                log.warn("load spell cooldowns {}", e.getMessage());
+            }
             memory.put(g, PlayerPersist.copy(p));
             attachSocial(p);
             return p;
@@ -568,6 +573,11 @@ public final class CharacterStore {
                 } catch (Exception e) {
                     log.warn("save actions {}", e.getMessage());
                 }
+                try {
+                    writeSpellCooldowns(c, p);
+                } catch (Exception e) {
+                    log.warn("save spell cooldowns {}", e.getMessage());
+                }
                 Savepoint inv = c.setSavepoint();
                 try {
                     writeInventory(c, p);
@@ -653,6 +663,40 @@ public final class CharacterStore {
             ins.setInt(2, button);
             ins.setInt(3, packed & 0xFFFFFF);
             ins.setInt(4, (packed >>> 24) & 0xFF);
+            ins.addBatch();
+        }
+        ins.executeBatch();
+    }
+
+    /** Player::_LoadSpellCooldowns — SpellExpireTime is unix seconds. */
+    private static void loadSpellCooldowns(Connection c, Player p) throws Exception {
+        PreparedStatement ps = c.prepareStatement(
+                "SELECT SpellId, SpellExpireTime, Category, CategoryExpireTime, ItemId FROM character_spell_cooldown WHERE guid = ?");
+        ps.setInt(1, Guid.low(p.guid));
+        ResultSet rs = ps.executeQuery();
+        long nowMs = System.currentTimeMillis();
+        while (rs.next()) {
+            int spellId = rs.getInt("SpellId");
+            long expireMs = rs.getLong("SpellExpireTime") * 1000L;
+            p.cooldowns.restoreSpell(spellId, expireMs, nowMs);
+        }
+    }
+
+    /** Player::_SaveSpellCooldowns — DELETE-all then INSERT; expire as unix seconds. */
+    private static void writeSpellCooldowns(Connection c, Player p) throws Exception {
+        PreparedStatement del = c.prepareStatement("DELETE FROM character_spell_cooldown WHERE guid = ?");
+        del.setInt(1, Guid.low(p.guid));
+        del.executeUpdate();
+        PreparedStatement ins = c.prepareStatement(
+                "INSERT INTO character_spell_cooldown (guid, SpellId, SpellExpireTime, Category, CategoryExpireTime, ItemId) VALUES (?,?,?,?,?,?)");
+        long nowMs = System.currentTimeMillis();
+        for (var e : p.cooldowns.unexpiredSpellExpireMs(nowMs).entrySet()) {
+            ins.setInt(1, Guid.low(p.guid));
+            ins.setInt(2, e.getKey());
+            ins.setLong(3, e.getValue() / 1000L);
+            ins.setInt(4, 0);
+            ins.setLong(5, 0);
+            ins.setInt(6, 0);
             ins.addBatch();
         }
         ins.executeBatch();

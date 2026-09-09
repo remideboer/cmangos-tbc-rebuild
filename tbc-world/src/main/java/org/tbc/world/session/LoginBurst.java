@@ -86,14 +86,22 @@ public final class LoginBurst {
         s.send(Opcodes.SMSG_INSTANCE_DIFFICULTY, u32(p.difficulty, 0));
         sent.add(Opcodes.SMSG_INSTANCE_DIFFICULTY);
         p.applyCreateFields();
-        WowBuffer spells = new WowBuffer(8 + p.spells.size() * 4);
+        var remaining = p.cooldowns.remainingSpells(world.nowMs());
+        WowBuffer spells = new WowBuffer(8 + p.spells.size() * 4 + remaining.size() * 14);
         spells.putU8(0);
         spells.putU16(p.spells.size());
         for (int id : p.spells) {
             spells.putU16(id);
             spells.putU16(0);
         }
-        spells.putU16(0);
+        spells.putU16(remaining.size());
+        for (var cd : remaining) {
+            spells.putU16(cd.spellId());
+            spells.putU16(cd.itemId());
+            spells.putU16(cd.category());
+            spells.putU32(cd.remainMs());
+            spells.putU32(cd.catRemainMs());
+        }
         s.send(Opcodes.SMSG_INITIAL_SPELLS, spells.array());
         sent.add(Opcodes.SMSG_INITIAL_SPELLS);
         s.send(Opcodes.SMSG_SEND_UNLEARN_SPELLS, u32(0));

@@ -189,6 +189,56 @@ class Slice07P0Test {
         assertFalse(client.saw(Opcodes.SMSG_CAST_RESULT));
     }
 
+    /**
+     * TP-SL07-005 — remaining RecoveryTime survives LogoutPlayer save / login via character_spell_cooldown
+     * (in-memory: PlayerPersist copy). SendInitialSpells writes the leftover ms; recast is still NOT_READY.
+     */
+    @Test
+    void tpSl07CooldownSurvivesRelog() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(FROST_NOVA);
+        client.castSpell(world, FROST_NOVA, 1, p.guid);
+        long guid = p.guid;
+        client.session().logout(world, true);
+        WowClientDouble again = new WowClientDouble();
+        again.connect(ACC);
+        again.login(world, guid);
+        byte[] spells = again.payload(Opcodes.SMSG_INITIAL_SPELLS);
+        int[] cd = initialSpellCooldown(spells, FROST_NOVA);
+        assertTrue(cd[0] > 0 && cd[0] <= FROST_NOVA_RECOVERY_MS, "remaining ms " + cd[0]);
+        assertEquals(0, cd[1], "itemId");
+        assertEquals(0, cd[2], "category");
+        Player p2 = again.session().player();
+        p2.spells.add(FROST_NOVA);
+        again.clear();
+        again.castSpell(world, FROST_NOVA, 2, p2.guid);
+        byte[] res = again.payload(Opcodes.SMSG_CAST_RESULT);
+        assertEquals(FROST_NOVA, WowClientDouble.u32le(res, 0));
+        assertEquals(SPELL_FAILED_NOT_READY, res[4] & 0xFF);
+    }
+
+    /** login-burst.md SMSG_INITIAL_SPELLS: unk u8, spellCount u16, spells, cooldownCount u16, then entries. */
+    private static int[] initialSpellCooldown(byte[] p, int spellId) {
+        int off = 1;
+        int n = p[off] & 0xFF | ((p[off + 1] & 0xFF) << 8);
+        off += 2 + n * 4;
+        int cdn = p[off] & 0xFF | ((p[off + 1] & 0xFF) << 8);
+        off += 2;
+        for (int i = 0; i < cdn; i++) {
+            int id = p[off] & 0xFF | ((p[off + 1] & 0xFF) << 8);
+            int item = p[off + 2] & 0xFF | ((p[off + 3] & 0xFF) << 8);
+            int cat = p[off + 4] & 0xFF | ((p[off + 5] & 0xFF) << 8);
+            int remain = WowClientDouble.u32le(p, off + 6);
+            if (id == spellId) {
+                return new int[]{remain, item, cat};
+            }
+            off += 14;
+        }
+        return new int[]{0, 0, 0};
+    }
+
     private static Player mageWithFireball(World world, WowClientDouble client) {
         client.connect(ACC);
         Player created = world.characters.create(ACC.id(), "Pyro", 1, 8, 0, 1, 1, 1, 1, 0, world.objectMgr);

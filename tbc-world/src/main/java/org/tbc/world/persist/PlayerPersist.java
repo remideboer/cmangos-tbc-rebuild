@@ -50,6 +50,7 @@ public final class PlayerPersist {
         System.arraycopy(src.tut, 0, d.tut, 0, 8);
         d.copyCreateStatsFrom(src);
         d.spells.addAll(src.spells);
+        d.cooldowns.copyFrom(src.cooldowns);
         if (!src.items.isEmpty()) {
             for (Item it : src.items.values()) {
                 Item c = copyItem(it);
