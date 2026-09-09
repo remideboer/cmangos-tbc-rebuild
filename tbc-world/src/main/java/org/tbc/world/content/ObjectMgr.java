@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
 
@@ -353,10 +354,24 @@ public final class ObjectMgr {
 
     public final Map<Integer, Petition> petitions = new HashMap<>();
 
+    /** creature / gameobject row; respawn min/max = spawntimesecsmin/max (seeded rows keep the 300 s default). */
     public record Spawn(int guid, int entry, int map, float x, float y, float z, float o,
-            float spawnDist, int movementType) {
+            float spawnDist, int movementType, int respawnMinSecs, int respawnMaxSecs) {
+        public static final int DEFAULT_RESPAWN_SECS = 300;
+
         public Spawn(int guid, int entry, int map, float x, float y, float z, float o) {
             this(guid, entry, map, x, y, z, o, 0f, 0);
+        }
+
+        public Spawn(int guid, int entry, int map, float x, float y, float z, float o,
+                float spawnDist, int movementType) {
+            this(guid, entry, map, x, y, z, o, spawnDist, movementType, DEFAULT_RESPAWN_SECS, DEFAULT_RESPAWN_SECS);
+        }
+
+        /** CreatureData::GetRandomRespawnTime — urand(min, max); max below min is clamped to min (ObjectMgr). */
+        public int randomRespawnSecs() {
+            int max = Math.max(respawnMinSecs, respawnMaxSecs);
+            return respawnMinSecs + ThreadLocalRandom.current().nextInt(max - respawnMinSecs + 1);
         }
     }
 
@@ -671,8 +686,11 @@ public final class ObjectMgr {
     private void loadSpawns(Connection c) throws Exception {
         String cols = "c.guid, c.id, c.map, c.position_x, c.position_y, c.position_z, c.orientation";
         String motionCols = cols + ", c.spawndist, c.MovementType";
+        String respawnCols = motionCols + ", c.spawntimesecsmin, c.spawntimesecsmax";
         String join = " FROM creature c LEFT OUTER JOIN game_event_creature gec ON c.guid = gec.guid AND gec.`event` > 0";
         String[] sqls = {
+                "SELECT " + respawnCols + join + " WHERE c.map IN (0, 1) AND gec.guid IS NULL LIMIT 80000",
+                "SELECT " + respawnCols + join + " WHERE gec.guid IS NULL LIMIT 80000",
                 "SELECT " + motionCols + join + " WHERE c.map IN (0, 1) AND gec.guid IS NULL LIMIT 80000",
                 "SELECT " + motionCols + join + " WHERE gec.guid IS NULL LIMIT 80000",
                 "SELECT " + cols + join + " WHERE c.map IN (0, 1) AND gec.guid IS NULL LIMIT 80000",
@@ -685,12 +703,15 @@ public final class ObjectMgr {
         for (String sql : sqls) {
             try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
                 boolean motion = sql.contains("spawndist");
+                boolean respawn = sql.contains("spawntimesecsmin");
                 while (rs.next()) {
                     float spawnDist = motion ? rs.getFloat(8) : 0f;
                     int movementType = motion ? rs.getInt(9) : 0;
+                    int respawnMin = respawn ? rs.getInt(10) : Spawn.DEFAULT_RESPAWN_SECS;
+                    int respawnMax = respawn ? rs.getInt(11) : Spawn.DEFAULT_RESPAWN_SECS;
                     spawns.add(new Spawn(rs.getInt(1), rs.getInt(2), rs.getInt(3),
                             rs.getFloat(4), rs.getFloat(5), rs.getFloat(6), rs.getFloat(7),
-                            spawnDist, movementType));
+                            spawnDist, movementType, respawnMin, respawnMax));
                 }
                 log.info("loaded {} creature spawns", spawns.size());
                 return;
@@ -1626,6 +1647,7 @@ public final class ObjectMgr {
         }
         c.spawnDist = s.spawnDist();
         c.movementType = s.movementType();
+        c.respawnDelayMs = s.randomRespawnSecs() * 1000;
         c.startOocMotion();
         return c;
     }

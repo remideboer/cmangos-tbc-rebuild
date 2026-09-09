@@ -1,6 +1,7 @@
 package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
+import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -287,6 +288,34 @@ class Slice06P0Test {
         assertEquals(79, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXHEALTH));
         assertEquals(79, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
         assertEquals(0, p.getInt(UpdateFields.PLAYER_CHARACTER_POINTS1));
+    }
+
+    /** TP-SL06-013 — Creature::LoadFromDB m_respawnDelay = spawntimesecs (min=max 120), not a fixed 300 s. */
+    @Test
+    void tpSl06RespawnUsesSpawntimesecs() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Camper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        ObjectMgr.Spawn row = new ObjectMgr.Spawn(9001, 6, 0, p.x, p.y, p.z, p.o, 0f, 0, 120, 120);
+        Creature c = world.objectMgr.spawnCreature(row, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        client.attackSwing(world, c.guid);
+        int n = 0;
+        while (c.alive() && n++ < 400) {
+            world.meleeHit(p, c);
+        }
+        assertFalse(c.alive());
+        world.advanceMs(119_000);
+        world.tick(50);
+        assertFalse(c.alive());
+        client.clear();
+        world.advanceMs(1_000);
+        world.tick(50);
+        assertTrue(c.alive());
+        assertEquals(c.maxHealth(), client.valuesField(c.guid, UpdateFields.UNIT_FIELD_HEALTH));
     }
 
     private static Creature killKobold(World world, WowClientDouble client, Player p) {

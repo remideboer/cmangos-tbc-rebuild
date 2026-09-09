@@ -102,6 +102,8 @@ public final class World implements Runnable {
     private final Map<Long, WorldSession> sessions = new ConcurrentHashMap<>();
     private final Queue<WorldSession> addQueue = new ConcurrentLinkedQueue<>();
     private final AtomicLong nowMs = new AtomicLong(System.currentTimeMillis());
+    /** advanceMs offset so a ticked clock stays ahead of wall time (tests; 0 in production). */
+    private final AtomicLong clockOffsetMs = new AtomicLong();
     private volatile boolean running = true;
     private long nextInstanceId = 1;
     public final Map<String, Account> testAccounts = new ConcurrentHashMap<>();
@@ -217,6 +219,7 @@ public final class World implements Runnable {
     /** Test / domain clock advance (logout delay, BG capture timers). */
     public void advanceMs(long deltaMs) {
         nowMs.addAndGet(deltaMs);
+        clockOffsetMs.addAndGet(deltaMs);
         DeathHandler.tickDeathTimers(this);
     }
 
@@ -516,7 +519,7 @@ public final class World implements Runnable {
     }
 
     public void tick(int diff) {
-        nowMs.set(System.currentTimeMillis());
+        nowMs.set(System.currentTimeMillis() + clockOffsetMs.get());
         timers.advance(diff);
         if (timers.passed(WorldTimers.AUCTIONS)) {
             timers.reset(WorldTimers.AUCTIONS);
