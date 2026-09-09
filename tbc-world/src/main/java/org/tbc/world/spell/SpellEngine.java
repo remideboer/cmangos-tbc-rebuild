@@ -22,7 +22,9 @@ import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.pvp.Honor;
 import org.tbc.world.script.ClassScripts;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -212,7 +214,13 @@ public final class SpellEngine {
             EFFECT_APPLY_AREA_AURA_PARTY, EFFECT_APPLY_AREA_AURA_FRIEND, EFFECT_APPLY_AREA_AURA_ENEMY,
             EFFECT_APPLY_AREA_AURA_PET, EFFECT_APPLY_AREA_AURA_OWNER);
 
-    public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc, int equippedItemClass) {
+    public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
+                            int misc, int equippedItemClass, int castTimeMs) {
+        public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
+                         int misc, int equippedItemClass) {
+            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, 0);
+        }
+
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
             this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, 0);
         }
@@ -220,7 +228,20 @@ public final class SpellEngine {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange) {
             this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, 0);
         }
+
+        /** Spell.dbc CastingTimeIndex → SpellCastTimes.dbc base (ms). */
+        public SpellInfo withCastTime(int ms) {
+            return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, ms);
+        }
     }
+
+    /** Spell::m_currentSpells[CURRENT_GENERIC_SPELL] while SPELL_STATE_PREPARING (cast bar running). */
+    private record PendingCast(Player caster, Unit target, SpellInfo sp, int castCount, SpellCastTargets targets,
+                               BiConsumer<Integer, byte[]> send, Runnable onFinished, int[] timerMs) {}
+
+    private final Map<Long, PendingCast> pendingCasts = new HashMap<>();
+    /** Fireball 133 / Lesser Heal 2050 rank 1: CastingTimeIndex 16 = 1500 ms. */
+    private static final int CAST_TIME_INDEX_16_MS = 1500;
 
     private final Map<Integer, SpellInfo> spells = new HashMap<>();
     private final DoubleSupplier missRoll;
@@ -233,8 +254,9 @@ public final class SpellEngine {
     public SpellEngine(DoubleSupplier missRoll) {
         this.missRoll = missRoll;
         spells.put(78, new SpellInfo(78, EFFECT_WEAPON_DAMAGE, 0, 0, 150, 1, 3, 5f));
-        spells.put(FIREBALL, new SpellInfo(FIREBALL, EFFECT_SCHOOL_DAMAGE, 0, 4, 30, 8, 12, 30f));
-        spells.put(2050, new SpellInfo(2050, EFFECT_HEAL, 0, 1, 20, 10, 14, 0f));
+        spells.put(FIREBALL, new SpellInfo(FIREBALL, EFFECT_SCHOOL_DAMAGE, 0, 4, 30, 8, 12, 30f)
+                .withCastTime(CAST_TIME_INDEX_16_MS));
+        spells.put(2050, new SpellInfo(2050, EFFECT_HEAL, 0, 1, 20, 10, 14, 0f).withCastTime(CAST_TIME_INDEX_16_MS));
         spells.put(ClassScripts.SPELL_EXECUTE, new SpellInfo(ClassScripts.SPELL_EXECUTE, EFFECT_DUMMY, 0, 0, 0, 0, 0, 5f));
         spells.put(30108, new SpellInfo(30108, EFFECT_APPLY_AURA, 3, 5, 0, 0, 0, 30f));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
@@ -383,6 +405,16 @@ public final class SpellEngine {
 
     public boolean cast(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
                      BiConsumer<Integer, byte[]> send) {
+        return cast(caster, map, nowMs, spellId, castCount, rest, send, () -> { });
+    }
+
+    /**
+     * Spell::prepare: CheckCast, SMSG_SPELL_START with the cast timer; instant spells run cast() now,
+     * timed spells wait in {@link #update}. {@code onFinished} runs right after the effects land (either path).
+     * Returns true when the cast was accepted (START sent).
+     */
+    public boolean cast(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
+                     BiConsumer<Integer, byte[]> send, Runnable onFinished) {
         if (spellId == 0) {
             return false;
         }
@@ -408,7 +440,42 @@ public final class SpellEngine {
             sendFail(send, spellId, SPELL_FAILED_NO_POWER, castCount);
             return false;
         }
-        send.accept(Opcodes.SMSG_SPELL_START, encodeStart(caster.guid, sp.id, castCount, targets));
+        send.accept(Opcodes.SMSG_SPELL_START, encodeStart(caster.guid, sp.id, castCount, sp.castTimeMs, targets));
+        if (sp.castTimeMs > 0) {
+            pendingCasts.put(caster.guid, new PendingCast(caster, target, sp, castCount, targets, send, onFinished,
+                    new int[]{sp.castTimeMs}));
+            return true;
+        }
+        finishCast(caster, target, sp, castCount, targets, nowMs, send);
+        onFinished.run();
+        return true;
+    }
+
+    /** Spell::update while SPELL_STATE_PREPARING: count the timer down, then cast(). */
+    public void update(int diff, long nowMs) {
+        var it = pendingCasts.values().iterator();
+        List<PendingCast> due = new ArrayList<>();
+        while (it.hasNext()) {
+            PendingCast pc = it.next();
+            pc.timerMs[0] -= diff;
+            if (pc.timerMs[0] <= 0) {
+                it.remove();
+                due.add(pc);
+            }
+        }
+        for (PendingCast pc : due) {
+            if (pc.caster.power() < pc.sp.mana) {
+                sendFail(pc.send, pc.sp.id, SPELL_FAILED_NO_POWER, pc.castCount);
+                continue;
+            }
+            finishCast(pc.caster, pc.target, pc.sp, pc.castCount, pc.targets, nowMs, pc.send);
+            pc.onFinished.run();
+        }
+    }
+
+    /** Spell::cast: TakePower, effects, SMSG_SPELL_GO (+ miss / damage log). */
+    private void finishCast(Player caster, Unit target, SpellInfo sp, int castCount, SpellCastTargets targets,
+                            long nowMs, BiConsumer<Integer, byte[]> send) {
         if (sp.mana > 0) {
             caster.setPower(caster.power() - sp.mana);
             caster.noteManaUse();
@@ -434,7 +501,6 @@ public final class SpellEngine {
                 send.accept(hp.opcode(), hp.payload());
             }
         }
-        return true;
     }
 
     public int apply(Unit caster, Unit target, SpellInfo sp) {
@@ -2325,13 +2391,18 @@ public final class SpellEngine {
     }
 
     public byte[] encodeStart(long caster, int spellId, int castCount, SpellCastTargets targets) {
+        return encodeStart(caster, spellId, castCount, 0, targets);
+    }
+
+    /** spell.md SMSG_SPELL_START: caster ×2 packed, spellId, castCount, castFlags, timer (ms), targets. */
+    public byte[] encodeStart(long caster, int spellId, int castCount, int timerMs, SpellCastTargets targets) {
         WowBuffer b = new WowBuffer(64);
         b.putPackedGuid(caster);
         b.putPackedGuid(caster);
         b.putU32(spellId);
         b.putU8(castCount);
         b.putU16(CAST_FLAG_UNKNOWN2);
-        b.putU32(0);
+        b.putU32(timerMs);
         targets.write(b);
         return b.array();
     }

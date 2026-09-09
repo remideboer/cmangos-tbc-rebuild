@@ -47,7 +47,11 @@ public class SpellSteps {
         hpBefore = kobold.health();
         client.clear();
         client.castSpell(world, spellId, 1, kobold.guid);
+        // Fireball rank 1: 1500 ms cast bar (SpellCastTimes.dbc 16); the player waits for it to land.
+        world.tick(FIREBALL_CAST_MS);
     }
+
+    private static final int FIREBALL_CAST_MS = 1500;
 
     @When("the player casts unknown spell {int} on the kobold")
     public void castUnknown(int spellId) {

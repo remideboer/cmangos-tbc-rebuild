@@ -96,6 +96,8 @@ class Slice11EventAiTest {
         p.relocate(c.x, c.y, c.z, c.o);
         client.clear();
         client.castSpell(world, SpellEngine.FIREBALL, 1, c.guid);
+        // Fireball rank 1 lands after its 1500 ms cast bar (Spell::update), then EVENT_SPELLHIT fires.
+        world.tick(1500);
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
         assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
     }

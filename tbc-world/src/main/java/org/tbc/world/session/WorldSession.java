@@ -1099,10 +1099,13 @@ public final class WorldSession {
         org.tbc.world.entity.Unit unit = org.tbc.world.spell.SpellEngine.resolve(player, map, targets.unitGuid);
         int hpBefore = unit == null ? 0 : unit.health();
         boolean wasAlive = unit != null && unit.alive();
-        boolean hit = world.spells.cast(player, map, world.nowMs(), spellId, castCount, new WowBuffer(rest), this::send);
-        if (!hit) {
-            return;
-        }
+        world.spells.cast(player, map, world.nowMs(), spellId, castCount, new WowBuffer(rest), this::send,
+                () -> afterSpellLanded(world, spellId, unit, hpBefore, wasAlive));
+    }
+
+    /** Runs when the effects land (instant now, timed casts from Spell::update): kill path, EventAI spell hit. */
+    private void afterSpellLanded(World world, int spellId, org.tbc.world.entity.Unit unit, int hpBefore,
+                                  boolean wasAlive) {
         if (unit instanceof Creature dead && wasAlive && !dead.alive()) {
             world.onCreatureKilledBySpell(player, dead);
         }

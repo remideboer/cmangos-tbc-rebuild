@@ -556,6 +556,8 @@ public final class World implements Runnable {
             s.processQueue(this);
             s.tick(this, diff);
         }
+        // Unit::Update → m_currentSpells[i]->update(diff): cast bars finish here.
+        spells.update(diff, nowMs());
         if (timers.weatherPassed()) {
             timers.resetWeather();
             WeatherHandler.onTimer(this);

@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SpellEngineTest {
     private final SpellEngine engine = SpellEngine.alwaysHit();
+    /** Fireball 133 / Lesser Heal 2050 rank 1 cast bar (SpellCastTimes.dbc index 16). */
+    private static final int FIREBALL_CAST_MS = 1500;
     private final List<Integer> ops = new ArrayList<>();
     private final Map<Integer, byte[]> last = new HashMap<>();
     private byte[] lastCastResult;
@@ -59,6 +61,7 @@ class SpellEngineTest {
         SpellEngine miss = new SpellEngine(() -> 0.0);
         int hp = c.health();
         miss.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        miss.update(FIREBALL_CAST_MS, 10);
         assertEquals(70, p.power());
         assertEquals(hp, c.health());
         assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
@@ -86,6 +89,7 @@ class SpellEngineTest {
     void castFireballWhenMissRollAtFourPercentShouldDealDamage() {
         SpellEngine atFloor = new SpellEngine(() -> 0.04);
         atFloor.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        atFloor.update(FIREBALL_CAST_MS, 10);
         assertEquals(32, c.health());
         assertTrue(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
         assertFalse(ops.contains(Opcodes.SMSG_SPELLLOGMISS));
@@ -94,6 +98,7 @@ class SpellEngineTest {
     @Test
     void castFireballSpendsManaAndLogsDamage() {
         engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        engine.update(FIREBALL_CAST_MS, 10);
         assertEquals(70, p.power());
         assertEquals(32, c.health());
         assertTrue(ops.contains(Opcodes.SMSG_SPELL_START));
@@ -114,6 +119,30 @@ class SpellEngineTest {
         assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
         assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
         assertEquals(2, p.queuedNextMeleeBonus());
+    }
+
+    /** TP-SL07-003 — Spell::update: timer counts down across ticks; no GO until it reaches 0. */
+    @Test
+    void castFireballWhenTimerNotElapsedShouldHoldGoAndPower() {
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_START));
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
+        engine.update(1000, 10);
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertEquals(100, p.power());
+        engine.update(500, 10);
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertEquals(70, p.power());
+    }
+
+    /** Spell::cast re-checks power: mana lost during the cast bar fails with NO_POWER and no GO. */
+    @Test
+    void castFireballWhenManaGoneAtTimerShouldFailNoPower() {
+        engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        p.setPower(0);
+        engine.update(FIREBALL_CAST_MS, 10);
+        assertEquals(SpellEngine.SPELL_FAILED_NO_POWER, result());
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
     }
 
     @Test
@@ -157,6 +186,7 @@ class SpellEngineTest {
         assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
         ops.clear();
         engine.cast(p, map, 0, 2050, 1, empty(), this::capture);
+        engine.update(FIREBALL_CAST_MS, 0);
         assertEquals(50, p.health());
         assertEquals(80, p.power());
         p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);

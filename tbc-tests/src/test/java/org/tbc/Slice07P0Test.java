@@ -18,21 +18,51 @@ class Slice07P0Test {
             new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
     private static final int FIREBALL = 133;
 
+    /** Fireball rank 1: Spell.dbc CastingTimeIndex 16 → SpellCastTimes.dbc 1500 ms. */
+    private static final int FIREBALL_CAST_MS = 1500;
+
+    /**
+     * TP-SL07-003 — Spell::prepare sends SMSG_SPELL_START with the cast timer and only Spell::update
+     * (SPELL_STATE_PREPARING, m_timer reaches 0) runs cast(): TakePower, effects, SMSG_SPELL_GO, damage log.
+     */
+    @Test
+    void tpSl07CastTimeDelaysSpellGo() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        Creature c = kobold(world, p);
+        int manaBefore = p.power();
+        int hpBefore = c.health();
+        client.clear();
+        client.castSpell(world, FIREBALL, 1, c.guid);
+        byte[] start = client.payload(Opcodes.SMSG_SPELL_START);
+        int off = WowClientDouble.skipPackedGuid(start, 0);
+        off = WowClientDouble.skipPackedGuid(start, off);
+        assertEquals(FIREBALL, WowClientDouble.u32le(start, off));
+        assertEquals(FIREBALL_CAST_MS, WowClientDouble.u32le(start, off + 4 + 1 + 2));
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(manaBefore, p.power());
+        world.tick(FIREBALL_CAST_MS - 100);
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(hpBefore, c.health());
+        world.tick(100);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertTrue(client.saw(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertTrue(c.health() < hpBefore);
+        assertEquals(manaBefore - 30, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER1));
+    }
+
     /** TP-SL07-011 — Unit::DealDamage → Unit::Kill for spell damage too: XP log, PLAYER_XP, lootable corpse. */
     @Test
     void tpSl07SpellKillRewardsAndLoots() {
         World world = World.inMemory();
         WowClientDouble client = new WowClientDouble();
-        client.connect(ACC);
-        Player created = world.characters.create(ACC.id(), "Pyro", 1, 8, 0, 1, 1, 1, 1, 0, world.objectMgr);
-        client.login(world, created.guid);
-        Player p = client.session().player();
-        p.spells.add(FIREBALL);
-        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
-        world.map(p.mapId, p.instanceId).add(c);
+        Player p = mageWithFireball(world, client);
+        Creature c = kobold(world, p);
         c.setHealth(1);
         client.clear();
         client.castSpell(world, FIREBALL, 1, c.guid);
+        world.tick(FIREBALL_CAST_MS);
         assertFalse(c.alive());
         byte[] log = client.payload(Opcodes.SMSG_LOG_XPGAIN);
         assertEquals(22, log.length);
@@ -42,5 +72,20 @@ class Slice07P0Test {
         client.clear();
         client.loot(world, c.guid);
         assertTrue(client.saw(Opcodes.SMSG_LOOT_RESPONSE));
+    }
+
+    private static Player mageWithFireball(World world, WowClientDouble client) {
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Pyro", 1, 8, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.spells.add(FIREBALL);
+        return p;
+    }
+
+    private static Creature kobold(World world, Player p) {
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        return c;
     }
 }
