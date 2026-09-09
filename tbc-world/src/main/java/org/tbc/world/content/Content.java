@@ -84,6 +84,9 @@ public final class Content {
     public static final int EQUIP_ERR_NOT_ENOUGH_MONEY = 29;
     public static final int QUEST_STATE_COMPLETE = 0x1;
     public static final int QUEST_STATE_FAIL = 0x2;
+    /** QuestDef.h DIALOG_STATUS_NONE / DIALOG_STATUS_AVAILABLE (yellow !). */
+    public static final int DIALOG_STATUS_NONE = 0;
+    public static final int DIALOG_STATUS_AVAILABLE = 6;
     public static final int QUEST_A_THREAT_WITHIN = 783;
     public static final int NPC_CORINA_STEELE = 54;
     public static final int NPC_MARSHAL_MCBRIDE = 197;
@@ -296,6 +299,40 @@ public final class Content {
             return;
         }
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_DETAILS, encodeDetails(c.guid, q));
+    }
+
+    /**
+     * CMSG_QUESTGIVER_STATUS_QUERY. GossipDef.cpp SendQuestGiverStatus; QuestHandler.cpp getDialogStatus.
+     * Missing questgiver: no packet. Found: raw guid + uint8 status.
+     */
+    public void questGiverStatusQuery(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Creature c = creature(map, guid);
+        if (c == null) {
+            return;
+        }
+        int status = outOfRange(p, c) ? DIALOG_STATUS_NONE : dialogStatus(p, c);
+        WowBuffer out = new WowBuffer(9);
+        out.putU64(guid);
+        out.putU8(status);
+        send.accept(Opcodes.SMSG_QUESTGIVER_STATUS, out.array());
+    }
+
+    /** Quest-giver markings only (QUEST_STATUS_NONE + CanSeeStartQuest stand-in: template exists, not in log). */
+    int dialogStatus(Player p, Creature c) {
+        List<Integer> offered = mgr.questGivers.getOrDefault(c.entry, List.of());
+        for (int questId : offered) {
+            if (mgr.quests.get(questId) == null) {
+                continue;
+            }
+            if (slotOf(p, questId) < 0) {
+                return DIALOG_STATUS_AVAILABLE;
+            }
+        }
+        return DIALOG_STATUS_NONE;
     }
 
     public void acceptQuest(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {

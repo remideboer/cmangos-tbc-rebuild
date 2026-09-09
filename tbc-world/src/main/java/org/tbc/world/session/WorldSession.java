@@ -342,6 +342,7 @@ public final class WorldSession {
             case Opcodes.CMSG_GOSSIP_SELECT_OPTION -> handleGossipSelect(world, in);
             case Opcodes.CMSG_LIST_INVENTORY -> handleListInventory(world, in);
             case Opcodes.CMSG_QUESTGIVER_QUERY_QUEST -> handleQuestQuery(world, in);
+            case Opcodes.CMSG_QUESTGIVER_STATUS_QUERY -> handleQuestgiverStatusQuery(world, in);
             case Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST -> handleQuestAccept(world, in);
             case Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD ->
                     handleQuestComplete(world, in);
@@ -1140,6 +1141,10 @@ public final class WorldSession {
 
     private void handleQuestQuery(World world, WowBuffer in) {
         world.content.queryQuest(player, world.map(player.mapId, player.instanceId), in, this::send);
+    }
+
+    private void handleQuestgiverStatusQuery(World world, WowBuffer in) {
+        world.content.questGiverStatusQuery(player, world.map(player.mapId, player.instanceId), in, this::send);
     }
 
     private void handleQuestAccept(World world, WowBuffer in) {

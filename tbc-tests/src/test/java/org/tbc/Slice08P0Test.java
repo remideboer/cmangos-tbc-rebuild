@@ -2,6 +2,7 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -56,4 +57,33 @@ class Slice08P0Test {
         float path = (float) Math.hypot(destX - c.spawnX, destY - c.spawnY);
         assertEquals(Math.max(1, (int) (path / UpdateBuilder.WALK * 1000f)), duration);
     }
+
+    /**
+     * TP-SL08-019 — HandleQuestgiverStatusQueryOpcode / getDialogStatus: Willem 823 offers 783
+     * (QUEST_STATUS_NONE + CanSeeStartQuest) → SMSG_QUESTGIVER_STATUS raw guid + DIALOG_STATUS_AVAILABLE 6.
+     */
+    @Test
+    void tpSl08QuestgiverStatusQuery() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Quester", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(willem);
+
+        client.clear();
+        WowBuffer q = new WowBuffer(8);
+        q.putU64(willem.guid);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_STATUS_QUERY, q.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_STATUS));
+        WowBuffer st = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_STATUS));
+        assertEquals(willem.guid, st.getU64());
+        assertEquals(DIALOG_STATUS_AVAILABLE, st.getU8());
+    }
+
+    /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
+    private static final int DIALOG_STATUS_AVAILABLE = 6;
 }

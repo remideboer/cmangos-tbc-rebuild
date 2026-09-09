@@ -90,6 +90,37 @@ class ContentTest {
     }
 
     @Test
+    void questGiverStatusQueryWhenOfferedShouldSendAvailable() {
+        Creature giver = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
+        content.questGiverStatusQuery(p, map, new WowBuffer(3), this::capture);
+        content.questGiverStatusQuery(p, map, u64(99), this::capture);
+        assertTrue(ops.isEmpty());
+        content.questGiverStatusQuery(p, map, u64(giver.guid), this::capture);
+        WowBuffer st = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS));
+        assertEquals(giver.guid, st.getU64());
+        assertEquals(Content.DIALOG_STATUS_AVAILABLE, st.getU8());
+        ops.clear();
+        p.relocate(20, 0, 0, 0);
+        content.questGiverStatusQuery(p, map, u64(giver.guid), this::capture);
+        st = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS));
+        st.getU64();
+        assertEquals(Content.DIALOG_STATUS_NONE, st.getU8());
+        p.relocate(0, 0, 0, 0);
+        ops.clear();
+        Creature kobold = spawn(6, 0, 0);
+        content.questGiverStatusQuery(p, map, u64(kobold.guid), this::capture);
+        st = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS));
+        st.getU64();
+        assertEquals(Content.DIALOG_STATUS_NONE, st.getU8());
+        ops.clear();
+        mgr.questGivers.put(6, new ArrayList<>(List.of(99999)));
+        content.questGiverStatusQuery(p, map, u64(kobold.guid), this::capture);
+        st = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS));
+        st.getU64();
+        assertEquals(Content.DIALOG_STATUS_NONE, st.getU8());
+    }
+
+    @Test
     void gossipMobHasEmptyMenu() {
         Creature kobold = spawn(6, 0, 0);
         content.gossipHello(p, map, u64(kobold.guid), this::capture);
@@ -486,6 +517,9 @@ class ContentTest {
         content.acceptQuest(p, map, quest(giver.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
         assertEquals(Content.QUEST_A_THREAT_WITHIN, p.questLogId[0]);
         assertTrue(ops.contains(Opcodes.SMSG_GOSSIP_COMPLETE));
+        ops.clear();
+        content.questGiverStatusQuery(p, map, u64(giver.guid), this::capture);
+        assertEquals(Content.DIALOG_STATUS_NONE, last.get(Opcodes.SMSG_QUESTGIVER_STATUS)[8] & 0xFF);
         ops.clear();
         content.acceptQuest(p, map, quest(giver.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_GOSSIP_COMPLETE));
