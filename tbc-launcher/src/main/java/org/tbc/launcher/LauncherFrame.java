@@ -38,11 +38,21 @@ public final class LauncherFrame extends JFrame {
     private final JButton restartBtn = new JButton("Restart servers");
     private final JButton adminBtn = new JButton("Open admin");
     private final JButton editorBtn = new JButton("Open editor");
+    private final JButton clientBtn = new JButton("Start client");
+    private final JButton clientPathBtn = new JButton("Client path…");
+    private final ClientLauncher client;
+    private final ClientPathDialogs dialogs;
     private boolean closing;
 
-    public LauncherFrame(ServerProcessService service) {
+    public LauncherFrame(ServerProcessService service, ClientLauncher client) {
+        this(service, client, null);
+    }
+
+    LauncherFrame(ServerProcessService service, ClientLauncher client, ClientPathDialogs dialogs) {
         super("TBC Launcher");
         this.service = service;
+        this.client = client;
+        this.dialogs = dialogs != null ? dialogs : ClientPathDialogs.swing(this);
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         setSize(640, 520);
         setLocationRelativeTo(null);
@@ -53,6 +63,8 @@ public final class LauncherFrame extends JFrame {
         JPanel tools = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         tools.add(adminBtn);
         tools.add(editorBtn);
+        tools.add(clientBtn);
+        tools.add(clientPathBtn);
         JPanel buttons = new JPanel(new GridLayout(2, 1, 0, 0));
         buttons.add(servers);
         buttons.add(tools);
@@ -117,6 +129,8 @@ public final class LauncherFrame extends JFrame {
             service.openEditor();
             return "Editor opened.";
         }));
+        clientBtn.addActionListener(e -> onStartClient());
+        clientPathBtn.addActionListener(e -> onClientPath());
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -174,6 +188,48 @@ public final class LauncherFrame extends JFrame {
             }
             area.setCaretPosition(area.getDocument().getLength());
         });
+    }
+
+    /** Unset path → ask for the exe first; then start the client in its own folder. */
+    private void onStartClient() {
+        if (!client.hasClientPath() && !browseClientPath()) {
+            status.setText("Client path not set.");
+            return;
+        }
+        run("Starting client…", () -> {
+            client.startClient();
+            return "Client started.";
+        });
+    }
+
+    /** Unset → browse; set → change, reset or keep. */
+    private void onClientPath() {
+        if (!client.hasClientPath()) {
+            browseClientPath();
+            return;
+        }
+        ClientPathDialogs.Choice choice = dialogs.manage(client.clientPath().orElseThrow());
+        if (choice == ClientPathDialogs.Choice.CLEAR) {
+            client.clearClientPath();
+            status.setText("Client path reset.");
+        } else if (choice == ClientPathDialogs.Choice.BROWSE) {
+            browseClientPath();
+        }
+    }
+
+    private boolean browseClientPath() {
+        var picked = dialogs.browse();
+        if (picked.isEmpty()) {
+            return false;
+        }
+        try {
+            client.setClientPath(picked.get());
+        } catch (LauncherException e) {
+            status.setText(e.getMessage());
+            return false;
+        }
+        status.setText("Client: " + picked.get());
+        return true;
     }
 
     private void onClose() {
@@ -253,5 +309,7 @@ public final class LauncherFrame extends JFrame {
         restartBtn.setEnabled(!busy);
         adminBtn.setEnabled(!busy);
         editorBtn.setEnabled(!busy);
+        clientBtn.setEnabled(!busy);
+        clientPathBtn.setEnabled(!busy);
     }
 }

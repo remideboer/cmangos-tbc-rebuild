@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
@@ -37,10 +38,17 @@ class LauncherFrameTest {
     Path home;
     private RecordingStarter starter;
     private ServerProcessService svc;
+    private ClientLauncher client;
+    private FakeDialogs dialogs;
+    private Path exe;
 
     @BeforeEach
     void setUp() throws Exception {
         assumeFalse(GraphicsEnvironment.isHeadless());
+        exe = home.resolve("client").resolve("Wow.exe");
+        Files.createDirectories(exe.getParent());
+        Files.writeString(exe, "exe");
+        dialogs = new FakeDialogs();
         Path jdk = home.resolve("jdk");
         Files.createDirectories(jdk.resolve("bin"));
         Files.writeString(jdk.resolve("bin").resolve("java.exe"), "java");
@@ -49,6 +57,7 @@ class LauncherFrameTest {
         Files.writeString(home.resolve(ServerProcessService.LOCAL_MANGOSD), "mangosd");
         starter = new RecordingStarter();
         svc = new ServerProcessService(home, starter, jdk.toString(), home.resolve("user").toString(), 1L);
+        client = new ClientLauncher(home.resolve("conf").resolve(ClientLauncher.SETTINGS_FILE), starter);
     }
 
     @Test
@@ -59,17 +68,19 @@ class LauncherFrameTest {
                 frame.setVisible(true);
                 frame.validate();
             });
-            JButton editor = findButton(frame, "Open editor");
-            assertNotNull(editor, "Open editor");
-            onEdt(() -> {
-                assertTrue(editor.getWidth() > 0 && editor.getHeight() > 0);
-                Container parent = editor.getParent();
-                Rectangle b = editor.getBounds();
-                assertTrue(b.y + b.height <= parent.getHeight(),
-                        "Open editor clipped at y=" + b.y + " h=" + b.height + " parentH=" + parent.getHeight());
-                assertTrue(b.x + b.width <= parent.getWidth(),
-                        "Open editor clipped at x=" + b.x + " w=" + b.width + " parentW=" + parent.getWidth());
-            });
+            for (String text : new String[]{"Open editor", "Start client", "Client path…"}) {
+                JButton btn = findButton(frame, text);
+                assertNotNull(btn, text);
+                onEdt(() -> {
+                    assertTrue(btn.getWidth() > 0 && btn.getHeight() > 0);
+                    Container parent = btn.getParent();
+                    Rectangle b = btn.getBounds();
+                    assertTrue(b.y + b.height <= parent.getHeight(),
+                            text + " clipped at y=" + b.y + " h=" + b.height + " parentH=" + parent.getHeight());
+                    assertTrue(b.x + b.width <= parent.getWidth(),
+                            text + " clipped at x=" + b.x + " w=" + b.width + " parentW=" + parent.getWidth());
+                });
+            }
         } finally {
             onEdt(frame::dispose);
         }
@@ -148,10 +159,140 @@ class LauncherFrameTest {
         }
     }
 
+    @Test
+    void givenNoClientPathWhenStartClientClickedThenAsksForExeAndStartsIt() throws Exception {
+        dialogs.browseResult = exe;
+        LauncherFrame frame = constructFrame();
+        try {
+            onEdt(() -> findButton(frame, "Start client").doClick());
+            awaitCalls(1);
+            assertEquals(1, dialogs.browseCalls);
+            assertEquals(List.of(exe.toString()), starter.calls.get(0));
+            assertEquals(exe, client.clientPath().orElseThrow());
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
+    void givenNoClientPathWhenBrowseCancelledThenNothingStartsAndPathStaysUnset() throws Exception {
+        dialogs.browseResult = null;
+        LauncherFrame frame = constructFrame();
+        try {
+            onEdt(() -> findButton(frame, "Start client").doClick());
+            Thread.sleep(100);
+            assertEquals(1, dialogs.browseCalls);
+            assertTrue(starter.calls.isEmpty());
+            assertFalse(client.hasClientPath());
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
+    void givenClientPathSetWhenStartClientClickedThenStartsWithoutAsking() throws Exception {
+        client.setClientPath(exe);
+        LauncherFrame frame = constructFrame();
+        try {
+            onEdt(() -> findButton(frame, "Start client").doClick());
+            awaitCalls(1);
+            assertEquals(0, dialogs.browseCalls);
+            assertEquals(List.of(exe.toString()), starter.calls.get(0));
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
+    void givenClientPathSetWhenClientPathClickedAndClearChosenThenPathIsReset() throws Exception {
+        client.setClientPath(exe);
+        dialogs.manageResult = ClientPathDialogs.Choice.CLEAR;
+        LauncherFrame frame = constructFrame();
+        try {
+            onEdt(() -> findButton(frame, "Client path…").doClick());
+            assertEquals(exe, dialogs.managedCurrent);
+            assertFalse(client.hasClientPath());
+            assertTrue(starter.calls.isEmpty());
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
+    void givenClientPathSetWhenClientPathClickedAndBrowseChosenThenPathChanges() throws Exception {
+        client.setClientPath(exe);
+        Path other = home.resolve("client2").resolve("Wow.exe");
+        Files.createDirectories(other.getParent());
+        Files.writeString(other, "exe");
+        dialogs.manageResult = ClientPathDialogs.Choice.BROWSE;
+        dialogs.browseResult = other;
+        LauncherFrame frame = constructFrame();
+        try {
+            onEdt(() -> findButton(frame, "Client path…").doClick());
+            assertEquals(other, client.clientPath().orElseThrow());
+            assertTrue(starter.calls.isEmpty());
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
+    void givenNoClientPathWhenClientPathClickedThenBrowsesDirectly() throws Exception {
+        dialogs.browseResult = exe;
+        LauncherFrame frame = constructFrame();
+        try {
+            onEdt(() -> findButton(frame, "Client path…").doClick());
+            assertNull(dialogs.managedCurrent);
+            assertEquals(exe, client.clientPath().orElseThrow());
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
+    void givenClientPathSetWhenClientPathClickedAndCancelledThenPathKept() throws Exception {
+        client.setClientPath(exe);
+        dialogs.manageResult = ClientPathDialogs.Choice.CANCEL;
+        LauncherFrame frame = constructFrame();
+        try {
+            onEdt(() -> findButton(frame, "Client path…").doClick());
+            assertEquals(exe, client.clientPath().orElseThrow());
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    private void awaitCalls(int n) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (starter.calls.size() < n && System.nanoTime() < deadline) {
+            Thread.sleep(20);
+        }
+        assertTrue(starter.calls.size() >= n);
+    }
+
     private LauncherFrame constructFrame() throws Exception {
         AtomicReference<LauncherFrame> out = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> out.set(new LauncherFrame(svc)));
+        SwingUtilities.invokeAndWait(() -> out.set(new LauncherFrame(svc, client, dialogs)));
         return out.get();
+    }
+
+    private static final class FakeDialogs implements ClientPathDialogs {
+        Path browseResult;
+        int browseCalls;
+        Choice manageResult = Choice.CANCEL;
+        Path managedCurrent;
+
+        @Override
+        public java.util.Optional<Path> browse() {
+            browseCalls++;
+            return java.util.Optional.ofNullable(browseResult);
+        }
+
+        @Override
+        public Choice manage(Path current) {
+            managedCurrent = current;
+            return manageResult;
+        }
     }
 
     private static void onEdt(Runnable work) throws Exception {

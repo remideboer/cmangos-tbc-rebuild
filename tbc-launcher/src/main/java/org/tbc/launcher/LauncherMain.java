@@ -11,7 +11,9 @@ public final class LauncherMain {
     public static void main(String[] args) {
         Path home = detectHome(Path.of("").toAbsolutePath());
         ServerProcessService service = new ServerProcessService(home);
-        SwingUtilities.invokeLater(() -> new LauncherFrame(service).setVisible(true));
+        ClientLauncher client = new ClientLauncher(
+                home.resolve("conf").resolve(ClientLauncher.SETTINGS_FILE), new ProcessBuilderStarter());
+        SwingUtilities.invokeLater(() -> new LauncherFrame(service, client).setVisible(true));
     }
 
     static Path detectHome(Path start) {
