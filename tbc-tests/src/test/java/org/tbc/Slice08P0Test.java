@@ -216,6 +216,73 @@ class Slice08P0Test {
         assertEquals(Content.QUEST_BROTHERHOOD_OF_THIEVES, done.getU32());
     }
 
+    /**
+     * TP-SL08-023 — Player::RewardQuest / SendQuestReward.
+     * Quest 783: XP 40 (RewMoneyMaxLevel 24 / 0.6). Quest 2158: RewItemId1 159 × 5 + PUSH.
+     */
+    @Test
+    void tpSl08QuestRewardXpAndItems() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Rewarded", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        Creature mcbride = world.objectMgr.spawnCreature(Content.NPC_MARSHAL_MCBRIDE, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(willem);
+        world.map(p.mapId, p.instanceId).add(mcbride);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(willem.guid);
+        accept.putU32(Content.QUEST_A_THREAT_WITHIN);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(mcbride.guid);
+        choose.putU32(Content.QUEST_A_THREAT_WITHIN);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        WowBuffer complete = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        assertEquals(Content.QUEST_A_THREAT_WITHIN, complete.getU32());
+        assertEquals(0x03, complete.getU32());
+        assertEquals(40, complete.getU32());
+        assertEquals(0, complete.getU32());
+        assertEquals(0, complete.getU32());
+        assertEquals(0, complete.getU32());
+        assertEquals(40, p.xp);
+        assertEquals(40, p.getInt(UpdateFields.PLAYER_XP));
+
+        world.objectMgr.questGivers.put(Content.NPC_INNKEEPER_FARLEY,
+                new java.util.ArrayList<>(java.util.List.of(Content.QUEST_REST_AND_RELAXATION)));
+        world.objectMgr.questInvolved.put(Content.NPC_INNKEEPER_FARLEY,
+                new java.util.ArrayList<>(java.util.List.of(Content.QUEST_REST_AND_RELAXATION)));
+        Creature farley = world.objectMgr.spawnCreature(Content.NPC_INNKEEPER_FARLEY, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(farley);
+        WowBuffer acceptInn = new WowBuffer(12);
+        acceptInn.putU64(farley.guid);
+        acceptInn.putU32(Content.QUEST_REST_AND_RELAXATION);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, acceptInn.array());
+        client.clear();
+        WowBuffer chooseInn = new WowBuffer(16);
+        chooseInn.putU64(farley.guid);
+        chooseInn.putU32(Content.QUEST_REST_AND_RELAXATION);
+        chooseInn.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, chooseInn.array());
+        assertTrue(client.saw(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        WowBuffer innDone = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        assertEquals(Content.QUEST_REST_AND_RELAXATION, innDone.getU32());
+        innDone.getU32();
+        innDone.getU32();
+        innDone.getU32();
+        innDone.getU32();
+        assertEquals(1, innDone.getU32());
+        assertEquals(Content.ITEM_REFRESHING_SPRING_WATER, innDone.getU32());
+        assertEquals(5, innDone.getU32());
+        assertTrue(p.items.values().stream().anyMatch(it ->
+                it.entry == Content.ITEM_REFRESHING_SPRING_WATER && it.count == 5));
+    }
+
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
     private static final int DIALOG_STATUS_AVAILABLE = 6;
 }

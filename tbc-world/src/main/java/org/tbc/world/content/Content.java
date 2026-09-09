@@ -90,6 +90,8 @@ public final class Content {
     public static final int DIALOG_STATUS_NONE = 0;
     public static final int DIALOG_STATUS_AVAILABLE = 6;
     public static final int QUEST_A_THREAT_WITHIN = 783;
+    /** quest_template 2158 Rest and Relaxation; RewItemId1 159 × 5. */
+    public static final int QUEST_REST_AND_RELAXATION = 2158;
     /** quest_template 7 Kobold Camp Cleanup; ReqCreatureOrGOId1 6, ReqCreatureOrGOCount1 10. */
     public static final int QUEST_KOBOLD_CAMP_CLEANUP = 7;
     /** quest_template 18 Brotherhood of Thieves; ReqItemId1 752, ReqItemCount1 12. */
@@ -113,6 +115,8 @@ public final class Content {
     /** gossip_menu_option.option_text on Farley menu 1291. */
     public static final String GOSSIP_FARLEY_INN_INFO = "What can I do at an inn?";
     public static final int ITEM_WORN_SHORTSWORD = 25;
+    /** locales_item 159 Refreshing Spring Water; quest 2158 RewItemId1. */
+    public static final int ITEM_REFRESHING_SPRING_WATER = 159;
     /** locales_item 752 Red Burlap Bandana; quest 18 ReqItemId1. */
     public static final int ITEM_RED_BURLAP_BANDANA = 752;
     /** locales_item 6948 Hearthstone; item_template spellid_1 8690. */
@@ -399,7 +403,8 @@ public final class Content {
         send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
     }
 
-    public void completeQuest(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {
+    public void completeQuest(Player p, GameMap map, WowBuffer in, long nextItemGuid,
+                              BiConsumer<Integer, byte[]> send) {
         if (in.remaining() < 12) {
             return;
         }
@@ -419,7 +424,39 @@ public final class Content {
         }
         p.questLogState[slot] = QUEST_STATE_COMPLETE;
         send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
-        p.setMoney(p.money + q.rewMoney());
+        int xp;
+        int money = q.rewMoney();
+        if (p.level < Player.MAX_LEVEL) {
+            xp = QuestXp.xpValue(p.level, q.questLevel(), q.rewMoneyMaxLevel());
+            int[] changed = p.giveXp(xp, null);
+            if (changed.length > 0) {
+                var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, changed));
+                send.accept(upd.opcode(), upd.payload());
+            }
+        } else {
+            xp = 0;
+            money += q.rewMoneyMaxLevel();
+        }
+        p.setMoney(p.money + money);
+        if (q.rewItemId1() > 0 && q.rewItemCount1() > 0 && nextItemGuid != 0) {
+            int bagSlot = nextBackpackSlot(p);
+            if (bagSlot >= 0) {
+                Item it = new Item(nextItemGuid, q.rewItemId1());
+                it.ownerGuid = Guid.low(p.guid);
+                it.bag = 0;
+                it.slot = bagSlot;
+                it.count = q.rewItemCount1();
+                ObjectMgr.ItemTemplate t = mgr.items.get(q.rewItemId1());
+                if (t != null) {
+                    it.displayId = t.displayId;
+                    it.inventoryType = t.inventoryType;
+                    it.quality = t.quality;
+                }
+                p.items.put(Guid.low(it.guid), it);
+                p.dirty = true;
+                send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, it.count));
+            }
+        }
         p.questLogId[slot] = 0;
         p.questLogState[slot] = 0;
         p.questLogCounts[slot][0] = 0;
@@ -428,7 +465,7 @@ public final class Content {
         p.questLogCounts[slot][3] = 0;
         p.questLogItemCount[slot] = 0;
         writeLogField(p, slot);
-        send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q));
+        send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q, xp, money, 0));
     }
 
     public static boolean outOfRange(Player p, Creature c) {
@@ -727,14 +764,19 @@ public final class Content {
         return b.array();
     }
 
-    static byte[] encodeQuestComplete(ObjectMgr.QuestTemplate q) {
-        WowBuffer b = new WowBuffer(24);
+    static byte[] encodeQuestComplete(ObjectMgr.QuestTemplate q, int xp, int money, int honor) {
+        int items = q.rewItemId1() > 0 ? 1 : 0;
+        WowBuffer b = new WowBuffer(24 + items * 8);
         b.putU32(q.id());
         b.putU32(0x03);
-        b.putU32(0);
-        b.putU32(q.rewMoney());
-        b.putU32(0);
-        b.putU32(0);
+        b.putU32(xp);
+        b.putU32(money);
+        b.putU32(honor);
+        b.putU32(items);
+        if (items > 0) {
+            b.putU32(q.rewItemId1());
+            b.putU32(q.rewItemCount1());
+        }
         return b.array();
     }
 

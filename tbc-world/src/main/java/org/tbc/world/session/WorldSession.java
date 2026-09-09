@@ -1157,7 +1157,7 @@ public final class WorldSession {
     }
 
     private void handleQuestComplete(World world, WowBuffer in) {
-        world.content.completeQuest(player, world.map(player.mapId, player.instanceId), in, this::send);
+        world.content.completeQuest(player, world.map(player.mapId, player.instanceId), in, world.nextItemGuid(), this::send);
     }
 
     private void handleAuctionHello(World world, WowBuffer in) {

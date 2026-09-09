@@ -244,6 +244,84 @@ class ContentTest {
     }
 
     @Test
+    void rewardQuestWhenXpItemAndMaxLevelShouldMatchSendQuestReward() {
+        p.race = 1;
+        p.clazz = 1;
+        p.initStatsForLevel(mgr.levelStats);
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE, 0, 0);
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        ops.clear();
+        last.clear();
+        content.completeQuest(p, map, quest(mcbride.guid, Content.QUEST_A_THREAT_WITHIN), nextItem++, this::capture);
+        WowBuffer done = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        assertEquals(Content.QUEST_A_THREAT_WITHIN, done.getU32());
+        assertEquals(0x03, done.getU32());
+        assertEquals(40, done.getU32());
+        assertEquals(0, done.getU32());
+        assertEquals(0, done.getU32());
+        assertEquals(0, done.getU32());
+
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        p.level = Player.MAX_LEVEL;
+        int moneyBefore = p.money;
+        ops.clear();
+        last.clear();
+        content.completeQuest(p, map, quest(mcbride.guid, Content.QUEST_A_THREAT_WITHIN), nextItem++, this::capture);
+        done = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        done.getU32();
+        done.getU32();
+        assertEquals(0, done.getU32());
+        assertEquals(24, done.getU32());
+        assertEquals(moneyBefore + 24, p.money);
+
+        p.level = 1;
+        mgr.questGivers.put(Content.NPC_INNKEEPER_FARLEY, new ArrayList<>(List.of(Content.QUEST_REST_AND_RELAXATION, 99)));
+        mgr.questInvolved.put(Content.NPC_INNKEEPER_FARLEY, new ArrayList<>(List.of(Content.QUEST_REST_AND_RELAXATION, 99)));
+        mgr.quests.put(99, new ObjectMgr.QuestTemplate(99, "ZeroRewCount", 1, 0, 0, "", "", 0, 0, 0, 0, 1, 0,
+                Content.ITEM_WORN_SHORTSWORD, 0));
+        Creature farley = spawn(Content.NPC_INNKEEPER_FARLEY, 0, 0);
+        content.acceptQuest(p, map, quest(farley.guid, 99), this::capture);
+        ops.clear();
+        last.clear();
+        content.completeQuest(p, map, quest(farley.guid, 99), nextItem++, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        content.acceptQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
+        ops.clear();
+        last.clear();
+        content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), nextItem++, this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        content.acceptQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
+        ops.clear();
+        last.clear();
+        content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), 0, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        ops.clear();
+        last.clear();
+        content.acceptQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
+        ObjectMgr.ItemTemplate water = new ObjectMgr.ItemTemplate();
+        water.entry = Content.ITEM_REFRESHING_SPRING_WATER;
+        water.displayId = 180;
+        mgr.items.put(Content.ITEM_REFRESHING_SPRING_WATER, water);
+        content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), nextItem++, this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        done = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        assertEquals(Content.QUEST_REST_AND_RELAXATION, done.getU32());
+        done.getU32();
+        done.getU32();
+        done.getU32();
+        done.getU32();
+        assertEquals(1, done.getU32());
+        assertEquals(Content.ITEM_REFRESHING_SPRING_WATER, done.getU32());
+        assertEquals(5, done.getU32());
+        fillBackpack();
+        content.acceptQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
+        ops.clear();
+        content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), nextItem++, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
+    }
+
+    @Test
     void gossipMobHasEmptyMenu() {
         Creature kobold = spawn(6, 0, 0);
         content.gossipHello(p, map, u64(kobold.guid), this::capture);
@@ -650,7 +728,7 @@ class ContentTest {
         content.acceptQuest(p, map, quest(giver.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_GOSSIP_COMPLETE));
         ops.clear();
-        content.completeQuest(p, map, quest(turn.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        content.completeQuest(p, map, quest(turn.guid, Content.QUEST_A_THREAT_WITHIN), nextItem++, this::capture);
         assertEquals(0, p.questLogId[0]);
         assertTrue(ops.contains(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
         assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
@@ -668,29 +746,29 @@ class ContentTest {
         content.buy(p, map, new WowBuffer(8), false, nextItem++, this::capture);
         content.queryQuest(p, map, new WowBuffer(8), this::capture);
         content.acceptQuest(p, map, new WowBuffer(8), this::capture);
-        content.completeQuest(p, map, new WowBuffer(8), this::capture);
+        content.completeQuest(p, map, new WowBuffer(8), nextItem++, this::capture);
         content.gossipHello(p, map, u64(0), this::capture);
         content.gossipHello(p, map, u64(99), this::capture);
         content.listInventory(p, map, u64(0), this::capture);
         content.listInventory(p, map, u64(99), this::capture);
         content.queryQuest(p, map, quest(99, 783), this::capture);
         content.acceptQuest(p, map, quest(99, 783), this::capture);
-        content.completeQuest(p, map, quest(99, 783), this::capture);
+        content.completeQuest(p, map, quest(99, 783), nextItem++, this::capture);
         p.relocate(20, 0, 0, 0);
         content.gossipHello(p, map, u64(vendor.guid), this::capture);
         content.listInventory(p, map, u64(vendor.guid), this::capture);
         content.buy(p, map, buy(vendor.guid, 25, 1), false, nextItem++, this::capture);
         content.queryQuest(p, map, quest(giver.guid, 783), this::capture);
         content.acceptQuest(p, map, quest(giver.guid, 783), this::capture);
-        content.completeQuest(p, map, quest(turn.guid, 783), this::capture);
+        content.completeQuest(p, map, quest(turn.guid, 783), nextItem++, this::capture);
         p.relocate(0, 0, 0, 0);
         content.listInventory(p, map, u64(kobold.guid), this::capture);
         content.buy(p, map, buy(kobold.guid, 25, 1), false, nextItem++, this::capture);
         content.buy(p, map, buy(99, 25, 1), false, nextItem++, this::capture);
         content.queryQuest(p, map, quest(kobold.guid, 783), this::capture);
         content.acceptQuest(p, map, quest(turn.guid, 783), this::capture);
-        content.completeQuest(p, map, quest(giver.guid, 783), this::capture);
-        content.completeQuest(p, map, quest(turn.guid, 783), this::capture);
+        content.completeQuest(p, map, quest(giver.guid, 783), nextItem++, this::capture);
+        content.completeQuest(p, map, quest(turn.guid, 783), nextItem++, this::capture);
         assertTrue(ops.isEmpty());
         assertTrue(p.items.isEmpty());
     }
@@ -741,7 +819,7 @@ class ContentTest {
         assertTrue(ops.contains(Opcodes.SMSG_QUESTLOG_FULL));
         p.questLogId[24] = Content.QUEST_A_THREAT_WITHIN;
         mgr.quests.remove(Content.QUEST_A_THREAT_WITHIN);
-        content.completeQuest(p, map, quest(turn.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        content.completeQuest(p, map, quest(turn.guid, Content.QUEST_A_THREAT_WITHIN), nextItem++, this::capture);
         content.queryQuest(p, map, quest(giver.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
         mgr.questGivers.put(Content.NPC_MARSHAL_DUGHAN, new ArrayList<>(List.of(404)));
         content.gossipHello(p, map, u64(gossipOnly.guid), this::capture);
