@@ -1,5 +1,7 @@
 package org.tbc.world.entity;
 
+import org.tbc.common.WowBuffer;
+import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.WorldSession;
 
@@ -163,6 +165,8 @@ public final class Player extends Unit {
     public int nextSaveMs;
     public int timeSyncCounter;
     public long nextTimeSyncMs;
+    /** CMaNGOS WorldSession order counter — SMSG_FORCE_* orders the client ACKs in sequence (movement.md). */
+    private int moveOrderCounter;
     public int zoneClient;
     public Pet pet;
     private Item spellItemTarget;
@@ -615,6 +619,20 @@ public final class Player extends Unit {
 
     public int observerFlags() {
         return UPDATEFLAG_HIGHGUID | UPDATEFLAG_LIVING | UPDATEFLAG_HAS_POSITION;
+    }
+
+    /**
+     * CMaNGOS Unit::SendMoveRoot for a client-controlled unit: SMSG_FORCE_MOVE_ROOT / UNROOT
+     * = packed guid + uint32 order counter, sent only to the controlling session (movement.md).
+     */
+    public void sendMoveRoot(boolean root) {
+        if (session == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(12);
+        b.putPackedGuid(guid);
+        b.putU32(moveOrderCounter++);
+        session.send(root ? Opcodes.SMSG_FORCE_MOVE_ROOT : Opcodes.SMSG_FORCE_MOVE_UNROOT, b.array());
     }
 
     /** CMaNGOS PLAYER_SKILL_INDEX / MAKE_PAIR32(id, step) / MAKE_SKILL_VALUE. */
