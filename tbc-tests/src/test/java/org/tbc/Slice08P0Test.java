@@ -174,6 +174,48 @@ class Slice08P0Test {
         assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, done.getU32());
     }
 
+    /**
+     * TP-SL08-022 — Player::ItemAddedQuestCheck / SendQuestUpdateAddItem:
+     * Brotherhood of Thieves 18 ReqItemId1 752 × 12. C++ packet is item u32 + add-count u32
+     * (not quest id). Looting 12 completes the objective.
+     */
+    @Test
+    void tpSl08ItemObjectiveCounts() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Bandanas", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(willem);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(willem.guid);
+        accept.putU32(Content.QUEST_BROTHERHOOD_OF_THIEVES);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+
+        world.objectMgr.creatureLoot.put(6, java.util.List.of(
+                new org.tbc.world.content.ObjectMgr.LootRow(Content.ITEM_RED_BURLAP_BANDANA, 100f, 12, 12)));
+        Creature corpse = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(corpse);
+        corpse.setHealth(0);
+        world.combat.creatureDied(corpse, p, world.nowMs(), null);
+        world.objectMgr.fillCorpseLoot(corpse);
+
+        client.loot(world, corpse.guid);
+        client.clear();
+        client.autostoreLootItem(world, 0);
+
+        assertTrue(client.saw(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        WowBuffer add = new WowBuffer(client.payload(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        assertEquals(Content.ITEM_RED_BURLAP_BANDANA, add.getU32());
+        assertEquals(12, add.getU32());
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        assertTrue(client.saw(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+        WowBuffer done = new WowBuffer(client.payload(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+        assertEquals(Content.QUEST_BROTHERHOOD_OF_THIEVES, done.getU32());
+    }
+
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
     private static final int DIALOG_STATUS_AVAILABLE = 6;
 }

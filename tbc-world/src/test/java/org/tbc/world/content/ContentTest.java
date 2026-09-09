@@ -201,6 +201,49 @@ class ContentTest {
     }
 
     @Test
+    void itemAddedQuestCheckWhenCollectQuestShouldCountAndComplete() {
+        content.itemAddedQuestCheck(p, 0, 1, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        p.questLogId[0] = 404;
+        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        p.questLogId[0] = Content.QUEST_A_THREAT_WITHIN;
+        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        p.questLogId[0] = 0;
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        ops.clear();
+        last.clear();
+        content.itemAddedQuestCheck(p, Content.ITEM_WORN_SHORTSWORD, 1, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        WowBuffer add = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        assertEquals(Content.ITEM_RED_BURLAP_BANDANA, add.getU32());
+        assertEquals(1, add.getU32());
+        ops.clear();
+        last.clear();
+        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 20, this::capture);
+        add = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        assertEquals(Content.ITEM_RED_BURLAP_BANDANA, add.getU32());
+        assertEquals(11, add.getU32());
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        WowBuffer done = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+        assertEquals(Content.QUEST_BROTHERHOOD_OF_THIEVES, done.getU32());
+        ops.clear();
+        last.clear();
+        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+        p.questLogId[1] = 9;
+        mgr.quests.put(9, new ObjectMgr.QuestTemplate(9, "NoItems", 1, 0, 0, "", "", 0, 0, Content.ITEM_RED_BURLAP_BANDANA, 0));
+        ops.clear();
+        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
+    }
+
+    @Test
     void gossipMobHasEmptyMenu() {
         Creature kobold = spawn(6, 0, 0);
         content.gossipHello(p, map, u64(kobold.guid), this::capture);
@@ -597,6 +640,9 @@ class ContentTest {
         content.acceptQuest(p, map, quest(giver.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
         assertEquals(Content.QUEST_A_THREAT_WITHIN, p.questLogId[0]);
         assertTrue(ops.contains(Opcodes.SMSG_GOSSIP_COMPLETE));
+        ops.clear();
+        content.acceptQuest(p, map, quest(giver.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        assertEquals(Content.QUEST_BROTHERHOOD_OF_THIEVES, p.questLogId[1]);
         ops.clear();
         content.questGiverStatusQuery(p, map, u64(giver.guid), this::capture);
         assertEquals(Content.DIALOG_STATUS_NONE, last.get(Opcodes.SMSG_QUESTGIVER_STATUS)[8] & 0xFF);

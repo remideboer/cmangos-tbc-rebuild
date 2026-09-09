@@ -190,6 +190,8 @@ public final class Player extends Unit {
     public final int[] questLogState = new int[25];
     /** PLAYER_QUEST_LOG_n_3 bytes: four kill/cast counters (SetQuestSlotCounter). */
     public final int[][] questLogCounts = new int[25][4];
+    /** QuestStatusData.m_itemcount[0] — not packed into PLAYER_QUEST_LOG counters. */
+    public final int[] questLogItemCount = new int[25];
     private final Map<Integer, Integer> killCredits = new HashMap<>();
 
     /**

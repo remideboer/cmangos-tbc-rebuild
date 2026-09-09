@@ -65,6 +65,7 @@ public final class LootHandler {
         }
         s.send(Opcodes.SMSG_LOOT_REMOVED, world.combat.encodeLootRemoved(slot));
         s.send(Opcodes.SMSG_ITEM_PUSH_RESULT, Content.encodeLootPush(p, it, total));
+        world.content.itemAddedQuestCheck(p, it.entry, it.count, s::send);
     }
 
     public static void maybeStartRoll(Player p, Creature c, long guid) {

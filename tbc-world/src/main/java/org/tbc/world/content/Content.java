@@ -92,6 +92,8 @@ public final class Content {
     public static final int QUEST_A_THREAT_WITHIN = 783;
     /** quest_template 7 Kobold Camp Cleanup; ReqCreatureOrGOId1 6, ReqCreatureOrGOCount1 10. */
     public static final int QUEST_KOBOLD_CAMP_CLEANUP = 7;
+    /** quest_template 18 Brotherhood of Thieves; ReqItemId1 752, ReqItemCount1 12. */
+    public static final int QUEST_BROTHERHOOD_OF_THIEVES = 18;
     public static final int NPC_KOBOLD_VERMIN = 6;
     public static final int NPC_CORINA_STEELE = 54;
     public static final int NPC_MARSHAL_MCBRIDE = 197;
@@ -111,6 +113,8 @@ public final class Content {
     /** gossip_menu_option.option_text on Farley menu 1291. */
     public static final String GOSSIP_FARLEY_INN_INFO = "What can I do at an inn?";
     public static final int ITEM_WORN_SHORTSWORD = 25;
+    /** locales_item 752 Red Burlap Bandana; quest 18 ReqItemId1. */
+    public static final int ITEM_RED_BURLAP_BANDANA = 752;
     /** locales_item 6948 Hearthstone; item_template spellid_1 8690. */
     public static final int ITEM_HEARTHSTONE = 6948;
     public static final int ITEM_ROUGH_ARROW = 2512;
@@ -287,6 +291,7 @@ public final class Content {
         p.items.put(Guid.low(it.guid), it);
         p.dirty = true;
         send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, count));
+        itemAddedQuestCheck(p, itemId, count, send);
     }
 
     public void queryQuest(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {
@@ -389,6 +394,7 @@ public final class Content {
         p.questLogCounts[slot][1] = 0;
         p.questLogCounts[slot][2] = 0;
         p.questLogCounts[slot][3] = 0;
+        p.questLogItemCount[slot] = 0;
         writeLogField(p, slot);
         send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
     }
@@ -420,6 +426,7 @@ public final class Content {
         p.questLogCounts[slot][1] = 0;
         p.questLogCounts[slot][2] = 0;
         p.questLogCounts[slot][3] = 0;
+        p.questLogItemCount[slot] = 0;
         writeLogField(p, slot);
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q));
     }
@@ -529,6 +536,46 @@ public final class Content {
                     ? UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base + 1, base + 2))
                     : UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base + 2));
             send.accept(upd.opcode(), upd.payload());
+        }
+    }
+
+    /**
+     * Player.cpp ItemAddedQuestCheck / SendQuestUpdateAddItem.
+     * Item req id 1 only (v1). Packet is item u32 + added count u32 — not quest id.
+     */
+    public void itemAddedQuestCheck(Player p, int entry, int count, BiConsumer<Integer, byte[]> send) {
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            int questId = p.questLogId[slot];
+            if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
+                continue;
+            }
+            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            if (q == null) {
+                continue;
+            }
+            int reqId = q.reqItemId1();
+            int reqCount = q.reqItemCount1();
+            if (reqId <= 0 || reqId != entry) {
+                continue;
+            }
+            int cur = p.questLogItemCount[slot];
+            if (cur >= reqCount) {
+                continue;
+            }
+            int add = cur + count <= reqCount ? count : reqCount - cur;
+            p.questLogItemCount[slot] = cur + add;
+            WowBuffer pkt = new WowBuffer(8);
+            pkt.putU32(reqId);
+            pkt.putU32(add);
+            send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM, pkt.array());
+            if (p.questLogItemCount[slot] >= reqCount) {
+                p.questLogState[slot] = QUEST_STATE_COMPLETE;
+                writeLogField(p, slot);
+                send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
+                int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
+                var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base + 1));
+                send.accept(upd.opcode(), upd.payload());
+            }
         }
     }
 
