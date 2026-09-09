@@ -29,6 +29,18 @@ public final class PlayerNames {
         return new String(chars);
     }
 
+    /** Util.h isCyrillicCharacter on the first code point. */
+    public static boolean cyrillicFirst(String name) {
+        if (name == null || name.isEmpty()) {
+            return false;
+        }
+        int cp = name.codePointAt(0);
+        if (cp >= 0x0410 && cp <= 0x044F) {
+            return true;
+        }
+        return cp == 0x0401 || cp == 0x0451;
+    }
+
     public static int check(String name) {
         if (name.length() > MAX_PLAYER_NAME) {
             return Codes.CHAR_NAME_TOO_LONG;

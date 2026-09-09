@@ -16,6 +16,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_CHAR_CREATE,
             Opcodes.CMSG_CHAR_DELETE,
             Opcodes.CMSG_CHAR_RENAME,
+            Opcodes.CMSG_SET_PLAYER_DECLINED_NAMES,
             Opcodes.CMSG_PLAYER_LOGIN,
             Opcodes.MSG_MOVE_WORLDPORT_ACK,
             Opcodes.CMSG_FORCE_MOVE_ROOT_ACK,

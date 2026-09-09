@@ -356,6 +356,34 @@ public final class CharacterStore {
         p.powerType = ChrStatic.powerType(p.clazz);
     }
 
+    /** ObjectMgr::GetPlayerNameByGUID — in-world first, then snapshot, then SQL. */
+    public String nameByGuid(long guid) {
+        int g = Guid.low(guid);
+        Player live = inWorld.get(g);
+        if (live != null) {
+            return live.name;
+        }
+        Player snap = memory.get(g);
+        if (snap != null) {
+            return snap.name;
+        }
+        if (chars == null) {
+            return null;
+        }
+        try (Connection c = chars.get()) {
+            PreparedStatement ps = c.prepareStatement("SELECT name FROM characters WHERE guid = ?");
+            ps.setInt(1, g);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString(1);
+            }
+            return null;
+        } catch (Exception e) {
+            log.warn("nameByGuid {}", e.getMessage());
+            return null;
+        }
+    }
+
     public boolean nameInUse(String name) {
         if (chars == null) {
             return memory.values().stream().anyMatch(p -> p.name.equalsIgnoreCase(name));

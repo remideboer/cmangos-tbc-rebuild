@@ -251,6 +251,10 @@ public final class WorldSession {
             handleCharRename(world, in);
             return;
         }
+        if (opcode == Opcodes.CMSG_SET_PLAYER_DECLINED_NAMES) {
+            handleSetPlayerDeclinedNames(world, in);
+            return;
+        }
         if (opcode == Opcodes.CMSG_PLAYER_LOGIN) {
             handleLogin(world, in);
             return;
@@ -727,6 +731,28 @@ public final class WorldSession {
         out.putU64(guid);
         out.putCString(normalized);
         send(Opcodes.SMSG_CHAR_RENAME, out.array());
+    }
+
+    /** CharacterHandler.cpp HandleSetPlayerDeclinedNamesOpcode — non-Cyrillic stored name is result 1. */
+    private void handleSetPlayerDeclinedNames(World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            sendDeclinedNamesResult(1, 0);
+            return;
+        }
+        long guid = in.getU64();
+        String name = world.characters.nameByGuid(guid);
+        if (name == null || !PlayerNames.cyrillicFirst(name)) {
+            sendDeclinedNamesResult(1, guid);
+            return;
+        }
+        sendDeclinedNamesResult(1, guid);
+    }
+
+    private void sendDeclinedNamesResult(int result, long guid) {
+        WowBuffer out = new WowBuffer(12);
+        out.putU32(result);
+        out.putU64(guid);
+        send(Opcodes.SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, out.array());
     }
 
     private void handleLogin(World world, WowBuffer in) {

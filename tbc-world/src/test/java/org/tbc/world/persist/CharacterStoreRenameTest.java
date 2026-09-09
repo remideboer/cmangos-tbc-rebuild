@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CharacterStoreRenameTest {
@@ -48,6 +49,25 @@ class CharacterStoreRenameTest {
         try (DbPool chars = new DbPool(url, "sa", "", "rename-test")) {
             CharacterStore store = new CharacterStore(chars);
             assertFalse(store.renameAtLogin(1, Guid.player(1), "Newname"));
+        }
+    }
+
+    @Test
+    void nameByGuidWhenCreatedShouldReturnName() {
+        CharacterStore store = new CharacterStore(null);
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = store.create(1, "Namedone", 1, 1, 0, 1, 1, 1, 1, 0, mgr);
+        assertEquals("Namedone", store.nameByGuid(p.guid));
+    }
+
+    @Test
+    void nameByGuidWhenSqlMissingTableShouldReturnNull() {
+        String url = "jdbc:h2:mem:nameguid_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool chars = new DbPool(url, "sa", "", "name-guid-test")) {
+            CharacterStore store = new CharacterStore(chars);
+            assertNull(store.nameByGuid(Guid.player(1)));
         }
     }
 }

@@ -4,9 +4,24 @@ import org.tbc.common.Codes;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlayerNamesTest {
+    @Test
+    void cyrillicFirstWhenLatinShouldBeFalse() {
+        assertFalse(PlayerNames.cyrillicFirst("Latinone"));
+        assertFalse(PlayerNames.cyrillicFirst(""));
+        assertFalse(PlayerNames.cyrillicFirst(null));
+    }
+
+    @Test
+    void cyrillicFirstWhenRussianAShouldBeTrue() {
+        assertTrue(PlayerNames.cyrillicFirst("Андрей"));
+        assertTrue(PlayerNames.cyrillicFirst("Ёж"));
+    }
+
     @Test
     void normalizeWhenLowercaseShouldCapitalizeFirst() {
         assertEquals("Newname", PlayerNames.normalize("newname"));

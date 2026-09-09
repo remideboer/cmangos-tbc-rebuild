@@ -112,6 +112,29 @@ class Slice03RenameTest {
         assertEquals(0, out.remaining());
     }
 
+    /**
+     * HandleSetPlayerDeclinedNamesOpcode: Latin stored name is not Cyrillic → result 1.
+     * C++ does not treat non-ruRU as success (YAML was wrong).
+     */
+    @Test
+    void tpSl03SetPlayerDeclinedNames() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Latinone", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        WowBuffer in = new WowBuffer(64);
+        in.putU64(created.guid);
+        in.putCString("Latinone");
+        for (int i = 0; i < 5; i++) {
+            in.putCString("Latinone");
+        }
+        client.handle(world, Opcodes.CMSG_SET_PLAYER_DECLINED_NAMES, in.array());
+        assertTrue(client.saw(Opcodes.SMSG_SET_PLAYER_DECLINED_NAMES_RESULT));
+        WowBuffer out = new WowBuffer(client.payload(Opcodes.SMSG_SET_PLAYER_DECLINED_NAMES_RESULT));
+        assertEquals(1, out.getU32());
+        assertEquals(created.guid, out.getU64());
+    }
+
     private static int enumFlags(byte[] payload) {
         WowBuffer b = new WowBuffer(payload);
         assertEquals(1, b.getU8());
