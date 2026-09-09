@@ -190,6 +190,17 @@ public class Unit extends Entity {
         lastDynObject = dyn;
     }
 
+    /** CMaNGOS HostileRefManager m_redirectionTargetGuid — 2.x redirects full threat. */
+    private long threatRedirectionGuid;
+
+    public long threatRedirectionGuid() {
+        return threatRedirectionGuid;
+    }
+
+    public void setThreatRedirection(long guid) {
+        threatRedirectionGuid = guid;
+    }
+
     /** CMaNGOS StartEvents_Event — dbscripts_on_event id from EffectSendEvent. */
     private int lastSendEvent;
 

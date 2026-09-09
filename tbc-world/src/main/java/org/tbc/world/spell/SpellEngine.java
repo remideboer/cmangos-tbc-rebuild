@@ -73,6 +73,7 @@ public final class SpellEngine {
     public static final int EFFECT_APPLY_AREA_AURA_FRIEND = 128;
     public static final int EFFECT_APPLY_AREA_AURA_ENEMY = 129;
     public static final int EFFECT_APPLY_AREA_AURA_OWNER = 143;
+    public static final int EFFECT_REDIRECT_THREAT = 130;
     public static final int EFFECT_ENVIRONMENTAL_DAMAGE = 7;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
     public static final int EFFECT_ENERGIZE = 30;
@@ -168,7 +169,7 @@ public final class SpellEngine {
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_KNOCKBACK_FROM_POSITION, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION, EFFECT_SUMMON_OBJECT_SLOT1,
             EFFECT_SUMMON_OBJECT_SLOT2, EFFECT_SUMMON_OBJECT_WILD, EFFECT_TRANS_DOOR, EFFECT_SUMMON,
-            EFFECT_PERSISTENT_AREA_AURA,
+            EFFECT_PERSISTENT_AREA_AURA, EFFECT_REDIRECT_THREAT,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_SKILL_STEP, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_SEND_EVENT, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_TELEPORT_GRAVEYARD, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
@@ -748,6 +749,10 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_SEND_EVENT) {
             sendEvent(caster, sp.misc());
+            return 0;
+        }
+        if (sp.effect == EFFECT_REDIRECT_THREAT) {
+            redirectThreat(caster, target);
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
@@ -1690,6 +1695,17 @@ public final class SpellEngine {
         summoned.guid = Guid.HIGH_CREATURE | (caster.guid & 0xFFFFFFFFL);
         summoned.relocate(caster.x, caster.y, caster.z, caster.o);
         caster.setLastSummon(summoned);
+    }
+
+    /**
+     * Effect 130 — SPELL_EFFECT_REDIRECT_THREAT. CMaNGOS EffectRedirectThreat:
+     * caster HostileRefManager SetThreatRedirection(unitTarget). Misdirection 34477 effect 3.
+     */
+    public void redirectThreat(Unit caster, Unit target) {
+        if (caster == null || target == null) {
+            return;
+        }
+        caster.setThreatRedirection(target.guid);
     }
 
     /**
