@@ -117,6 +117,22 @@ class Slice04MiscOpcodesTest {
         assertEquals("layout-v1", new String(inflated, java.nio.charset.StandardCharsets.UTF_8));
     }
 
+    /**
+     * CMSG_SET_ACTIONBAR_TOGGLES — SetByteValue PLAYER_FIELD_BYTES offset 2.
+     */
+    @Test
+    void tpSl04ActionBarToggles() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "Bars");
+        Player p = client.session().player();
+        client.clear();
+        WowBuffer in = new WowBuffer(1);
+        in.putU8(0x07);
+        client.handle(world, Opcodes.CMSG_SET_ACTIONBAR_TOGGLES, in.array());
+        int bytes = client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_BYTES);
+        assertEquals(0x07, (bytes >>> 16) & 0xFF);
+    }
+
     private static byte[] deflate(byte[] raw) {
         java.util.zip.Deflater def = new java.util.zip.Deflater();
         def.setInput(raw);

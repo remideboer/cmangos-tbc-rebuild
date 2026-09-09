@@ -53,6 +53,8 @@ public final class Player extends Unit {
     public static final int PLAYER_FLAGS_HIDE_HELM = 0x00000400;
     /** Player.h PLAYER_FLAGS_HIDE_CLOAK. */
     public static final int PLAYER_FLAGS_HIDE_CLOAK = 0x00000800;
+    /** Player.h PLAYER_FIELD_BYTES_OFFSET_ACTION_BAR_TOGGLES. */
+    public static final int PLAYER_FIELD_BYTES_OFFSET_ACTION_BAR_TOGGLES = 2;
 
     public WorldSession session;
     public int accountId;

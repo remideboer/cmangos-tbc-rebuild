@@ -330,6 +330,7 @@ public final class WorldSession {
             case Opcodes.CMSG_PLAYED_TIME -> handlePlayedTime();
             case Opcodes.CMSG_UPDATE_ACCOUNT_DATA -> accountData.update(in);
             case Opcodes.CMSG_REQUEST_ACCOUNT_DATA -> handleRequestAccountData(in);
+            case Opcodes.CMSG_SET_ACTIONBAR_TOGGLES -> handleSetActionBarToggles(in);
             case Opcodes.CMSG_SHOWING_HELM -> handleShowingHelm();
             case Opcodes.CMSG_SHOWING_CLOAK -> handleShowingCloak();
             case Opcodes.CMSG_NEXT_CINEMATIC_CAMERA, Opcodes.CMSG_COMPLETE_CINEMATIC -> {
@@ -957,6 +958,20 @@ public final class WorldSession {
         if (payload != null) {
             send(Opcodes.SMSG_UPDATE_ACCOUNT_DATA, payload);
         }
+    }
+
+    /** MiscHandler::HandleSetActionBarTogglesOpcode — PLAYER_FIELD_BYTES byte 2. */
+    private void handleSetActionBarToggles(WowBuffer in) {
+        if (in.remaining() < 1) {
+            return;
+        }
+        int bar = in.getU8();
+        int shift = Player.PLAYER_FIELD_BYTES_OFFSET_ACTION_BAR_TOGGLES * 8;
+        int bytes = player.getInt(UpdateFields.PLAYER_FIELD_BYTES);
+        bytes = (bytes & ~(0xFF << shift)) | ((bar & 0xFF) << shift);
+        player.setInt(UpdateFields.PLAYER_FIELD_BYTES, bytes);
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, UpdateFields.PLAYER_FIELD_BYTES));
+        send(upd.opcode(), upd.payload());
     }
 
     /** CharacterHandler::HandleShowingHelmOpcode — ToggleFlag PLAYER_FLAGS_HIDE_HELM. */
