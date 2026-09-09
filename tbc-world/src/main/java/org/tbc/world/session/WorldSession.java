@@ -253,6 +253,10 @@ public final class WorldSession {
             QueryHandler.guild(this, world, in);
             return;
         }
+        if (opcode == Opcodes.CMSG_REALM_SPLIT) {
+            handleRealmSplit(in);
+            return;
+        }
         if (status < STATUS_LOGGEDIN) {
             return;
         }
@@ -950,6 +954,19 @@ public final class WorldSession {
         player.setInt(UpdateFields.PLAYER_FLAGS, flags);
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, UpdateFields.PLAYER_FLAGS));
         send(upd.opcode(), upd.payload());
+    }
+
+    /** MiscHandler::HandleRealmSplitOpcode — echo unk, state 0 (normal), date 01/01/01. */
+    private void handleRealmSplit(WowBuffer in) {
+        if (in.remaining() < 4) {
+            return;
+        }
+        int unk = in.getU32();
+        WowBuffer out = new WowBuffer(32);
+        out.putU32(unk);
+        out.putU32(0);
+        out.putCString("01/01/01");
+        send(Opcodes.SMSG_REALM_SPLIT, out.array());
     }
 
     private void handleSheath(WowBuffer in) {

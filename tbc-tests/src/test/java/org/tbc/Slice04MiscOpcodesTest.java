@@ -53,6 +53,25 @@ class Slice04MiscOpcodesTest {
         assertEquals(0, shown & Player.PLAYER_FLAGS_HIDE_HELM);
     }
 
+    /**
+     * CMSG_REALM_SPLIT → SMSG_REALM_SPLIT unk echo, state 0 (normal), date "01/01/01".
+     */
+    @Test
+    void tpSl04RealmSplitNormal() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "Splitter");
+        client.clear();
+        WowBuffer req = new WowBuffer(4);
+        req.putU32(0x12345678);
+        client.handle(world, Opcodes.CMSG_REALM_SPLIT, req.array());
+        assertTrue(client.saw(Opcodes.SMSG_REALM_SPLIT));
+        WowBuffer r = new WowBuffer(client.payload(Opcodes.SMSG_REALM_SPLIT));
+        assertEquals(0x12345678, r.getU32());
+        assertEquals(0, r.getU32());
+        assertEquals("01/01/01", r.getCString());
+        assertEquals(0, r.remaining());
+    }
+
     private static WowClientDouble enter(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
