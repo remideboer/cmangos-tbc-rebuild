@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * TP-SL04-016 — MiscHandler leftover C2S (one method per opcode).
+ * TP-SL04-016 leftover C2S (one method per opcode) and TP-SL04-017 emote.
  */
 class Slice04MiscOpcodesTest {
     private static final World.Account ACC =
@@ -197,6 +197,34 @@ class Slice04MiscOpcodesTest {
         client.handle(world, Opcodes.CMSG_SET_TAXI_BENCHMARK_MODE, off.array());
         int cleared = client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS);
         assertEquals(0, cleared & Player.PLAYER_FLAGS_TAXI_BENCHMARK);
+    }
+
+    /**
+     * CMSG_EMOTE WAVE (3) — HandleEmoteCommand SMSG_EMOTE emote u32 + raw guid to self and nearby.
+     * chat.md: dance (10) is ignored; only NONE and WAVE are accepted.
+     */
+    @Test
+    void tpSl04EmoteBroadcast() {
+        World world = World.inMemory();
+        WowClientDouble a = enter(world, ACC, "Waver");
+        World.Account accB = new World.Account(2, "OTHER", new byte[40], 0, 1, "Win", "x86");
+        WowClientDouble b = enter(world, accB, "Watcher");
+        Player waver = a.session().player();
+        a.clear();
+        b.clear();
+        WowBuffer in = new WowBuffer(4);
+        in.putU32(3);
+        a.handle(world, Opcodes.CMSG_EMOTE, in.array());
+        assertTrue(a.saw(Opcodes.SMSG_EMOTE));
+        assertTrue(b.saw(Opcodes.SMSG_EMOTE));
+        WowBuffer self = new WowBuffer(a.payload(Opcodes.SMSG_EMOTE));
+        assertEquals(3, self.getU32());
+        assertEquals(waver.guid, self.getU64());
+        assertEquals(0, self.remaining());
+        WowBuffer near = new WowBuffer(b.payload(Opcodes.SMSG_EMOTE));
+        assertEquals(3, near.getU32());
+        assertEquals(waver.guid, near.getU64());
+        assertEquals(0, near.remaining());
     }
 
     private static byte[] deflate(byte[] raw) {

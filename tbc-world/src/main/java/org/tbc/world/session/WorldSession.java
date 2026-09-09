@@ -300,6 +300,7 @@ public final class WorldSession {
             // logout.md: CMaNGOS HandlePlayerLogoutOpcode is empty — not a LOGOUT_REQUEST substitute
             case Opcodes.CMSG_PLAYER_LOGOUT -> { }
             case Opcodes.CMSG_MESSAGECHAT -> handleChat(world, in);
+            case Opcodes.CMSG_EMOTE -> handleEmote(world, in);
             case Opcodes.CMSG_NAME_QUERY -> handleNameQuery(world, in);
             case Opcodes.CMSG_QUERY_TIME -> handleQueryTime(world);
             case Opcodes.CMSG_CREATURE_QUERY -> QueryHandler.creature(this, world, in);
@@ -832,6 +833,34 @@ public final class WorldSession {
                 if (m.session != null) {
                     m.session.send(Opcodes.SMSG_MESSAGECHAT, pkt);
                 }
+            }
+        }
+    }
+
+    /** ChatHandler::HandleEmoteOpcode → Unit::HandleEmoteCommand (SMSG_EMOTE to set). */
+    private void handleEmote(World world, WowBuffer in) {
+        if (in.remaining() < 4) {
+            return;
+        }
+        int emote = in.getU32();
+        if (player.ghost || !player.alive()) {
+            return;
+        }
+        if ((player.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_PREVENT_ANIM) != 0) {
+            return;
+        }
+        if (emote != 0 && emote != 3) {
+            return;
+        }
+        world.spells.cancelCast(player, 0);
+        WowBuffer out = new WowBuffer(12);
+        out.putU32(emote);
+        out.putU64(player.guid);
+        byte[] pkt = out.array();
+        send(Opcodes.SMSG_EMOTE, pkt);
+        for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
+            if (o.session != null) {
+                o.session.send(Opcodes.SMSG_EMOTE, pkt);
             }
         }
     }

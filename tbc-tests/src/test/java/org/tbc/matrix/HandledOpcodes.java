@@ -23,6 +23,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_LOGOUT_CANCEL,
             Opcodes.CMSG_PLAYER_LOGOUT,
             Opcodes.CMSG_MESSAGECHAT,
+            Opcodes.CMSG_EMOTE,
             Opcodes.CMSG_NAME_QUERY,
             Opcodes.CMSG_PET_NAME_QUERY,
             Opcodes.CMSG_GUILD_QUERY,

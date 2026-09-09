@@ -22,6 +22,8 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_TAXI_FLIGHT = 0x00100000;
     public static final int UNIT_FLAG_UNINTERACTIBLE = 0x02000000;
     public static final int UNIT_FLAG_SKINNABLE = 0x04000000;
+    /** Unit.h UNIT_FLAG_PREVENT_ANIM — Feign Death. */
+    public static final int UNIT_FLAG_PREVENT_ANIM = 0x20000000;
     public static final int UPDATEFLAG_SELF = 0x01;
     public static final int UPDATEFLAG_LOWGUID = 0x08;
     public static final int UPDATEFLAG_HIGHGUID = 0x10;
