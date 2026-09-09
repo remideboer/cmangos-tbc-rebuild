@@ -607,6 +607,38 @@ public final class SocialHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** MailHandler.cpp HandleQueryNextMailTime — unread senders or float -DAY. */
+    public static void queryNextMailTime(WorldSession s, World world, WowBuffer in) {
+        long now = world.nowMs() / 1000;
+        java.util.List<Mail> inbox = world.characters.inbox(Guid.low(s.player().guid), now);
+        java.util.ArrayList<Mail> unread = new java.util.ArrayList<>();
+        for (Mail m : inbox) {
+            if ((m.checked & Mail.MAIL_CHECK_MASK_READ) != 0) {
+                continue;
+            }
+            unread.add(m);
+            if (unread.size() == 3) {
+                break;
+            }
+        }
+        WowBuffer out = new WowBuffer(8 + unread.size() * 24);
+        if (unread.isEmpty()) {
+            out.putFloat(-86400f);
+            out.putU32(0);
+        } else {
+            out.putU32(0);
+            out.putU32(unread.size());
+            for (Mail m : unread) {
+                out.putU64(Guid.player(m.sender));
+                out.putU32(m.sender);
+                out.putU32(0);
+                out.putU32(m.stationery);
+                out.putFloat(0f);
+            }
+        }
+        s.send(Opcodes.MSG_QUERY_NEXT_MAIL_TIME, out.array());
+    }
+
     /** MailHandler.cpp HandleMailCreateTextItem — Plain Letter 8383 + MAIL_CHECK_MASK_COPIED. */
     public static void createMailTextItem(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() < 12) {

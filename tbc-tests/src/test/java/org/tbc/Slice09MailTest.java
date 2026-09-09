@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * TP-SL09-009 — mail take-money, delete, mark-as-read, return-to-sender, and copy-body letter.
+ * TP-SL09-009 — mailbox take-money, delete, mark-as-read, return, copy-body letter, next-mail-time.
  */
 class Slice09MailTest {
     private static final World.Account ACC =
@@ -294,6 +294,48 @@ class Slice09MailTest {
         byte[] r = client.payload(Opcodes.SMSG_SEND_MAIL_RESULT);
         assertEquals(5, WowClientDouble.u32le(r, 4));
         assertEquals(SocialHandler.MAIL_ERR_INTERNAL, WowClientDouble.u32le(r, 8));
+    }
+
+    @Test
+    void tpSl09QueryNextMailTimeWhenUnreadShouldListSenders() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Nextmail", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Mail m = new Mail();
+        m.id = world.characters.nextMailId();
+        m.sender = 7;
+        m.receiver = Guid.low(p.guid);
+        m.deliverTime = world.nowMs() / 1000;
+        world.characters.storeMail(m);
+        client.clear();
+        client.handle(world, Opcodes.MSG_QUERY_NEXT_MAIL_TIME, new byte[0]);
+        byte[] r = client.payload(Opcodes.MSG_QUERY_NEXT_MAIL_TIME);
+        WowBuffer b = new WowBuffer(r);
+        assertEquals(0f, b.getFloat());
+        assertEquals(1, b.getU32());
+        assertEquals(7L, b.getU64());
+        assertEquals(7, b.getU32());
+        assertEquals(0, b.getU32());
+        assertEquals(41, b.getU32());
+        assertEquals(0f, b.getFloat());
+    }
+
+    @Test
+    void tpSl09QueryNextMailTimeWhenNoneShouldNegativeDay() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Nomailtm", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        client.handle(world, Opcodes.MSG_QUERY_NEXT_MAIL_TIME, new byte[0]);
+        byte[] r = client.payload(Opcodes.MSG_QUERY_NEXT_MAIL_TIME);
+        assertEquals(-86400f, WowClientDouble.floatle(r, 0));
+        assertEquals(0, WowClientDouble.u32le(r, 4));
+        assertEquals(8, r.length);
     }
 
     /** mail.md SMSG_MAIL_LIST_RESULT: count, row size, then id/type/sender/COD/itemText/package/stationery/money/checked. */

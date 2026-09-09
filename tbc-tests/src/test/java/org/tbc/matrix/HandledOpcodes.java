@@ -86,6 +86,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_MAIL_MARK_AS_READ,
             Opcodes.CMSG_MAIL_RETURN_TO_SENDER,
             Opcodes.CMSG_MAIL_CREATE_TEXT_ITEM,
+            Opcodes.MSG_QUERY_NEXT_MAIL_TIME,
             Opcodes.CMSG_MAIL_DELETE,
             Opcodes.MSG_AUCTION_HELLO,
             Opcodes.CMSG_AUCTION_SELL_ITEM,

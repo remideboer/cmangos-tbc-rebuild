@@ -88,6 +88,7 @@ class WowClientDoubleTest {
         d.markMailRead(w, 1, 1);
         d.returnMailToSender(w, 1, 1, 0);
         d.createMailTextItem(w, 1, 1);
+        d.queryNextMailTime(w);
         d.deleteMail(w, 1, 1);
         d.learnTalent(w, 124, 0);
         d.petitionBuy(w, 0, "Charter", 1);
