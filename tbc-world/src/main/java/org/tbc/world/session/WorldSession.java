@@ -418,6 +418,7 @@ public final class WorldSession {
             case Opcodes.CMSG_SEND_MAIL -> SocialHandler.sendMail(this, world, in);
             case Opcodes.CMSG_GET_MAIL_LIST -> SocialHandler.getMailList(this, world, in);
             case Opcodes.CMSG_MAIL_TAKE_ITEM -> SocialHandler.takeMailItem(this, world, in);
+            case Opcodes.CMSG_MAIL_TAKE_MONEY -> SocialHandler.takeMailMoney(this, world, in);
             case Opcodes.MSG_AUCTION_HELLO -> handleAuctionHello(world, in);
             case Opcodes.CMSG_AUCTION_SELL_ITEM -> AuctionHandler.sellItem(this, world, in);
             case Opcodes.CMSG_AUCTION_PLACE_BID -> AuctionHandler.placeBid(this, world, in);

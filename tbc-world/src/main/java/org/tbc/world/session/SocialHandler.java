@@ -7,6 +7,8 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Mail;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 
 /** Slice 9: group, trade, who, friends, mail. Layouts from spec packet files. */
@@ -22,6 +24,7 @@ public final class SocialHandler {
     public static final int MAIL_ITEM_POSTAGE = 30;
     public static final int MAX_MAIL_ITEMS = 12;
     public static final int MAIL_SEND = 0;
+    public static final int MAIL_MONEY_TAKEN = 1;
     public static final int MAIL_ITEM_TAKEN = 2;
     public static final int MAIL_OK = 0;
     public static final int MAIL_ERR_EQUIP = 1;
@@ -574,6 +577,30 @@ public final class SocialHandler {
         p.items.put(Guid.low(taken.guid), taken);
         world.characters.storeMail(m);
         mailResult(s, mailId, MAIL_ITEM_TAKEN, MAIL_OK, itemLow, taken.count);
+    }
+
+    /** MailHandler.cpp HandleMailTakeMoney — result then ModifyMoney + COINAGE. */
+    public static void takeMailMoney(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            mailResult(s, 0, MAIL_MONEY_TAKEN, MAIL_ERR_INTERNAL, 0, 0);
+            return;
+        }
+        in.getU64();
+        int mailId = in.getU32();
+        Mail m = world.characters.mail(mailId);
+        long now = world.nowMs() / 1000;
+        if (m == null || m.receiver != Guid.low(s.player().guid) || m.deliverTime > now) {
+            mailResult(s, mailId, MAIL_MONEY_TAKEN, MAIL_ERR_INTERNAL, 0, 0);
+            return;
+        }
+        mailResult(s, mailId, MAIL_MONEY_TAKEN, MAIL_OK, 0, 0);
+        Player p = s.player();
+        p.setMoney(p.money + m.money);
+        m.money = 0;
+        world.characters.storeMail(m);
+        world.characters.save(p);
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+        s.send(pkt.opcode(), pkt.payload());
     }
 
     private static boolean swapTraded(Player a, Player b) {

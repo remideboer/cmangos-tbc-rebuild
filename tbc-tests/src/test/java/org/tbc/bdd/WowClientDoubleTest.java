@@ -84,6 +84,7 @@ class WowClientDoubleTest {
         d.acceptTrade(w);
         d.getMailList(w, 1);
         d.takeMailItem(w, 1, 1, 1);
+        d.takeMailMoney(w, 1, 1);
         d.learnTalent(w, 124, 0);
         d.petitionBuy(w, 0, "Charter", 1);
         d.petitionSign(w, 0);
