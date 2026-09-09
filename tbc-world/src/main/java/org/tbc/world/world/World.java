@@ -419,7 +419,16 @@ public final class World implements Runnable {
     /** Unit::Kill (creature victim) after the health hit 0: rewards, corpse loot, creature_death scripts, AV. */
     public void onCreatureKilled(Player p, Creature c) {
         GameMap m = map(c.mapId, p.instanceId);
+        Player tapper = c.taggedBy != 0 ? playerByGuid(c.taggedBy) : p;
+        if (tapper == null) {
+            tapper = p;
+        }
         rewardKill(p, c);
+        if (tapper.session != null) {
+            content.killedMonsterCredit(tapper, c, tapper.session::send);
+        } else {
+            content.killedMonsterCredit(tapper, c, (op, b) -> { });
+        }
         objectMgr.fillCorpseLoot(c);
         sendCorpseValues(m, c);
         m.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, c.entry, c, p,

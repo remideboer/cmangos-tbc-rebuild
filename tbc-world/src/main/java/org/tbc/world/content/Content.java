@@ -7,6 +7,7 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.AuctionHandler;
 import org.tbc.world.session.InventoryHandler;
@@ -89,6 +90,9 @@ public final class Content {
     public static final int DIALOG_STATUS_NONE = 0;
     public static final int DIALOG_STATUS_AVAILABLE = 6;
     public static final int QUEST_A_THREAT_WITHIN = 783;
+    /** quest_template 7 Kobold Camp Cleanup; ReqCreatureOrGOId1 6, ReqCreatureOrGOCount1 10. */
+    public static final int QUEST_KOBOLD_CAMP_CLEANUP = 7;
+    public static final int NPC_KOBOLD_VERMIN = 6;
     public static final int NPC_CORINA_STEELE = 54;
     public static final int NPC_MARSHAL_MCBRIDE = 197;
     public static final int NPC_MARSHAL_DUGHAN = 240;
@@ -381,6 +385,10 @@ public final class Content {
         }
         p.questLogId[slot] = questId;
         p.questLogState[slot] = 0;
+        p.questLogCounts[slot][0] = 0;
+        p.questLogCounts[slot][1] = 0;
+        p.questLogCounts[slot][2] = 0;
+        p.questLogCounts[slot][3] = 0;
         writeLogField(p, slot);
         send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
     }
@@ -408,6 +416,10 @@ public final class Content {
         p.setMoney(p.money + q.rewMoney());
         p.questLogId[slot] = 0;
         p.questLogState[slot] = 0;
+        p.questLogCounts[slot][0] = 0;
+        p.questLogCounts[slot][1] = 0;
+        p.questLogCounts[slot][2] = 0;
+        p.questLogCounts[slot][3] = 0;
         writeLogField(p, slot);
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q));
     }
@@ -470,11 +482,65 @@ public final class Content {
         return false;
     }
 
+    /**
+     * Player.cpp KilledMonsterCredit / SendQuestUpdateAddCreatureOrGo.
+     * Creature req id 1 only (v1); GO objectives later.
+     */
+    public void killedMonsterCredit(Player p, Creature victim, BiConsumer<Integer, byte[]> send) {
+        if (victim == null) {
+            return;
+        }
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            int questId = p.questLogId[slot];
+            if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
+                continue;
+            }
+            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            if (q == null) {
+                continue;
+            }
+            int reqId = q.reqCreatureOrGOId1();
+            int reqCount = q.reqCreatureOrGOCount1();
+            if (reqId <= 0 || reqId != victim.entry) {
+                continue;
+            }
+            int cur = p.questLogCounts[slot][0];
+            if (cur >= reqCount) {
+                continue;
+            }
+            cur++;
+            p.questLogCounts[slot][0] = cur;
+            WowBuffer add = new WowBuffer(24);
+            add.putU32(questId);
+            add.putU32(reqId);
+            add.putU32(cur);
+            add.putU32(reqCount);
+            add.putU64(victim.guid);
+            send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
+            writeLogField(p, slot);
+            int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
+            boolean done = cur >= reqCount;
+            if (done) {
+                p.questLogState[slot] = QUEST_STATE_COMPLETE;
+                writeLogField(p, slot);
+                send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
+            }
+            var upd = done
+                    ? UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base + 1, base + 2))
+                    : UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base + 2));
+            send.accept(upd.opcode(), upd.payload());
+        }
+    }
+
     static void writeLogField(Player p, int slot) {
         int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
         p.setInt(base, p.questLogId[slot]);
         p.setInt(base + 1, p.questLogState[slot]);
-        p.setInt(base + 2, 0);
+        int packed = (p.questLogCounts[slot][0] & 0xFF)
+                | ((p.questLogCounts[slot][1] & 0xFF) << 8)
+                | ((p.questLogCounts[slot][2] & 0xFF) << 16)
+                | ((p.questLogCounts[slot][3] & 0xFF) << 24);
+        p.setInt(base + 2, packed);
         p.setInt(base + 3, 0);
     }
 

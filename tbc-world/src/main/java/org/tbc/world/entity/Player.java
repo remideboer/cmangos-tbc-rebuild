@@ -188,6 +188,8 @@ public final class Player extends Unit {
     public final Map<Integer, Item> buyback = new HashMap<>();
     public final int[] questLogId = new int[25];
     public final int[] questLogState = new int[25];
+    /** PLAYER_QUEST_LOG_n_3 bytes: four kill/cast counters (SetQuestSlotCounter). */
+    public final int[][] questLogCounts = new int[25][4];
     private final Map<Integer, Integer> killCredits = new HashMap<>();
 
     /**

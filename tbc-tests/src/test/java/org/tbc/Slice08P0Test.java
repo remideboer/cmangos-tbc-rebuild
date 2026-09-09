@@ -7,6 +7,7 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -119,6 +120,58 @@ class Slice08P0Test {
             }
         }
         assertTrue(sawWillem);
+    }
+
+    /**
+     * TP-SL08-021 — Player::KilledMonsterCredit / SendQuestUpdateAddCreatureOrGo:
+     * Kobold Camp Cleanup 7 ReqCreatureOrGOId1 6 count 10 → SMSG_QUESTUPDATE_ADD_KILL;
+     * 10th kill marks QUEST_STATE_COMPLETE + SMSG_QUESTUPDATE_COMPLETE.
+     */
+    @Test
+    void tpSl08KillObjectiveCounts() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "KoboldHunt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature mcbride = world.objectMgr.spawnCreature(Content.NPC_MARSHAL_MCBRIDE, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(mcbride);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(mcbride.guid);
+        accept.putU32(Content.QUEST_KOBOLD_CAMP_CLEANUP);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+
+        Creature first = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(first);
+        client.clear();
+        world.onCreatureKilled(p, first);
+
+        assertTrue(client.saw(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        WowBuffer add = new WowBuffer(client.payload(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, add.getU32());
+        assertEquals(6, add.getU32());
+        assertEquals(1, add.getU32());
+        assertEquals(10, add.getU32());
+        assertEquals(first.guid, add.getU64());
+        int counts = p.getInt(UpdateFields.PLAYER_QUEST_LOG_1_1 + 2);
+        assertEquals(1, counts & 0xFF);
+
+        for (int i = 2; i <= 10; i++) {
+            Creature k = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+            world.map(p.mapId, p.instanceId).add(k);
+            client.clear();
+            world.onCreatureKilled(p, k);
+            WowBuffer row = new WowBuffer(client.payload(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+            row.getU32();
+            row.getU32();
+            assertEquals(i, row.getU32());
+            assertEquals(10, row.getU32());
+        }
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        assertTrue(client.saw(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+        WowBuffer done = new WowBuffer(client.payload(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+        assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, done.getU32());
     }
 
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */

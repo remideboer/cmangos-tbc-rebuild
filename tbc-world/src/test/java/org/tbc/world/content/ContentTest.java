@@ -151,6 +151,56 @@ class ContentTest {
     }
 
     @Test
+    void killedMonsterCreditWhenKillQuestShouldCountAndComplete() {
+        content.killedMonsterCredit(p, null, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        Creature garrick = spawn(103, 0, 0);
+        content.killedMonsterCredit(p, garrick, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        p.questLogId[0] = 404;
+        content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        p.questLogId[0] = Content.QUEST_A_THREAT_WITHIN;
+        content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        p.questLogId[0] = 0;
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE, 0, 0);
+        content.acceptQuest(p, map, quest(mcbride.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), this::capture);
+        ops.clear();
+        last.clear();
+        Creature kobold = spawn(6, 0, 0);
+        content.killedMonsterCredit(p, kobold, this::capture);
+        WowBuffer add = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, add.getU32());
+        assertEquals(6, add.getU32());
+        assertEquals(1, add.getU32());
+        assertEquals(10, add.getU32());
+        assertEquals(kobold.guid, add.getU64());
+        content.killedMonsterCredit(p, garrick, this::capture);
+        WowBuffer still = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        still.getU32();
+        still.getU32();
+        assertEquals(1, still.getU32());
+        ops.clear();
+        last.clear();
+        for (int i = 2; i <= 10; i++) {
+            content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+        }
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        WowBuffer done = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+        assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, done.getU32());
+        ops.clear();
+        last.clear();
+        content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        p.questLogId[1] = 8;
+        mgr.quests.put(8, new ObjectMgr.QuestTemplate(8, "Zero", 1, 0, 0, "", "", 6, 0));
+        ops.clear();
+        content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+    }
+
+    @Test
     void gossipMobHasEmptyMenu() {
         Creature kobold = spawn(6, 0, 0);
         content.gossipHello(p, map, u64(kobold.guid), this::capture);

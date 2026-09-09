@@ -84,9 +84,14 @@ public final class ObjectMgr {
         }
     }
 
-    public record QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives) {
+    public record QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives,
+                               int reqCreatureOrGOId1, int reqCreatureOrGOCount1) {
         public QuestTemplate(int id, String title, int minLevel, int type) {
-            this(id, title, minLevel, type, 0, "", "");
+            this(id, title, minLevel, type, 0, "", "", 0, 0);
+        }
+
+        public QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives) {
+            this(id, title, minLevel, type, rewMoney, details, objectives, 0, 0);
         }
     }
     public record GossipMenuItem(int menuId, int id, int icon, String text, int optionId, int npcFlag,
@@ -803,14 +808,19 @@ public final class ObjectMgr {
 
     private void loadQuests(Connection c) {
         String[] sqls = {
+                "SELECT entry, Title, MinLevel, Type, ReqCreatureOrGOId1, ReqCreatureOrGOCount1 FROM quest_template LIMIT 20000",
+                "SELECT Entry, Title, MinLevel, Type, ReqCreatureOrGOId1, ReqCreatureOrGOCount1 FROM quest_template LIMIT 20000",
                 "SELECT entry, Title, MinLevel, Type FROM quest_template LIMIT 20000",
                 "SELECT Entry, Title, MinLevel, Type FROM quest_template LIMIT 20000"
         };
         for (String sql : sqls) {
             try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+                int cols = rs.getMetaData().getColumnCount();
                 while (rs.next()) {
+                    int reqId = cols >= 6 ? rs.getInt(5) : 0;
+                    int reqCount = cols >= 6 ? rs.getInt(6) : 0;
                     quests.put(rs.getInt(1), new QuestTemplate(rs.getInt(1), nz(rs.getString(2)),
-                            rs.getInt(3), rs.getInt(4)));
+                            rs.getInt(3), rs.getInt(4), 0, "", "", reqId, reqCount));
                 }
                 return;
             } catch (Exception ignored) {
@@ -941,10 +951,13 @@ public final class ObjectMgr {
         seedTalents();
         quests.put(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
                 0, "Speak with Marshal McBride.", "Speak with Marshal McBride."));
+        quests.put(Content.QUEST_KOBOLD_CAMP_CLEANUP, new QuestTemplate(Content.QUEST_KOBOLD_CAMP_CLEANUP,
+                "Kobold Camp Cleanup", 1, 0, 0, "", "", Content.NPC_KOBOLD_VERMIN, 10));
         vendorItems.put(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
         creatureLoot.computeIfAbsent(6, k -> new ArrayList<>())
                 .add(new LootRow(Content.ITEM_WORN_SHORTSWORD, 100f, 1, 1));
         questGivers.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
+        questGivers.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));
         questInvolved.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
         if (spawns.isEmpty()) {
             spawns.add(new Spawn(1, 6, 0, -8900f, -120f, 80f, 0f));
@@ -984,12 +997,15 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0));
+        quests.putIfAbsent(Content.QUEST_KOBOLD_CAMP_CLEANUP, new QuestTemplate(Content.QUEST_KOBOLD_CAMP_CLEANUP,
+                "Kobold Camp Cleanup", 1, 0, 0, "", "", Content.NPC_KOBOLD_VERMIN, 10));
         vendorItems.putIfAbsent(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(Content.ITEM_WORN_SHORTSWORD)));
         creatureLoot.computeIfAbsent(6, k -> new ArrayList<>());
         if (creatureLoot.get(6).isEmpty()) {
             creatureLoot.get(6).add(new LootRow(Content.ITEM_WORN_SHORTSWORD, 100f, 1, 1));
         }
         questGivers.putIfAbsent(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
+        questGivers.putIfAbsent(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));
         questInvolved.putIfAbsent(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
         trainerClass.putIfAbsent(Content.NPC_LLANE_BESHERE, 1);
         trainerSpells.putIfAbsent(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
