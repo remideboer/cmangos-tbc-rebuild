@@ -84,6 +84,43 @@ class Slice08P0Test {
         assertEquals(DIALOG_STATUS_AVAILABLE, st.getU8());
     }
 
+    /**
+     * TP-SL08-020 — HandleQuestgiverStatusMultipleQuery / SendQuestGiverStatusMultiple:
+     * empty C2S; SMSG_QUESTGIVER_STATUS_MULTIPLE count + raw guid + status for each visible
+     * UNIT_NPC_FLAG_QUESTGIVER creature (kobold 6 has no flag).
+     */
+    @Test
+    void tpSl08QuestgiverStatusMultiple() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "QIcons", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        Creature kobold = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(willem);
+        world.map(p.mapId, p.instanceId).add(kobold);
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY, new byte[0]);
+
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        WowBuffer st = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        int count = st.getU32();
+        boolean sawWillem = false;
+        for (int i = 0; i < count; i++) {
+            long guid = st.getU64();
+            int status = st.getU8();
+            assertTrue(guid != kobold.guid);
+            if (guid == willem.guid) {
+                sawWillem = true;
+                assertEquals(DIALOG_STATUS_AVAILABLE, status);
+            }
+        }
+        assertTrue(sawWillem);
+    }
+
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
     private static final int DIALOG_STATUS_AVAILABLE = 6;
 }

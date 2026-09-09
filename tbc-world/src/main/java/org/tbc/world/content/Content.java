@@ -13,6 +13,7 @@ import org.tbc.world.session.InventoryHandler;
 import org.tbc.world.session.TaxiHandler;
 import org.tbc.world.session.TrainerHandler;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 
@@ -319,6 +320,28 @@ public final class Content {
         out.putU64(guid);
         out.putU8(status);
         send.accept(Opcodes.SMSG_QUESTGIVER_STATUS, out.array());
+    }
+
+    /**
+     * CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY. Player.cpp SendQuestGiverStatusMultiple:
+     * visible creatures with UNIT_NPC_FLAG_QUESTGIVER; raw guid + uint8 status; count prefix.
+     * Recv ignored. Game-object questgivers are later.
+     */
+    public void questGiverStatusMultiple(Player p, GameMap map, BiConsumer<Integer, byte[]> send) {
+        List<Creature> found = new ArrayList<>();
+        for (Creature c : map.nearbyCreatures(p, GameMap.VISIBILITY)) {
+            if ((c.npcFlags & UNIT_NPC_FLAG_QUESTGIVER) == 0) {
+                continue;
+            }
+            found.add(c);
+        }
+        WowBuffer out = new WowBuffer(4 + found.size() * 9);
+        out.putU32(found.size());
+        for (Creature c : found) {
+            out.putU64(c.guid);
+            out.putU8(dialogStatus(p, c));
+        }
+        send.accept(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE, out.array());
     }
 
     /** Quest-giver markings only (QUEST_STATUS_NONE + CanSeeStartQuest stand-in: template exists, not in log). */

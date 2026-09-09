@@ -55,6 +55,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_GOSSIP_SELECT_OPTION,
             Opcodes.CMSG_QUESTGIVER_HELLO,
             Opcodes.CMSG_QUESTGIVER_STATUS_QUERY,
+            Opcodes.CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY,
             Opcodes.CMSG_QUESTGIVER_QUERY_QUEST,
             Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST,
             Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST,

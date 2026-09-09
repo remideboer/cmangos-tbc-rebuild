@@ -121,6 +121,36 @@ class ContentTest {
     }
 
     @Test
+    void questGiverStatusMultipleWhenVisibleShouldListQuestGivers() {
+        content.questGiverStatusMultiple(p, map, this::capture);
+        WowBuffer empty = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        assertEquals(0, empty.getU32());
+        ops.clear();
+        last.clear();
+        Creature kobold = spawn(6, 0, 0);
+        content.questGiverStatusMultiple(p, map, this::capture);
+        WowBuffer none = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        assertEquals(0, none.getU32());
+        ops.clear();
+        last.clear();
+        Creature far = spawn(Content.NPC_DEPUTY_WILLEM, 200, 0);
+        content.questGiverStatusMultiple(p, map, this::capture);
+        WowBuffer oor = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        assertEquals(0, oor.getU32());
+        map.remove(far);
+        ops.clear();
+        last.clear();
+        Creature giver = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
+        content.questGiverStatusMultiple(p, map, this::capture);
+        WowBuffer st = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        assertEquals(1, st.getU32());
+        long guid = st.getU64();
+        assertEquals(giver.guid, guid);
+        assertTrue(guid != kobold.guid);
+        assertEquals(Content.DIALOG_STATUS_AVAILABLE, st.getU8());
+    }
+
+    @Test
     void gossipMobHasEmptyMenu() {
         Creature kobold = spawn(6, 0, 0);
         content.gossipHello(p, map, u64(kobold.guid), this::capture);
