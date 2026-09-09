@@ -343,6 +343,36 @@ class Slice06P0Test {
         assertEquals(victim.health(), b.valuesField(victim.guid, UpdateFields.UNIT_FIELD_HEALTH));
     }
 
+    /**
+     * TP-SL06-015 — Unit::Kill: the corpse's HEALTH 0 goes to everyone in range (SendMessageToSet); the
+     * UNIT_DYNAMIC_FLAGS block is built per viewer (Object::BuildValuesUpdate), LOOTABLE only for the tapper.
+     */
+    @Test
+    void tpSl06CreatureDeathBroadcastAndLootableFlag() {
+        World world = World.inMemory();
+        WowClientDouble a = new WowClientDouble();
+        a.connect(ACC);
+        Player createdA = world.characters.create(ACC.id(), "Killer", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        a.login(world, createdA.guid);
+        Player killer = a.session().player();
+        WowClientDouble b = new WowClientDouble();
+        b.connect(new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86"));
+        Player createdB = world.characters.create(2, "Watcher", 1, 5, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        b.login(world, createdB.guid);
+        b.clear();
+
+        Creature c = killKobold(world, a, killer);
+
+        assertEquals(0, a.valuesField(c.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        assertEquals(0, b.valuesField(c.guid, UpdateFields.UNIT_FIELD_HEALTH), "observer sees the corpse");
+        assertEquals(UNIT_DYNFLAG_LOOTABLE,
+                a.valuesField(c.guid, UpdateFields.UNIT_DYNAMIC_FLAGS) & UNIT_DYNFLAG_LOOTABLE, "tapper may loot");
+        assertEquals(0, b.valuesField(c.guid, UpdateFields.UNIT_DYNAMIC_FLAGS) & UNIT_DYNFLAG_LOOTABLE,
+                "observer gets no loot sparkle");
+    }
+
+    private static final int UNIT_DYNFLAG_LOOTABLE = 0x0001;
+
     private static Creature killKobold(World world, WowClientDouble client, Player p) {
         Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
         world.map(p.mapId, p.instanceId).add(c);

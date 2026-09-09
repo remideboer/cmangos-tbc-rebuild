@@ -416,6 +416,21 @@ public final class Combat {
         return c.taggedBy == 0 || c.taggedBy == p.guid;
     }
 
+    /** UNIT_DYNFLAG_LOOTABLE (UnitDynFlags). */
+    public static final int UNIT_DYNFLAG_LOOTABLE = 0x0001;
+
+    /**
+     * Object::BuildValuesUpdate for UNIT_DYNAMIC_FLAGS: a dead creature shows LOOTABLE only to a viewer
+     * whose loot it is (m_loot->CanLoot); alive → never lootable.
+     */
+    public static int dynamicFlagsFor(Creature c, Player viewer) {
+        int flags = c.getInt(UpdateFields.UNIT_DYNAMIC_FLAGS) & ~UNIT_DYNFLAG_LOOTABLE;
+        if (!c.alive() && canLoot(viewer, c)) {
+            flags |= UNIT_DYNFLAG_LOOTABLE;
+        }
+        return flags;
+    }
+
     public byte[] encodeAttack(Unit attacker, Unit victim, MeleeTable.Result r) {
         return encodeAttack(attacker, victim, r, false);
     }

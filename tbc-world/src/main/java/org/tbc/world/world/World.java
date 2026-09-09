@@ -396,8 +396,10 @@ public final class World implements Runnable {
         }
         if (p.session != null) {
             p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(p, c, r, spellSwing, offhand));
-            var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
-            p.session.send(hp.opcode(), hp.payload());
+            if (c.alive()) {
+                var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
+                p.session.send(hp.opcode(), hp.payload());
+            }
             if (r.damage() > 0) {
                 var pwr = UpdateBuilder.maybeCompress(
                         UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_POWER1 + p.powerType));
@@ -417,6 +419,7 @@ public final class World implements Runnable {
         GameMap m = map(c.mapId, p.instanceId);
         rewardKill(p, c);
         objectMgr.fillCorpseLoot(c);
+        sendCorpseValues(m, c);
         m.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, c.entry, c, p,
                 (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
         if (p.mapId == 30 && av.onGeneralKilled(c.entry)) {
@@ -426,6 +429,22 @@ public final class World implements Runnable {
                     pl.session.send(Opcodes.MSG_PVP_LOG_DATA, log);
                 }
             }
+        }
+    }
+
+    /**
+     * SendMessageToSet after Unit::Kill: HEALTH 0 for everyone in range; UNIT_DYNAMIC_FLAGS built per viewer so
+     * only the loot recipient sees UNIT_DYNFLAG_LOOTABLE (Object::BuildValuesUpdate).
+     */
+    private void sendCorpseValues(GameMap m, Creature c) {
+        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+            if (pl.session == null) {
+                continue;
+            }
+            var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(c,
+                    i -> i == UpdateFields.UNIT_DYNAMIC_FLAGS ? Combat.dynamicFlagsFor(c, pl) : c.values[i],
+                    UpdateFields.UNIT_FIELD_HEALTH, UpdateFields.UNIT_DYNAMIC_FLAGS));
+            pl.session.send(upd.opcode(), upd.payload());
         }
     }
 

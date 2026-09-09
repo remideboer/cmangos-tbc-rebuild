@@ -6,6 +6,7 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 
+import java.util.function.IntUnaryOperator;
 import java.util.zip.Deflater;
 import java.io.ByteArrayOutputStream;
 
@@ -98,6 +99,11 @@ public final class UpdateBuilder {
     }
 
     public static byte[] values(Unit u, int... fields) {
+        return values(u, i -> u.values[i], fields);
+    }
+
+    /** VALUES block where {@code viewerValue} may replace a field per viewer (Object::BuildValuesUpdate). */
+    public static byte[] values(Unit u, IntUnaryOperator viewerValue, int... fields) {
         WowBuffer block = new WowBuffer(64 + fields.length * 4);
         block.putU8(UPDATETYPE_VALUES);
         block.putPackedGuid(u.guid);
@@ -115,7 +121,7 @@ public final class UpdateBuilder {
         }
         for (int i = 0; i < count; i++) {
             if ((mask[i / 32] & (1 << (i % 32))) != 0) {
-                block.putU32(u.values[i]);
+                block.putU32(viewerValue.applyAsInt(i));
             }
         }
         return wrap(block);

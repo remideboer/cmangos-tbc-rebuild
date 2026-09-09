@@ -78,6 +78,29 @@ class CombatTest {
         assertNotNull(combat.lootResponse(p, c));
     }
 
+    /** TP-SL06-015 — BuildValuesUpdate: LOOTABLE only on a corpse and only for a viewer who may loot it. */
+    @Test
+    void dynamicFlagsForWhenAliveShouldNeverShowLootable() {
+        c.setInt(UpdateFields.UNIT_DYNAMIC_FLAGS, Combat.UNIT_DYNFLAG_LOOTABLE | 0x10);
+        assertEquals(0x10, Combat.dynamicFlagsFor(c, p));
+    }
+
+    @Test
+    void dynamicFlagsForWhenCorpseTappedByViewerShouldShowLootable() {
+        c.setHealth(0);
+        combat.creatureDied(c, p, 5_000, null);
+        assertEquals(Combat.UNIT_DYNFLAG_LOOTABLE, Combat.dynamicFlagsFor(c, p));
+    }
+
+    @Test
+    void dynamicFlagsForWhenCorpseTappedByOtherShouldHideLootable() {
+        c.setHealth(0);
+        combat.creatureDied(c, p, 5_000, null);
+        Player other = new Player();
+        other.guid = p.guid + 1;
+        assertEquals(0, Combat.dynamicFlagsFor(c, other));
+    }
+
     @Test
     void swingMissDoesNotTag() {
         Combat miss = new Combat(new MeleeTable(() -> 0.01d, (a, b) -> 1));
