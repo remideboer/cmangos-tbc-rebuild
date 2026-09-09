@@ -116,6 +116,9 @@ public final class Player extends Unit {
     public int skin, face, hairStyle, hairColor, facialHair;
     public int money;
     public int xp;
+    /** CMaNGOS m_Played_time[PLAYED_TIME_TOTAL / PLAYED_TIME_LEVEL]. */
+    public int totalPlayedTime;
+    public int levelPlayedTime;
     public int cinematic;
     public int atLogin;
     public int difficulty;

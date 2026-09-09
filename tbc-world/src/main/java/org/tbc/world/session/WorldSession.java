@@ -322,6 +322,7 @@ public final class WorldSession {
                     player.tut[bit / 32] |= 1 << (bit % 32);
                 }
             }
+            case Opcodes.CMSG_PLAYED_TIME -> handlePlayedTime();
             case Opcodes.CMSG_NEXT_CINEMATIC_CAMERA, Opcodes.CMSG_COMPLETE_CINEMATIC -> {
             }
             case Opcodes.CMSG_SET_SELECTION -> player.selection = in.remaining() >= 8 ? in.getU64() : 0;
@@ -932,6 +933,14 @@ public final class WorldSession {
             }
         } catch (RuntimeException ignored) {
         }
+    }
+
+    /** MiscHandler::HandlePlayedTime — SMSG_PLAYED_TIME total then level, seconds. */
+    private void handlePlayedTime() {
+        WowBuffer out = new WowBuffer(8);
+        out.putU32(player.totalPlayedTime);
+        out.putU32(player.levelPlayedTime);
+        send(Opcodes.SMSG_PLAYED_TIME, out.array());
     }
 
     private void handleSheath(WowBuffer in) {
