@@ -1667,6 +1667,7 @@ public final class ObjectMgr {
         c.applyTemplate(entry, t.name(), t.display(), t.faction(), t.hp(), t.level());
         c.applyCombatStats(t.minMeleeDmg(), t.maxMeleeDmg(), t.meleeAttackTime(), combatReach(t));
         c.npcFlags = t.npcFlags();
+        c.rank = t.rank();
         c.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_NPC_FLAGS, t.npcFlags());
         if (factions != null) {
             org.tbc.world.combat.FactionTemplate ft = factions.template(c);

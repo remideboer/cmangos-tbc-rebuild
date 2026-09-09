@@ -18,6 +18,8 @@ public final class Creature extends Unit {
     public long respawnAtMs;
     public float spawnX, spawnY, spawnZ, spawnO;
     public int npcFlags;
+    /** creature_template.Rank (CreatureEliteType); elites double kill XP. */
+    public int rank;
     public String aiName = "";
     public UnitAI ai;
     public EventAi eventAi;

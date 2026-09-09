@@ -16,6 +16,7 @@ import org.tbc.world.ai.ScriptedCreatureAI;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.combat.Factions;
 import org.tbc.world.combat.MeleeTable;
+import org.tbc.world.combat.XpFormulas;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Corpse;
@@ -402,6 +403,7 @@ public final class World implements Runnable {
             }
         }
         if (!c.alive()) {
+            rewardKill(p, c);
             objectMgr.fillCorpseLoot(c);
             hitMap.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, c.entry, c, p,
                     (src, tgt, spell) -> sendDbScriptCast(hitMap, src, tgt, spell));
@@ -413,6 +415,19 @@ public final class World implements Runnable {
                     }
                 }
             }
+        }
+    }
+
+    /** Unit::Kill → tapper->RewardSinglePlayerAtKill → GiveXP(MaNGOS::XP::Gain); XP/level VALUES to self. */
+    private void rewardKill(Player killer, Creature victim) {
+        Player tapper = victim.taggedBy != 0 ? playerByGuid(victim.taggedBy) : null;
+        if (tapper == null) {
+            tapper = killer;
+        }
+        int[] changed = tapper.giveXp(XpFormulas.gain(tapper, victim), victim);
+        if (changed.length > 0 && tapper.session != null) {
+            var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(tapper, changed));
+            tapper.session.send(upd.opcode(), upd.payload());
         }
     }
 

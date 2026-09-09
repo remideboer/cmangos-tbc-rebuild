@@ -72,7 +72,7 @@ public final class LevelStats {
         return defaults;
     }
 
-    /** Level-1 rows from tbc-db mangos.sql so an in-memory world creates real characters. */
+    /** Level-1 and level-2 rows from tbc-db so an in-memory world creates real characters and can ding once. */
     public void seedDefaults() {
         for (int i = 0; i < XP_FOR_LEVEL.length; i++) {
             xpForLevel.put(i + 1, XP_FOR_LEVEL[i]);
@@ -91,6 +91,15 @@ public final class LevelStats {
         putClassLevel(8, 1, 32, 100);
         putClassLevel(9, 1, 23, 90);
         putClassLevel(11, 1, 44, 60);
+        putClassLevel(1, 2, 29, 0);
+        putClassLevel(2, 2, 36, 78);
+        putClassLevel(3, 2, 53, 70);
+        putClassLevel(4, 2, 32, 0);
+        putClassLevel(5, 2, 57, 76);
+        putClassLevel(7, 2, 44, 91);
+        putClassLevel(8, 2, 47, 110);
+        putClassLevel(9, 2, 28, 98);
+        putClassLevel(11, 2, 51, 66);
         putStats(1, 1, 1, 23, 20, 22, 20, 20);
         putStats(1, 2, 1, 22, 20, 22, 20, 21);
         putStats(1, 4, 1, 21, 23, 21, 20, 20);
@@ -111,6 +120,26 @@ public final class LevelStats {
         putStats(7, 4, 1, 16, 26, 20, 24, 20);
         putStats(7, 8, 1, 15, 23, 19, 27, 22);
         putStats(7, 9, 1, 15, 23, 20, 26, 22);
+        putStats(1, 1, 2, 24, 21, 23, 20, 20);
+        putStats(1, 2, 2, 23, 21, 23, 21, 22);
+        putStats(1, 4, 2, 22, 24, 22, 20, 20);
+        putStats(1, 5, 2, 20, 20, 20, 23, 24);
+        putStats(1, 8, 2, 20, 20, 20, 24, 23);
+        putStats(1, 9, 2, 20, 20, 22, 23, 23);
+        putStats(2, 1, 2, 27, 18, 25, 17, 23);
+        putStats(2, 3, 2, 23, 21, 24, 18, 25);
+        putStats(2, 4, 2, 25, 21, 24, 17, 23);
+        putStats(2, 7, 2, 25, 17, 24, 19, 26);
+        putStats(2, 9, 2, 23, 17, 24, 20, 26);
+        putStats(3, 1, 2, 26, 17, 26, 19, 19);
+        putStats(3, 2, 2, 25, 17, 26, 20, 21);
+        putStats(3, 3, 2, 22, 20, 25, 20, 21);
+        putStats(3, 4, 2, 24, 20, 25, 19, 19);
+        putStats(3, 5, 2, 22, 16, 23, 22, 23);
+        putStats(7, 1, 2, 19, 24, 22, 24, 20);
+        putStats(7, 4, 2, 17, 27, 21, 24, 20);
+        putStats(7, 8, 2, 15, 23, 19, 28, 23);
+        putStats(7, 9, 2, 15, 23, 21, 27, 23);
     }
 
     public void load(Connection c) {

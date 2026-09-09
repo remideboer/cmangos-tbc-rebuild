@@ -381,6 +381,7 @@ public final class Player extends Unit {
 
     /** CMaNGOS m_createStats / GetCreateHealth — player_levelstats + player_classlevelstats for the level. */
     private final int[] createStats = new int[5];
+    private LevelStats levelStats;
     private int createHealth;
     private int createMana;
     private int nextLevelXp;
@@ -400,6 +401,7 @@ public final class Player extends Unit {
      * intellect, PLAYER_NEXT_LEVEL_XP and the regen rates (UpdateManaRegen); health and mana full.
      */
     public void initStatsForLevel(LevelStats ls) {
+        levelStats = ls;
         LevelStats.ClassLevel cl = ls.classLevel(clazz, level);
         LevelStats.Stats st = ls.stats(race, clazz, level);
         createHealth = cl.baseHealth();
@@ -414,6 +416,95 @@ public final class Player extends Unit {
         setInt(UpdateFields.UNIT_FIELD_HEALTH, maxHealth());
         setInt(UpdateFields.UNIT_FIELD_POWER1, getInt(UpdateFields.UNIT_FIELD_MAXPOWER1));
     }
+
+    /**
+     * CMaNGOS Player::GiveXP: SendLogXPGain, add rested bonus (kills only), GiveLevel while the total
+     * passes PLAYER_NEXT_LEVEL_XP. Returns the update fields that changed so the caller can send VALUES.
+     */
+    public int[] giveXp(int amount, Creature victim) {
+        if (amount < 1 || !alive() || level >= MAX_LEVEL || levelStats == null) {
+            return new int[0];
+        }
+        int rest = 0;
+        if (victim != null) {
+            rest = Math.min((int) restBonus, amount);
+            restBonus -= rest;
+        }
+        sendLogXpGain(amount, victim, rest);
+        List<Integer> changed = new ArrayList<>();
+        changed.add(UpdateFields.PLAYER_XP);
+        int newXp = xp + amount + rest;
+        while (nextLevelXp > 0 && newXp >= nextLevelXp && level < MAX_LEVEL) {
+            newXp -= nextLevelXp;
+            giveLevel(level + 1, changed);
+        }
+        xp = newXp;
+        setInt(UpdateFields.PLAYER_XP, xp);
+        return changed.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    /** Player::SendLogXPGain: victim guid, total xp, type (0 kill / 1 other), [xp without rest, group rate], RaF. */
+    private void sendLogXpGain(int amount, Creature victim, int rest) {
+        if (session == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(22);
+        b.putU64(victim != null ? victim.guid : 0);
+        b.putU32(amount + rest);
+        b.putU8(victim != null ? 0 : 1);
+        if (victim != null) {
+            b.putU32(amount);
+            b.putFloat(1.0f);
+        }
+        b.putU8(0);
+        session.send(Opcodes.SMSG_LOG_XPGAIN, b.array());
+    }
+
+    /**
+     * Player::GiveLevel: SMSG_LEVELUP_INFO with the deltas to the new create values, then level, stats,
+     * PLAYER_NEXT_LEVEL_XP, full health/mana (InitStatsForLevel) and InitTalentForLevel (+1 from level 10).
+     */
+    private void giveLevel(int newLevel, List<Integer> changed) {
+        LevelStats.ClassLevel cl = levelStats.classLevel(clazz, newLevel);
+        LevelStats.Stats st = levelStats.stats(race, clazz, newLevel);
+        if (session != null) {
+            WowBuffer b = new WowBuffer(48);
+            b.putU32(newLevel);
+            b.putU32(cl.baseHealth() - createHealth);
+            b.putU32(cl.baseMana() - createMana);
+            for (int i = 1; i < 5; i++) {
+                b.putU32(0);
+            }
+            for (int i = 0; i < 5; i++) {
+                b.putU32(st.stat(i) - createStats[i]);
+            }
+            session.send(Opcodes.SMSG_LEVELUP_INFO, b.array());
+        }
+        level = newLevel;
+        setInt(UpdateFields.UNIT_FIELD_LEVEL, level);
+        initStatsForLevel(levelStats);
+        if (level >= TALENT_START_LEVEL) {
+            setInt(UpdateFields.PLAYER_CHARACTER_POINTS1, getInt(UpdateFields.PLAYER_CHARACTER_POINTS1) + 1);
+        }
+        for (int f : LEVEL_UP_FIELDS) {
+            if (!changed.contains(f)) {
+                changed.add(f);
+            }
+        }
+    }
+
+    public static final int MAX_LEVEL = 70;
+    /** CalculateTalentsPoints: talents start at level 10, one per level. */
+    private static final int TALENT_START_LEVEL = 10;
+    private static final int[] LEVEL_UP_FIELDS = {
+        UpdateFields.UNIT_FIELD_LEVEL, UpdateFields.PLAYER_NEXT_LEVEL_XP,
+        UpdateFields.UNIT_FIELD_BASE_HEALTH, UpdateFields.UNIT_FIELD_BASE_MANA,
+        UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1, UpdateFields.UNIT_FIELD_STAT2,
+        UpdateFields.UNIT_FIELD_STAT3, UpdateFields.UNIT_FIELD_STAT4, UpdateFields.UNIT_FIELD_RESISTANCES,
+        UpdateFields.UNIT_FIELD_MAXHEALTH, UpdateFields.UNIT_FIELD_HEALTH,
+        UpdateFields.UNIT_FIELD_MAXPOWER1, UpdateFields.UNIT_FIELD_POWER1,
+        UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, UpdateFields.PLAYER_CHARACTER_POINTS1,
+    };
 
     /** Spell::TakePower → SetLastManaUse: spirit-based mana regen pauses for 5 s (MOD_MANA_REGEN_INTERRUPT). */
     public void noteManaUse() {
@@ -534,6 +625,7 @@ public final class Player extends Unit {
 
     /** Persist copy (CharacterStore snapshot) — the create values are not update fields the DB stores. */
     public void copyCreateStatsFrom(Player src) {
+        levelStats = src.levelStats;
         createHealth = src.createHealth;
         createMana = src.createMana;
         nextLevelXp = src.nextLevelXp;
