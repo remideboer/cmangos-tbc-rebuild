@@ -606,6 +606,22 @@ public final class SocialHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** MailHandler.cpp HandleMailMarkAsRead — OR MAIL_CHECK_MASK_READ; no SMSG. */
+    public static void markMailRead(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            return;
+        }
+        in.getU64();
+        int mailId = in.getU32();
+        Mail m = world.characters.mail(mailId);
+        if (m == null || m.receiver != Guid.low(s.player().guid)) {
+            return;
+        }
+        m.checked = m.checked | Mail.MAIL_CHECK_MASK_READ;
+        m.state = Mail.MAIL_STATE_CHANGED;
+        world.characters.storeMail(m);
+    }
+
     /** MailHandler.cpp HandleMailDelete — COD cannot be deleted; missing mail still MAIL_OK. */
     public static void deleteMail(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() < 12) {

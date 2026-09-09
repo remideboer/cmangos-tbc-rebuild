@@ -18,5 +18,7 @@ public final class Mail {
     public long expireTime;
     public final List<Item> items = new ArrayList<>();
 
+    public static final int MAIL_STATE_CHANGED = 2;
     public static final int MAIL_STATE_DELETED = 3;
+    public static final int MAIL_CHECK_MASK_READ = 0x01;
 }

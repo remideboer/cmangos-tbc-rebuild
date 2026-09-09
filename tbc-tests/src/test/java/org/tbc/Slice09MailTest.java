@@ -12,11 +12,11 @@ import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * TP-SL09-009 — CMSG_MAIL_TAKE_MONEY (HandleMailTakeMoney).
- * Success is MAIL_MONEY_TAKEN + MAIL_OK then PLAYER_FIELD_COINAGE.
+ * TP-SL09-009 — mail take-money, delete, and mark-as-read.
  */
 class Slice09MailTest {
     private static final World.Account ACC =
@@ -130,5 +130,56 @@ class Slice09MailTest {
         client.clear();
         client.getMailList(world, 1);
         assertEquals(1, client.payload(Opcodes.SMSG_MAIL_LIST_RESULT)[0] & 0xFF);
+    }
+
+    @Test
+    void tpSl09MailMarkAsRead() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Readmail", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Mail m = new Mail();
+        m.id = world.characters.nextMailId();
+        m.receiver = Guid.low(p.guid);
+        m.checked = 0x10;
+        m.deliverTime = world.nowMs() / 1000;
+        world.characters.storeMail(m);
+
+        client.clear();
+        client.getMailList(world, 1);
+        int before = firstMailChecked(client.payload(Opcodes.SMSG_MAIL_LIST_RESULT));
+        assertEquals(0, before & 0x01);
+        assertEquals(0x10, before & 0x10);
+
+        client.clear();
+        WowBuffer in = new WowBuffer(12);
+        in.putU64(1);
+        in.putU32(m.id);
+        client.handle(world, Opcodes.CMSG_MAIL_MARK_AS_READ, in.array());
+        assertFalse(client.saw(Opcodes.SMSG_SEND_MAIL_RESULT));
+        assertFalse(client.saw(Opcodes.SMSG_MAIL_LIST_RESULT));
+
+        client.getMailList(world, 1);
+        int after = firstMailChecked(client.payload(Opcodes.SMSG_MAIL_LIST_RESULT));
+        assertEquals(0x01, after & 0x01);
+        assertEquals(0x10, after & 0x10);
+    }
+
+    /** mail.md SMSG_MAIL_LIST_RESULT: count, row size, then id/type/sender/COD/itemText/package/stationery/money/checked. */
+    private static int firstMailChecked(byte[] list) {
+        WowBuffer b = new WowBuffer(list);
+        b.getU8();
+        b.getU16();
+        b.getU32();
+        b.getU8();
+        b.getU64();
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        return b.getU32();
     }
 }
