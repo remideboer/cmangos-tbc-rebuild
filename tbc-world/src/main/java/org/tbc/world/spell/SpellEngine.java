@@ -81,6 +81,7 @@ public final class SpellEngine {
     public static final int EFFECT_WEAPON = 25;
     public static final int EFFECT_DEFENSE = 26;
     public static final int EFFECT_EVADE = 21;
+    public static final int EFFECT_CALL_PET = 135;
     public static final int EFFECT_ENVIRONMENTAL_DAMAGE = 7;
     public static final int EFFECT_WEAPON_DAMAGE = 58;
     public static final int EFFECT_ENERGIZE = 30;
@@ -176,7 +177,7 @@ public final class SpellEngine {
             EFFECT_QUEST_FAIL, EFFECT_SELF_RESURRECT, EFFECT_HEAL_MECHANICAL, EFFECT_DESTROY_ALL_TOTEMS,
             EFFECT_DURABILITY_DAMAGE, EFFECT_KNOCK_BACK, EFFECT_KNOCKBACK_FROM_POSITION, EFFECT_MODIFY_THREAT_PERCENT, EFFECT_REPUTATION, EFFECT_SUMMON_OBJECT_SLOT1,
             EFFECT_SUMMON_OBJECT_SLOT2, EFFECT_SUMMON_OBJECT_WILD, EFFECT_TRANS_DOOR, EFFECT_SUMMON,
-            EFFECT_PERSISTENT_AREA_AURA, EFFECT_REDIRECT_THREAT, EFFECT_LANGUAGE, EFFECT_DODGE, EFFECT_TRADE_SKILL, EFFECT_SKILL, EFFECT_WEAPON, EFFECT_DEFENSE, EFFECT_EVADE,
+            EFFECT_PERSISTENT_AREA_AURA, EFFECT_REDIRECT_THREAT, EFFECT_LANGUAGE, EFFECT_DODGE, EFFECT_TRADE_SKILL, EFFECT_SKILL, EFFECT_WEAPON, EFFECT_DEFENSE, EFFECT_EVADE, EFFECT_CALL_PET,
             EFFECT_DURABILITY_DAMAGE_PCT, EFFECT_DUAL_WIELD, EFFECT_SKILL_STEP, EFFECT_PARRY, EFFECT_BLOCK,
             EFFECT_SPAWN, EFFECT_PROFICIENCY, EFFECT_SEND_EVENT, EFFECT_WEAPON_PERCENT_DAMAGE, EFFECT_DISTRACT,
             EFFECT_DISPEL_MECHANIC, EFFECT_SUMMON_DEAD_PET, EFFECT_SEND_TAXI, EFFECT_KILL_CREDIT_GROUP, EFFECT_SKINNING, EFFECT_SKIN_PLAYER_CORPSE, EFFECT_TELEPORT_GRAVEYARD, EFFECT_CHARGE, EFFECT_CHARGE_DEST,
@@ -185,12 +186,13 @@ public final class SpellEngine {
             EFFECT_LEAP);
 
     /**
-     * CMaNGOS EffectEmpty / commented-out bodies — marker or client inform; no server mutation.
+     * CMaNGOS EffectEmpty / EffectNULL / commented-out bodies — marker or client inform; no server mutation.
      * TRADE_SKILL / SKILL / WEAPON / DEFENSE: the skill line owns the value, not these effects.
+     * CALL_PET 23498 is NULL; the hunter's Call Pet 883 is SUMMON_PET.
      */
-    private static final Set<Integer> EMPTY_EFFECTS = Set.of(
+    private static final Set<Integer> NO_OP_EFFECTS = Set.of(
             EFFECT_LANGUAGE, EFFECT_DODGE, EFFECT_TRADE_SKILL, EFFECT_SKILL, EFFECT_WEAPON, EFFECT_DEFENSE,
-            EFFECT_EVADE);
+            EFFECT_EVADE, EFFECT_CALL_PET);
 
     private static final Set<Integer> APPLY_AREA_AURA_EFFECTS = Set.of(
             EFFECT_APPLY_AREA_AURA_PARTY, EFFECT_APPLY_AREA_AURA_FRIEND, EFFECT_APPLY_AREA_AURA_ENEMY,
@@ -418,7 +420,7 @@ public final class SpellEngine {
         if (sp == null || target == null) {
             return 0;
         }
-        if (EMPTY_EFFECTS.contains(sp.effect)) {
+        if (NO_OP_EFFECTS.contains(sp.effect)) {
             return 0;
         }
         if (sp.effect == EFFECT_INSTAKILL) {
