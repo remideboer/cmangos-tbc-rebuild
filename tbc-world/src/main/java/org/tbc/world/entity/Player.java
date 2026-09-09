@@ -396,6 +396,7 @@ public final class Player extends Unit {
         }
         applyLevelStats();
         setInt(UpdateFields.UNIT_FIELD_HEALTH, maxHealth());
+        setInt(UpdateFields.UNIT_FIELD_POWER1, getInt(UpdateFields.UNIT_FIELD_MAXPOWER1));
     }
 
     /** Re-writes the level-stat fields from the remembered create values (also after a persist copy). */
@@ -410,12 +411,21 @@ public final class Player extends Unit {
         }
         setInt(UpdateFields.UNIT_FIELD_RESISTANCES, createStats[1] * 2);
         setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, createHealth + healthBonusFromStamina(createStats[2]));
+        // Unit::UpdateMaxPower(POWER_MANA): create mana + intellect bonus; basemana 0 keeps the bar hidden.
+        setInt(UpdateFields.UNIT_FIELD_MAXPOWER1,
+                createMana == 0 ? 0 : createMana + manaBonusFromIntellect(createStats[3]));
     }
 
     /** CMaNGOS Unit::GetHealthBonusFromStamina: first 20 stamina 1 hp each, then 10 hp per point. */
     static int healthBonusFromStamina(int stamina) {
         int base = Math.min(stamina, 20);
         return base + (stamina - base) * 10;
+    }
+
+    /** CMaNGOS Unit::GetManaBonusFromIntellect: first 20 intellect 1 mana each, then 15 per point. */
+    static int manaBonusFromIntellect(int intellect) {
+        int base = Math.min(intellect, 20);
+        return base + (intellect - base) * 15;
     }
 
     /** Persist copy (CharacterStore snapshot) — the create values are not update fields the DB stores. */

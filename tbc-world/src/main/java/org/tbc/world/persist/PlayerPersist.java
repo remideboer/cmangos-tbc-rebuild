@@ -59,6 +59,7 @@ public final class PlayerPersist {
         d.applyCreateFields();
         d.setInt(UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, src.health()));
         d.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, Math.max(1, src.maxHealth()));
+        d.setInt(UpdateFields.UNIT_FIELD_POWER1, src.getInt(UpdateFields.UNIT_FIELD_POWER1));
         return d;
     }
 

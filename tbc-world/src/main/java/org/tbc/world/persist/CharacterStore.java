@@ -259,6 +259,8 @@ public final class CharacterStore {
         initStatsForLevel(p, mgr);
         p.applyCreateFields();
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, col(rs, "health", 50)));
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER1,
+                Math.min(col(rs, "power1", 0), p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER1)));
         return p;
     }
 

@@ -9,6 +9,7 @@ import org.tbc.world.world.World;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Gap inventory TP-SL04-011..013 — create-self.md "Stats (level 1)".
@@ -22,6 +23,7 @@ class Slice04StatsTest {
 
     private static final int RACE_HUMAN = 1;
     private static final int CLASS_WARRIOR = 1;
+    private static final int CLASS_MAGE = 8;
 
     @Test
     void tpSl04CreateSelfStatsFromLevelStats() {
@@ -39,6 +41,26 @@ class Slice04StatsTest {
         assertEquals(60, self.get(UpdateFields.UNIT_FIELD_HEALTH));
         // SetArmor(createStats[agi] * 2)
         assertEquals(40, self.get(UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
+    @Test
+    void tpSl04ManaClassHasManaBar() {
+        World world = World.inMemory();
+        Map<Integer, Integer> self = enterAndDecodeSelf(world, RACE_HUMAN, CLASS_MAGE, "Statmage");
+
+        // player_classlevelstats (8,1,32,100); human mage int 23 → UpdateMaxPower: 100 + 20 + 3 * 15 = 165.
+        assertEquals(100, self.get(UpdateFields.UNIT_FIELD_BASE_MANA));
+        assertEquals(165, self.get(UpdateFields.UNIT_FIELD_MAXPOWER1));
+        assertEquals(165, self.get(UpdateFields.UNIT_FIELD_POWER1), "full mana at create");
+    }
+
+    @Test
+    void tpSl04RageClassHasNoManaBar() {
+        World world = World.inMemory();
+        Map<Integer, Integer> self = enterAndDecodeSelf(world, RACE_HUMAN, CLASS_WARRIOR, "Rager");
+
+        assertNull(self.get(UpdateFields.UNIT_FIELD_MAXPOWER1), "basemana 0 → no mana bar for a warrior");
+        assertEquals(1000, self.get(UpdateFields.UNIT_FIELD_MAXPOWER2));
     }
 
     private static Map<Integer, Integer> enterAndDecodeSelf(World world, int race, int clazz, String name) {
