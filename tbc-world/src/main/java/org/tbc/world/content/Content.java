@@ -86,6 +86,8 @@ public final class Content {
     public static final int EQUIP_ERR_NOT_ENOUGH_MONEY = 29;
     public static final int QUEST_STATE_COMPLETE = 0x1;
     public static final int QUEST_STATE_FAIL = 0x2;
+    /** QuestDef.h MAX_QUEST_LOG_SIZE. */
+    public static final int MAX_QUEST_LOG_SIZE = 25;
     /** QuestDef.h DIALOG_STATUS_NONE / DIALOG_STATUS_AVAILABLE (yellow !). */
     public static final int DIALOG_STATUS_NONE = 0;
     public static final int DIALOG_STATUS_AVAILABLE = 6;
@@ -428,6 +430,28 @@ public final class Content {
         p.questLogItemCount[slot] = 0;
         writeLogField(p, slot);
         send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
+    }
+
+    /** HandleQuestLogRemoveQuest → SetQuestSlot(slot, 0). */
+    public void removeQuest(Player p, WowBuffer in, BiConsumer<Integer, byte[]> send) {
+        if (in.remaining() < 1) {
+            return;
+        }
+        int slot = in.getU8();
+        if (slot >= MAX_QUEST_LOG_SIZE) {
+            return;
+        }
+        p.questLogId[slot] = 0;
+        p.questLogState[slot] = 0;
+        p.questLogCounts[slot][0] = 0;
+        p.questLogCounts[slot][1] = 0;
+        p.questLogCounts[slot][2] = 0;
+        p.questLogCounts[slot][3] = 0;
+        p.questLogItemCount[slot] = 0;
+        writeLogField(p, slot);
+        int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base, base + 1, base + 2));
+        send.accept(upd.opcode(), upd.payload());
     }
 
     public void completeQuest(Player p, GameMap map, WowBuffer in, long nextItemGuid,

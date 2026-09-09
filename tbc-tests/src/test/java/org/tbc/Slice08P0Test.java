@@ -356,6 +356,33 @@ class Slice08P0Test {
         assertEquals(0, offer.getU32());
     }
 
+    /**
+     * TP-SL08-026 — HandleQuestLogRemoveQuest → SetQuestSlot(slot, 0).
+     * PLAYER_QUEST_LOG_1_1..3 VALUES to 0.
+     */
+    @Test
+    void tpSl08AbandonQuest() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Abandoner", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(willem);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(willem.guid);
+        accept.putU32(Content.QUEST_A_THREAT_WITHIN);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        client.clear();
+        WowBuffer remove = new WowBuffer(1);
+        remove.putU8(0);
+        client.handle(world, Opcodes.CMSG_QUESTLOG_REMOVE_QUEST, remove.array());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_QUEST_LOG_1_1));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_QUEST_LOG_1_2));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_QUEST_LOG_1_3));
+    }
+
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
     private static final int DIALOG_STATUS_AVAILABLE = 6;
 }

@@ -348,6 +348,7 @@ public final class WorldSession {
             case Opcodes.CMSG_QUESTGIVER_REQUEST_REWARD -> handleQuestRequestReward(world, in);
             case Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD ->
                     handleQuestComplete(world, in);
+            case Opcodes.CMSG_QUESTLOG_REMOVE_QUEST -> handleQuestLogRemove(world, in);
             case Opcodes.CMSG_GROUP_INVITE -> SocialHandler.groupInvite(this, world, in);
             case Opcodes.CMSG_GROUP_ACCEPT -> SocialHandler.groupAccept(this, world);
             case Opcodes.CMSG_GROUP_DISBAND -> SocialHandler.groupDisband(this);
@@ -1159,6 +1160,10 @@ public final class WorldSession {
 
     private void handleQuestRequestReward(World world, WowBuffer in) {
         world.content.requestReward(player, world.map(player.mapId, player.instanceId), in, this::send);
+    }
+
+    private void handleQuestLogRemove(World world, WowBuffer in) {
+        world.content.removeQuest(player, in, this::send);
     }
 
     private void handleQuestComplete(World world, WowBuffer in) {

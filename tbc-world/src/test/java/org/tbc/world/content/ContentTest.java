@@ -855,6 +855,24 @@ class ContentTest {
     }
 
     @Test
+    void removeQuestWhenAcceptedShouldClearSlotAndSendUpdate() {
+        Creature giver = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
+        content.acceptQuest(p, map, quest(giver.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        assertEquals(Content.QUEST_A_THREAT_WITHIN, p.questLogId[0]);
+        ops.clear();
+        content.removeQuest(p, slot(0), this::capture);
+        assertEquals(0, p.questLogId[0]);
+        assertTrue(sentUpdate());
+    }
+
+    @Test
+    void removeQuestWhenEmptySlotShouldStillSendUpdate() {
+        content.removeQuest(p, slot(0), this::capture);
+        assertEquals(0, p.questLogId[0]);
+        assertTrue(sentUpdate());
+    }
+
+    @Test
     void ignoresTruncationRangeAndWrongNpc() {
         Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
         Creature kobold = spawn(6, 0, 0);
@@ -867,6 +885,8 @@ class ContentTest {
         content.queryQuest(p, map, new WowBuffer(8), this::capture);
         content.requestReward(p, map, new WowBuffer(8), this::capture);
         content.acceptQuest(p, map, new WowBuffer(8), this::capture);
+        content.removeQuest(p, new WowBuffer(0), this::capture);
+        content.removeQuest(p, slot(Content.MAX_QUEST_LOG_SIZE), this::capture);
         content.completeQuest(p, map, new WowBuffer(8), nextItem++, this::capture);
         content.gossipHello(p, map, u64(0), this::capture);
         content.gossipHello(p, map, u64(99), this::capture);
@@ -968,6 +988,11 @@ class ContentTest {
         assertTrue(Content.outOfRange(p, farCreature()));
         assertFalse(Content.outOfRange(p, emptyVendor));
         assertNull(Content.creature(map, 0));
+    }
+
+    private boolean sentUpdate() {
+        return ops.contains(Opcodes.SMSG_UPDATE_OBJECT)
+                || ops.contains(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT);
     }
 
     private void capture(int opcode, byte[] payload) {
@@ -1077,6 +1102,12 @@ class ContentTest {
         b.putU64(bagGuid);
         b.putU8(bagSlot);
         b.putU8(count);
+        return b;
+    }
+
+    private static WowBuffer slot(int slot) {
+        WowBuffer b = new WowBuffer(1);
+        b.putU8(slot);
         return b;
     }
 
