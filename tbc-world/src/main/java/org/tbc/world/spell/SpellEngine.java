@@ -180,6 +180,9 @@ public final class SpellEngine {
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     /** Spell.dbc EffectAmplitude1 for Unstable Affliction rank 1. */
     public static final int UA_AMPLITUDE_MS = 3000;
+    /** Drain Life rank 1. Spell.dbc AttributesEx SPELL_ATTR_EX_IS_CHANNELED, DurationIndex 28 → 5000 ms. */
+    public static final int DRAIN_LIFE = 689;
+    public static final int DRAIN_LIFE_DURATION_MS = 5000;
     public static final int LOGINEFFECT = 836;
     public static final int SPELL_MISS_MISS = 1;
     private static final double MAGIC_MISS = 0.04;
@@ -312,6 +315,8 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(30108, new SpellInfo(30108, EFFECT_APPLY_AURA, 3, 5, 0, 0, 0, 30f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withAmplitude(UA_AMPLITUDE_MS));
+        spells.put(DRAIN_LIFE, new SpellInfo(DRAIN_LIFE, EFFECT_APPLY_AURA, 53, 32, 55, 0, 0, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(DRAIN_LIFE_DURATION_MS));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
     }
@@ -596,6 +601,39 @@ public final class SpellEngine {
                 AuraSlots.sendApply(target, sp.id, auraDurationMs(sp), send);
             }
         }
+        if (isChanneled(sp)) {
+            sendChannelStart(caster, sp, send);
+        }
+    }
+
+    /** Spell.dbc AttributesEx SPELL_ATTR_EX_IS_CHANNELED (0x4) — seeded Drain Life 689. */
+    static boolean isChanneled(SpellInfo sp) {
+        return sp != null && sp.id == DRAIN_LIFE;
+    }
+
+    /** Spell::SendChannelStart — MSG_CHANNEL_START packed caster, spell u32, duration u32. */
+    private void sendChannelStart(Player caster, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
+        caster.channeling = true;
+        WowBuffer ch = new WowBuffer(16);
+        ch.putPackedGuid(caster.guid);
+        ch.putU32(sp.id);
+        ch.putU32(auraDurationMs(sp));
+        send.accept(Opcodes.MSG_CHANNEL_START, ch.array());
+    }
+
+    /** Spell::SendChannelUpdate(0) on InterruptSpell(CURRENT_CHANNELED_SPELL). */
+    public void cancelChannel(Player p, BiConsumer<Integer, byte[]> send) {
+        if (p == null || !p.channeling) {
+            return;
+        }
+        p.channeling = false;
+        if (send == null) {
+            return;
+        }
+        WowBuffer upd = new WowBuffer(16);
+        upd.putPackedGuid(p.guid);
+        upd.putU32(0);
+        send.accept(Opcodes.MSG_CHANNEL_UPDATE, upd.array());
     }
 
     /** SpellDuration.dbc when DurationIndex is seeded; otherwise the v1 30 s holder default. */

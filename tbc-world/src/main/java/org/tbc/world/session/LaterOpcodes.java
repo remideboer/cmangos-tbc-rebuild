@@ -307,7 +307,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_CANCEL_CHANNELLING) {
-            p.channeling = false;
+            world.spells.cancelChannel(p, s::send);
             WowBuffer fail = new WowBuffer(12);
             fail.putPackedGuid(p.guid);
             fail.putU32(in.remaining() >= 4 ? in.getU32() : 0);

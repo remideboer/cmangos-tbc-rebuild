@@ -5,6 +5,7 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -282,8 +283,8 @@ class Slice07P0Test {
         client.castSpell(world, UNSTABLE_AFFLICTION, 1, c.guid);
         assertTrue(c.hasAura(UNSTABLE_AFFLICTION));
         client.clear();
-        world.advanceMs(org.tbc.world.spell.SpellEngine.UA_AMPLITUDE_MS);
-        world.tick(org.tbc.world.spell.SpellEngine.UA_AMPLITUDE_MS);
+        world.advanceMs(SpellEngine.UA_AMPLITUDE_MS);
+        world.tick(SpellEngine.UA_AMPLITUDE_MS);
         assertTrue(client.saw(Opcodes.SMSG_PERIODICAURALOG));
         byte[] log = client.payload(Opcodes.SMSG_PERIODICAURALOG);
         int off = WowClientDouble.skipPackedGuid(log, 0);
@@ -292,6 +293,37 @@ class Slice07P0Test {
         assertEquals(1, WowClientDouble.u32le(log, off + 4));
         assertEquals(3, WowClientDouble.u32le(log, off + 8), "SPELL_AURA_PERIODIC_DAMAGE");
         assertEquals(hpBefore, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_HEALTH));
+    }
+
+    private static final int DRAIN_LIFE = SpellEngine.DRAIN_LIFE;
+
+    /**
+     * TP-SL07-009 — Spell::handle_immediate channeled → SendChannelStart; cancel → SendChannelUpdate(0).
+     * MSG_CHANNEL_START/UPDATE packed caster GUID (chat.md / Spell.cpp).
+     */
+    @Test
+    void tpSl07ChannelStartAndUpdate() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(DRAIN_LIFE);
+        Creature c = kobold(world, p);
+        client.clear();
+        client.castSpell(world, DRAIN_LIFE, 1, c.guid);
+        assertTrue(client.saw(Opcodes.MSG_CHANNEL_START));
+        byte[] start = client.payload(Opcodes.MSG_CHANNEL_START);
+        int off = WowClientDouble.skipPackedGuid(start, 0);
+        assertEquals(DRAIN_LIFE, WowClientDouble.u32le(start, off));
+        assertEquals(SpellEngine.DRAIN_LIFE_DURATION_MS, WowClientDouble.u32le(start, off + 4));
+        client.clear();
+        org.tbc.common.WowBuffer cancel = new org.tbc.common.WowBuffer(4);
+        cancel.putU32(DRAIN_LIFE);
+        client.handle(world, Opcodes.CMSG_CANCEL_CHANNELLING, cancel.array());
+        assertTrue(client.saw(Opcodes.MSG_CHANNEL_UPDATE));
+        byte[] upd = client.payload(Opcodes.MSG_CHANNEL_UPDATE);
+        int uoff = WowClientDouble.skipPackedGuid(upd, 0);
+        assertEquals(0, WowClientDouble.u32le(upd, uoff), "time 0 on cancel");
+        assertFalse(p.channeling);
     }
 
     /** login-burst.md SMSG_INITIAL_SPELLS: unk u8, spellCount u16, spells, cooldownCount u16, then entries. */

@@ -424,6 +424,38 @@ class SpellEngineTest {
         assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, remain);
     }
 
+    @Test
+    void castDrainLifeWhenChanneledShouldSendChannelStart() {
+        p.spells.add(SpellEngine.DRAIN_LIFE);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER1, 200);
+        p.setPower(200);
+        engine.cast(p, map, 10, SpellEngine.DRAIN_LIFE, 1, unitTarget(c.guid), this::capture);
+        assertTrue(p.channeling);
+        assertTrue(ops.contains(Opcodes.MSG_CHANNEL_START));
+        WowBuffer start = new WowBuffer(last.get(Opcodes.MSG_CHANNEL_START));
+        assertEquals(p.guid, start.getPackedGuid());
+        assertEquals(SpellEngine.DRAIN_LIFE, start.getU32());
+        assertEquals(SpellEngine.DRAIN_LIFE_DURATION_MS, start.getU32());
+        assertFalse(SpellEngine.isChanneled(null));
+        assertFalse(SpellEngine.isChanneled(engine.info(SpellEngine.FIREBALL)));
+    }
+
+    @Test
+    void cancelChannelWhenChannelingShouldSendUpdateZero() {
+        engine.cancelChannel(null, this::capture);
+        engine.cancelChannel(p, this::capture);
+        assertFalse(ops.contains(Opcodes.MSG_CHANNEL_UPDATE));
+        p.channeling = true;
+        engine.cancelChannel(p, null);
+        assertFalse(p.channeling);
+        p.channeling = true;
+        engine.cancelChannel(p, this::capture);
+        WowBuffer upd = new WowBuffer(last.get(Opcodes.MSG_CHANNEL_UPDATE));
+        assertEquals(p.guid, upd.getPackedGuid());
+        assertEquals(0, upd.getU32());
+        assertFalse(p.channeling);
+    }
+
     private void capture(int opcode, byte[] payload) {
         ops.add(opcode);
         last.put(opcode, payload);
