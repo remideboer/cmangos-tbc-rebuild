@@ -321,6 +321,27 @@ public final class Content {
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_DETAILS, encodeDetails(c.guid, q));
     }
 
+    /** HandleQuestgiverRequestRewardOpcode → PlayerMenu::SendQuestGiverOfferReward. */
+    public void requestReward(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {
+        if (in.remaining() < 12) {
+            return;
+        }
+        long guid = in.getU64();
+        int questId = in.getU32();
+        Creature c = creature(map, guid);
+        if (c == null || outOfRange(p, c) || !involves(c.entry, questId)) {
+            return;
+        }
+        if (slotOf(p, questId) < 0) {
+            return;
+        }
+        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        if (q == null) {
+            return;
+        }
+        send.accept(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD, encodeOfferReward(c.guid, q));
+    }
+
     /**
      * CMSG_QUESTGIVER_STATUS_QUERY. GossipDef.cpp SendQuestGiverStatus; QuestHandler.cpp getDialogStatus.
      * Missing questgiver: no packet. Found: raw guid + uint8 status.
@@ -763,6 +784,44 @@ public final class Content {
         b.putU64(0);
         b.putU8(0);
         return b.array();
+    }
+
+    byte[] encodeOfferReward(long guid, ObjectMgr.QuestTemplate q) {
+        int choices = q.rewChoiceItemsCount();
+        int items = q.rewItemsCount();
+        WowBuffer b = new WowBuffer(64 + q.title().length() + choices * 12 + items * 12);
+        b.putU64(guid);
+        b.putU32(q.id());
+        b.putCString(q.title());
+        b.putCString("");
+        b.putU32(1);
+        b.putU32(0);
+        b.putU32(0);
+        b.putU32(choices);
+        for (int i = 0; i < choices; i++) {
+            int id = q.rewChoiceItemId(i);
+            b.putU32(id);
+            b.putU32(q.rewChoiceItemCount(i));
+            b.putU32(displayId(id));
+        }
+        b.putU32(items);
+        if (items > 0) {
+            b.putU32(q.rewItemId1());
+            b.putU32(q.rewItemCount1());
+            b.putU32(displayId(q.rewItemId1()));
+        }
+        b.putU32(q.rewMoney());
+        b.putU32(0);
+        b.putU32(0x08);
+        b.putU32(0);
+        b.putU32(0);
+        b.putU32(0);
+        return b.array();
+    }
+
+    private int displayId(int itemId) {
+        ObjectMgr.ItemTemplate t = mgr.items.get(itemId);
+        return t == null ? 0 : t.displayId;
     }
 
     static byte[] encodeDetails(long guid, ObjectMgr.QuestTemplate q) {

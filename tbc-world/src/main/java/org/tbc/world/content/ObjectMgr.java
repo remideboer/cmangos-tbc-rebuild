@@ -130,6 +130,21 @@ public final class ObjectMgr {
                 default -> 0;
             };
         }
+
+        int rewChoiceItemsCount() {
+            int n = 0;
+            if (rewChoiceItemId1 > 0) {
+                n++;
+            }
+            if (rewChoiceItemId2 > 0) {
+                n++;
+            }
+            return n;
+        }
+
+        int rewItemsCount() {
+            return rewItemId1 > 0 ? 1 : 0;
+        }
     }
     public record GossipMenuItem(int menuId, int id, int icon, String text, int optionId, int npcFlag,
                                  int coded, int boxMoney, String boxText, int actionMenu, int actionPoi,

@@ -347,6 +347,101 @@ class ContentTest {
     }
 
     @Test
+    void requestRewardWhenQuestInLogShouldSendOfferReward() {
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE, 0, 0);
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
+        Creature farley = spawn(Content.NPC_INNKEEPER_FARLEY, 0, 0);
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        ops.clear();
+        last.clear();
+        content.requestReward(p, map, quest(mcbride.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+        WowBuffer offer = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+        assertEquals(mcbride.guid, offer.getU64());
+        assertEquals(Content.QUEST_A_THREAT_WITHIN, offer.getU32());
+        assertEquals("A Threat Within", offer.getCString());
+        assertEquals("", offer.getCString());
+        assertEquals(1, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+
+        mgr.quests.remove(Content.QUEST_A_THREAT_WITHIN);
+        ops.clear();
+        content.requestReward(p, map, quest(mcbride.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+        mgr.quests.put(Content.QUEST_A_THREAT_WITHIN, new ObjectMgr.QuestTemplate(
+                Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0, 0, "Speak with Marshal McBride.",
+                "Speak with Marshal McBride.", 0, 0, 0, 0, 1, 24, 0, 0));
+
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        ops.clear();
+        last.clear();
+        content.requestReward(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        offer = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+        offer.getU64();
+        offer.getU32();
+        offer.getCString();
+        offer.getCString();
+        offer.getU32();
+        offer.getU32();
+        offer.getU32();
+        assertEquals(2, offer.getU32());
+        assertEquals(Content.ITEM_MILITIA_DAGGER, offer.getU32());
+        assertEquals(1, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(Content.ITEM_MILITIA_HAMMER, offer.getU32());
+        assertEquals(1, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+
+        mgr.quests.put(98, new ObjectMgr.QuestTemplate(98, "OneChoice", 1, 0, 0, "", "", 0, 0, 0, 0, 1, 0, 0, 0,
+                Content.ITEM_MILITIA_DAGGER, 1, 0, 0));
+        mgr.questGivers.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(
+                Content.QUEST_A_THREAT_WITHIN, Content.QUEST_BROTHERHOOD_OF_THIEVES, 98)));
+        mgr.questInvolved.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_BROTHERHOOD_OF_THIEVES, 98)));
+        content.acceptQuest(p, map, quest(willem.guid, 98), this::capture);
+        ops.clear();
+        last.clear();
+        content.requestReward(p, map, quest(willem.guid, 98), this::capture);
+        offer = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+        offer.getU64();
+        offer.getU32();
+        offer.getCString();
+        offer.getCString();
+        offer.getU32();
+        offer.getU32();
+        offer.getU32();
+        assertEquals(1, offer.getU32());
+        assertEquals(Content.ITEM_MILITIA_DAGGER, offer.getU32());
+
+        mgr.questGivers.put(Content.NPC_INNKEEPER_FARLEY, new ArrayList<>(List.of(Content.QUEST_REST_AND_RELAXATION)));
+        mgr.questInvolved.put(Content.NPC_INNKEEPER_FARLEY, new ArrayList<>(List.of(Content.QUEST_REST_AND_RELAXATION)));
+        ObjectMgr.ItemTemplate water = new ObjectMgr.ItemTemplate();
+        water.entry = Content.ITEM_REFRESHING_SPRING_WATER;
+        water.displayId = 180;
+        mgr.items.put(Content.ITEM_REFRESHING_SPRING_WATER, water);
+        content.acceptQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
+        ops.clear();
+        last.clear();
+        content.requestReward(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
+        offer = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+        offer.getU64();
+        offer.getU32();
+        offer.getCString();
+        offer.getCString();
+        offer.getU32();
+        offer.getU32();
+        offer.getU32();
+        assertEquals(0, offer.getU32());
+        assertEquals(1, offer.getU32());
+        assertEquals(Content.ITEM_REFRESHING_SPRING_WATER, offer.getU32());
+        assertEquals(5, offer.getU32());
+        assertEquals(180, offer.getU32());
+    }
+
+    @Test
     void gossipMobHasEmptyMenu() {
         Creature kobold = spawn(6, 0, 0);
         content.gossipHello(p, map, u64(kobold.guid), this::capture);
@@ -770,6 +865,7 @@ class ContentTest {
         content.listInventory(p, map, new WowBuffer(3), this::capture);
         content.buy(p, map, new WowBuffer(8), false, nextItem++, this::capture);
         content.queryQuest(p, map, new WowBuffer(8), this::capture);
+        content.requestReward(p, map, new WowBuffer(8), this::capture);
         content.acceptQuest(p, map, new WowBuffer(8), this::capture);
         content.completeQuest(p, map, new WowBuffer(8), nextItem++, this::capture);
         content.gossipHello(p, map, u64(0), this::capture);
@@ -779,6 +875,8 @@ class ContentTest {
         content.queryQuest(p, map, quest(99, 783), this::capture);
         content.acceptQuest(p, map, quest(99, 783), this::capture);
         content.completeQuest(p, map, quest(99, 783), nextItem++, this::capture);
+        content.requestReward(p, map, quest(99, 783), this::capture);
+        content.requestReward(p, map, quest(turn.guid, 783), this::capture);
         p.relocate(20, 0, 0, 0);
         content.gossipHello(p, map, u64(vendor.guid), this::capture);
         content.listInventory(p, map, u64(vendor.guid), this::capture);
@@ -786,6 +884,7 @@ class ContentTest {
         content.queryQuest(p, map, quest(giver.guid, 783), this::capture);
         content.acceptQuest(p, map, quest(giver.guid, 783), this::capture);
         content.completeQuest(p, map, quest(turn.guid, 783), nextItem++, this::capture);
+        content.requestReward(p, map, quest(turn.guid, 783), this::capture);
         p.relocate(0, 0, 0, 0);
         content.listInventory(p, map, u64(kobold.guid), this::capture);
         content.buy(p, map, buy(kobold.guid, 25, 1), false, nextItem++, this::capture);
@@ -793,6 +892,7 @@ class ContentTest {
         content.queryQuest(p, map, quest(kobold.guid, 783), this::capture);
         content.acceptQuest(p, map, quest(turn.guid, 783), this::capture);
         content.completeQuest(p, map, quest(giver.guid, 783), nextItem++, this::capture);
+        content.requestReward(p, map, quest(giver.guid, 783), this::capture);
         content.completeQuest(p, map, quest(turn.guid, 783), nextItem++, this::capture);
         assertTrue(ops.isEmpty());
         assertTrue(p.items.isEmpty());

@@ -313,6 +313,49 @@ class Slice08P0Test {
         assertFalse(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_MILITIA_DAGGER));
     }
 
+    /**
+     * TP-SL08-025 — HandleQuestgiverRequestRewardOpcode → PlayerMenu::SendQuestGiverOfferReward.
+     */
+    @Test
+    void tpSl08RequestRewardOffer() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Offered", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        Creature mcbride = world.objectMgr.spawnCreature(Content.NPC_MARSHAL_MCBRIDE, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(willem);
+        world.map(p.mapId, p.instanceId).add(mcbride);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(willem.guid);
+        accept.putU32(Content.QUEST_A_THREAT_WITHIN);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        client.clear();
+        WowBuffer req = new WowBuffer(12);
+        req.putU64(mcbride.guid);
+        req.putU32(Content.QUEST_A_THREAT_WITHIN);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_REQUEST_REWARD, req.array());
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+        WowBuffer offer = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+        assertEquals(mcbride.guid, offer.getU64());
+        assertEquals(Content.QUEST_A_THREAT_WITHIN, offer.getU32());
+        assertEquals("A Threat Within", offer.getCString());
+        assertEquals("", offer.getCString());
+        assertEquals(1, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0x08, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+        assertEquals(0, offer.getU32());
+    }
+
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
     private static final int DIALOG_STATUS_AVAILABLE = 6;
 }
