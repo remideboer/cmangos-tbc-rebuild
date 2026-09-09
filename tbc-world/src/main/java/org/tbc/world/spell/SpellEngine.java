@@ -224,6 +224,7 @@ public final class SpellEngine {
 
     private final Map<Integer, SpellInfo> spells = new HashMap<>();
     private final DoubleSupplier missRoll;
+    private final AuraEngine auras = new AuraEngine();
 
     public SpellEngine() {
         this(() -> ThreadLocalRandom.current().nextDouble());
@@ -246,6 +247,11 @@ public final class SpellEngine {
 
     public SpellInfo info(int id) {
         return spells.get(id);
+    }
+
+    /** SPELL_AURA_* modifier catalog applied by EFFECT_APPLY_AURA. */
+    public AuraEngine auras() {
+        return auras;
     }
 
     public void catalogDummy(int effectId) {
@@ -813,6 +819,7 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_APPLY_AURA) {
             target.auras.add(new Unit.Aura(sp.id, 30_000, 1));
+            auras.apply(target, sp);
             return 0;
         }
         if (APPLY_AREA_AURA_EFFECTS.contains(sp.effect)) {

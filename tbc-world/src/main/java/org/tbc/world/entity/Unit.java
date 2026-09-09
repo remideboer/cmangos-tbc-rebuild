@@ -17,6 +17,7 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_IMMUNE_TO_NPC = 0x00000200;
     public static final int UNIT_FLAG_PVP = 0x00001000;
     public static final int UNIT_FLAG_UNTARGETABLE = 0x00010000;
+    public static final int UNIT_FLAG_STUNNED = 0x00040000;
     public static final int UNIT_FLAG_IN_COMBAT = 0x00080000;
     public static final int UNIT_FLAG_TAXI_FLIGHT = 0x00100000;
     public static final int UNIT_FLAG_UNINTERACTIBLE = 0x02000000;
@@ -210,6 +211,13 @@ public class Unit extends Entity {
 
     public void setLastSendEvent(int eventId) {
         lastSendEvent = eventId;
+    }
+
+    /** CMaNGOS Unit::SetStunned — ApplyModFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED, apply). */
+    public void setStunned(boolean apply) {
+        int flags = getInt(UpdateFields.UNIT_FIELD_FLAGS);
+        setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                apply ? flags | UNIT_FLAG_STUNNED : flags & ~UNIT_FLAG_STUNNED);
     }
 
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
