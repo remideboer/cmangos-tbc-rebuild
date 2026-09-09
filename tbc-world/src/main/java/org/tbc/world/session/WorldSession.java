@@ -1098,9 +1098,13 @@ public final class WorldSession {
         org.tbc.world.spell.SpellCastTargets targets = org.tbc.world.spell.SpellCastTargets.read(new WowBuffer(rest));
         org.tbc.world.entity.Unit unit = org.tbc.world.spell.SpellEngine.resolve(player, map, targets.unitGuid);
         int hpBefore = unit == null ? 0 : unit.health();
+        boolean wasAlive = unit != null && unit.alive();
         boolean hit = world.spells.cast(player, map, world.nowMs(), spellId, castCount, new WowBuffer(rest), this::send);
         if (!hit) {
             return;
+        }
+        if (unit instanceof Creature dead && wasAlive && !dead.alive()) {
+            world.onCreatureKilledBySpell(player, dead);
         }
         if (!(unit instanceof Creature cr) || cr.eventAi == null) {
             return;

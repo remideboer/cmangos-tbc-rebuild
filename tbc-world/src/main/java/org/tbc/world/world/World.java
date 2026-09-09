@@ -408,19 +408,32 @@ public final class World implements Runnable {
             }
         }
         if (!c.alive()) {
-            rewardKill(p, c);
-            objectMgr.fillCorpseLoot(c);
-            hitMap.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, c.entry, c, p,
-                    (src, tgt, spell) -> sendDbScriptCast(hitMap, src, tgt, spell));
-            if (p.mapId == 30 && av.onGeneralKilled(c.entry)) {
-                byte[] log = av.endedPvpLogPayload();
-                for (Player pl : hitMap.players()) {
-                    if (pl.session != null) {
-                        pl.session.send(Opcodes.MSG_PVP_LOG_DATA, log);
-                    }
+            onCreatureKilled(p, c);
+        }
+    }
+
+    /** Unit::Kill (creature victim) after the health hit 0: rewards, corpse loot, creature_death scripts, AV. */
+    public void onCreatureKilled(Player p, Creature c) {
+        GameMap m = map(c.mapId, p.instanceId);
+        rewardKill(p, c);
+        objectMgr.fillCorpseLoot(c);
+        m.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, c.entry, c, p,
+                (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
+        if (p.mapId == 30 && av.onGeneralKilled(c.entry)) {
+            byte[] log = av.endedPvpLogPayload();
+            for (Player pl : m.players()) {
+                if (pl.session != null) {
+                    pl.session.send(Opcodes.MSG_PVP_LOG_DATA, log);
                 }
             }
         }
+    }
+
+    /** A spell (or other non-melee damage) killed the creature: Combat death bookkeeping, then the kill rewards. */
+    public void onCreatureKilledBySpell(Player p, Creature c) {
+        GameMap m = map(c.mapId, p.instanceId);
+        combat.creatureDied(c, p, nowMs(), (cr, t, spell) -> sendEventAiCast(m, cr, t, spell));
+        onCreatureKilled(p, c);
     }
 
     /** Unit::Kill → tapper->RewardSinglePlayerAtKill → GiveXP(MaNGOS::XP::Gain); XP/level VALUES to self. */

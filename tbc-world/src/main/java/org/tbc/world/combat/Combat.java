@@ -207,17 +207,25 @@ public final class Combat {
             }
         }
         if (!c.alive()) {
-            c.inCombat = false;
-            c.lootable = true;
-            c.victim = 0;
-            c.respawnAtMs = nowMs + Math.max(1, c.respawnDelayMs);
-            clearCombatVisual(c);
-            stopAttack(p);
-            if (c.eventAi != null) {
-                c.eventAi.onDeath(c, p, deathCast == null ? EventAi.NOOP : deathCast);
-            }
+            creatureDied(c, p, nowMs, deathCast);
         }
         return r;
+    }
+
+    /** Unit::Kill for a creature victim (any damage type): combat stop, lootable, respawn timer, EventAI death. */
+    public void creatureDied(Creature c, Player killer, long nowMs, EventAi.SpellCast deathCast) {
+        if (c.taggedBy == 0) {
+            c.taggedBy = killer.guid;
+        }
+        c.inCombat = false;
+        c.lootable = true;
+        c.victim = 0;
+        c.respawnAtMs = nowMs + Math.max(1, c.respawnDelayMs);
+        clearCombatVisual(c);
+        stopAttack(killer);
+        if (c.eventAi != null) {
+            c.eventAi.onDeath(c, killer, deathCast == null ? EventAi.NOOP : deathCast);
+        }
     }
 
     public MeleeTable.Result swing(Creature attacker, Player victim, long nowMs) {

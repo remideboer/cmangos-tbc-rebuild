@@ -65,6 +65,19 @@ class CombatTest {
         assertEquals(Combat.LOOT_CORPSE, loot[8] & 0xFF);
     }
 
+    /** TP-SL07-011 — a spell kill on an untagged creature still tags, loots and schedules respawn (Unit::Kill). */
+    @Test
+    void creatureDiedWhenUntaggedSpellKillShouldTagLootAndScheduleRespawn() {
+        c.setHealth(0);
+        c.respawnDelayMs = 120_000;
+        combat.creatureDied(c, p, 5_000, null);
+        assertEquals(p.guid, c.taggedBy);
+        assertTrue(c.lootable);
+        assertEquals(125_000, c.respawnAtMs);
+        assertFalse(c.inCombat);
+        assertNotNull(combat.lootResponse(p, c));
+    }
+
     @Test
     void swingMissDoesNotTag() {
         Combat miss = new Combat(new MeleeTable(() -> 0.01d, (a, b) -> 1));
