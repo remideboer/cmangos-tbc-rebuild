@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tbc.common.DbPool;
 import org.tbc.world.content.ChrStatic;
+import org.tbc.world.content.LevelStats;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
@@ -255,6 +256,7 @@ public final class CharacterStore {
             }
             mgr.applyCreateSkills(p);
         }
+        initStatsForLevel(p, mgr);
         p.applyCreateFields();
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, col(rs, "health", 50)));
         return p;
@@ -328,20 +330,17 @@ public final class CharacterStore {
             mgr.giveStartItems(p, this::nextItemGuid);
             mgr.applyCreateSkills(p);
         }
-        int hp = 50;
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASE_HEALTH, hp);
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, hp);
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_HEALTH, hp);
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT0, 20);
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT1, 20);
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT2, 20);
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT3, 20);
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT4, 20);
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES, 40);
+        initStatsForLevel(p, mgr);
         p.applyCreateFields();
         persistNew(p);
         byAccount.computeIfAbsent(accountId, a -> new ArrayList<>()).add(p);
         return p;
+    }
+
+    /** CMaNGOS Player::Create / LoadFromDB → InitStatsForLevel; a null ObjectMgr uses the level-1 seed rows. */
+    private static void initStatsForLevel(Player p, ObjectMgr mgr) {
+        LevelStats ls = mgr != null ? mgr.levelStats : LevelStats.defaults();
+        p.initStatsForLevel(ls.classLevel(p.clazz, p.level), ls.stats(p.race, p.clazz, p.level));
     }
 
     private void fillRace(Player p) {

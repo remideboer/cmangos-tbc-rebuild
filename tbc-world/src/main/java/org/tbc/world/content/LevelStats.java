@@ -1,0 +1,139 @@
+package org.tbc.world.content;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * CMaNGOS ObjectMgr::GetPlayerClassLevelInfo / GetPlayerLevelInfo — tbc-db `player_classlevelstats`
+ * (class, level → basehp, basemana) and `player_levelstats` (race, class, level → str/agi/sta/inte/spi).
+ * create-self.md "Stats (level 1)". In-memory worlds carry the level-1 rows for the starter races.
+ */
+public final class LevelStats {
+    private static final Logger log = LoggerFactory.getLogger(LevelStats.class);
+
+    public record ClassLevel(int baseHealth, int baseMana) {}
+
+    public record Stats(int str, int agi, int sta, int inte, int spi) {
+        public int stat(int index) {
+            return switch (index) {
+                case 0 -> str;
+                case 1 -> agi;
+                case 2 -> sta;
+                case 3 -> inte;
+                default -> spi;
+            };
+        }
+    }
+
+    private final Map<Integer, ClassLevel> classLevels = new HashMap<>();
+    private final Map<Integer, Stats> raceClassLevels = new HashMap<>();
+
+    private static LevelStats defaults;
+
+    /** Shared seeded instance for callers without an ObjectMgr (null-mgr create/load paths). */
+    public static synchronized LevelStats defaults() {
+        if (defaults == null) {
+            LevelStats ls = new LevelStats();
+            ls.seedDefaults();
+            defaults = ls;
+        }
+        return defaults;
+    }
+
+    /** Level-1 rows from tbc-db mangos.sql so an in-memory world creates real characters. */
+    public void seedDefaults() {
+        putClassLevel(1, 1, 20, 0);
+        putClassLevel(2, 1, 28, 60);
+        putClassLevel(3, 1, 46, 65);
+        putClassLevel(4, 1, 25, 0);
+        putClassLevel(5, 1, 52, 73);
+        putClassLevel(7, 1, 37, 85);
+        putClassLevel(8, 1, 32, 100);
+        putClassLevel(9, 1, 23, 90);
+        putClassLevel(11, 1, 44, 60);
+        putStats(1, 1, 1, 23, 20, 22, 20, 20);
+        putStats(1, 2, 1, 22, 20, 22, 20, 21);
+        putStats(1, 4, 1, 21, 23, 21, 20, 20);
+        putStats(1, 5, 1, 20, 20, 20, 22, 23);
+        putStats(1, 8, 1, 20, 20, 20, 23, 22);
+        putStats(1, 9, 1, 20, 20, 21, 22, 22);
+        putStats(2, 1, 1, 26, 17, 24, 17, 23);
+        putStats(2, 3, 1, 23, 20, 23, 17, 24);
+        putStats(2, 4, 1, 24, 20, 23, 17, 23);
+        putStats(2, 7, 1, 24, 17, 23, 18, 25);
+        putStats(2, 9, 1, 23, 17, 23, 19, 25);
+        putStats(3, 1, 1, 25, 16, 25, 19, 19);
+        putStats(3, 2, 1, 24, 16, 25, 19, 20);
+        putStats(3, 3, 1, 22, 19, 24, 19, 20);
+        putStats(3, 4, 1, 23, 19, 24, 19, 19);
+        putStats(3, 5, 1, 22, 16, 23, 21, 22);
+        putStats(7, 1, 1, 18, 23, 21, 24, 20);
+        putStats(7, 4, 1, 16, 26, 20, 24, 20);
+        putStats(7, 8, 1, 15, 23, 19, 27, 22);
+        putStats(7, 9, 1, 15, 23, 20, 26, 22);
+    }
+
+    public void load(Connection c) {
+        try {
+            PreparedStatement ps = c.prepareStatement("SELECT class, level, basehp, basemana FROM player_classlevelstats");
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                putClassLevel(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4));
+            }
+            PreparedStatement ls = c.prepareStatement(
+                    "SELECT race, class, level, str, agi, sta, inte, spi FROM player_levelstats");
+            ResultSet lr = ls.executeQuery();
+            while (lr.next()) {
+                putStats(lr.getInt(1), lr.getInt(2), lr.getInt(3), lr.getInt(4), lr.getInt(5), lr.getInt(6),
+                        lr.getInt(7), lr.getInt(8));
+            }
+            log.info("loaded {} player_classlevelstats, {} player_levelstats", classLevels.size(),
+                    raceClassLevels.size());
+        } catch (Exception e) {
+            log.warn("player level stats load failed, using defaults: {}", e.getMessage());
+        }
+        if (classLevels.isEmpty()) {
+            seedDefaults();
+        }
+    }
+
+    /** basehp/basemana for the class at that level; missing rows fall back to the level-1 warrior row. */
+    public ClassLevel classLevel(int clazz, int level) {
+        ClassLevel cl = classLevels.get(classKey(clazz, level));
+        if (cl == null) {
+            cl = classLevels.get(classKey(clazz, 1));
+        }
+        return cl != null ? cl : new ClassLevel(20, 0);
+    }
+
+    /** str/agi/sta/inte/spi for race+class at that level; missing rows fall back to the level-1 row or 20s. */
+    public Stats stats(int race, int clazz, int level) {
+        Stats s = raceClassLevels.get(raceKey(race, clazz, level));
+        if (s == null) {
+            s = raceClassLevels.get(raceKey(race, clazz, 1));
+        }
+        return s != null ? s : new Stats(20, 20, 20, 20, 20);
+    }
+
+    private void putClassLevel(int clazz, int level, int hp, int mana) {
+        classLevels.put(classKey(clazz, level), new ClassLevel(hp, mana));
+    }
+
+    private void putStats(int race, int clazz, int level, int str, int agi, int sta, int inte, int spi) {
+        raceClassLevels.put(raceKey(race, clazz, level), new Stats(str, agi, sta, inte, spi));
+    }
+
+    private static int classKey(int clazz, int level) {
+        return (clazz << 8) | (level & 0xFF);
+    }
+
+    private static int raceKey(int race, int clazz, int level) {
+        return (race << 16) | (clazz << 8) | (level & 0xFF);
+    }
+}

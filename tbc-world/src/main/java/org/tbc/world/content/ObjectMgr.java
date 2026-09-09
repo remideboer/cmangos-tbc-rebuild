@@ -271,6 +271,8 @@ public final class ObjectMgr {
     public final EventAiStore eventAiStore = new EventAiStore();
     public final DbScriptStore dbScriptStore = new DbScriptStore();
     public final Map<Integer, List<Integer>> createSpells = new HashMap<>();
+    /** player_classlevelstats / player_levelstats (create-self.md "Stats (level 1)"). */
+    public final LevelStats levelStats = new LevelStats();
     public final Map<Integer, int[]> createActions = new HashMap<>();
     public final Map<Integer, List<CreateItem>> createItems = new HashMap<>();
     public final List<CreateSkill> createSkills = new ArrayList<>();
@@ -376,6 +378,7 @@ public final class ObjectMgr {
             } catch (Exception e) {
                 log.warn("playercreateinfo load failed: {}", e.getMessage());
             }
+            levelStats.load(c);
             loadCreatures(c);
             loadModelInfo(c);
             loadCreatureLoot(c);
@@ -859,6 +862,7 @@ public final class ObjectMgr {
     }
 
     private void seedDefaults() {
+        levelStats.seedDefaults();
         createInfo.put(key(1, 1), new CreateInfo(1, 1, 0, 12, -8949.95f, -132.493f, 83.5312f, 0f));
         createInfo.put(key(2, 1), new CreateInfo(2, 1, 1, 14, -618.518f, -4251.67f, 38.718f, 0f));
         createSpells.put((int) key(1, 1), new ArrayList<>(List.of(6603, 78, 81, 107, 196, 203, 204, 522, 668, 2382, 2479, 3050, 3365, 6233, 6246, 6247, 6477, 6478, 7266, 7267, 7355, 8386, 9078, 9125, 20597, 20598, 20599, 20864, 21651, 21652, 22027, 22810)));

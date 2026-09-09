@@ -378,6 +378,53 @@ public final class Player extends Unit {
     /** Last CMSG_MOVE_SPLINE_DONE movementCounter (movement.md). */
     public int lastSplineDoneCounter;
 
+    /** CMaNGOS m_createStats / GetCreateHealth — player_levelstats + player_classlevelstats for the level. */
+    private final int[] createStats = new int[5];
+    private int createHealth;
+    private int createMana;
+
+    /**
+     * CMaNGOS Player::InitStatsForLevel (the level-stats subset): remember the create values, then
+     * write BASE_HEALTH/BASE_MANA/STAT0-4, armor = agi * 2, and max health from stamina; health full.
+     */
+    public void initStatsForLevel(org.tbc.world.content.LevelStats.ClassLevel cl,
+                                  org.tbc.world.content.LevelStats.Stats st) {
+        createHealth = cl.baseHealth();
+        createMana = cl.baseMana();
+        for (int i = 0; i < 5; i++) {
+            createStats[i] = st.stat(i);
+        }
+        applyLevelStats();
+        setInt(UpdateFields.UNIT_FIELD_HEALTH, maxHealth());
+    }
+
+    /** Re-writes the level-stat fields from the remembered create values (also after a persist copy). */
+    private void applyLevelStats() {
+        if (createHealth == 0) {
+            return;
+        }
+        setInt(UpdateFields.UNIT_FIELD_BASE_HEALTH, createHealth);
+        setInt(UpdateFields.UNIT_FIELD_BASE_MANA, createMana);
+        for (int i = 0; i < 5; i++) {
+            setInt(UpdateFields.UNIT_FIELD_STAT0 + i, createStats[i]);
+        }
+        setInt(UpdateFields.UNIT_FIELD_RESISTANCES, createStats[1] * 2);
+        setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, createHealth + healthBonusFromStamina(createStats[2]));
+    }
+
+    /** CMaNGOS Unit::GetHealthBonusFromStamina: first 20 stamina 1 hp each, then 10 hp per point. */
+    static int healthBonusFromStamina(int stamina) {
+        int base = Math.min(stamina, 20);
+        return base + (stamina - base) * 10;
+    }
+
+    /** Persist copy (CharacterStore snapshot) — the create values are not update fields the DB stores. */
+    public void copyCreateStatsFrom(Player src) {
+        createHealth = src.createHealth;
+        createMana = src.createMana;
+        System.arraycopy(src.createStats, 0, createStats, 0, 5);
+    }
+
     public Player() {
         super(UpdateFields.PLAYER_END, TYPEID_PLAYER);
         setInt(UpdateFields.OBJECT_FIELD_TYPE, TYPEMASK_PLAYER);
@@ -414,6 +461,7 @@ public final class Player extends Unit {
         if (powerType == POWER_RAGE) {
             setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, POWER_RAGE_MAX);
         }
+        applyLevelStats();
         applyLanguageSkills();
         movement.x = x;
         movement.y = y;

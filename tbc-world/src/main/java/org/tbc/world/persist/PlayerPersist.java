@@ -48,6 +48,7 @@ public final class PlayerPersist {
         d.watchedFaction = src.watchedFaction;
         System.arraycopy(src.actionButtons, 0, d.actionButtons, 0, 132);
         System.arraycopy(src.tut, 0, d.tut, 0, 8);
+        d.copyCreateStatsFrom(src);
         d.spells.addAll(src.spells);
         if (!src.items.isEmpty()) {
             for (Item it : src.items.values()) {

@@ -1,0 +1,51 @@
+package org.tbc;
+
+import org.junit.jupiter.api.Test;
+import org.tbc.bdd.WowClientDouble;
+import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.world.World;
+
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+/**
+ * Gap inventory TP-SL04-011..013 — create-self.md "Stats (level 1)".
+ * Oracle: the self CREATE_OBJECT2 VALUES the 8606 client renders as its bars and character sheet.
+ * Numbers are tbc-db rows: player_classlevelstats (1,1,20,0), player_levelstats (1,1,1,23,20,22,20,20),
+ * CMaNGOS Unit::GetHealthBonusFromStamina (first 20 stamina 1 hp each, then 10 per point).
+ */
+class Slice04StatsTest {
+    private static final World.Account ACC =
+            new World.Account(1, "PLAYER", new byte[40], 0, 1, "Win", "x86");
+
+    private static final int RACE_HUMAN = 1;
+    private static final int CLASS_WARRIOR = 1;
+
+    @Test
+    void tpSl04CreateSelfStatsFromLevelStats() {
+        World world = World.inMemory();
+        Map<Integer, Integer> self = enterAndDecodeSelf(world, RACE_HUMAN, CLASS_WARRIOR, "Statwar");
+
+        assertEquals(20, self.get(UpdateFields.UNIT_FIELD_BASE_HEALTH), "basehp from player_classlevelstats");
+        assertEquals(23, self.get(UpdateFields.UNIT_FIELD_STAT0), "str");
+        assertEquals(20, self.get(UpdateFields.UNIT_FIELD_STAT1), "agi");
+        assertEquals(22, self.get(UpdateFields.UNIT_FIELD_STAT2), "sta");
+        assertEquals(20, self.get(UpdateFields.UNIT_FIELD_STAT3), "int");
+        assertEquals(20, self.get(UpdateFields.UNIT_FIELD_STAT4), "spi");
+        // UpdateMaxHealth: create health + stamina bonus (20 + 2 * 10) = 60; full at create.
+        assertEquals(60, self.get(UpdateFields.UNIT_FIELD_MAXHEALTH));
+        assertEquals(60, self.get(UpdateFields.UNIT_FIELD_HEALTH));
+        // SetArmor(createStats[agi] * 2)
+        assertEquals(40, self.get(UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
+    private static Map<Integer, Integer> enterAndDecodeSelf(World world, int race, int clazz, String name) {
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), name, race, clazz, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        return client.selfCreateValues();
+    }
+}

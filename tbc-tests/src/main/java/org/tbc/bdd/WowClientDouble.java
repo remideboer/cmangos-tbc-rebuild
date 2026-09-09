@@ -1,13 +1,20 @@
 package org.tbc.bdd;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Unit;
+import org.tbc.world.net.wow8606.MovementInfo;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.session.PacketSink;
 import org.tbc.world.session.WorldSession;
 import org.tbc.world.world.World;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
 
 /** In-process 8606 client double. No TCP, no AuthCrypt. */
 public final class WowClientDouble implements PacketSink {
@@ -168,6 +175,75 @@ public final class WowClientDouble implements PacketSink {
 
     public static float floatle(byte[] p, int off) {
         return Float.intBitsToFloat(u32le(p, off));
+    }
+
+    /**
+     * Decode the create-self block (create-self.md): the CREATE_OBJECT2 with UPDATEFLAG_SELF in the
+     * login burst. Returns field index → value for every field the mask carries. Empty when absent.
+     */
+    public Map<Integer, Integer> selfCreateValues() {
+        for (int i = 0; i < opcodes.size(); i++) {
+            Map<Integer, Integer> v = decodeSelfCreate(inflateUpdate(opcodes.get(i), payloads.get(i)));
+            if (v != null) {
+                return v;
+            }
+        }
+        return Map.of();
+    }
+
+    /** First block only; self create is always its own packet with PLAYER_CREATE_FLAGS (LIVING + HIGHGUID). */
+    static Map<Integer, Integer> decodeSelfCreate(byte[] raw) {
+        if (raw == null) {
+            return null;
+        }
+        WowBuffer b = new WowBuffer(raw);
+        b.getU32();
+        b.getU8();
+        if (b.getU8() != UpdateBuilder.UPDATETYPE_CREATE_OBJECT2) {
+            return null;
+        }
+        b.getPackedGuid();
+        b.getU8();
+        if ((b.getU8() & Unit.UPDATEFLAG_SELF) == 0) {
+            return null;
+        }
+        MovementInfo.readC2s(b);
+        for (int k = 0; k < 8; k++) {
+            b.getFloat();
+        }
+        b.getU32();
+        int nblocks = b.getU8();
+        int[] mask = new int[nblocks];
+        for (int k = 0; k < nblocks; k++) {
+            mask[k] = b.getU32();
+        }
+        Map<Integer, Integer> values = new HashMap<>();
+        for (int f = 0; f < nblocks * 32; f++) {
+            if ((mask[f / 32] & (1 << (f % 32))) != 0) {
+                values.put(f, b.getU32());
+            }
+        }
+        return values;
+    }
+
+    static byte[] inflateUpdate(int opcode, byte[] payload) {
+        if (opcode == Opcodes.SMSG_UPDATE_OBJECT) {
+            return payload;
+        }
+        if (opcode != Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT) {
+            return null;
+        }
+        Inflater inf = new Inflater();
+        inf.setInput(payload, 4, payload.length - 4);
+        byte[] out = new byte[u32le(payload, 0)];
+        try {
+            inf.inflate(out);
+        } catch (DataFormatException e) {
+            throw new IllegalStateException(e);
+        } finally {
+            inf.end();
+        }
+        return out;
     }
 
     public void attackSwing(World world, long guid) {
