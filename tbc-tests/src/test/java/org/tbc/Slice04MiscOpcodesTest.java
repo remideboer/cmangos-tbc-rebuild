@@ -54,6 +54,24 @@ class Slice04MiscOpcodesTest {
     }
 
     /**
+     * CMSG_SHOWING_CLOAK — ToggleFlag PLAYER_FLAGS_HIDE_CLOAK (0x800) on PLAYER_FLAGS VALUES.
+     */
+    @Test
+    void tpSl04ShowingCloakTogglesHideCloak() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "Cloaker");
+        Player p = client.session().player();
+        client.clear();
+        client.handle(world, Opcodes.CMSG_SHOWING_CLOAK, new byte[0]);
+        int hidden = client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS);
+        assertEquals(Player.PLAYER_FLAGS_HIDE_CLOAK, hidden & Player.PLAYER_FLAGS_HIDE_CLOAK);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_SHOWING_CLOAK, new byte[0]);
+        int shown = client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS);
+        assertEquals(0, shown & Player.PLAYER_FLAGS_HIDE_CLOAK);
+    }
+
+    /**
      * CMSG_REALM_SPLIT → SMSG_REALM_SPLIT unk echo, state 0 (normal), date "01/01/01".
      */
     @Test
