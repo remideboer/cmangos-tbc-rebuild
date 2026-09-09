@@ -22,4 +22,7 @@ public final class Mail {
     public static final int MAIL_STATE_DELETED = 3;
     public static final int MAIL_CHECK_MASK_READ = 0x01;
     public static final int MAIL_CHECK_MASK_RETURNED = 0x02;
+    public static final int MAIL_CHECK_MASK_COPIED = 0x04;
+    /** Mail.h MAIL_BODY_ITEM_TEMPLATE — Plain Letter (not Dusty Unsent Letter 889). */
+    public static final int MAIL_BODY_ITEM_TEMPLATE = 8383;
 }

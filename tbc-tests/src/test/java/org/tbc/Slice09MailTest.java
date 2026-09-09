@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * TP-SL09-009 — mail take-money, delete, mark-as-read, and return-to-sender.
+ * TP-SL09-009 — mail take-money, delete, mark-as-read, return-to-sender, and copy-body letter.
  */
 class Slice09MailTest {
     private static final World.Account ACC =
@@ -229,6 +229,70 @@ class Slice09MailTest {
         byte[] r = client.payload(Opcodes.SMSG_SEND_MAIL_RESULT);
         assertEquals(99, WowClientDouble.u32le(r, 0));
         assertEquals(SocialHandler.MAIL_RETURNED_TO_SENDER, WowClientDouble.u32le(r, 4));
+        assertEquals(SocialHandler.MAIL_ERR_INTERNAL, WowClientDouble.u32le(r, 8));
+    }
+
+    @Test
+    void tpSl09MailCreateTextItem() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Copymail", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Mail m = new Mail();
+        m.id = world.characters.nextMailId();
+        m.receiver = Guid.low(p.guid);
+        m.body = "keep this";
+        m.deliverTime = world.nowMs() / 1000;
+        world.characters.storeMail(m);
+
+        client.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putU64(1);
+        in.putU32(m.id);
+        in.putU32(0);
+        client.handle(world, Opcodes.CMSG_MAIL_CREATE_TEXT_ITEM, in.array());
+        byte[] r = client.payload(Opcodes.SMSG_SEND_MAIL_RESULT);
+        assertEquals(m.id, WowClientDouble.u32le(r, 0));
+        assertEquals(5, WowClientDouble.u32le(r, 4));
+        assertEquals(SocialHandler.MAIL_OK, WowClientDouble.u32le(r, 8));
+        assertTrue(client.saw(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        WowBuffer push = new WowBuffer(client.payload(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        assertEquals(p.guid, push.getU64());
+        push.getU32();
+        push.getU32();
+        push.getU32();
+        push.getU8();
+        push.getU32();
+        assertEquals(8383, push.getU32());
+
+        client.clear();
+        client.getMailList(world, 1);
+        assertEquals(0x04, firstMailChecked(client.payload(Opcodes.SMSG_MAIL_LIST_RESULT)) & 0x04);
+    }
+
+    @Test
+    void tpSl09MailCreateTextItemWhenEmptyBodyShouldInternalError() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Nobodytxt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Mail m = new Mail();
+        m.id = world.characters.nextMailId();
+        m.receiver = Guid.low(p.guid);
+        m.deliverTime = world.nowMs() / 1000;
+        world.characters.storeMail(m);
+        client.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putU64(1);
+        in.putU32(m.id);
+        in.putU32(0);
+        client.handle(world, Opcodes.CMSG_MAIL_CREATE_TEXT_ITEM, in.array());
+        byte[] r = client.payload(Opcodes.SMSG_SEND_MAIL_RESULT);
+        assertEquals(5, WowClientDouble.u32le(r, 4));
         assertEquals(SocialHandler.MAIL_ERR_INTERNAL, WowClientDouble.u32le(r, 8));
     }
 

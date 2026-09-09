@@ -28,6 +28,7 @@ public final class SocialHandler {
     public static final int MAIL_ITEM_TAKEN = 2;
     public static final int MAIL_RETURNED_TO_SENDER = 3;
     public static final int MAIL_DELETED = 4;
+    public static final int MAIL_MADE_PERMANENT = 5;
     public static final int MAIL_OK = 0;
     public static final int MAIL_ERR_EQUIP = 1;
     public static final int MAIL_ERR_SELF = 2;
@@ -606,6 +607,43 @@ public final class SocialHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
+    /** MailHandler.cpp HandleMailCreateTextItem — Plain Letter 8383 + MAIL_CHECK_MASK_COPIED. */
+    public static void createMailTextItem(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            mailResult(s, 0, MAIL_MADE_PERMANENT, MAIL_ERR_INTERNAL, 0, 0);
+            return;
+        }
+        in.getU64();
+        int mailId = in.getU32();
+        if (in.remaining() >= 4) {
+            in.getU32();
+        }
+        Mail m = world.characters.mail(mailId);
+        long now = world.nowMs() / 1000;
+        if (m == null || m.receiver != Guid.low(s.player().guid)
+                || m.state == Mail.MAIL_STATE_DELETED || m.deliverTime > now
+                || m.body == null || m.body.isEmpty()) {
+            mailResult(s, mailId, MAIL_MADE_PERMANENT, MAIL_ERR_INTERNAL, 0, 0);
+            return;
+        }
+        Player p = s.player();
+        int bagSlot = p.firstFreeBagSlot();
+        if (bagSlot < 0) {
+            mailResult(s, mailId, MAIL_MADE_PERMANENT, MAIL_ERR_EQUIP, 0, 0);
+            return;
+        }
+        Item it = new Item(world.characters.nextItemGuid(), Mail.MAIL_BODY_ITEM_TEMPLATE);
+        it.ownerGuid = Guid.low(p.guid);
+        it.bag = 0;
+        it.slot = bagSlot;
+        p.items.put(Guid.low(it.guid), it);
+        m.checked = m.checked | Mail.MAIL_CHECK_MASK_COPIED;
+        m.state = Mail.MAIL_STATE_CHANGED;
+        world.characters.storeMail(m);
+        s.send(Opcodes.SMSG_ITEM_PUSH_RESULT, encodeItemPush(p, it));
+        mailResult(s, mailId, MAIL_MADE_PERMANENT, MAIL_OK, 0, 0);
+    }
+
     /** MailHandler.cpp HandleMailReturnToSender — delete inbox row, mail the original sender. */
     public static void returnMailToSender(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() < 12) {
@@ -793,6 +831,22 @@ public final class SocialHandler {
             b.putU32(clazz);
         }
         s.send(Opcodes.SMSG_FRIEND_STATUS, b.array());
+    }
+
+    private static byte[] encodeItemPush(Player p, Item it) {
+        WowBuffer b = new WowBuffer(48);
+        b.putU64(p.guid);
+        b.putU32(1);
+        b.putU32(0);
+        b.putU32(1);
+        b.putU8(it.bag);
+        b.putU32(it.slot);
+        b.putU32(it.entry);
+        b.putU32(0);
+        b.putU32(0);
+        b.putU32(it.count);
+        b.putU32(it.count);
+        return b.array();
     }
 
     private static void mailResult(WorldSession s, int mailId, int action, int error, int itemLow, int count) {
