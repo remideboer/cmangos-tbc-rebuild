@@ -468,6 +468,7 @@ public final class World implements Runnable {
 
     public void creatureMeleeHit(Creature c, Player p) {
         GameMap hitMap = map(p.mapId, p.instanceId);
+        boolean wasAlive = p.alive();
         MeleeTable.Result r = combat.swing(c, p, nowMs(), (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
         if (p.session != null) {
             p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(c, p, r));
@@ -475,6 +476,10 @@ public final class World implements Runnable {
             p.session.send(hp.opcode(), hp.payload());
             if (!p.alive()) {
                 p.session.send(Opcodes.SMSG_ATTACKSTOP, combat.encodeAttackStop(c.guid, p.guid, false));
+            }
+            // Unit::Kill → SetDeathState(JUST_DIED) → Player::Update KillPlayer.
+            if (wasAlive && !p.alive()) {
+                DeathHandler.killPlayer(p.session, this);
             }
         }
     }

@@ -30,16 +30,28 @@ public final class DeathHandler {
 
     private DeathHandler() {}
 
-    /** Player::KillPlayer — start continent death timer; no corpse yet. */
+    /** PLAYER_FIELD_BYTES byte 0 (OFFSET_FLAGS): display time till auto release spirit. */
+    public static final int PLAYER_FIELD_BYTE_RELEASE_TIMER = 0x08;
+
+    /**
+     * Player::KillPlayer — SendMoveRoot(true), release-timer byte on non-instance maps,
+     * 6-minute death timer; no corpse yet. Callable on a unit already at 0 HP (JUST_DIED).
+     */
     public static void killPlayer(WorldSession s, World world) {
         Player p = s.player();
-        if (p.ghost || !p.alive()) {
+        if (p.ghost || p.deathTimerEndsAtMs != 0) {
             return;
         }
         p.setHealth(0);
+        p.sendMoveRoot(true);
         // Non-instance maps only (death.md); continents 0/1/530.
         if (p.mapId == 0 || p.mapId == 1 || p.mapId == 530) {
             p.deathTimerEndsAtMs = world.nowMs() + DEATH_TIMER_MS;
+            p.setInt(UpdateFields.PLAYER_FIELD_BYTES,
+                    p.getInt(UpdateFields.PLAYER_FIELD_BYTES) | PLAYER_FIELD_BYTE_RELEASE_TIMER);
+            var upd = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_HEALTH, UpdateFields.PLAYER_FIELD_BYTES));
+            s.send(upd.opcode(), upd.payload());
         } else {
             p.deathTimerEndsAtMs = 0;
         }
@@ -83,6 +95,12 @@ public final class DeathHandler {
         p.setGhost(true);
         p.ghostTimeMs = world.nowMs();
         p.setHealth(1);
+        // BuildPlayerRepop: clear the release timer byte, unroot unless still immobilized.
+        p.setInt(UpdateFields.PLAYER_FIELD_BYTES,
+                p.getInt(UpdateFields.PLAYER_FIELD_BYTES) & ~PLAYER_FIELD_BYTE_RELEASE_TIMER);
+        if (!p.rooted()) {
+            p.sendMoveRoot(false);
+        }
         Corpse corpse = new Corpse();
         corpse.ownerGuid = p.guid;
         corpse.mapId = p.mapId;

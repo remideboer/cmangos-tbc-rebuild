@@ -4,6 +4,8 @@ import org.tbc.bdd.WowClientDouble;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.session.DeathHandler;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -184,6 +186,66 @@ class Slice06P0Test {
         }
         assertTrue(sawStop);
         assertTrue(client.saw(Opcodes.SMSG_UPDATE_OBJECT) || client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
+    /**
+     * TP-SL06-010 — Unit::Kill → SetDeathState(JUST_DIED) → Player::KillPlayer: root, release-timer
+     * byte on a continent, 6-minute death timer that auto-repops (death.md "Kill (server)").
+     */
+    @Test
+    void tpSl06CreatureDamageKillsPlayer() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Victim", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.attackSwing(world, c.guid);
+        client.clear();
+        int n = 0;
+        while (p.alive() && n++ < 400) {
+            world.creatureMeleeHit(c, p);
+        }
+        assertFalse(p.alive());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        // Player::KillPlayer: SendMoveRoot(true) + PLAYER_FIELD_BYTE_RELEASE_TIMER (0x08, byte 0) on a non-instance map.
+        assertTrue(client.saw(Opcodes.SMSG_FORCE_MOVE_ROOT));
+        assertEquals(RELEASE_TIMER, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_BYTES) & RELEASE_TIMER);
+        // Killer AttackStop: nowDead is the attacker's IsDead() → 0 (Unit::SendMeleeAttackStop).
+        assertTrue(sawAttackStop(client, c.guid, p.guid, 0));
+        assertFalse(p.ghost);
+        // m_deathTimer 6 × MINUTE → BuildPlayerRepop + RepopAtGraveyard without CMSG_REPOP_REQUEST.
+        client.clear();
+        world.advanceMs(DeathHandler.DEATH_TIMER_MS);
+        assertTrue(p.ghost);
+        assertTrue(client.saw(Opcodes.SMSG_DEATH_RELEASE_LOC));
+        assertTrue(client.saw(Opcodes.SMSG_FORCE_MOVE_UNROOT));
+    }
+
+    private static final int RELEASE_TIMER = 0x08;
+
+    private static boolean sawAttackStop(WowClientDouble client, long attacker, long victim, int nowDead) {
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKSTOP) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            int off = 0;
+            long a = packedGuid(payload, off);
+            off = WowClientDouble.skipPackedGuid(payload, off);
+            long v = packedGuid(payload, off);
+            off = WowClientDouble.skipPackedGuid(payload, off);
+            if (a == attacker && v == victim && WowClientDouble.u32le(payload, off) == nowDead) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static long packedGuid(byte[] p, int off) {
