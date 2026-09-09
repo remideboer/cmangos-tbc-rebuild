@@ -63,6 +63,23 @@ class Slice04StatsTest {
         assertEquals(1000, self.get(UpdateFields.UNIT_FIELD_MAXPOWER2));
     }
 
+    @Test
+    void tpSl04XpBarFromXpForLevel() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Xpbar", RACE_HUMAN, CLASS_WARRIOR, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        created.xp = 150;
+        world.characters.save(created);
+        client.login(world, created.guid);
+        Map<Integer, Integer> self = client.selfCreateValues();
+
+        // player_xp_for_level (1,400): ObjectMgr::GetXPForLevel(1) in InitStatsForLevel.
+        assertEquals(400, self.get(UpdateFields.PLAYER_NEXT_LEVEL_XP));
+        assertEquals(150, self.get(UpdateFields.PLAYER_XP), "characters.xp shows on the bar");
+    }
+
     private static Map<Integer, Integer> enterAndDecodeSelf(World world, int race, int clazz, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

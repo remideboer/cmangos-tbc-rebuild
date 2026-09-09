@@ -236,6 +236,7 @@ public final class CharacterStore {
         p.atLogin = rs.getInt("at_login");
         p.cinematic = rs.getInt("cinematic");
         p.money = col(rs, "money", 0);
+        p.xp = col(rs, "xp", 0);
         p.resting = col(rs, "is_logout_resting", 0) != 0;
         p.restBonus = col(rs, "rest_bonus", 0f);
         fillRace(p);
@@ -342,7 +343,8 @@ public final class CharacterStore {
     /** CMaNGOS Player::Create / LoadFromDB → InitStatsForLevel; a null ObjectMgr uses the level-1 seed rows. */
     private static void initStatsForLevel(Player p, ObjectMgr mgr) {
         LevelStats ls = mgr != null ? mgr.levelStats : LevelStats.defaults();
-        p.initStatsForLevel(ls.classLevel(p.clazz, p.level), ls.stats(p.race, p.clazz, p.level));
+        p.initStatsForLevel(ls.classLevel(p.clazz, p.level), ls.stats(p.race, p.clazz, p.level),
+                ls.xpForLevel(p.level));
     }
 
     private void fillRace(Player p) {
@@ -455,8 +457,8 @@ public final class CharacterStore {
 
     private Player loadRow(Connection c, int accountId, int g, ObjectMgr mgr, boolean withRest) throws Exception {
         String sql = withRest
-                ? "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,is_logout_resting,rest_bonus FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL"
-                : "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1 FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL";
+                ? "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,is_logout_resting,rest_bonus FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL"
+                : "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1 FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL";
         PreparedStatement ps = c.prepareStatement(sql);
         ps.setInt(1, g);
         ps.setInt(2, accountId);

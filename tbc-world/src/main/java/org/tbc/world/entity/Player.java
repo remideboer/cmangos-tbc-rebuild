@@ -382,15 +382,18 @@ public final class Player extends Unit {
     private final int[] createStats = new int[5];
     private int createHealth;
     private int createMana;
+    private int nextLevelXp;
 
     /**
      * CMaNGOS Player::InitStatsForLevel (the level-stats subset): remember the create values, then
-     * write BASE_HEALTH/BASE_MANA/STAT0-4, armor = agi * 2, and max health from stamina; health full.
+     * write BASE_HEALTH/BASE_MANA/STAT0-4, armor = agi * 2, max health from stamina, max mana from
+     * intellect and PLAYER_NEXT_LEVEL_XP; health and mana full.
      */
     public void initStatsForLevel(org.tbc.world.content.LevelStats.ClassLevel cl,
-                                  org.tbc.world.content.LevelStats.Stats st) {
+                                  org.tbc.world.content.LevelStats.Stats st, int xpForLevel) {
         createHealth = cl.baseHealth();
         createMana = cl.baseMana();
+        nextLevelXp = xpForLevel;
         for (int i = 0; i < 5; i++) {
             createStats[i] = st.stat(i);
         }
@@ -414,6 +417,8 @@ public final class Player extends Unit {
         // Unit::UpdateMaxPower(POWER_MANA): create mana + intellect bonus; basemana 0 keeps the bar hidden.
         setInt(UpdateFields.UNIT_FIELD_MAXPOWER1,
                 createMana == 0 ? 0 : createMana + manaBonusFromIntellect(createStats[3]));
+        setInt(UpdateFields.PLAYER_NEXT_LEVEL_XP, nextLevelXp);
+        setInt(UpdateFields.PLAYER_XP, xp);
     }
 
     /** CMaNGOS Unit::GetHealthBonusFromStamina: first 20 stamina 1 hp each, then 10 hp per point. */
@@ -432,6 +437,7 @@ public final class Player extends Unit {
     public void copyCreateStatsFrom(Player src) {
         createHealth = src.createHealth;
         createMana = src.createMana;
+        nextLevelXp = src.nextLevelXp;
         System.arraycopy(src.createStats, 0, createStats, 0, 5);
     }
 
