@@ -154,6 +154,29 @@ class Slice04MiscOpcodesTest {
         assertEquals(0, flags.remaining());
     }
 
+    /**
+     * CMSG_TUTORIAL_RESET — SetTutorialInt all 0; next login SMSG_TUTORIAL_FLAGS.
+     * Clear first so the default zeros cannot fake a pass.
+     */
+    @Test
+    void tpSl04TutorialReset() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "ResetTut");
+        Player p = client.session().player();
+        long guid = p.guid;
+        client.handle(world, Opcodes.CMSG_TUTORIAL_CLEAR, new byte[0]);
+        client.handle(world, Opcodes.CMSG_TUTORIAL_RESET, new byte[0]);
+        client.session().logout(world, true);
+        WowClientDouble relog = new WowClientDouble();
+        relog.connect(ACC);
+        relog.login(world, guid);
+        WowBuffer flags = new WowBuffer(relog.payload(Opcodes.SMSG_TUTORIAL_FLAGS));
+        for (int i = 0; i < 8; i++) {
+            assertEquals(0, flags.getU32());
+        }
+        assertEquals(0, flags.remaining());
+    }
+
     private static byte[] deflate(byte[] raw) {
         java.util.zip.Deflater def = new java.util.zip.Deflater();
         def.setInput(raw);

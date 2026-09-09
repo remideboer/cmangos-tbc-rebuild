@@ -332,6 +332,11 @@ public final class WorldSession {
                     player.tut[i] = 0xFFFFFFFF;
                 }
             }
+            case Opcodes.CMSG_TUTORIAL_RESET -> {
+                for (int i = 0; i < 8; i++) {
+                    player.tut[i] = 0;
+                }
+            }
             case Opcodes.CMSG_PLAYED_TIME -> handlePlayedTime();
             case Opcodes.CMSG_UPDATE_ACCOUNT_DATA -> accountData.update(in);
             case Opcodes.CMSG_REQUEST_ACCOUNT_DATA -> handleRequestAccountData(in);
