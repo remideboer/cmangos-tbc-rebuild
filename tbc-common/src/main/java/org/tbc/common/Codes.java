@@ -16,13 +16,20 @@ public final class Codes {
     public static final int AUTH_UNKNOWN_ACCOUNT = 0x15;
     public static final int AUTH_BANNED = 0x1C;
 
+    public static final int RESPONSE_SUCCESS = 0x00;
     public static final int CHAR_CREATE_SUCCESS = 0x2F;
+    public static final int CHAR_CREATE_ERROR = 0x30;
     public static final int CHAR_CREATE_NAME_IN_USE = 0x32;
     public static final int CHAR_CREATE_EXPANSION = 0x39;
     public static final int CHAR_DELETE_SUCCESS = 0x3B;
     public static final int CHAR_DELETE_FAILED = 0x3C;
     public static final int CHAR_DELETE_FAILED_GUILD_LEADER = 0x3E;
     public static final int CHAR_DELETE_FAILED_ARENA_CAPTAIN = 0x3F;
+    public static final int CHAR_NAME_SUCCESS = 0x4A;
+    public static final int CHAR_NAME_NO_NAME = 0x4C;
+    public static final int CHAR_NAME_TOO_SHORT = 0x4D;
+    public static final int CHAR_NAME_TOO_LONG = 0x4E;
+    public static final int CHAR_NAME_RESERVED = 0x52;
 
     public static final int SPELL_FAILED_OUT_OF_RANGE = 0x5C;
     public static final int SMSG_CAST_RESULT = 0x130;

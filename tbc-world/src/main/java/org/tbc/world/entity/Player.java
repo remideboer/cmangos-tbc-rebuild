@@ -14,6 +14,7 @@ import java.util.Map;
 
 public final class Player extends Unit {
     public static final int TYPEMASK_PLAYER = 0x0019;
+    public static final int AT_LOGIN_RENAME = 0x01;
     public static final int AT_LOGIN_FIRST = 0x20;
     public static final int REST_STATE_NORMAL = 0x02;
     public static final int PLAYER_CONTROLLED_DEBUFF_LIMIT = 40;

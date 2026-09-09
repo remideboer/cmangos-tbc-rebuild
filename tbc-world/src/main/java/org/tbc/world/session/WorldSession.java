@@ -11,6 +11,7 @@ import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.PlayerNames;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.AddonInfo;
@@ -244,6 +245,10 @@ public final class WorldSession {
         }
         if (opcode == Opcodes.CMSG_CHAR_DELETE) {
             handleCharDelete(world, in);
+            return;
+        }
+        if (opcode == Opcodes.CMSG_CHAR_RENAME) {
+            handleCharRename(world, in);
             return;
         }
         if (opcode == Opcodes.CMSG_PLAYER_LOGIN) {
@@ -635,8 +640,8 @@ public final class WorldSession {
             if (p.ghost) {
                 flags |= 0x2000;
             }
-            if ((p.atLogin & Player.AT_LOGIN_FIRST) != 0) {
-                flags |= 0;
+            if ((p.atLogin & Player.AT_LOGIN_RENAME) != 0) {
+                flags |= 0x4000;
             }
             out.putU32(flags);
             out.putU8((p.atLogin & Player.AT_LOGIN_FIRST) != 0 ? 1 : 0);
@@ -693,6 +698,35 @@ public final class WorldSession {
         long guid = in.getU64();
         boolean ok = world.characters.delete(account.id(), guid);
         send(Opcodes.SMSG_CHAR_DELETE, new byte[]{(byte) (ok ? Codes.CHAR_DELETE_SUCCESS : Codes.CHAR_DELETE_FAILED_GUILD_LEADER)});
+    }
+
+    /** CharacterHandler.cpp HandleCharRenameOpcode — STATUS_AUTHED, fail is uint8 only. */
+    private void handleCharRename(World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            send(Opcodes.SMSG_CHAR_RENAME, new byte[]{(byte) Codes.CHAR_NAME_NO_NAME});
+            return;
+        }
+        long guid = in.getU64();
+        String newname = in.getCString();
+        String normalized = PlayerNames.normalize(newname);
+        if (normalized == null) {
+            send(Opcodes.SMSG_CHAR_RENAME, new byte[]{(byte) Codes.CHAR_NAME_NO_NAME});
+            return;
+        }
+        int res = PlayerNames.check(normalized);
+        if (res != Codes.CHAR_NAME_SUCCESS) {
+            send(Opcodes.SMSG_CHAR_RENAME, new byte[]{(byte) res});
+            return;
+        }
+        if (!world.characters.renameAtLogin(account.id(), guid, normalized)) {
+            send(Opcodes.SMSG_CHAR_RENAME, new byte[]{(byte) Codes.CHAR_CREATE_ERROR});
+            return;
+        }
+        WowBuffer out = new WowBuffer(32);
+        out.putU8(Codes.RESPONSE_SUCCESS);
+        out.putU64(guid);
+        out.putCString(normalized);
+        send(Opcodes.SMSG_CHAR_RENAME, out.array());
     }
 
     private void handleLogin(World world, WowBuffer in) {

@@ -369,6 +369,79 @@ public final class CharacterStore {
         }
     }
 
+    /**
+     * HandleCharRenameOpcode: guid belongs to this account, {@link Player#AT_LOGIN_RENAME} set, name free.
+     * C++ empty query → CHAR_CREATE_ERROR (not CHAR_CREATE_NAME_IN_USE).
+     */
+    public boolean renameAtLogin(int accountId, long guid, String newName) {
+        if (newName == null || nameExistsForRename(newName)) {
+            return false;
+        }
+        int g = Guid.low(guid);
+        Player snap = memory.get(g);
+        if (snap != null) {
+            if (snap.accountId != accountId || (snap.atLogin & Player.AT_LOGIN_RENAME) == 0) {
+                return false;
+            }
+            applyRename(snap, newName);
+            return true;
+        }
+        if (chars == null) {
+            return false;
+        }
+        try (Connection c = chars.get()) {
+            PreparedStatement ps = c.prepareStatement(
+                    "SELECT guid FROM characters WHERE guid = ? AND account = ? AND (at_login & ?) = ?");
+            ps.setInt(1, g);
+            ps.setInt(2, accountId);
+            ps.setInt(3, Player.AT_LOGIN_RENAME);
+            ps.setInt(4, Player.AT_LOGIN_RENAME);
+            if (!ps.executeQuery().next()) {
+                return false;
+            }
+            PreparedStatement up = c.prepareStatement(
+                    "UPDATE characters SET name = ?, at_login = at_login & ~ ? WHERE guid = ?");
+            up.setString(1, newName);
+            up.setInt(2, Player.AT_LOGIN_RENAME);
+            up.setInt(3, g);
+            up.executeUpdate();
+            return true;
+        } catch (Exception e) {
+            log.warn("renameAtLogin {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean nameExistsForRename(String name) {
+        if (chars == null) {
+            return memory.values().stream().anyMatch(p -> p.name.equalsIgnoreCase(name));
+        }
+        try (Connection c = chars.get()) {
+            PreparedStatement ps = c.prepareStatement("SELECT 1 FROM characters WHERE name = ?");
+            ps.setString(1, name);
+            return ps.executeQuery().next();
+        } catch (Exception e) {
+            return memory.values().stream().anyMatch(p -> p.name.equalsIgnoreCase(name));
+        }
+    }
+
+    private void applyRename(Player snap, String newName) {
+        snap.name = newName;
+        snap.atLogin &= ~Player.AT_LOGIN_RENAME;
+        save(snap);
+        List<Player> list = byAccount.get(snap.accountId);
+        if (list == null) {
+            return;
+        }
+        int g = Guid.low(snap.guid);
+        for (Player p : list) {
+            if (Guid.low(p.guid) == g) {
+                p.name = newName;
+                p.atLogin = snap.atLogin;
+            }
+        }
+    }
+
     public boolean delete(int accountId, long guid) {
         int g = Guid.low(guid);
         Player live = memory.get(g);
