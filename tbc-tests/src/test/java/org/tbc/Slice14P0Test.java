@@ -446,6 +446,41 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — RemoveItem unarmed. Autostore of Worn Shortsword 25 must restore Unit
+     * create MINDAMAGE/MAXDAMAGE 1–3 and BASEATTACKTIME 2000 (not the weapon delay 1900).
+     */
+    @Test
+    void tpSl14UnequipReversesWeaponDamage() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "FistEquipper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = src;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(sword));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int mainhand = sword.slot;
+
+        client.clear();
+        WowBuffer store = new WowBuffer(3);
+        store.putU8(0);
+        store.putU8(mainhand);
+        store.putU8(0);
+        client.handle(world, Opcodes.CMSG_AUTOSTORE_BAG_ITEM, store.array());
+        assertEquals(1f, Float.intBitsToFloat(client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MINDAMAGE)));
+        assertEquals(3f, Float.intBitsToFloat(client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXDAMAGE)));
+        assertEquals(2000, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+    }
+
+    /**
      * TP-SL14-013 — Player::_ApplyItemBonuses. Autoequip Riverpaw Leather Vest 821
      * (stat_type1 STAMINA 7 / stat_value1 2, armor 65) must add those to the self VALUES:
      * human warrior create STA 22 / armor agi×2 40 (create-self.md).

@@ -320,6 +320,8 @@ public final class InventoryHandler {
         world.objectMgr.applyEquippedMelee(p);
         var pkt = UpdateBuilder.maybeCompress(
                 UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1,
+                        UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
+                        UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT2, UpdateFields.UNIT_FIELD_RESISTANCES));
         s.send(pkt.opcode(), pkt.payload());
     }
