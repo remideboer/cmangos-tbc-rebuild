@@ -14,15 +14,22 @@ public final class Mail {
     public int checked;
     public int stationery = 41;
     public int state;
+    public int messageType;
     public long deliverTime;
     public long expireTime;
     public final List<Item> items = new ArrayList<>();
 
+    public static final int MAIL_NORMAL = 0;
+    public static final int MAIL_AUCTION = 2;
+    public static final int MAIL_ITEM = 5;
     public static final int MAIL_STATE_CHANGED = 2;
     public static final int MAIL_STATE_DELETED = 3;
     public static final int MAIL_CHECK_MASK_READ = 0x01;
     public static final int MAIL_CHECK_MASK_RETURNED = 0x02;
     public static final int MAIL_CHECK_MASK_COPIED = 0x04;
+    public static final int MAIL_STATIONERY_AUCTION = 62;
+    public static final int AUCTION_CANCELLED_TO_BIDDER = 4;
+    public static final int AUCTION_CANCELED = 5;
     /** Mail.h MAIL_BODY_ITEM_TEMPLATE — Plain Letter (not Dusty Unsent Letter 889). */
     public static final int MAIL_BODY_ITEM_TEMPLATE = 8383;
 }

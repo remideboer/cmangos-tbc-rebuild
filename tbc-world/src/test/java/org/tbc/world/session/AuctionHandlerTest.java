@@ -205,6 +205,35 @@ class AuctionHandlerTest {
         assertFalse(sink.ops.contains(Opcodes.SMSG_AUCTION_BIDDER_LIST_RESULT));
     }
 
+    @Test
+    void removeItemWhenShortOrFarShouldIgnore() {
+        World world = World.inMemory();
+        Sink sink = login(world);
+        AuctionHandler.removeItem(sink.session, world, new WowBuffer(4));
+        assertFalse(sink.ops.contains(Opcodes.SMSG_AUCTION_COMMAND_RESULT));
+        WowBuffer far = new WowBuffer(12);
+        far.putU64(1);
+        far.putU32(1);
+        AuctionHandler.removeItem(sink.session, world, far);
+        assertFalse(sink.ops.contains(Opcodes.SMSG_AUCTION_COMMAND_RESULT));
+    }
+
+    @Test
+    void removeItemWhenNotOwnerShouldSendDatabaseError() {
+        World world = World.inMemory();
+        Sink sink = login(world);
+        atChilton(world, sink.session.player());
+        world.objectMgr.auctions.add(new org.tbc.world.content.ObjectMgr.Auction(
+                99, Content.ITEM_WORN_SHORTSWORD, 99, 100, 0, 1000, "Worn Shortsword", 1, 0, 0, 0));
+        WowBuffer in = new WowBuffer(12);
+        in.putU64(chilton(world).guid);
+        in.putU32(99);
+        AuctionHandler.removeItem(sink.session, world, in);
+        assertEquals(0, u32(sink.last.get(Opcodes.SMSG_AUCTION_COMMAND_RESULT), 0));
+        assertEquals(AuctionHandler.AUCTION_REMOVED, u32(sink.last.get(Opcodes.SMSG_AUCTION_COMMAND_RESULT), 4));
+        assertEquals(AuctionHandler.AUCTION_ERR_DATABASE, errorOf(sink));
+    }
+
     private static WowBuffer bidBuf(long ah, int id, int price) {
         WowBuffer b = new WowBuffer(16);
         b.putU64(ah);

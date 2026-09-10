@@ -5,7 +5,9 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
+import org.tbc.world.entity.Mail;
 import org.tbc.world.entity.Player;
+import org.tbc.world.session.AuctionHandler;
 import org.tbc.world.loot.GroupLoot;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
@@ -404,6 +406,89 @@ class Slice15P0Test {
         out.getU32();
         assertEquals(1, out.getU32());
         assertEquals(Content.AUCTION_LIST_DELAY_MS, out.getU32());
+    }
+
+    /**
+     * TP-SL15-010 — CMSG_AUCTION_REMOVE_ITEM returns the listing by mail
+     * (auction.md AUCTION_REMOVED / AUCTION_OK; bidder refund + SMSG_AUCTION_REMOVED_NOTIFICATION).
+     */
+    @Test
+    void tpSl15AuctionRemoveItem() {
+        World world = World.inMemory();
+        WowClientDouble seller = new WowClientDouble();
+        WowClientDouble bidder = new WowClientDouble();
+        seller.connect(ACC_A);
+        bidder.connect(ACC_B);
+        Player soldBy = world.characters.create(ACC_A.id(), "AhOwner", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player bidBy = world.characters.create(ACC_B.id(), "AhBid", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        seller.login(world, soldBy.guid);
+        bidder.login(world, bidBy.guid);
+        Player sellerP = seller.session().player();
+        Player bidderP = bidder.session().player();
+        Creature ah = find(world, Content.NPC_AUCTIONEER_CHILTON);
+        sellerP.relocate(ah.x, ah.y, ah.z, ah.o);
+        bidderP.relocate(ah.x, ah.y, ah.z, ah.o);
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = sellerP.firstFreeBagSlot();
+        sellerP.items.put((int) sword.guid, sword);
+        sellerP.setMoney(10000);
+        bidderP.setMoney(10000);
+        seller.auctionSell(world, ah.guid, sword.guid, 100, 0, 720);
+        int auctionId = WowClientDouble.u32le(lastPayload(seller, Opcodes.SMSG_AUCTION_COMMAND_RESULT), 0);
+        bidder.auctionBid(world, ah.guid, auctionId, 100);
+        seller.clear();
+        bidder.clear();
+        WowBuffer cancel = new WowBuffer(12);
+        cancel.putU64(ah.guid);
+        cancel.putU32(auctionId);
+        seller.handle(world, Opcodes.CMSG_AUCTION_REMOVE_ITEM, cancel.array());
+        byte[] result = lastPayload(seller, Opcodes.SMSG_AUCTION_COMMAND_RESULT);
+        assertEquals(auctionId, WowClientDouble.u32le(result, 0));
+        assertEquals(AuctionHandler.AUCTION_REMOVED, WowClientDouble.u32le(result, 4));
+        assertEquals(AuctionHandler.AUCTION_OK, WowClientDouble.u32le(result, 8));
+        assertTrue(seller.saw(Opcodes.SMSG_RECEIVED_MAIL));
+        seller.getMailList(world, 1);
+        WowBuffer ownerMail = new WowBuffer(lastPayload(seller, Opcodes.SMSG_MAIL_LIST_RESULT));
+        assertEquals(1, ownerMail.getU8());
+        ownerMail.getU16();
+        ownerMail.getU32();
+        assertEquals(2, ownerMail.getU8());
+        assertEquals(Content.AUCTION_HOUSE_HUMAN, ownerMail.getU32());
+        ownerMail.getU32();
+        ownerMail.getU32();
+        ownerMail.getU32();
+        assertEquals(62, ownerMail.getU32());
+        assertEquals(0, ownerMail.getU32());
+        assertEquals(Mail.MAIL_CHECK_MASK_COPIED, ownerMail.getU32());
+        ownerMail.getFloat();
+        ownerMail.getU32();
+        assertEquals(Content.ITEM_WORN_SHORTSWORD + ":0:5", ownerMail.getCString());
+        assertEquals(1, ownerMail.getU8());
+        ownerMail.getU8();
+        ownerMail.getU32();
+        assertEquals(Content.ITEM_WORN_SHORTSWORD, ownerMail.getU32());
+        WowBuffer note = new WowBuffer(lastPayload(bidder, Opcodes.SMSG_AUCTION_REMOVED_NOTIFICATION));
+        assertEquals(auctionId, note.getU32());
+        assertEquals(Content.ITEM_WORN_SHORTSWORD, note.getU32());
+        assertEquals(0, note.getU32());
+        assertTrue(bidder.saw(Opcodes.SMSG_RECEIVED_MAIL));
+        bidder.getMailList(world, 1);
+        WowBuffer bidMail = new WowBuffer(lastPayload(bidder, Opcodes.SMSG_MAIL_LIST_RESULT));
+        assertEquals(1, bidMail.getU8());
+        bidMail.getU16();
+        bidMail.getU32();
+        assertEquals(2, bidMail.getU8());
+        assertEquals(Content.AUCTION_HOUSE_HUMAN, bidMail.getU32());
+        bidMail.getU32();
+        bidMail.getU32();
+        bidMail.getU32();
+        assertEquals(62, bidMail.getU32());
+        assertEquals(100, bidMail.getU32());
+        bidMail.getU32();
+        bidMail.getFloat();
+        bidMail.getU32();
+        assertEquals(Content.ITEM_WORN_SHORTSWORD + ":0:4", bidMail.getCString());
+        assertEquals(0, bidMail.getU8());
     }
 
     private static Pair loginTwo(String aName, String bName) {

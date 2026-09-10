@@ -848,8 +848,12 @@ public final class SocialHandler {
             Mail m = inbox.get(i);
             WowBuffer row = new WowBuffer(128);
             row.putU32(m.id);
-            row.putU8(0);
-            row.putU64(m.sender);
+            row.putU8(m.messageType);
+            if (m.messageType == Mail.MAIL_NORMAL) {
+                row.putU64(m.sender);
+            } else {
+                row.putU32(m.messageType == Mail.MAIL_ITEM ? 0 : m.sender);
+            }
             row.putU32(m.cod);
             row.putU32(0);
             row.putU32(0);

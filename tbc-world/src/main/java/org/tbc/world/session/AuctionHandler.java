@@ -6,6 +6,7 @@ import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
+import org.tbc.world.entity.Mail;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
@@ -31,8 +32,9 @@ public final class AuctionHandler {
     public static final int MAX_MONEY_AMOUNT = 0x7FFFFFFF - 1;
     /** AuctionHouseMgr.h MIN_AUCTION_TIME = 12 hours, in seconds. */
     public static final int MIN_AUCTION_TIME_SEC = 12 * 3600;
-    /** AuctionHouse.dbc house 1 (Stormwind) depositPercent. */
+    /** AuctionHouse.dbc house 1 (Stormwind) depositPercent / consignmentRate. */
     public static final int DEPOSIT_PERCENT = 5;
+    public static final int CUT_PERCENT = 5;
     public static final int ITEM_FLAG_CONJURED = 0x00000002;
     public static final int EQUIP_ERR_ITEM_NOT_FOUND = 23;
     public static final int EQUIP_ERR_CANNOT_TRADE_THAT = 79;
@@ -247,6 +249,94 @@ public final class AuctionHandler {
             }
         }
         sendList(s, Opcodes.SMSG_AUCTION_BIDDER_LIST_RESULT, hits);
+    }
+
+    /** CMSG_AUCTION_REMOVE_ITEM — owner cancel. auction.md AUCTION_REMOVED; item + bidder refund by mail. */
+    public static void removeItem(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            return;
+        }
+        long guid = in.getU64();
+        int auctionId = in.getU32();
+        Player p = s.player();
+        if (auctioneerOf(world, p, guid) == null) {
+            return;
+        }
+        List<ObjectMgr.Auction> list = world.objectMgr.auctions;
+        int idx = -1;
+        ObjectMgr.Auction auction = null;
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).id() == auctionId) {
+                idx = i;
+                auction = list.get(i);
+                break;
+            }
+        }
+        if (auction == null || auction.owner() != p.guid) {
+            commandResult(s, 0, AUCTION_REMOVED, AUCTION_ERR_DATABASE, 0);
+            return;
+        }
+        if (auction.itemGuid() == 0 || auction.itemEntry() == 0) {
+            commandResult(s, 0, AUCTION_REMOVED, AUCTION_ERR_INVENTORY, EQUIP_ERR_ITEM_NOT_FOUND);
+            return;
+        }
+        if (auction.currentBid() != 0) {
+            int cut = auctionCut(auction.currentBid());
+            if (p.money < cut) {
+                return;
+            }
+            if (auction.bidder() != 0) {
+                sendCancelledToBidder(world, auction);
+            }
+            p.setMoney(p.money - cut);
+        }
+        Item returned = new Item(auction.itemGuid(), auction.itemEntry());
+        sendAuctionMail(world, Guid.low(p.guid),
+                auction.itemEntry() + ":0:" + Mail.AUCTION_CANCELED, 0, returned);
+        commandResult(s, auction.id(), AUCTION_REMOVED, AUCTION_OK, 0);
+        list.remove(idx);
+    }
+
+    static int auctionCut(int bid) {
+        return CUT_PERCENT * bid / 100;
+    }
+
+    static void sendCancelledToBidder(World world, ObjectMgr.Auction auction) {
+        Player bidder = world.playerByGuid(auction.bidder());
+        if (bidder != null && bidder.session != null) {
+            WowBuffer data = new WowBuffer(12);
+            data.putU32(auction.id());
+            data.putU32(auction.itemEntry());
+            data.putU32(0);
+            bidder.session.send(Opcodes.SMSG_AUCTION_REMOVED_NOTIFICATION, data.array());
+        }
+        sendAuctionMail(world, Guid.low(auction.bidder()),
+                auction.itemEntry() + ":0:" + Mail.AUCTION_CANCELLED_TO_BIDDER, auction.currentBid(), null);
+    }
+
+    static void sendAuctionMail(World world, int receiverLow, String subject, int money, Item item) {
+        Mail m = new Mail();
+        m.id = world.characters.nextMailId();
+        m.messageType = Mail.MAIL_AUCTION;
+        m.sender = Content.AUCTION_HOUSE_HUMAN;
+        m.receiver = receiverLow;
+        m.subject = subject;
+        m.money = money;
+        m.checked = Mail.MAIL_CHECK_MASK_COPIED;
+        m.stationery = Mail.MAIL_STATIONERY_AUCTION;
+        long now = world.nowMs() / 1000;
+        m.deliverTime = now;
+        m.expireTime = now + 30L * 24 * 3600;
+        if (item != null) {
+            m.items.add(item);
+        }
+        world.characters.storeMail(m);
+        Player live = world.playerByGuid(Guid.player(receiverLow));
+        if (live != null && live.session != null) {
+            WowBuffer z = new WowBuffer(4);
+            z.putU32(0);
+            live.session.send(Opcodes.SMSG_RECEIVED_MAIL, z.array());
+        }
     }
 
     static void sendList(WorldSession s, int opcode, List<ObjectMgr.Auction> hits) {

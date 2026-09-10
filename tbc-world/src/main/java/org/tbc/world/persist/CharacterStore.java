@@ -1049,7 +1049,7 @@ public final class CharacterStore {
             PreparedStatement ins = c.prepareStatement(
                     "INSERT INTO mail (id,messageType,stationery,mailTemplateId,sender,receiver,subject,itemTextId,has_items,expire_time,deliver_time,money,cod,checked) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             ins.setInt(1, m.id);
-            ins.setInt(2, 0);
+            ins.setInt(2, m.messageType);
             ins.setInt(3, m.stationery);
             ins.setInt(4, 0);
             ins.setInt(5, m.sender);
