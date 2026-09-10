@@ -471,6 +471,7 @@ public final class WorldSession {
             case Opcodes.CMSG_CHANNEL_MODERATOR -> ChannelHandler.moderator(this, world, in);
             case Opcodes.CMSG_CHANNEL_UNMODERATOR -> ChannelHandler.unmoderator(this, world, in);
             case Opcodes.CMSG_CHANNEL_MUTE -> ChannelHandler.mute(this, world, in);
+            case Opcodes.CMSG_CHANNEL_UNMUTE -> ChannelHandler.unmute(this, world, in);
             case Opcodes.CMSG_BUY_ITEM -> handleBuy(world, in);
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
             case Opcodes.CMSG_LEARN_TALENT -> TalentHandler.learn(this, world, in);

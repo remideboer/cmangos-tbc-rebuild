@@ -194,6 +194,11 @@ public final class ChannelHandler {
         setMode(s, world, in, MEMBER_FLAG_MUTED, true);
     }
 
+    /** Channel::SetMute(..., false) via CMSG_CHANNEL_UNMUTE. */
+    public static void unmute(WorldSession s, World world, WowBuffer in) {
+        setMode(s, world, in, MEMBER_FLAG_MUTED, false);
+    }
+
     private static void setMode(WorldSession s, World world, WowBuffer in, int flag, boolean set) {
         String channel = in.remaining() > 0 ? in.getCString() : "";
         String raw = in.remaining() > 0 ? in.getCString() : "";
