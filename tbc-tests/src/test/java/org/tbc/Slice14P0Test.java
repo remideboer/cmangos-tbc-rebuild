@@ -862,6 +862,34 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses fifth ItemStat slot (stat_type5).
+     * Autoequip Blade of Hanna 2801 (+11 Spirit in slot 5) must write create SPI 20+11
+     * on self VALUES UNIT_FIELD_STAT4.
+     */
+    @Test
+    void tpSl14EquipAppliesFifthItemStat() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Hanna", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_BLADE_OF_HANNA);
+        sword.inventoryType = 17;
+        sword.slot = src;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(31, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT4));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */

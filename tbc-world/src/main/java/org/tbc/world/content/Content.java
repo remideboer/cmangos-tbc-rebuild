@@ -139,6 +139,8 @@ public final class Content {
     public static final int ITEM_SHADESTEEL_GREAVES = 32404;
     /** tbc-db item_template 21865; STA 24 / INT 20 / SPI 16, armor 170, ArcaneRes 45. */
     public static final int ITEM_SOULCLOTH_VEST = 21865;
+    /** tbc-db item_template 2801; STR/AGI/STA/INT/SPI 11, dmg 101–152, delay 2100. */
+    public static final int ITEM_BLADE_OF_HANNA = 2801;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

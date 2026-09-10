@@ -611,6 +611,41 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Blade of Hanna — tbc-db 2801 (STR/AGI/STA/INT/SPI 11, dmg 101–152, delay 2100). */
+        public static ItemTemplate bladeOfHanna() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_BLADE_OF_HANNA;
+            t.itemClass = 2;
+            t.subClass = 8;
+            t.name = "Blade of Hanna";
+            t.quality = 4;
+            t.inventoryType = 17;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 64;
+            t.requiredLevel = 59;
+            t.stackable = 1;
+            t.maxCount = 1;
+            t.statType[0] = 4;
+            t.statValue[0] = 11;
+            t.statType[1] = 3;
+            t.statValue[1] = 11;
+            t.statType[2] = 7;
+            t.statValue[2] = 11;
+            t.statType[3] = 5;
+            t.statValue[3] = 11;
+            t.statType[4] = 6;
+            t.statValue[4] = 11;
+            t.dmgMin[0] = 101;
+            t.dmgMax[0] = 152;
+            t.delay = 2100;
+            t.bonding = 2;
+            t.sellPrice = 90978;
+            t.maxDurability = 120;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1430,6 +1465,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_ICEBANE_BREASTPLATE, ItemTemplate.icebaneBreastplate());
         items.putIfAbsent(Content.ITEM_SHADESTEEL_GREAVES, ItemTemplate.shadesteelGreaves());
         items.putIfAbsent(Content.ITEM_SOULCLOTH_VEST, ItemTemplate.soulclothVest());
+        items.putIfAbsent(Content.ITEM_BLADE_OF_HANNA, ItemTemplate.bladeOfHanna());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
