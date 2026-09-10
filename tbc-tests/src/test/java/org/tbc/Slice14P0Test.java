@@ -1827,6 +1827,43 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — RemoveItem → _ApplyItemMods(false) ITEM_MOD_RESILIENCE_RATING.
+     * CMSG_AUTOSTORE_BAG_ITEM of equipped Gladiator's Plate Chestpiece 24544 must write
+     * RESILIENCE 0 on self VALUES CR_CRIT_TAKEN_MELEE / RANGED / SPELL (Unit.h 14 / 15 / 16).
+     */
+    @Test
+    void tpSl14UnequipReversesResilienceRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "UnequipRes", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_GLADIATORS_PLATE_CHESTPIECE);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int dest = chest.slot;
+
+        client.clear();
+        WowBuffer store = new WowBuffer(3);
+        store.putU8(0);
+        store.putU8(dest);
+        store.putU8(0);
+        client.handle(world, Opcodes.CMSG_AUTOSTORE_BAG_ITEM, store.array());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 14));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 15));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 16));
+    }
+
+    /**
      * TP-SL14-013 — Player::DestroyItem → _ApplyItemMods(false). CMSG_DESTROYITEM of
      * equipped Riverpaw Leather Vest 821 must put create STA 22 / armor 40 back on the
      * self VALUES (same deltas as autostore unequip).
