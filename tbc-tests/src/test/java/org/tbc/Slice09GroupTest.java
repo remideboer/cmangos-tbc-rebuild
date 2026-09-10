@@ -228,4 +228,47 @@ class Slice09GroupTest {
         list.getU8();
         assertEquals(b.guid, list.getU64());
     }
+
+    /**
+     * CMSG_REQUEST_PARTY_MEMBER_STATS — HandleRequestPartyMemberStatsOpcode raw guid.
+     * Online: SMSG_PARTY_MEMBER_STATS_FULL packed guid, mask 0x00040BFF (group.md, no pet), then fields.
+     */
+    @Test
+    void tpSl09RequestPartyMemberStats() {
+        World world = World.inMemory();
+        WowClientDouble alpha = new WowClientDouble();
+        WowClientDouble bravo = new WowClientDouble();
+        alpha.connect(ACC);
+        bravo.connect(ACC_B);
+        Player createdA = world.characters.create(ACC.id(), "Alpha", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player createdB = world.characters.create(2, "Bravo", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alpha.login(world, createdA.guid);
+        bravo.login(world, createdB.guid);
+        Player b = bravo.session().player();
+        alpha.groupInvite(world, "Bravo");
+        bravo.groupAccept(world);
+
+        alpha.clear();
+        WowBuffer req = new WowBuffer(8);
+        req.putU64(b.guid);
+        alpha.handle(world, Opcodes.CMSG_REQUEST_PARTY_MEMBER_STATS, req.array());
+        assertTrue(alpha.saw(Opcodes.SMSG_PARTY_MEMBER_STATS_FULL));
+        WowBuffer full = new WowBuffer(alpha.payload(Opcodes.SMSG_PARTY_MEMBER_STATS_FULL));
+        assertEquals(b.guid, full.getPackedGuid());
+        assertEquals(0x00040BFF, full.getU32());
+        assertEquals(1, full.getU16());
+        assertEquals(b.health(), full.getU16());
+        assertEquals(b.maxHealth(), full.getU16());
+        assertEquals(b.powerType, full.getU8());
+        assertEquals(b.power(), full.getU16());
+        assertEquals(b.maxPower(), full.getU16());
+        assertEquals(b.level, full.getU16());
+        assertEquals(b.zoneId, full.getU16());
+        assertEquals((int) b.x & 0xFFFF, full.getU16());
+        assertEquals((int) b.y & 0xFFFF, full.getU16());
+        assertEquals(0L, full.getU64());
+        assertEquals(0, full.getU8());
+        assertEquals(0L, full.getU64());
+        assertEquals(0, full.remaining());
+    }
 }

@@ -398,6 +398,7 @@ public final class WorldSession {
             case Opcodes.CMSG_GROUP_UNINVITE_GUID -> SocialHandler.groupUninviteGuid(this, in);
             case Opcodes.CMSG_GROUP_SET_LEADER -> SocialHandler.groupSetLeader(this, world, in);
             case Opcodes.CMSG_GROUP_DISBAND -> SocialHandler.groupDisband(this);
+            case Opcodes.CMSG_REQUEST_PARTY_MEMBER_STATS -> SocialHandler.requestPartyMemberStats(this, world, in);
             case Opcodes.CMSG_INITIATE_TRADE -> SocialHandler.initiateTrade(this, world, in);
             case Opcodes.CMSG_BEGIN_TRADE -> SocialHandler.beginTrade(this);
             case Opcodes.CMSG_SET_TRADE_ITEM -> SocialHandler.setTradeItem(this, in);

@@ -8,6 +8,7 @@ import org.tbc.world.entity.Mail;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.PlayerNames;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.spell.AuraSlots;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
@@ -52,6 +53,9 @@ public final class SocialHandler {
     public static final int ERR_NOT_IN_GROUP = 6;
     public static final int ERR_NOT_LEADER = 7;
     public static final int ERR_WRONG_FACTION = 8;
+    public static final int GROUP_UPDATE_FLAG_STATUS = 0x00000001;
+    /** HandleRequestPartyMemberStatsOpcode no-pet mask (group.md 0x00040BFF). */
+    public static final int GROUP_UPDATE_FULL_NO_PET = 0x00040BFF;
     public static final int FRIEND_NOT_FOUND = 0x04;
     public static final int FRIEND_ADDED_ONLINE = 0x06;
     public static final int FRIEND_ADDED_OFFLINE = 0x07;
@@ -569,6 +573,54 @@ public final class SocialHandler {
             }
         }
         sendGroupList(g);
+    }
+
+    /** HandleRequestPartyMemberStatsOpcode — raw guid → SMSG_PARTY_MEMBER_STATS_FULL. */
+    public static void requestPartyMemberStats(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Player target = world.playerByGuid(guid);
+        if (target == null || target.session == null) {
+            WowBuffer offline = new WowBuffer(16);
+            offline.putPackedGuid(guid);
+            offline.putU32(GROUP_UPDATE_FLAG_STATUS);
+            offline.putU16(0);
+            s.send(Opcodes.SMSG_PARTY_MEMBER_STATS_FULL, offline.array());
+            return;
+        }
+        WowBuffer out = new WowBuffer(256);
+        out.putPackedGuid(target.guid);
+        out.putU32(GROUP_UPDATE_FULL_NO_PET);
+        out.putU16(Group.MEMBER_ONLINE);
+        out.putU16(target.health());
+        out.putU16(target.maxHealth());
+        out.putU8(target.powerType);
+        out.putU16(target.power());
+        out.putU16(target.maxPower());
+        out.putU16(target.level);
+        out.putU16(target.zoneId);
+        out.putU16((int) target.x);
+        out.putU16((int) target.y);
+        long auramask = 0;
+        int[] auras = new int[AuraSlots.MAX_AURAS];
+        int n = 0;
+        for (int i = 0; i < AuraSlots.MAX_AURAS; i++) {
+            int aura = target.getInt(UpdateFields.UNIT_FIELD_AURA + i);
+            if (aura != 0) {
+                auramask |= 1L << i;
+                auras[n++] = aura;
+            }
+        }
+        out.putU64(auramask);
+        for (int i = 0; i < n; i++) {
+            out.putU16(auras[i]);
+            out.putU8(1);
+        }
+        out.putU8(0);
+        out.putU64(0);
+        s.send(Opcodes.SMSG_PARTY_MEMBER_STATS_FULL, out.array());
     }
 
     public static void initiateTrade(WorldSession s, World world, WowBuffer in) {
