@@ -85,4 +85,71 @@ class ObjectMgrItemTemplateTest {
             assertEquals(65, vest.armor);
         }
     }
+
+    /**
+     * TP-SL14-013 — LoadItemPrototypes extra proto stats. SQL item_template must carry
+     * stat_type2/stat_value2 (Tunic of Westfall 2041 AGILITY then STAMINA).
+     */
+    @Test
+    void loadItemsWhenTemplateHasSecondStatSlotShouldCarryAgilityAndStamina() throws Exception {
+        String url = "jdbc:h2:mem:items2_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "item-template-stat2-test")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE item_template (
+                          entry INT,
+                          class INT,
+                          subclass INT,
+                          name VARCHAR(255),
+                          displayid INT,
+                          Quality INT,
+                          Flags INT,
+                          BuyPrice INT,
+                          SellPrice INT,
+                          InventoryType INT,
+                          AllowableClass INT,
+                          AllowableRace INT,
+                          ItemLevel INT,
+                          RequiredLevel INT,
+                          maxcount INT,
+                          stackable INT,
+                          ContainerSlots INT,
+                          armor INT,
+                          delay INT,
+                          bonding INT,
+                          description VARCHAR(255),
+                          MaxDurability INT,
+                          Duration INT,
+                          RequiredDisenchantSkill INT,
+                          dmg_min1 FLOAT,
+                          dmg_max1 FLOAT,
+                          stat_type1 INT,
+                          stat_value1 INT,
+                          stat_type2 INT,
+                          stat_value2 INT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO item_template (
+                          entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice,
+                          InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount,
+                          stackable, ContainerSlots, armor, delay, bonding, description, MaxDurability,
+                          Duration, RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1,
+                          stat_type2, stat_value2)
+                        VALUES (2041, 4, 2, 'Tunic of Westfall', 0, 3, 0, 0, 1412, 5, -1, -1, 24, 0, 0,
+                          1, 0, 92, 0, 1, '', 90, 0, -1, 0, 0, 3, 11, 7, 5)
+                        """);
+            }
+            ObjectMgr mgr = new ObjectMgr();
+            mgr.load(worldDb, null);
+            ObjectMgr.ItemTemplate tunic = mgr.items.get(Content.ITEM_TUNIC_OF_WESTFALL);
+            assertNotNull(tunic);
+            assertEquals(3, tunic.statType[0]);
+            assertEquals(11, tunic.statValue[0]);
+            assertEquals(7, tunic.statType[1]);
+            assertEquals(5, tunic.statValue[1]);
+            assertEquals(92, tunic.armor);
+        }
+    }
 }

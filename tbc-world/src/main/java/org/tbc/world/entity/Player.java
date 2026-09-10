@@ -661,12 +661,14 @@ public final class Player extends Unit {
     }
 
     /**
-     * CMaNGOS Player::_ApplyItemBonuses (stamina + armor half): STAT2 and RESISTANCES from
-     * create stats plus the equipped-item totals. Idempotent; the caller recomputes the extras.
+     * CMaNGOS Player::_ApplyItemBonuses (stamina + agility + armor): STAT1/STAT2 and
+     * RESISTANCES from create stats plus the equipped-item totals. Idempotent; the caller
+     * recomputes the extras. Armor is create-and-gear agility ×2 plus item armor.
      */
-    public void applyGearBonuses(int stamina, int armor) {
+    public void applyGearBonuses(int stamina, int armor, int agility) {
+        setInt(UpdateFields.UNIT_FIELD_STAT1, createStats[1] + agility);
         setInt(UpdateFields.UNIT_FIELD_STAT2, createStats[2] + stamina);
-        setInt(UpdateFields.UNIT_FIELD_RESISTANCES, createStats[1] * 2 + armor);
+        setInt(UpdateFields.UNIT_FIELD_RESISTANCES, (createStats[1] + agility) * 2 + armor);
     }
 
     /** CMaNGOS Unit::GetHealthBonusFromStamina: first 20 stamina 1 hp each, then 10 hp per point. */

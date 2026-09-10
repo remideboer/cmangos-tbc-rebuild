@@ -119,6 +119,8 @@ public final class Content {
     public static final int ITEM_WORN_SHORTSWORD = 25;
     /** tbc-db item_template 821; stat_type1 STAMINA 7 / stat_value1 2, armor 65. */
     public static final int ITEM_RIVERPAW_LEATHER_VEST = 821;
+    /** tbc-db item_template 2041; stat_type1 AGILITY 3 / 11, stat_type2 STAMINA 7 / 5, armor 92. */
+    public static final int ITEM_TUNIC_OF_WESTFALL = 2041;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

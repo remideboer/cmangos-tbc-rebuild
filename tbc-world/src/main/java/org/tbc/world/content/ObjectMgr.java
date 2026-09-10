@@ -338,6 +338,30 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Tunic of Westfall — tbc-db item_template 2041 (ITEM_MOD_AGILITY 3 / 11, ITEM_MOD_STAMINA 7 / 5, armor 92). */
+        public static ItemTemplate tunicOfWestfall() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_TUNIC_OF_WESTFALL;
+            t.itemClass = 4;
+            t.subClass = 2;
+            t.name = "Tunic of Westfall";
+            t.quality = 3;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 24;
+            t.stackable = 1;
+            t.statType[0] = 3;
+            t.statValue[0] = 11;
+            t.statType[1] = 7;
+            t.statValue[1] = 5;
+            t.armor = 92;
+            t.bonding = 1;
+            t.maxDurability = 90;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -934,6 +958,11 @@ public final class ObjectMgr {
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
                         + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
+                        + "stat_type2, stat_value2 FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
                         + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1 FROM item_template LIMIT 50000",
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
@@ -975,6 +1004,10 @@ public final class ObjectMgr {
                         t.dmgMax[0] = rs.getFloat(26);
                         t.statType[0] = rs.getInt(27);
                         t.statValue[0] = rs.getInt(28);
+                    }
+                    if (cols >= 30) {
+                        t.statType[1] = rs.getInt(29);
+                        t.statValue[1] = rs.getInt(30);
                     }
                     items.put(t.entry, t);
                 }
@@ -1120,6 +1153,7 @@ public final class ObjectMgr {
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         items.putIfAbsent(25, ItemTemplate.wornShortsword());
         items.putIfAbsent(Content.ITEM_RIVERPAW_LEATHER_VEST, ItemTemplate.riverpawLeatherVest());
+        items.putIfAbsent(Content.ITEM_TUNIC_OF_WESTFALL, ItemTemplate.tunicOfWestfall());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -1953,7 +1987,8 @@ public final class ObjectMgr {
         }
     }
 
-    /** ItemPrototype.h ITEM_MOD_STAMINA. */
+    /** ItemPrototype.h ITEM_MOD_AGILITY / ITEM_MOD_STAMINA. */
+    private static final int ITEM_MOD_AGILITY = 3;
     private static final int ITEM_MOD_STAMINA = 7;
 
     /** UNIT_FIELD_MIN/MAXDAMAGE + BASEATTACKTIME from weapons; STAT2 / RESISTANCES from _ApplyItemBonuses. */
@@ -1981,6 +2016,7 @@ public final class ObjectMgr {
             p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, off.delay > 0 ? off.delay : 2000);
         }
         int stamina = 0;
+        int agility = 0;
         int armor = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
@@ -1991,10 +2027,12 @@ public final class ObjectMgr {
             for (int i = 0; i < t.statType.length; i++) {
                 if (t.statType[i] == ITEM_MOD_STAMINA) {
                     stamina += t.statValue[i];
+                } else if (t.statType[i] == ITEM_MOD_AGILITY) {
+                    agility += t.statValue[i];
                 }
             }
         }
-        p.applyGearBonuses(stamina, armor);
+        p.applyGearBonuses(stamina, armor, agility);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {

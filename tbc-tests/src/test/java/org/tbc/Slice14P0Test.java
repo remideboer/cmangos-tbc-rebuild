@@ -512,6 +512,36 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses extra proto slots. Autoequip Tunic of Westfall
+     * 2041 (stat_type1 AGILITY 3 / 11, stat_type2 STAMINA 7 / 5, armor 92) must add those
+     * to the self VALUES: human warrior create AGI 20 / STA 22 / armor agi×2 40.
+     */
+    @Test
+    void tpSl14EquipAppliesSecondStatSlot() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Westfall", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item tunic = new Item(world.nextItemGuid(), Content.ITEM_TUNIC_OF_WESTFALL);
+        tunic.inventoryType = 5;
+        tunic.slot = src;
+        p.items.put((int) tunic.guid, tunic);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(tunic));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(31, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT1));
+        assertEquals(27, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(154, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */
