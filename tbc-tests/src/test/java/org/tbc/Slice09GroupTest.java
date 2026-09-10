@@ -181,4 +181,51 @@ class Slice09GroupTest {
         assertTrue(a.group.members.contains(c));
         assertFalse(a.group.members.contains(b));
     }
+
+    /**
+     * CMSG_GROUP_SET_LEADER — HandleGroupSetLeaderOpcode raw guid. Leader only; target online and in the group.
+     * ChangeLeader broadcasts SMSG_GROUP_SET_LEADER name C-string then SMSG_GROUP_LIST (group.md).
+     */
+    @Test
+    void tpSl09GroupSetLeader() {
+        World world = World.inMemory();
+        WowClientDouble alpha = new WowClientDouble();
+        WowClientDouble bravo = new WowClientDouble();
+        alpha.connect(ACC);
+        bravo.connect(ACC_B);
+        Player createdA = world.characters.create(ACC.id(), "Alpha", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player createdB = world.characters.create(2, "Bravo", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alpha.login(world, createdA.guid);
+        bravo.login(world, createdB.guid);
+        Player a = alpha.session().player();
+        Player b = bravo.session().player();
+        alpha.groupInvite(world, "Bravo");
+        bravo.groupAccept(world);
+
+        alpha.clear();
+        bravo.clear();
+        WowBuffer promote = new WowBuffer(8);
+        promote.putU64(b.guid);
+        alpha.handle(world, Opcodes.CMSG_GROUP_SET_LEADER, promote.array());
+        assertTrue(alpha.saw(Opcodes.SMSG_GROUP_SET_LEADER));
+        assertTrue(bravo.saw(Opcodes.SMSG_GROUP_SET_LEADER));
+        WowBuffer name = new WowBuffer(alpha.payload(Opcodes.SMSG_GROUP_SET_LEADER));
+        assertEquals("Bravo", name.getCString());
+        assertEquals(0, name.remaining());
+        assertEquals("Bravo", new WowBuffer(bravo.payload(Opcodes.SMSG_GROUP_SET_LEADER)).getCString());
+        assertEquals(b.guid, a.group.leaderGuid);
+        WowBuffer list = new WowBuffer(alpha.payload(Opcodes.SMSG_GROUP_LIST));
+        list.getU8();
+        list.getU8();
+        list.getU8();
+        list.getU8();
+        list.getU64();
+        assertEquals(1, list.getU32());
+        assertEquals("Bravo", list.getCString());
+        assertEquals(b.guid, list.getU64());
+        list.getU8();
+        list.getU8();
+        list.getU8();
+        assertEquals(b.guid, list.getU64());
+    }
 }

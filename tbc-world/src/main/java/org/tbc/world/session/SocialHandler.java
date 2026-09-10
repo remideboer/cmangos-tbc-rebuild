@@ -543,6 +543,34 @@ public final class SocialHandler {
         g.members.clear();
     }
 
+    /** HandleGroupSetLeaderOpcode — raw guid. Leader only; target online and in this group. */
+    public static void groupSetLeader(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Player p = s.player();
+        Group g = p.group;
+        if (g == null || g.leaderGuid != p.guid) {
+            return;
+        }
+        Player next = memberByGuid(g, guid);
+        if (next == null || next.session == null || next.group != g) {
+            return;
+        }
+        g.leaderGuid = guid;
+        g.leaderLastOnlineMs = world.nowMs();
+        WowBuffer data = new WowBuffer(16);
+        data.putCString(next.name);
+        byte[] payload = data.array();
+        for (Player m : g.members) {
+            if (m.session != null) {
+                m.session.send(Opcodes.SMSG_GROUP_SET_LEADER, payload);
+            }
+        }
+        sendGroupList(g);
+    }
+
     public static void initiateTrade(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() < 8) {
             tradeStatus(s, TRADE_NO_TARGET, 0, 0);
