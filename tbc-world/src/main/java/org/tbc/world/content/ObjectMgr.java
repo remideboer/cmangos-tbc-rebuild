@@ -472,6 +472,37 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Lawbringer Chestguard — tbc-db 16853 (STR 8, STA 26, INT 21, SPI 13, armor 855, FireRes 10). */
+        public static ItemTemplate lawbringerChestguard() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_LAWBRINGER_CHESTGUARD;
+            t.itemClass = 4;
+            t.subClass = 4;
+            t.name = "Lawbringer Chestguard";
+            t.quality = 4;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 66;
+            t.requiredLevel = 60;
+            t.stackable = 1;
+            t.statType[0] = 4;
+            t.statValue[0] = 8;
+            t.statType[1] = 7;
+            t.statValue[1] = 26;
+            t.statType[2] = 5;
+            t.statValue[2] = 21;
+            t.statType[3] = 6;
+            t.statValue[3] = 13;
+            t.armor = 855;
+            t.fireRes = 10;
+            t.bonding = 1;
+            t.sellPrice = 52573;
+            t.maxDurability = 165;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1286,6 +1317,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_SEERS_ROBE, ItemTemplate.seersRobe());
         items.putIfAbsent(Content.ITEM_BLACKENED_DEFIAS_ARMOR, ItemTemplate.blackenedDefiasArmor());
         items.putIfAbsent(Content.ITEM_LIGHTFORGE_BREASTPLATE, ItemTemplate.lightforgeBreastplate());
+        items.putIfAbsent(Content.ITEM_LAWBRINGER_CHESTGUARD, ItemTemplate.lawbringerChestguard());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -2156,12 +2188,14 @@ public final class ObjectMgr {
         int intellect = 0;
         int spirit = 0;
         int armor = 0;
+        int fire = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
                 continue;
             }
             armor += t.armor;
+            fire += t.fireRes;
             for (int i = 0; i < t.statType.length; i++) {
                 if (t.statType[i] == ITEM_MOD_STAMINA) {
                     stamina += t.statValue[i];
@@ -2177,6 +2211,7 @@ public final class ObjectMgr {
             }
         }
         p.applyGearBonuses(stamina, armor, agility, strength, intellect, spirit);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 2, fire);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {

@@ -722,6 +722,34 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses FireRes → UNIT_MOD_RESISTANCE_FIRE.
+     * Autoequip Lawbringer Chestguard 16853 (+10 Fire Resistance) must write that on
+     * self VALUES UNIT_FIELD_RESISTANCES+2 (school fire).
+     */
+    @Test
+    void tpSl14EquipAppliesFireResistance() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Lawbringer", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_LAWBRINGER_CHESTGUARD);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(10, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES + 2));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */
