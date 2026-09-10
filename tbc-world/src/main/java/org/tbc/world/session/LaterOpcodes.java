@@ -370,6 +370,17 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_CANCEL_MOUNT_AURA) {
+            if (p.mounted) {
+                WowBuffer out = new WowBuffer(9);
+                out.putPackedGuid(p.guid);
+                byte[] pkt = out.array();
+                s.send(Opcodes.SMSG_DISMOUNT, pkt);
+                for (Player o : world.map(p.mapId, p.instanceId).nearbyPlayers(p, GameMap.VISIBILITY)) {
+                    if (o.session != null) {
+                        o.session.send(Opcodes.SMSG_DISMOUNT, pkt);
+                    }
+                }
+            }
             p.mounted = false;
             p.auras.removeIf(a -> a.spellId() == PvpObjectives.MOUNT_AURA);
             return true;

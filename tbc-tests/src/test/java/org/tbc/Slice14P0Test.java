@@ -7,6 +7,8 @@ import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
+import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -1364,6 +1366,38 @@ class Slice14P0Test {
         WowBuffer pkt = new WowBuffer(lastPayload(watcher, Opcodes.SMSG_MOUNTSPECIAL_ANIM));
         assertEquals(a.guid, pkt.getU64());
         assertEquals(0, pkt.remaining());
+    }
+
+    /**
+     * TP-SL14-014 — HandleCancelMountAuraOpcode / Unit::Unmount. Empty
+     * CMSG_CANCEL_MOUNT_AURA while mounted → SMSG_DISMOUNT packed guid to the
+     * visibility set including self (movement.md; SendMessageToSet true).
+     */
+    @Test
+    void tpSl14CancelMountAuraDismount() {
+        World world = World.inMemory();
+        WowClientDouble rider = new WowClientDouble();
+        rider.connect(ACC);
+        Player createdA = world.characters.create(ACC.id(), "Dismounter", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        rider.login(world, createdA.guid);
+        WowClientDouble watcher = new WowClientDouble();
+        watcher.connect(ACC_B);
+        Player createdB = world.characters.create(ACC_B.id(), "SeesDismount", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        watcher.login(world, createdB.guid);
+        Player a = rider.session().player();
+        Player b = watcher.session().player();
+        b.relocate(a.x, a.y, a.z, a.o);
+        a.auras.add(new Unit.Aura(PvpObjectives.MOUNT_AURA, 0, 1));
+        a.mounted = true;
+        rider.clear();
+        watcher.clear();
+        rider.handle(world, Opcodes.CMSG_CANCEL_MOUNT_AURA, new byte[0]);
+        WowBuffer self = new WowBuffer(lastPayload(rider, Opcodes.SMSG_DISMOUNT));
+        assertEquals(a.guid, self.getPackedGuid());
+        assertEquals(0, self.remaining());
+        WowBuffer near = new WowBuffer(lastPayload(watcher, Opcodes.SMSG_DISMOUNT));
+        assertEquals(a.guid, near.getPackedGuid());
+        assertEquals(0, near.remaining());
     }
 
     @Test
