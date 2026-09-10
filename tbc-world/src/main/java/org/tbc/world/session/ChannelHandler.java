@@ -22,6 +22,7 @@ public final class ChannelHandler {
     public static final int MEMBER_FLAG_NONE = 0x00;
     public static final int MEMBER_FLAG_OWNER = 0x01;
     public static final int MEMBER_FLAG_MODERATOR = 0x02;
+    public static final int MEMBER_FLAG_MUTED = 0x08;
     public static final int CHANNEL_ID_GENERAL = 1;
 
     private ChannelHandler() {}
@@ -186,6 +187,11 @@ public final class ChannelHandler {
     /** Channel::SetModerator(..., false) via CMSG_CHANNEL_UNMODERATOR. */
     public static void unmoderator(WorldSession s, World world, WowBuffer in) {
         setMode(s, world, in, MEMBER_FLAG_MODERATOR, false);
+    }
+
+    /** Channel::SetMute(..., true) via CMSG_CHANNEL_MUTE. */
+    public static void mute(WorldSession s, World world, WowBuffer in) {
+        setMode(s, world, in, MEMBER_FLAG_MUTED, true);
     }
 
     private static void setMode(WorldSession s, World world, WowBuffer in, int flag, boolean set) {

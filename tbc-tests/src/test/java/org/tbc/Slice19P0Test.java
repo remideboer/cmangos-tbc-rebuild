@@ -298,6 +298,57 @@ class Slice19P0Test {
         assertEquals(b.session().player().guid, toB.getU64());
     }
 
+    /**
+     * TP-SL19-008 — CMSG_CHANNEL_MUTE sets MEMBER_FLAG_MUTED.
+     * SetMute → SetModeFlags; success MODE_CHANGE 0x0C old 0 new 0x08.
+     */
+    @Test
+    void tpSl19ChannelMute() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Talker");
+        WowClientDouble b = login(world, ACC_B, "Wavee");
+        a.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+        b.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_MUTE, new byte[0]);
+        assertFalse(a.saw(Opcodes.SMSG_CHANNEL_NOTIFY));
+
+        WowClientDouble outsider = login(world, new World.Account(3, "OUT", new byte[40], 3, 1, "Win", "x86"), "Outsider");
+        outsider.clear();
+        outsider.handle(world, Opcodes.CMSG_CHANNEL_MUTE, namePayload("MyChan", "Wavee"));
+        WowBuffer notMember = new WowBuffer(lastPayload(outsider, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MEMBER, notMember.getU8());
+
+        b.clear();
+        b.handle(world, Opcodes.CMSG_CHANNEL_MUTE, namePayload("MyChan", "Talker"));
+        WowBuffer notMod = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MODERATOR, notMod.getU8());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_MUTE, namePayload("MyChan", "Nobody"));
+        WowBuffer missing = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PLAYER_NOT_FOUND, missing.getU8());
+        assertEquals("MyChan", missing.getCString());
+        assertEquals("Nobody", missing.getCString());
+
+        a.clear();
+        b.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_MUTE, namePayload("MyChan", "Wavee"));
+        WowBuffer muted = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.MODE_CHANGE, muted.getU8());
+        assertEquals("MyChan", muted.getCString());
+        assertEquals(b.session().player().guid, muted.getU64());
+        assertEquals(ChannelHandler.MEMBER_FLAG_NONE, muted.getU8());
+        assertEquals(ChannelHandler.MEMBER_FLAG_MUTED, muted.getU8());
+        WowBuffer toB = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.MODE_CHANGE, toB.getU8());
+        assertEquals("MyChan", toB.getCString());
+        assertEquals(b.session().player().guid, toB.getU64());
+        assertEquals(ChannelHandler.MEMBER_FLAG_NONE, toB.getU8());
+        assertEquals(ChannelHandler.MEMBER_FLAG_MUTED, toB.getU8());
+    }
+
     private static byte[] namePayload(String channel, String player) {
         WowBuffer in = new WowBuffer(48);
         in.putCString(channel);
