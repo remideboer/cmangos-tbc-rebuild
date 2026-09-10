@@ -928,42 +928,58 @@ public final class ObjectMgr {
     }
 
     private void loadItems(Connection c) {
-        String sql = "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
-                + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
-                + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
-                + "RequiredDisenchantSkill FROM item_template LIMIT 50000";
-        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                ItemTemplate t = new ItemTemplate();
-                t.entry = rs.getInt(1);
-                t.itemClass = rs.getInt(2);
-                t.subClass = rs.getInt(3);
-                t.name = nz(rs.getString(4));
-                t.displayId = rs.getInt(5);
-                t.quality = rs.getInt(6);
-                t.flags = rs.getInt(7);
-                t.buyPrice = rs.getInt(8);
-                t.sellPrice = rs.getInt(9);
-                t.inventoryType = rs.getInt(10);
-                t.allowableClass = rs.getInt(11);
-                t.allowableRace = rs.getInt(12);
-                t.itemLevel = rs.getInt(13);
-                t.requiredLevel = rs.getInt(14);
-                t.maxCount = rs.getInt(15);
-                t.stackable = Math.max(1, rs.getInt(16));
-                t.containerSlots = rs.getInt(17);
-                t.armor = rs.getInt(18);
-                t.delay = rs.getInt(19);
-                t.bonding = rs.getInt(20);
-                t.description = nz(rs.getString(21));
-                t.maxDurability = rs.getInt(22);
-                t.duration = rs.getInt(23);
-                t.requiredDisenchantSkill = rs.getInt(24);
-                t.unk = -1;
-                items.put(t.entry, t);
+        String[] sqls = {
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1 FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill FROM item_template LIMIT 50000"
+        };
+        for (String sql : sqls) {
+            try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+                int cols = rs.getMetaData().getColumnCount();
+                while (rs.next()) {
+                    ItemTemplate t = new ItemTemplate();
+                    t.entry = rs.getInt(1);
+                    t.itemClass = rs.getInt(2);
+                    t.subClass = rs.getInt(3);
+                    t.name = nz(rs.getString(4));
+                    t.displayId = rs.getInt(5);
+                    t.quality = rs.getInt(6);
+                    t.flags = rs.getInt(7);
+                    t.buyPrice = rs.getInt(8);
+                    t.sellPrice = rs.getInt(9);
+                    t.inventoryType = rs.getInt(10);
+                    t.allowableClass = rs.getInt(11);
+                    t.allowableRace = rs.getInt(12);
+                    t.itemLevel = rs.getInt(13);
+                    t.requiredLevel = rs.getInt(14);
+                    t.maxCount = rs.getInt(15);
+                    t.stackable = Math.max(1, rs.getInt(16));
+                    t.containerSlots = rs.getInt(17);
+                    t.armor = rs.getInt(18);
+                    t.delay = rs.getInt(19);
+                    t.bonding = rs.getInt(20);
+                    t.description = nz(rs.getString(21));
+                    t.maxDurability = rs.getInt(22);
+                    t.duration = rs.getInt(23);
+                    t.requiredDisenchantSkill = rs.getInt(24);
+                    t.unk = -1;
+                    if (cols >= 28) {
+                        t.dmgMin[0] = rs.getFloat(25);
+                        t.dmgMax[0] = rs.getFloat(26);
+                        t.statType[0] = rs.getInt(27);
+                        t.statValue[0] = rs.getInt(28);
+                    }
+                    items.put(t.entry, t);
+                }
+                return;
+            } catch (Exception e) {
+                log.debug("item_template load skipped: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            log.debug("item_template load skipped: {}", e.getMessage());
         }
     }
 
