@@ -135,6 +135,44 @@ class Slice03RenameTest {
         assertEquals(created.guid, out.getU64());
     }
 
+    @Test
+    void tpSl03SetPlayerDeclinedNamesWhenCyrillicShouldPersist() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        String name = "\u0418\u0432\u0430\u043d";
+        Player created = world.characters.create(ACC.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        WowBuffer in = new WowBuffer(80);
+        in.putU64(created.guid);
+        in.putCString(name);
+        for (int i = 0; i < 5; i++) {
+            in.putCString(name);
+        }
+        client.handle(world, Opcodes.CMSG_SET_PLAYER_DECLINED_NAMES, in.array());
+        WowBuffer result = new WowBuffer(client.payload(Opcodes.SMSG_SET_PLAYER_DECLINED_NAMES_RESULT));
+        assertEquals(0, result.getU32());
+        assertEquals(created.guid, result.getU64());
+
+        client.clear();
+        client.login(world, created.guid);
+        client.clear();
+        WowBuffer q = new WowBuffer(8);
+        q.putU64(created.guid);
+        client.handle(world, Opcodes.CMSG_NAME_QUERY, q.array());
+        WowBuffer out = new WowBuffer(client.payload(Opcodes.SMSG_NAME_QUERY_RESPONSE));
+        assertEquals(created.guid, out.getU64());
+        assertEquals(name, out.getCString());
+        assertEquals(0, out.getU8());
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        assertEquals(1, out.getU8());
+        for (int i = 0; i < 5; i++) {
+            assertEquals(name, out.getCString());
+        }
+        assertEquals(0, out.remaining());
+    }
+
     private static int enumFlags(byte[] payload) {
         WowBuffer b = new WowBuffer(payload);
         assertEquals(1, b.getU8());

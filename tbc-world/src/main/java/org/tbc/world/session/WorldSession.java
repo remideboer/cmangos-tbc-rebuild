@@ -743,7 +743,7 @@ public final class WorldSession {
         send(Opcodes.SMSG_CHAR_RENAME, out.array());
     }
 
-    /** CharacterHandler.cpp HandleSetPlayerDeclinedNamesOpcode — non-Cyrillic stored name is result 1. */
+    /** CharacterHandler.cpp HandleSetPlayerDeclinedNamesOpcode — Cyrillic persist, else result 1. */
     private void handleSetPlayerDeclinedNames(World world, WowBuffer in) {
         if (in.remaining() < 8) {
             sendDeclinedNamesResult(1, 0);
@@ -755,7 +755,27 @@ public final class WorldSession {
             sendDeclinedNamesResult(1, guid);
             return;
         }
-        sendDeclinedNamesResult(1, guid);
+        String name2 = in.remaining() > 0 ? in.getCString() : "";
+        if (!name.equals(name2)) {
+            sendDeclinedNamesResult(1, guid);
+            return;
+        }
+        String[] cases = new String[PlayerNames.MAX_DECLINED_NAME_CASES];
+        for (int i = 0; i < cases.length; i++) {
+            String raw = in.remaining() > 0 ? in.getCString() : "";
+            String n = PlayerNames.normalize(raw);
+            if (n == null) {
+                sendDeclinedNamesResult(1, guid);
+                return;
+            }
+            cases[i] = n;
+        }
+        if (!PlayerNames.checkDeclinedNames(name, cases)) {
+            sendDeclinedNamesResult(1, guid);
+            return;
+        }
+        world.characters.setDeclinedNames(guid, cases);
+        sendDeclinedNamesResult(0, guid);
     }
 
     private void sendDeclinedNamesResult(int result, long guid) {
@@ -941,14 +961,22 @@ public final class WorldSession {
     private void handleNameQuery(World world, WowBuffer in) {
         long guid = in.getU64();
         Player p = world.playerByGuid(guid);
-        WowBuffer out = new WowBuffer(64);
+        String[] declined = p != null ? p.declinedNames : null;
+        WowBuffer out = new WowBuffer(96);
         out.putU64(guid);
         out.putCString(p == null ? "Unknown" : p.name);
         out.putU8(0);
         out.putU32(p == null ? 0 : p.race);
         out.putU32(p == null ? 0 : p.gender);
         out.putU32(p == null ? 0 : p.clazz);
-        out.putU8(0);
+        boolean has = declined != null && declined.length == PlayerNames.MAX_DECLINED_NAME_CASES
+                && declined[0] != null && !declined[0].isEmpty();
+        out.putU8(has ? 1 : 0);
+        if (has) {
+            for (String caseName : declined) {
+                out.putCString(caseName == null ? "" : caseName);
+            }
+        }
         send(Opcodes.SMSG_NAME_QUERY_RESPONSE, out.array());
     }
 

@@ -34,6 +34,7 @@ public final class CharacterStore {
     private final Map<Integer, List<Player.Friend>> social = new ConcurrentHashMap<>();
     private final Map<Integer, Mail> mails = new ConcurrentHashMap<>();
     private final Map<Integer, List<Integer>> inbox = new ConcurrentHashMap<>();
+    private final Map<Integer, String[]> declined = new ConcurrentHashMap<>();
     private final AtomicInteger nextMail = new AtomicInteger(1);
 
     public CharacterStore(DbPool chars) {
@@ -515,6 +516,7 @@ public final class CharacterStore {
             }
             Player copy = PlayerPersist.copy(snap);
             attachSocial(copy);
+            attachDeclined(copy);
             return copy;
         }
         if (chars == null) {
@@ -549,12 +551,18 @@ public final class CharacterStore {
                 log.warn("load social {}", e.getMessage());
             }
             try {
+                loadDeclinedSql(c, p);
+            } catch (Exception e) {
+                log.warn("load declined {}", e.getMessage());
+            }
+            try {
                 loadSpellCooldowns(c, p);
             } catch (Exception e) {
                 log.warn("load spell cooldowns {}", e.getMessage());
             }
             memory.put(g, PlayerPersist.copy(p));
             attachSocial(p);
+            attachDeclined(p);
             return p;
         } catch (Exception e) {
             log.warn("load {}", e.getMessage());
@@ -925,6 +933,33 @@ public final class CharacterStore {
         }
     }
 
+    public void setDeclinedNames(long guid, String[] cases) {
+        declined.put(Guid.low(guid), cases.clone());
+        if (chars == null) {
+            return;
+        }
+        int g = Guid.low(guid);
+        try (Connection c = chars.get()) {
+            PreparedStatement del = c.prepareStatement("DELETE FROM character_declinedname WHERE guid = ?");
+            del.setInt(1, g);
+            del.executeUpdate();
+            PreparedStatement ins = c.prepareStatement(
+                    "INSERT INTO character_declinedname (guid, genitive, dative, accusative, instrumental, prepositional) VALUES (?,?,?,?,?,?)");
+            ins.setInt(1, g);
+            for (int i = 0; i < 5; i++) {
+                ins.setString(i + 2, cases[i] == null ? "" : cases[i]);
+            }
+            ins.executeUpdate();
+        } catch (Exception e) {
+            log.warn("setDeclinedNames {}", e.getMessage());
+        }
+    }
+
+    private void attachDeclined(Player p) {
+        String[] cases = declined.get(Guid.low(p.guid));
+        p.declinedNames = cases == null ? null : cases.clone();
+    }
+
     public void addFriend(int guid, Player.Friend row) {
         social.computeIfAbsent(guid, k -> new ArrayList<>()).add(row);
         if (chars == null) {
@@ -1074,5 +1109,22 @@ public final class CharacterStore {
             rows.add(f);
         }
         social.put(Guid.low(p.guid), rows);
+    }
+
+    private void loadDeclinedSql(Connection c, Player p) throws Exception {
+        PreparedStatement ps = c.prepareStatement(
+                "SELECT genitive, dative, accusative, instrumental, prepositional FROM character_declinedname WHERE guid = ?");
+        ps.setInt(1, Guid.low(p.guid));
+        ResultSet rs = ps.executeQuery();
+        if (!rs.next()) {
+            return;
+        }
+        String[] cases = new String[5];
+        cases[0] = rs.getString(1);
+        cases[1] = rs.getString(2);
+        cases[2] = rs.getString(3);
+        cases[3] = rs.getString(4);
+        cases[4] = rs.getString(5);
+        declined.put(Guid.low(p.guid), cases);
     }
 }

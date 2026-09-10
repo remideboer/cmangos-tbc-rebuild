@@ -47,4 +47,18 @@ class PlayerNamesTest {
     void checkWhenThirteenLettersShouldTooLong() {
         assertEquals(Codes.CHAR_NAME_TOO_LONG, PlayerNames.check("Thirteenchars"));
     }
+
+    @Test
+    void checkDeclinedNamesWhenIvanCasesMatchShouldPass() {
+        String name = "\u0418\u0432\u0430\u043d";
+        String[] cases = {name, name, name, name, name};
+        assertTrue(PlayerNames.checkDeclinedNames(name, cases));
+    }
+
+    @Test
+    void checkDeclinedNamesWhenCaseMainPartDiffersShouldFail() {
+        String name = "\u0418\u0432\u0430\u043d";
+        String other = "\u041f\u0451\u0442\u0440";
+        assertFalse(PlayerNames.checkDeclinedNames(name, new String[]{name, other, name, name, name}));
+    }
 }

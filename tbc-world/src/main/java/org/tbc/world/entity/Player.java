@@ -61,6 +61,8 @@ public final class Player extends Unit {
 
     public WorldSession session;
     public int accountId;
+    /** character_declinedname five cases; null if unset. */
+    public String[] declinedNames;
     public long selection;
     public long lootGuid;
     private int gossipMenuId;
