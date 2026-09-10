@@ -39,4 +39,23 @@ class PlayerGearBonusesTest {
         assertEquals(p.maxHealth(), p.health());
         assertEquals(60, p.maxHealth());
     }
+
+    /**
+     * TP-SL14-013 — Unit::SetMaxPower clamps current mana when max shrinks below it.
+     */
+    @Test
+    void applyGearBonusesWhenIntellectRemovedAndManaAboveMaxShouldClampPower() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = new Player();
+        p.race = 1;
+        p.clazz = 8;
+        p.level = 1;
+        p.initStatsForLevel(mgr.levelStats);
+        p.applyGearBonuses(0, 0, 0, 0, 6, 0);
+        p.setPower(p.maxPower());
+        p.applyGearBonuses(0, 0, 0, 0, 0, 0);
+        assertEquals(p.maxPower(), p.power());
+        assertEquals(165, p.maxPower());
+    }
 }

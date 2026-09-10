@@ -662,9 +662,10 @@ public final class Player extends Unit {
 
     /**
      * CMaNGOS Player::_ApplyItemBonuses (primary stats + armor) then UpdateStats
-     * STAT_STAMINA → Unit::UpdateMaxHealth. STAT0–4, RESISTANCES, and MAXHEALTH from
-     * create stats plus the equipped-item totals. Idempotent; the caller recomputes
-     * the extras. Armor is create-and-gear agility ×2 plus item armor.
+     * STAT_STAMINA → Unit::UpdateMaxHealth and STAT_INTELLECT → UpdateMaxPower(POWER_MANA).
+     * STAT0–4, RESISTANCES, MAXHEALTH, and MAXPOWER1 from create stats plus the equipped-item
+     * totals. Idempotent; the caller recomputes the extras. Armor is create-and-gear
+     * agility ×2 plus item armor. Mana classes only (createMana 0 keeps the bar hidden).
      */
     public void applyGearBonuses(int stamina, int armor, int agility, int strength, int intellect, int spirit) {
         setInt(UpdateFields.UNIT_FIELD_STAT0, createStats[0] + strength);
@@ -678,6 +679,13 @@ public final class Player extends Unit {
             setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, Math.max(1, maxHealth));
             if (health() > maxHealth()) {
                 setHealth(maxHealth());
+            }
+        }
+        if (createMana != 0) {
+            int maxMana = createMana + manaBonusFromIntellect(createStats[3] + intellect);
+            setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, Math.max(0, maxMana));
+            if (power() > maxPower()) {
+                setPower(maxPower());
             }
         }
     }

@@ -540,6 +540,34 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::UpdateStats STAT_INTELLECT → Unit::UpdateMaxPower(POWER_MANA).
+     * Autoequip Seer's Robe 2981 (+6 INT) on a human mage must raise self VALUES
+     * UNIT_FIELD_MAXPOWER1 from create 165 (100 + bonus(23)) to 255 (100 + bonus(29)).
+     */
+    @Test
+    void tpSl14EquipAppliesIntellectToMaxMana() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "ManaEquip", 1, 8, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item robe = new Item(world.nextItemGuid(), Content.ITEM_SEERS_ROBE);
+        robe.inventoryType = 5;
+        robe.slot = src;
+        p.items.put((int) robe.guid, robe);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(robe));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(255, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXPOWER1));
+    }
+
+    /**
      * TP-SL14-013 — Player::_ApplyItemBonuses extra proto slots. Autoequip Tunic of Westfall
      * 2041 (stat_type1 AGILITY 3 / 11, stat_type2 STAMINA 7 / 5, armor 92) must add those
      * to the self VALUES: human warrior create AGI 20 / STA 22 / armor agi×2 40.
