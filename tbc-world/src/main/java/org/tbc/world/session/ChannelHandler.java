@@ -21,6 +21,8 @@ public final class ChannelHandler {
     public static final int MODE_CHANGE = 0x0C;
     public static final int ANNOUNCEMENTS_ON = 0x0D;
     public static final int ANNOUNCEMENTS_OFF = 0x0E;
+    public static final int MODERATION_ON = 0x0F;
+    public static final int MODERATION_OFF = 0x10;
     public static final int PLAYER_KICKED = 0x12;
     public static final int BANNED = 0x13;
     public static final int PLAYER_BANNED = 0x14;
@@ -407,6 +409,36 @@ public final class ChannelHandler {
         world.channelAnnouncements.put(channel, on);
         WowBuffer n = new WowBuffer(32);
         n.putU8(on ? ANNOUNCEMENTS_ON : ANNOUNCEMENTS_OFF);
+        n.putCString(channel);
+        n.putU64(p.guid);
+        byte[] pkt = n.array();
+        for (Player m : world.playersOnline()) {
+            if (m.session != null && m.session.channels.contains(channel)) {
+                m.session.send(Opcodes.SMSG_CHANNEL_NOTIFY, pkt);
+            }
+        }
+    }
+
+    /** Channel::ToggleModeration via CMSG_CHANNEL_MODERATE. Default off. */
+    public static void moderate(WorldSession s, World world, WowBuffer in) {
+        String channel = in.remaining() > 0 ? in.getCString() : "";
+        if (channel.isEmpty()) {
+            return;
+        }
+        Player p = s.player();
+        if (!s.channels.contains(channel)) {
+            notify(s, NOT_MEMBER, channel);
+            return;
+        }
+        var flags = world.channelMemberFlags.computeIfAbsent(channel, k -> new java.util.concurrent.ConcurrentHashMap<>());
+        if ((flags.getOrDefault(p.guid, MEMBER_FLAG_NONE) & MEMBER_FLAG_MODERATOR) == 0) {
+            notify(s, NOT_MODERATOR, channel);
+            return;
+        }
+        boolean on = !world.channelModeration.getOrDefault(channel, false);
+        world.channelModeration.put(channel, on);
+        WowBuffer n = new WowBuffer(32);
+        n.putU8(on ? MODERATION_ON : MODERATION_OFF);
         n.putCString(channel);
         n.putU64(p.guid);
         byte[] pkt = n.array();

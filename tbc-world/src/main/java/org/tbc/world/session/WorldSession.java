@@ -477,6 +477,7 @@ public final class WorldSession {
             case Opcodes.CMSG_CHANNEL_BAN -> ChannelHandler.ban(this, world, in);
             case Opcodes.CMSG_CHANNEL_UNBAN -> ChannelHandler.unban(this, world, in);
             case Opcodes.CMSG_CHANNEL_ANNOUNCEMENTS -> ChannelHandler.announcements(this, world, in);
+            case Opcodes.CMSG_CHANNEL_MODERATE -> ChannelHandler.moderate(this, world, in);
             case Opcodes.CMSG_BUY_ITEM -> handleBuy(world, in);
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
             case Opcodes.CMSG_LEARN_TALENT -> TalentHandler.learn(this, world, in);
