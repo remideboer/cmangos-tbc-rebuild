@@ -141,6 +141,8 @@ public final class Content {
     public static final int ITEM_SOULCLOTH_VEST = 21865;
     /** tbc-db item_template 2801; STR/AGI/STA/INT/SPI 11, dmg 101–152, delay 2100. */
     public static final int ITEM_BLADE_OF_HANNA = 2801;
+    /** tbc-db item_template 30113; STR 25 / AGI 26 / STA 57 / DEF 27 / DODGE 24 / HIT 24, armor 1668. */
+    public static final int ITEM_DESTROYER_CHESTGUARD = 30113;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

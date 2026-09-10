@@ -646,6 +646,39 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Destroyer Chestguard — tbc-db 30113 (STR 25, AGI 26, STA 57, DEF 27, DODGE 24, HIT 24, armor 1668). */
+        public static ItemTemplate destroyerChestguard() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_DESTROYER_CHESTGUARD;
+            t.itemClass = 4;
+            t.subClass = 4;
+            t.name = "Destroyer Chestguard";
+            t.quality = 4;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 133;
+            t.requiredLevel = 70;
+            t.stackable = 1;
+            t.statType[0] = 4;
+            t.statValue[0] = 25;
+            t.statType[1] = 3;
+            t.statValue[1] = 26;
+            t.statType[2] = 7;
+            t.statValue[2] = 57;
+            t.statType[3] = 12;
+            t.statValue[3] = 27;
+            t.statType[4] = 13;
+            t.statValue[4] = 24;
+            t.statType[5] = 31;
+            t.statValue[5] = 24;
+            t.armor = 1668;
+            t.bonding = 1;
+            t.maxDurability = 165;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1544,6 +1577,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_SHADESTEEL_GREAVES, ItemTemplate.shadesteelGreaves());
         items.putIfAbsent(Content.ITEM_SOULCLOTH_VEST, ItemTemplate.soulclothVest());
         items.putIfAbsent(Content.ITEM_BLADE_OF_HANNA, ItemTemplate.bladeOfHanna());
+        items.putIfAbsent(Content.ITEM_DESTROYER_CHESTGUARD, ItemTemplate.destroyerChestguard());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -2377,12 +2411,16 @@ public final class ObjectMgr {
         }
     }
 
-    /** ItemPrototype.h ITEM_MOD_AGILITY / STRENGTH / INTELLECT / SPIRIT / STAMINA. */
+    /** ItemPrototype.h ITEM_MOD_AGILITY / STRENGTH / INTELLECT / SPIRIT / STAMINA / HIT_RATING. */
     private static final int ITEM_MOD_AGILITY = 3;
     private static final int ITEM_MOD_STRENGTH = 4;
     private static final int ITEM_MOD_INTELLECT = 5;
     private static final int ITEM_MOD_SPIRIT = 6;
     private static final int ITEM_MOD_STAMINA = 7;
+    private static final int ITEM_MOD_HIT_RATING = 31;
+    /** Unit.h CombatRating — ITEM_MOD_HIT_RATING writes melee and ranged. */
+    private static final int CR_HIT_MELEE = 5;
+    private static final int CR_HIT_RANGED = 6;
 
     /** UNIT_FIELD_MIN/MAXDAMAGE + BASEATTACKTIME from weapons; STAT2 / RESISTANCES from _ApplyItemBonuses. */
     public void applyEquippedMelee(Player p) {
@@ -2419,6 +2457,7 @@ public final class ObjectMgr {
         int frost = 0;
         int shadow = 0;
         int arcane = 0;
+        int hitRating = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
@@ -2441,6 +2480,8 @@ public final class ObjectMgr {
                     intellect += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_SPIRIT) {
                     spirit += t.statValue[i];
+                } else if (t.statType[i] == ITEM_MOD_HIT_RATING) {
+                    hitRating += t.statValue[i];
                 }
             }
         }
@@ -2450,6 +2491,8 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 4, frost);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 5, shadow);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 6, arcane);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_MELEE, hitRating);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_RANGED, hitRating);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {
