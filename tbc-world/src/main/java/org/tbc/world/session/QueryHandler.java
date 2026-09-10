@@ -215,7 +215,7 @@ public final class QueryHandler {
         WowBuffer out = new WowBuffer(64);
         out.putU32(petNumber);
         out.putCString(nz(pet.name));
-        out.putU32(0);
+        out.putU32(pet.nameTimestamp);
         out.putU8(0);
         session.send(Opcodes.SMSG_PET_NAME_QUERY_RESPONSE, out.array());
     }

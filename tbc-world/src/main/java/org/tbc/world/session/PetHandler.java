@@ -8,6 +8,7 @@ import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 
@@ -35,6 +36,10 @@ public final class PetHandler {
             p.pet.summoned = true;
             p.pet.name = "Pet";
             p.pet.guid = Guid.HIGH_CREATURE | (p.guid & 0xFFFFFF);
+            if (p.clazz == CLASS_HUNTER) {
+                p.pet.petType = Pet.HUNTER_PET;
+                p.pet.canRename = true;
+            }
         }
         if (type == ACT_COMMAND && cmd == COMMAND_DISMISS && p.clazz != CLASS_HUNTER) {
             p.pet = null;
@@ -65,6 +70,39 @@ public final class PetHandler {
         if (p.pet != null) {
             s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(p.pet));
         }
+    }
+
+    /** HandlePetRename — hunter pet with UNIT_CAN_BE_RENAMED only. */
+    public static void rename(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        if (in.remaining() > 0) {
+            in.getU8();
+        }
+        Pet pet = p.pet;
+        if (pet == null || pet.guid != guid || pet.petType != Pet.HUNTER_PET || !pet.canRename) {
+            return;
+        }
+        int res = Pet.checkName(name);
+        if (res != Pet.PET_NAME_SUCCESS) {
+            WowBuffer out = new WowBuffer(8 + name.length());
+            out.putU32(res);
+            out.putCString(name);
+            out.putU8(0);
+            s.send(Opcodes.SMSG_PET_NAME_INVALID, out.array());
+            return;
+        }
+        pet.name = name;
+        pet.canRename = false;
+        pet.nameTimestamp = (int) (System.currentTimeMillis() / 1000L);
+        Unit u = new Unit(UpdateFields.UNIT_END, Unit.TYPEID_UNIT);
+        u.guid = pet.guid;
+        u.setInt(UpdateFields.UNIT_FIELD_PET_NAME_TIMESTAMP, pet.nameTimestamp);
+        u.setInt(UpdateFields.UNIT_FIELD_BYTES_2, pet.unitBytes2());
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(
+                u, UpdateFields.UNIT_FIELD_PET_NAME_TIMESTAMP, UpdateFields.UNIT_FIELD_BYTES_2));
+        s.send(pkt.opcode(), pkt.payload());
     }
 
     public static void abandon(WorldSession s, WowBuffer in) {

@@ -235,6 +235,10 @@ public final class LaterOpcodes {
             PetHandler.action(s, world, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_PET_RENAME) {
+            PetHandler.rename(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_PET_ABANDON) {
             PetHandler.abandon(s, in);
             return true;
