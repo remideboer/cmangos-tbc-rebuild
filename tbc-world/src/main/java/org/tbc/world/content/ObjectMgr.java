@@ -414,6 +414,34 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Blackened Defias Armor — tbc-db 10399 (STR 4, AGI 3, STA 11, armor 92). */
+        public static ItemTemplate blackenedDefiasArmor() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_BLACKENED_DEFIAS_ARMOR;
+            t.itemClass = 4;
+            t.subClass = 2;
+            t.name = "Blackened Defias Armor";
+            t.quality = 3;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 24;
+            t.requiredLevel = 19;
+            t.stackable = 1;
+            t.statType[0] = 4;
+            t.statValue[0] = 4;
+            t.statType[1] = 3;
+            t.statValue[1] = 3;
+            t.statType[2] = 7;
+            t.statValue[2] = 11;
+            t.armor = 92;
+            t.bonding = 1;
+            t.sellPrice = 1467;
+            t.maxDurability = 90;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1011,6 +1039,11 @@ public final class ObjectMgr {
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
                         + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
                         + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
+                        + "stat_type2, stat_value2, stat_type3, stat_value3 FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
                         + "stat_type2, stat_value2 FROM item_template LIMIT 50000",
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
@@ -1060,6 +1093,10 @@ public final class ObjectMgr {
                     if (cols >= 30) {
                         t.statType[1] = rs.getInt(29);
                         t.statValue[1] = rs.getInt(30);
+                    }
+                    if (cols >= 32) {
+                        t.statType[2] = rs.getInt(31);
+                        t.statValue[2] = rs.getInt(32);
                     }
                     items.put(t.entry, t);
                 }
@@ -1208,6 +1245,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_TUNIC_OF_WESTFALL, ItemTemplate.tunicOfWestfall());
         items.putIfAbsent(Content.ITEM_BRACKWATER_VEST, ItemTemplate.brackwaterVest());
         items.putIfAbsent(Content.ITEM_SEERS_ROBE, ItemTemplate.seersRobe());
+        items.putIfAbsent(Content.ITEM_BLACKENED_DEFIAS_ARMOR, ItemTemplate.blackenedDefiasArmor());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,

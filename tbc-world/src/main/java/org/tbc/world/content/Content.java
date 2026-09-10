@@ -125,6 +125,8 @@ public final class Content {
     public static final int ITEM_BRACKWATER_VEST = 3306;
     /** tbc-db item_template 2981; stat_type1 INTELLECT 5 / 6, stat_type2 SPIRIT 6 / 3, armor 35. */
     public static final int ITEM_SEERS_ROBE = 2981;
+    /** tbc-db item_template 10399; STR 4 / AGI 3 / STA 11, armor 92. */
+    public static final int ITEM_BLACKENED_DEFIAS_ARMOR = 10399;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

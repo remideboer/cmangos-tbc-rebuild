@@ -603,6 +603,37 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses extra proto slot 3. Autoequip Blackened
+     * Defias Armor 10399 (STR 4 / AGI 3 / STA 11, armor 92) must add those to the self
+     * VALUES: human warrior create STR 23 / AGI 20 / STA 22 / armor agi×2 40.
+     */
+    @Test
+    void tpSl14EquipAppliesThirdStatSlot() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Defias", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_BLACKENED_DEFIAS_ARMOR);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(27, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT0));
+        assertEquals(23, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT1));
+        assertEquals(33, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(138, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */
