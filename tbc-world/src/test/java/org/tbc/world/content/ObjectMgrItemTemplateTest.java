@@ -585,4 +585,78 @@ class ObjectMgrItemTemplateTest {
             assertEquals(42, chest.frostRes);
         }
     }
+
+    /**
+     * TP-SL14-013 — LoadItemPrototypes ShadowRes. SQL item_template must carry shadow_res
+     * (Shadesteel Greaves 32404 ShadowRes 72) so equipped school resist is not 0.
+     */
+    @Test
+    void loadItemsWhenTemplateHasShadowResShouldCarryShadowResistance() throws Exception {
+        String url = "jdbc:h2:mem:items_shadowres_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "item-template-shadow-res")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE item_template (
+                          entry INT,
+                          class INT,
+                          subclass INT,
+                          name VARCHAR(255),
+                          displayid INT,
+                          Quality INT,
+                          Flags INT,
+                          BuyPrice INT,
+                          SellPrice INT,
+                          InventoryType INT,
+                          AllowableClass INT,
+                          AllowableRace INT,
+                          ItemLevel INT,
+                          RequiredLevel INT,
+                          maxcount INT,
+                          stackable INT,
+                          ContainerSlots INT,
+                          armor INT,
+                          delay INT,
+                          bonding INT,
+                          description VARCHAR(255),
+                          MaxDurability INT,
+                          Duration INT,
+                          RequiredDisenchantSkill INT,
+                          dmg_min1 FLOAT,
+                          dmg_max1 FLOAT,
+                          stat_type1 INT,
+                          stat_value1 INT,
+                          stat_type2 INT,
+                          stat_value2 INT,
+                          stat_type3 INT,
+                          stat_value3 INT,
+                          stat_type4 INT,
+                          stat_value4 INT,
+                          stat_type5 INT,
+                          stat_value5 INT,
+                          fire_res INT,
+                          nature_res INT,
+                          frost_res INT,
+                          shadow_res INT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO item_template (
+                          entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice,
+                          InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount,
+                          stackable, ContainerSlots, armor, delay, bonding, description, MaxDurability,
+                          Duration, RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1,
+                          stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4,
+                          stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res)
+                        VALUES (32404, 4, 4, 'Shadesteel Greaves', 0, 4, 0, 0, 95498, 7, -1, -1, 130, 70, 0,
+                          1, 0, 1428, 0, 2, '', 120, 0, -1, 0, 0, 7, 54, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 72)
+                        """);
+            }
+            ObjectMgr mgr = new ObjectMgr();
+            mgr.load(worldDb, null);
+            ObjectMgr.ItemTemplate legs = mgr.items.get(Content.ITEM_SHADESTEEL_GREAVES);
+            assertNotNull(legs);
+            assertEquals(72, legs.shadowRes);
+        }
+    }
 }
