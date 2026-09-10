@@ -400,6 +400,18 @@ public final class SocialHandler {
         sendGroupList(from.group);
     }
 
+    public static void groupDecline(WorldSession s) {
+        Player from = s.pendingInviteFrom;
+        s.pendingInviteFrom = null;
+        if (from == null || from.session == null) {
+            return;
+        }
+        Player p = s.player();
+        WowBuffer out = new WowBuffer(16);
+        out.putCString(p.name);
+        from.session.send(Opcodes.SMSG_GROUP_DECLINE, out.array());
+    }
+
     public static void groupDisband(WorldSession s) {
         Player p = s.player();
         if (p.group == null) {
