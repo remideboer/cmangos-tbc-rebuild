@@ -659,4 +659,79 @@ class ObjectMgrItemTemplateTest {
             assertEquals(72, legs.shadowRes);
         }
     }
+
+    /**
+     * TP-SL14-013 — LoadItemPrototypes ArcaneRes. SQL item_template must carry arcane_res
+     * (Soulcloth Vest 21865 ArcaneRes 45) so equipped school resist is not 0.
+     */
+    @Test
+    void loadItemsWhenTemplateHasArcaneResShouldCarryArcaneResistance() throws Exception {
+        String url = "jdbc:h2:mem:items_arcaneres_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "item-template-arcane-res")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE item_template (
+                          entry INT,
+                          class INT,
+                          subclass INT,
+                          name VARCHAR(255),
+                          displayid INT,
+                          Quality INT,
+                          Flags INT,
+                          BuyPrice INT,
+                          SellPrice INT,
+                          InventoryType INT,
+                          AllowableClass INT,
+                          AllowableRace INT,
+                          ItemLevel INT,
+                          RequiredLevel INT,
+                          maxcount INT,
+                          stackable INT,
+                          ContainerSlots INT,
+                          armor INT,
+                          delay INT,
+                          bonding INT,
+                          description VARCHAR(255),
+                          MaxDurability INT,
+                          Duration INT,
+                          RequiredDisenchantSkill INT,
+                          dmg_min1 FLOAT,
+                          dmg_max1 FLOAT,
+                          stat_type1 INT,
+                          stat_value1 INT,
+                          stat_type2 INT,
+                          stat_value2 INT,
+                          stat_type3 INT,
+                          stat_value3 INT,
+                          stat_type4 INT,
+                          stat_value4 INT,
+                          stat_type5 INT,
+                          stat_value5 INT,
+                          fire_res INT,
+                          nature_res INT,
+                          frost_res INT,
+                          shadow_res INT,
+                          arcane_res INT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO item_template (
+                          entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice,
+                          InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount,
+                          stackable, ContainerSlots, armor, delay, bonding, description, MaxDurability,
+                          Duration, RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1,
+                          stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4,
+                          stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res)
+                        VALUES (21865, 4, 1, 'Soulcloth Vest', 0, 4, 0, 0, 41251, 5, -1, -1, 100, 70, 0,
+                          1, 0, 170, 0, 2, '', 100, 0, 300, 0, 0, 7, 24, 5, 20, 6, 16, 0, 0, 0, 0, 0, 0, 0, 0, 45)
+                        """);
+            }
+            ObjectMgr mgr = new ObjectMgr();
+            mgr.load(worldDb, null);
+            ObjectMgr.ItemTemplate chest = mgr.items.get(Content.ITEM_SOULCLOTH_VEST);
+            assertNotNull(chest);
+            assertEquals(45, chest.arcaneRes);
+        }
+    }
 }
