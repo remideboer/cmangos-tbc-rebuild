@@ -630,6 +630,35 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — HandleSwapInvItem → EquipItem → _ApplyItemMods ITEM_MOD_PARRY_RATING.
+     * CMSG_SWAP_INV_ITEM of Onslaught Chestguard 30976 onto the chest slot must write
+     * PARRY 28 on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_PARRY (Unit.h 3).
+     */
+    @Test
+    void tpSl14SwapInvItemAppliesParryRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "ParrySwapper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_ONSLAUGHT_CHESTGUARD);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+        int dest = world.objectMgr.destEquipSlot(p, 5);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(2);
+        swap.putU8(src);
+        swap.putU8(dest);
+        client.handle(world, Opcodes.CMSG_SWAP_INV_ITEM, swap.array());
+        assertEquals(28, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 3));
+    }
+
+    /**
      * TP-SL14-013 — HandleSwapItem → Player::SwapItem → EquipItem → _ApplyItemMods.
      * CMSG_SWAP_ITEM of Riverpaw Leather Vest 821 onto the chest slot must put create+gear
      * STA 24 / armor 105 on the self VALUES (same deltas as CMSG_SWAP_INV_ITEM).
