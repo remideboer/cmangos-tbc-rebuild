@@ -749,6 +749,36 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — HandleSwapInvItem → EquipItem → _ApplyItemMods ITEM_MOD_HASTE_RATING.
+     * CMSG_SWAP_INV_ITEM of Warharness of Reckless Fury 34215 onto the chest slot must write
+     * HASTE 32 on self VALUES CR_HASTE_MELEE / CR_HASTE_RANGED (Unit.h 17 / 18).
+     */
+    @Test
+    void tpSl14SwapInvItemAppliesHasteRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "HasteSwap", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_WARHARNESS_OF_RECKLESS_FURY);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+        int dest = world.objectMgr.destEquipSlot(p, 5);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(2);
+        swap.putU8(src);
+        swap.putU8(dest);
+        client.handle(world, Opcodes.CMSG_SWAP_INV_ITEM, swap.array());
+        assertEquals(32, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 17));
+        assertEquals(32, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 18));
+    }
+
+    /**
      * TP-SL14-013 — HandleSwapItem → Player::SwapItem → EquipItem → _ApplyItemMods.
      * CMSG_SWAP_ITEM of Riverpaw Leather Vest 821 onto the chest slot must put create+gear
      * STA 24 / armor 105 on the self VALUES (same deltas as CMSG_SWAP_INV_ITEM).
