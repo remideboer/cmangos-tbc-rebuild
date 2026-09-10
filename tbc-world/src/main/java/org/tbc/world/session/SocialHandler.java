@@ -192,6 +192,30 @@ public final class SocialHandler {
         friendStatus(s, FRIEND_IGNORE_ADDED, t.guid, "", 0, 0, 0, 0);
     }
 
+    /** MiscHandler.cpp HandleDelIgnoreOpcode — always FRIEND_IGNORE_REMOVED. */
+    public static void delIgnore(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Player p = s.player();
+        Player.Friend existing = null;
+        for (Player.Friend f : p.friends) {
+            if (f.guid == guid) {
+                existing = f;
+                break;
+            }
+        }
+        if (existing != null) {
+            existing.flags &= ~SOCIAL_FLAG_IGNORED;
+            if (existing.flags == 0) {
+                p.friends.remove(existing);
+                world.characters.removeFriend(Guid.low(p.guid), guid);
+            }
+        }
+        friendStatus(s, FRIEND_IGNORE_REMOVED, guid, "", 0, 0, 0, 0);
+    }
+
     public static void delFriend(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() < 8) {
             return;

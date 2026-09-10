@@ -79,6 +79,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_WHO,
             Opcodes.CMSG_ADD_FRIEND,
             Opcodes.CMSG_ADD_IGNORE,
+            Opcodes.CMSG_DEL_IGNORE,
             Opcodes.CMSG_DEL_FRIEND,
             Opcodes.CMSG_SEND_MAIL,
             Opcodes.CMSG_GET_MAIL_LIST,

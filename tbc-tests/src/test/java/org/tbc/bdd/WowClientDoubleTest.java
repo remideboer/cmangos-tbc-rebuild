@@ -59,6 +59,7 @@ class WowClientDoubleTest {
         d.who(w);
         d.addFriend(w, "Nobody");
         d.addIgnore(w, "Nobody");
+        d.delIgnore(w, created.guid);
         d.delFriend(w, created.guid);
         d.guildCreate(w, "Lions");
         d.guildInvite(w, "Nobody");
