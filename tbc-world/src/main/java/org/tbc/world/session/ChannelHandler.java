@@ -22,6 +22,8 @@ public final class ChannelHandler {
     public static final int PLAYER_KICKED = 0x12;
     public static final int BANNED = 0x13;
     public static final int PLAYER_BANNED = 0x14;
+    public static final int PLAYER_UNBANNED = 0x15;
+    public static final int PLAYER_NOT_BANNED = 0x16;
     public static final int PLAYER_ALREADY_MEMBER = 0x17;
     public static final int INVITE = 0x18;
     public static final int INVITE_WRONG_FACTION = 0x19;
@@ -331,6 +333,56 @@ public final class ChannelHandler {
         }
         target.session.channels.remove(channel);
         flags.remove(target.guid);
+    }
+
+    /** Channel::UnBan via CMSG_CHANNEL_UNBAN. Target need not be on the channel. */
+    public static void unban(WorldSession s, World world, WowBuffer in) {
+        String channel = in.remaining() > 0 ? in.getCString() : "";
+        String raw = in.remaining() > 0 ? in.getCString() : "";
+        String targetName = PlayerNames.normalize(raw);
+        if (channel.isEmpty() || targetName == null) {
+            return;
+        }
+        Player p = s.player();
+        if (!s.channels.contains(channel)) {
+            notify(s, NOT_MEMBER, channel);
+            return;
+        }
+        var flags = world.channelMemberFlags.getOrDefault(channel, new java.util.concurrent.ConcurrentHashMap<>());
+        int mine = flags.getOrDefault(p.guid, MEMBER_FLAG_NONE);
+        if ((mine & MEMBER_FLAG_MODERATOR) == 0) {
+            notify(s, NOT_MODERATOR, channel);
+            return;
+        }
+        Player target = world.playerByName(targetName);
+        if (target == null) {
+            WowBuffer n = new WowBuffer(64);
+            n.putU8(PLAYER_NOT_FOUND);
+            n.putCString(channel);
+            n.putCString(targetName);
+            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            return;
+        }
+        var bans = world.channelBans.get(channel);
+        if (bans == null || !bans.remove(target.guid)) {
+            WowBuffer n = new WowBuffer(64);
+            n.putU8(PLAYER_NOT_BANNED);
+            n.putCString(channel);
+            n.putCString(targetName);
+            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            return;
+        }
+        WowBuffer n = new WowBuffer(32);
+        n.putU8(PLAYER_UNBANNED);
+        n.putCString(channel);
+        n.putU64(target.guid);
+        n.putU64(p.guid);
+        byte[] pkt = n.array();
+        for (Player m : world.playersOnline()) {
+            if (m.session != null && m.session.channels.contains(channel)) {
+                m.session.send(Opcodes.SMSG_CHANNEL_NOTIFY, pkt);
+            }
+        }
     }
 
     private static boolean ignores(Player who, long guid) {
