@@ -123,6 +123,8 @@ public final class Content {
     public static final int ITEM_TUNIC_OF_WESTFALL = 2041;
     /** tbc-db item_template 3306; stat_type1 STRENGTH 4 / 4, stat_type2 STAMINA 7 / 3, armor 162. */
     public static final int ITEM_BRACKWATER_VEST = 3306;
+    /** tbc-db item_template 2981; stat_type1 INTELLECT 5 / 6, stat_type2 SPIRIT 6 / 3, armor 35. */
+    public static final int ITEM_SEERS_ROBE = 2981;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

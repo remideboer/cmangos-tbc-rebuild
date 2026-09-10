@@ -572,6 +572,37 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses ITEM_MOD_INTELLECT / ITEM_MOD_SPIRIT.
+     * Autoequip Seer's Robe 2981 (stat_type1 INTELLECT 5 / 6, stat_type2 SPIRIT 6 / 3,
+     * armor 35) must add those to the self VALUES: human warrior create INT 20 / SPI 20
+     * / armor agi×2 40.
+     */
+    @Test
+    void tpSl14EquipAppliesIntellectAndSpirit() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Seer", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item robe = new Item(world.nextItemGuid(), Content.ITEM_SEERS_ROBE);
+        robe.inventoryType = 5;
+        robe.slot = src;
+        p.items.put((int) robe.guid, robe);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(robe));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(26, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT3));
+        assertEquals(23, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT4));
+        assertEquals(75, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */
