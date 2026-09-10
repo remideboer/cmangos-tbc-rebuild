@@ -1244,6 +1244,12 @@ public final class ObjectMgr {
                         + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
                         + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
                         + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
+                        + "stat_type5, stat_value5, fire_res FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
+                        + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
                         + "stat_type5, stat_value5 FROM item_template LIMIT 50000",
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
@@ -1320,6 +1326,9 @@ public final class ObjectMgr {
                     if (cols >= 36) {
                         t.statType[4] = rs.getInt(35);
                         t.statValue[4] = rs.getInt(36);
+                    }
+                    if (cols >= 37) {
+                        t.fireRes = rs.getInt(37);
                     }
                     items.put(t.entry, t);
                 }
