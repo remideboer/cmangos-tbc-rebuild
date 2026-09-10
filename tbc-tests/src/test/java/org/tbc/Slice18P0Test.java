@@ -244,6 +244,93 @@ class Slice18P0Test {
         assertFalse(client.saw(Opcodes.SMSG_PET_NAME_INVALID));
     }
 
+    /**
+     * TP-SL18-006 — CMSG_PET_SET_ACTION rewrites a spell slot and SMSG_PET_SPELLS.
+     * HandlePetSetAction: position &lt; 10, known spell; command/reaction cannot be removed (count 1).
+     */
+    @Test
+    void tpSl18PetSetAction() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "BarEdit");
+        Player p = client.session().player();
+        p.clazz = PetHandler.CLASS_HUNTER;
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, setActionPayload(1, 3, 2947 | (0x81 << 24)));
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        WowBuffer summon = new WowBuffer(20);
+        summon.putU64(0);
+        summon.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        summon.putU64(0);
+        client.handle(world, Opcodes.CMSG_PET_ACTION, summon.array());
+        long petGuid = p.pet.guid;
+        p.pet.learnSpell(2947);
+
+        client.clear();
+        int disabled = 2947 | (0x81 << 24);
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, setActionPayload(petGuid, 3, disabled));
+        byte[] bar = lastPayload(client, Opcodes.SMSG_PET_SPELLS);
+        assertEquals(petGuid, WowClientDouble.u64le(bar, 0));
+        assertEquals(disabled, WowClientDouble.u32le(bar, 16 + 3 * 4));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, setActionPayload(petGuid, 4, 99999 | (0x81 << 24)));
+        byte[] unknown = lastPayload(client, Opcodes.SMSG_PET_SPELLS);
+        assertEquals(0, WowClientDouble.u32le(unknown, 16 + 4 * 4));
+        assertEquals(disabled, WowClientDouble.u32le(unknown, 16 + 3 * 4));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION,
+                setActionPayload(petGuid, 0, PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24)));
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, setActionPayload(petGuid, 10, disabled));
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(24);
+        swap.putU64(petGuid);
+        swap.putU32(3);
+        swap.putU32(PetHandler.ACT_DISABLED << 24);
+        swap.putU32(4);
+        swap.putU32(disabled);
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, swap.array());
+        byte[] swapped = lastPayload(client, Opcodes.SMSG_PET_SPELLS);
+        assertEquals(PetHandler.ACT_DISABLED << 24, WowClientDouble.u32le(swapped, 16 + 3 * 4));
+        assertEquals(disabled, WowClientDouble.u32le(swapped, 16 + 4 * 4));
+
+        client.clear();
+        WowBuffer badCmd = new WowBuffer(24);
+        badCmd.putU64(petGuid);
+        badCmd.putU32(0);
+        badCmd.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        badCmd.putU32(1);
+        badCmd.putU32(1 | (PetHandler.ACT_COMMAND << 24));
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, badCmd.array());
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, setActionPayload(petGuid + 1, 3, disabled));
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, new byte[8]);
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, setActionPayload(petGuid, 0, 1 | (PetHandler.ACT_REACTION << 24)));
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        WowBuffer shortPkt = new WowBuffer(12);
+        shortPkt.putU64(petGuid);
+        shortPkt.putU32(3);
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, shortPkt.array());
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+    }
+
+    private static byte[] setActionPayload(long petGuid, int position, int data) {
+        WowBuffer in = new WowBuffer(16);
+        in.putU64(petGuid);
+        in.putU32(position);
+        in.putU32(data);
+        return in.array();
+    }
+
     private static byte[] renamePayload(long petGuid, String name) {
         WowBuffer in = new WowBuffer(32);
         in.putU64(petGuid);

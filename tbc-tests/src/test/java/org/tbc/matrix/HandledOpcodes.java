@@ -222,7 +222,8 @@ final class HandledOpcodes {
             Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE,
             Opcodes.CMSG_TOTEM_DESTROYED,
             Opcodes.CMSG_PET_ABANDON,
-            Opcodes.CMSG_PET_RENAME
+            Opcodes.CMSG_PET_RENAME,
+            Opcodes.CMSG_PET_SET_ACTION
     );
 
     static boolean handled(int id) {

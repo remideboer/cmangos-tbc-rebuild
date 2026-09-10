@@ -15,8 +15,13 @@ import org.tbc.world.world.World;
 /** Pet bar, stable, totem. Layout: spec/03-protocol/packets/pet.md */
 public final class PetHandler {
     public static final int ACT_COMMAND = 0x07;
+    public static final int ACT_REACTION = 0x06;
+    public static final int ACT_ENABLED = 0xC1;
+    public static final int ACT_DISABLED = 0x81;
+    public static final int ACT_PASSIVE = 0x01;
     public static final int COMMAND_ATTACK = 2;
     public static final int COMMAND_DISMISS = 3;
+    public static final int MAX_ACTION_BAR = 10;
     public static final int STABLE_OK = 0x08;
     public static final int UNSTABLE_OK = 0x09;
     public static final int BUY_SLOT_OK = 0x0A;
@@ -103,6 +108,66 @@ public final class PetHandler {
         var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(
                 u, UpdateFields.UNIT_FIELD_PET_NAME_TIMESTAMP, UpdateFields.UNIT_FIELD_BYTES_2));
         s.send(pkt.opcode(), pkt.payload());
+    }
+
+    /** HandlePetSetAction — bar index &lt; 10; command/reaction only via 24-byte swap. */
+    public static void setAction(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        int size = in.size();
+        long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        Pet pet = p.pet;
+        if (pet == null || pet.guid != guid) {
+            return;
+        }
+        int count = size == 24 ? 2 : 1;
+        int[] position = new int[2];
+        int[] data = new int[2];
+        boolean moveCommand = false;
+        for (int i = 0; i < count; i++) {
+            if (in.remaining() < 8) {
+                return;
+            }
+            position[i] = in.getU32();
+            data[i] = in.getU32();
+            int act = (data[i] >>> 24) & 0xFF;
+            if (position[i] < 0 || position[i] >= MAX_ACTION_BAR) {
+                return;
+            }
+            if (act == ACT_COMMAND || act == ACT_REACTION) {
+                if (count == 1) {
+                    return;
+                }
+                moveCommand = true;
+            }
+        }
+        if (moveCommand) {
+            int act0 = (data[0] >>> 24) & 0xFF;
+            if (act0 == ACT_COMMAND || act0 == ACT_REACTION) {
+                int other = pet.actionBar[position[1]];
+                if ((other & 0xFFFFFF) != (data[0] & 0xFFFFFF)
+                        || ((other >>> 24) & 0xFF) != act0) {
+                    return;
+                }
+            }
+            int act1 = (data[1] >>> 24) & 0xFF;
+            if (act1 == ACT_COMMAND || act1 == ACT_REACTION) {
+                int other = pet.actionBar[position[0]];
+                if ((other & 0xFFFFFF) != (data[1] & 0xFFFFFF)
+                        || ((other >>> 24) & 0xFF) != act1) {
+                    return;
+                }
+            }
+        }
+        for (int i = 0; i < count; i++) {
+            int spellId = data[i] & 0xFFFFFF;
+            int act = (data[i] >>> 24) & 0xFF;
+            boolean spellAct = act == ACT_ENABLED || act == ACT_DISABLED || act == ACT_PASSIVE;
+            if (spellAct && spellId != 0 && !pet.spells.contains(spellId)) {
+                continue;
+            }
+            pet.actionBar[position[i]] = data[i];
+        }
+        s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(pet));
     }
 
     public static void abandon(WorldSession s, WowBuffer in) {
