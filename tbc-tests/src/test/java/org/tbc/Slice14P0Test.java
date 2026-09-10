@@ -634,6 +634,38 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses extra proto slot 4. Autoequip Lightforge
+     * Breastplate 16726 (STR 13 / STA 21 / INT 16 / SPI 8, armor 657) must add those to
+     * the self VALUES: human warrior create STR 23 / STA 22 / INT 20 / SPI 20 / armor agi×2 40.
+     */
+    @Test
+    void tpSl14EquipAppliesFourthStatSlot() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Lightforge", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_LIGHTFORGE_BREASTPLATE);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(36, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT0));
+        assertEquals(43, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(36, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT3));
+        assertEquals(28, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT4));
+        assertEquals(697, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */

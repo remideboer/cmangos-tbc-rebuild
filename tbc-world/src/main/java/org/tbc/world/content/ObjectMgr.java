@@ -442,6 +442,36 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Lightforge Breastplate — tbc-db 16726 (STR 13, STA 21, INT 16, SPI 8, armor 657). */
+        public static ItemTemplate lightforgeBreastplate() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_LIGHTFORGE_BREASTPLATE;
+            t.itemClass = 4;
+            t.subClass = 4;
+            t.name = "Lightforge Breastplate";
+            t.quality = 3;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 63;
+            t.requiredLevel = 58;
+            t.stackable = 1;
+            t.statType[0] = 4;
+            t.statValue[0] = 13;
+            t.statType[1] = 7;
+            t.statValue[1] = 21;
+            t.statType[2] = 5;
+            t.statValue[2] = 16;
+            t.statType[3] = 6;
+            t.statValue[3] = 8;
+            t.armor = 657;
+            t.bonding = 1;
+            t.sellPrice = 35078;
+            t.maxDurability = 135;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1039,6 +1069,11 @@ public final class ObjectMgr {
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
                         + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
                         + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
+                        + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4 FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
                         + "stat_type2, stat_value2, stat_type3, stat_value3 FROM item_template LIMIT 50000",
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
@@ -1097,6 +1132,10 @@ public final class ObjectMgr {
                     if (cols >= 32) {
                         t.statType[2] = rs.getInt(31);
                         t.statValue[2] = rs.getInt(32);
+                    }
+                    if (cols >= 34) {
+                        t.statType[3] = rs.getInt(33);
+                        t.statValue[3] = rs.getInt(34);
                     }
                     items.put(t.entry, t);
                 }
@@ -1246,6 +1285,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_BRACKWATER_VEST, ItemTemplate.brackwaterVest());
         items.putIfAbsent(Content.ITEM_SEERS_ROBE, ItemTemplate.seersRobe());
         items.putIfAbsent(Content.ITEM_BLACKENED_DEFIAS_ARMOR, ItemTemplate.blackenedDefiasArmor());
+        items.putIfAbsent(Content.ITEM_LIGHTFORGE_BREASTPLATE, ItemTemplate.lightforgeBreastplate());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
