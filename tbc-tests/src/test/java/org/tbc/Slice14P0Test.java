@@ -542,6 +542,36 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses ITEM_MOD_STRENGTH. Autoequip Brackwater Vest
+     * 3306 (stat_type1 STRENGTH 4 / 4, stat_type2 STAMINA 7 / 3, armor 162) must add those
+     * to the self VALUES: human warrior create STR 23 / STA 22 / armor agi×2 40.
+     */
+    @Test
+    void tpSl14EquipAppliesStrength() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Brackwater", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_BRACKWATER_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(27, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT0));
+        assertEquals(25, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(202, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */

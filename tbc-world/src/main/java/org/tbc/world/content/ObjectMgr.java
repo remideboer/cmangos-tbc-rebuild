@@ -362,6 +362,32 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Brackwater Vest — tbc-db item_template 3306 (ITEM_MOD_STRENGTH 4 / 4, ITEM_MOD_STAMINA 7 / 3, armor 162). */
+        public static ItemTemplate brackwaterVest() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_BRACKWATER_VEST;
+            t.itemClass = 4;
+            t.subClass = 3;
+            t.name = "Brackwater Vest";
+            t.quality = 2;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 18;
+            t.requiredLevel = 13;
+            t.stackable = 1;
+            t.statType[0] = 4;
+            t.statValue[0] = 4;
+            t.statType[1] = 7;
+            t.statValue[1] = 3;
+            t.armor = 162;
+            t.bonding = 2;
+            t.sellPrice = 654;
+            t.maxDurability = 80;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1154,6 +1180,7 @@ public final class ObjectMgr {
         items.putIfAbsent(25, ItemTemplate.wornShortsword());
         items.putIfAbsent(Content.ITEM_RIVERPAW_LEATHER_VEST, ItemTemplate.riverpawLeatherVest());
         items.putIfAbsent(Content.ITEM_TUNIC_OF_WESTFALL, ItemTemplate.tunicOfWestfall());
+        items.putIfAbsent(Content.ITEM_BRACKWATER_VEST, ItemTemplate.brackwaterVest());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -1987,8 +2014,9 @@ public final class ObjectMgr {
         }
     }
 
-    /** ItemPrototype.h ITEM_MOD_AGILITY / ITEM_MOD_STAMINA. */
+    /** ItemPrototype.h ITEM_MOD_AGILITY / ITEM_MOD_STRENGTH / ITEM_MOD_STAMINA. */
     private static final int ITEM_MOD_AGILITY = 3;
+    private static final int ITEM_MOD_STRENGTH = 4;
     private static final int ITEM_MOD_STAMINA = 7;
 
     /** UNIT_FIELD_MIN/MAXDAMAGE + BASEATTACKTIME from weapons; STAT2 / RESISTANCES from _ApplyItemBonuses. */
@@ -2017,6 +2045,7 @@ public final class ObjectMgr {
         }
         int stamina = 0;
         int agility = 0;
+        int strength = 0;
         int armor = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
@@ -2029,10 +2058,12 @@ public final class ObjectMgr {
                     stamina += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_AGILITY) {
                     agility += t.statValue[i];
+                } else if (t.statType[i] == ITEM_MOD_STRENGTH) {
+                    strength += t.statValue[i];
                 }
             }
         }
-        p.applyGearBonuses(stamina, armor, agility);
+        p.applyGearBonuses(stamina, armor, agility, strength);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {
