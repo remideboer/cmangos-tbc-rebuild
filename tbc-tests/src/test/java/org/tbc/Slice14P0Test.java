@@ -806,6 +806,34 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses ShadowRes → UNIT_MOD_RESISTANCE_SHADOW.
+     * Autoequip Shadesteel Greaves 32404 (+72 Shadow Resistance) must write that on
+     * self VALUES UNIT_FIELD_RESISTANCES+5 (school shadow).
+     */
+    @Test
+    void tpSl14EquipAppliesShadowResistance() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Shadesteel", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item legs = new Item(world.nextItemGuid(), Content.ITEM_SHADESTEEL_GREAVES);
+        legs.inventoryType = 7;
+        legs.slot = src;
+        p.items.put((int) legs.guid, legs);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(legs));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(72, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES + 5));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */
