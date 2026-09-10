@@ -224,7 +224,8 @@ final class HandledOpcodes {
             Opcodes.CMSG_PET_ABANDON,
             Opcodes.CMSG_PET_RENAME,
             Opcodes.CMSG_PET_SET_ACTION,
-            Opcodes.CMSG_PET_SPELL_AUTOCAST
+            Opcodes.CMSG_PET_SPELL_AUTOCAST,
+            Opcodes.CMSG_PET_CAST_SPELL
     );
 
     static boolean handled(int id) {

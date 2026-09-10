@@ -7,6 +7,8 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.PetHandler;
+import org.tbc.world.spell.SpellCastTargets;
+import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -377,6 +379,76 @@ class Slice18P0Test {
         client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, autocastPayload(petGuid, 2947, 1));
         byte[] fromPassive = lastPayload(client, Opcodes.SMSG_PET_SPELLS);
         assertEquals(enabled, WowClientDouble.u32le(fromPassive, 16 + 3 * 4));
+    }
+
+    /**
+     * TP-SL18-006 — CMSG_PET_CAST_SPELL casts through the pet.
+     * HandlePetCastSpellOpcode: SMSG_SPELL_START caster packed GUID is the pet.
+     */
+    @Test
+    void tpSl18PetCastSpell() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "PetCast");
+        Player p = client.session().player();
+        p.clazz = PetHandler.CLASS_HUNTER;
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_CAST_SPELL, petCastPayload(1, SpellEngine.FIREBALL, 2));
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_START));
+        WowBuffer summon = new WowBuffer(20);
+        summon.putU64(0);
+        summon.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        summon.putU64(0);
+        client.handle(world, Opcodes.CMSG_PET_ACTION, summon.array());
+        long petGuid = p.pet.guid;
+        Creature prey = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(prey);
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_CAST_SPELL,
+                petCastPayload(petGuid, SpellEngine.FIREBALL, prey.guid));
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_START));
+
+        p.pet.learnSpell(SpellEngine.FIREBALL);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_CAST_SPELL,
+                petCastPayload(petGuid, SpellEngine.FIREBALL, prey.guid));
+        byte[] start = lastPayload(client, Opcodes.SMSG_SPELL_START);
+        assertEquals(petGuid, packedGuid(start, 0));
+        int off = WowClientDouble.skipPackedGuid(start, 0);
+        off = WowClientDouble.skipPackedGuid(start, off);
+        assertEquals(SpellEngine.FIREBALL, WowClientDouble.u32le(start, off));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_CAST_SPELL,
+                petCastPayload(petGuid + 1, SpellEngine.FIREBALL, prey.guid));
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_START));
+        client.handle(world, Opcodes.CMSG_PET_CAST_SPELL,
+                petCastPayload(petGuid, 99999, prey.guid));
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_START));
+        client.handle(world, Opcodes.CMSG_PET_CAST_SPELL, new byte[0]);
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_START));
+        WowBuffer guidOnly = new WowBuffer(8);
+        guidOnly.putU64(petGuid);
+        client.handle(world, Opcodes.CMSG_PET_CAST_SPELL, guidOnly.array());
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_START));
+
+        p.pet.learnSpell(SpellEngine.FROST_NOVA);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_CAST_SPELL,
+                petCastPayload(petGuid, SpellEngine.FROST_NOVA, prey.guid));
+        byte[] instant = lastPayload(client, Opcodes.SMSG_SPELL_START);
+        assertEquals(petGuid, packedGuid(instant, 0));
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(petGuid, packedGuid(lastPayload(client, Opcodes.SMSG_SPELL_GO), 0));
+    }
+
+    private static byte[] petCastPayload(long petGuid, int spellId, long targetGuid) {
+        WowBuffer in = new WowBuffer(32);
+        in.putU64(petGuid);
+        in.putU32(spellId);
+        in.putU32(SpellCastTargets.UNIT);
+        in.putPackedGuid(targetGuid);
+        return in.array();
     }
 
     private static byte[] autocastPayload(long petGuid, int spellId, int state) {

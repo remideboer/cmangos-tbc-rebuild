@@ -10,6 +10,7 @@ import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.world.World;
 
 /** Pet bar, stable, totem. Layout: spec/03-protocol/packets/pet.md */
@@ -199,6 +200,27 @@ public final class PetHandler {
             return;
         }
         s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(pet));
+    }
+
+    /** HandlePetCastSpellOpcode — learned catalog spell; START caster is the pet. */
+    public static void castSpell(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        int spellId = in.remaining() >= 4 ? in.getU32() : 0;
+        SpellCastTargets targets = SpellCastTargets.read(in);
+        Pet pet = p.pet;
+        if (pet == null || pet.guid != guid || spellId == 0 || !pet.spells.contains(spellId)) {
+            return;
+        }
+        var sp = world.spells.info(spellId);
+        if (sp == null) {
+            return;
+        }
+        s.send(Opcodes.SMSG_SPELL_START, world.spells.encodeStart(pet.guid, spellId, 0, sp.castTimeMs(), targets));
+        if (sp.castTimeMs() == 0) {
+            long hit = targets.unitGuid != 0 ? targets.unitGuid : pet.guid;
+            s.send(Opcodes.SMSG_SPELL_GO, world.spells.encodeGo(pet.guid, hit, spellId, world.nowMs(), targets));
+        }
     }
 
     public static void abandon(WorldSession s, WowBuffer in) {

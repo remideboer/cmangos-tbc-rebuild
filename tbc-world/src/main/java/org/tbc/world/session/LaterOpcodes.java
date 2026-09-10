@@ -243,6 +243,10 @@ public final class LaterOpcodes {
             PetHandler.spellAutocast(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_PET_CAST_SPELL) {
+            PetHandler.castSpell(s, world, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_PET_RENAME) {
             PetHandler.rename(s, in);
             return true;
