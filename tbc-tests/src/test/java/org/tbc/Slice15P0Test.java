@@ -294,6 +294,59 @@ class Slice15P0Test {
         assertEquals(Content.AUCTION_LIST_DELAY_MS, delay);
     }
 
+    /**
+     * TP-SL15-010 — CMSG_AUCTION_LIST_OWNER_ITEMS lists only this player's auctions
+     * (auction.md SMSG_AUCTION_OWNER_LIST_RESULT count + BuildAuctionInfo + total + delay 300).
+     */
+    @Test
+    void tpSl15AuctionListOwnerItems() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC_A);
+        Player created = world.characters.create(ACC_A.id(), "Seller", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature ah = find(world, Content.NPC_AUCTIONEER_CHILTON);
+        p.relocate(ah.x, ah.y, ah.z, ah.o);
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = p.firstFreeBagSlot();
+        p.items.put((int) sword.guid, sword);
+        p.setMoney(10000);
+        client.auctionSell(world, ah.guid, sword.guid, 100, 0, 720);
+        client.clear();
+        WowBuffer list = new WowBuffer(12);
+        list.putU64(ah.guid);
+        list.putU32(0);
+        client.handle(world, Opcodes.CMSG_AUCTION_LIST_OWNER_ITEMS, list.array());
+        WowBuffer out = new WowBuffer(lastPayload(client, Opcodes.SMSG_AUCTION_OWNER_LIST_RESULT));
+        int count = out.getU32();
+        assertEquals(1, count);
+        int auctionId = out.getU32();
+        assertEquals(Content.ITEM_WORN_SHORTSWORD, out.getU32());
+        for (int i = 0; i < 6; i++) {
+            out.getU32();
+            out.getU32();
+            out.getU32();
+        }
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        assertEquals(p.guid, out.getU64());
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU64();
+        out.getU32();
+        int total = out.getU32();
+        int delay = out.getU32();
+        assertEquals(1, total);
+        assertEquals(Content.AUCTION_LIST_DELAY_MS, delay);
+        assertTrue(auctionId > 1);
+    }
+
     private static Pair loginTwo(String aName, String bName) {
         World world = World.inMemory();
         WowClientDouble a = new WowClientDouble();

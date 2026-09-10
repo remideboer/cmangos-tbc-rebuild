@@ -450,6 +450,7 @@ public final class WorldSession {
             case Opcodes.MSG_AUCTION_HELLO -> handleAuctionHello(world, in);
             case Opcodes.CMSG_AUCTION_SELL_ITEM -> AuctionHandler.sellItem(this, world, in);
             case Opcodes.CMSG_AUCTION_PLACE_BID -> AuctionHandler.placeBid(this, world, in);
+            case Opcodes.CMSG_AUCTION_LIST_OWNER_ITEMS -> AuctionHandler.listOwnerItems(this, world, in);
             case Opcodes.CMSG_BATTLEMASTER_JOIN -> handleBgJoin(world, 489);
             case Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA -> handleBgJoin(world, 562);
             case Opcodes.CMSG_REPOP_REQUEST -> DeathHandler.repop(this, world);

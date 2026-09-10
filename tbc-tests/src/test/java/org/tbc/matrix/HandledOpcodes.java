@@ -102,6 +102,7 @@ final class HandledOpcodes {
             Opcodes.MSG_AUCTION_HELLO,
             Opcodes.CMSG_AUCTION_SELL_ITEM,
             Opcodes.CMSG_AUCTION_PLACE_BID,
+            Opcodes.CMSG_AUCTION_LIST_OWNER_ITEMS,
             Opcodes.CMSG_BATTLEMASTER_JOIN,
             Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA,
             Opcodes.CMSG_REPOP_REQUEST,

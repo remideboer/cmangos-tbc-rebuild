@@ -184,6 +184,30 @@ public final class AuctionHandler {
             }
             hits.add(a);
         }
+        sendList(s, Opcodes.SMSG_AUCTION_LIST_RESULT, hits);
+    }
+
+    /** CMSG_AUCTION_LIST_OWNER_ITEMS — owner's rows only. auction.md SMSG_AUCTION_OWNER_LIST_RESULT. */
+    public static void listOwnerItems(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            return;
+        }
+        long guid = in.getU64();
+        in.getU32();
+        Player p = s.player();
+        if (auctioneerOf(world, p, guid) == null) {
+            return;
+        }
+        List<ObjectMgr.Auction> hits = new ArrayList<>();
+        for (ObjectMgr.Auction a : world.objectMgr.auctions) {
+            if (a.owner() == p.guid) {
+                hits.add(a);
+            }
+        }
+        sendList(s, Opcodes.SMSG_AUCTION_OWNER_LIST_RESULT, hits);
+    }
+
+    static void sendList(WorldSession s, int opcode, List<ObjectMgr.Auction> hits) {
         WowBuffer out = new WowBuffer(256);
         out.putU32(hits.size());
         for (ObjectMgr.Auction a : hits) {
@@ -191,7 +215,7 @@ public final class AuctionHandler {
         }
         out.putU32(hits.size());
         out.putU32(Content.AUCTION_LIST_DELAY_MS);
-        s.send(Opcodes.SMSG_AUCTION_LIST_RESULT, out.array());
+        s.send(opcode, out.array());
     }
 
     /** CMaNGOS AuctionHouseObject::Update. world-loop.md WUPDATE_AUCTIONS. */
