@@ -20,6 +20,8 @@ public final class ChannelHandler {
     public static final int CHANNEL_OWNER = 0x0B;
     public static final int MODE_CHANGE = 0x0C;
     public static final int PLAYER_KICKED = 0x12;
+    public static final int BANNED = 0x13;
+    public static final int PLAYER_BANNED = 0x14;
     public static final int PLAYER_ALREADY_MEMBER = 0x17;
     public static final int INVITE = 0x18;
     public static final int INVITE_WRONG_FACTION = 0x19;
@@ -46,6 +48,11 @@ public final class ChannelHandler {
         String name = in.remaining() > 0 ? in.getCString() : "";
         String password = in.remaining() > 0 ? in.getCString() : "";
         if (name.isEmpty()) {
+            return;
+        }
+        var bans = world.channelBans.get(name);
+        if (bans != null && bans.contains(s.player().guid)) {
+            notify(s, BANNED, name);
             return;
         }
         String want = world.channelPasswords.getOrDefault(name, "");
@@ -264,6 +271,15 @@ public final class ChannelHandler {
 
     /** Channel::Kick via CMSG_CHANNEL_KICK (KickOrBan ban=false). */
     public static void kick(WorldSession s, World world, WowBuffer in) {
+        kickOrBan(s, world, in, false);
+    }
+
+    /** Channel::Ban via CMSG_CHANNEL_BAN (KickOrBan ban=true). */
+    public static void ban(WorldSession s, World world, WowBuffer in) {
+        kickOrBan(s, world, in, true);
+    }
+
+    private static void kickOrBan(WorldSession s, World world, WowBuffer in, boolean ban) {
         String channel = in.remaining() > 0 ? in.getCString() : "";
         String raw = in.remaining() > 0 ? in.getCString() : "";
         String targetName = PlayerNames.normalize(raw);
@@ -295,8 +311,15 @@ public final class ChannelHandler {
             notify(s, NOT_OWNER, channel);
             return;
         }
+        int type = PLAYER_KICKED;
+        if (ban) {
+            var bans = world.channelBans.computeIfAbsent(channel, k -> java.util.concurrent.ConcurrentHashMap.newKeySet());
+            if (bans.add(target.guid)) {
+                type = PLAYER_BANNED;
+            }
+        }
         WowBuffer n = new WowBuffer(32);
-        n.putU8(PLAYER_KICKED);
+        n.putU8(type);
         n.putCString(channel);
         n.putU64(target.guid);
         n.putU64(p.guid);

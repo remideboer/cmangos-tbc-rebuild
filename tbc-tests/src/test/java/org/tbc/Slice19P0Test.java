@@ -519,6 +519,68 @@ class Slice19P0Test {
         assertEquals(ChannelHandler.NOT_MEMBER, left.getU8());
     }
 
+    /**
+     * TP-SL19-008 — CMSG_CHANNEL_BAN broadcasts PLAYER_BANNED 0x14 and blocks rejoin (BANNED 0x13).
+     * Channel::KickOrBan(..., true).
+     */
+    @Test
+    void tpSl19ChannelBan() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Talker");
+        WowClientDouble b = login(world, ACC_B, "Wavee");
+        a.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+        b.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_BAN, new byte[0]);
+        assertFalse(a.saw(Opcodes.SMSG_CHANNEL_NOTIFY));
+
+        WowClientDouble outsider = login(world, new World.Account(3, "OUT", new byte[40], 3, 1, "Win", "x86"), "Outsider");
+        outsider.clear();
+        outsider.handle(world, Opcodes.CMSG_CHANNEL_BAN, namePayload("MyChan", "Wavee"));
+        WowBuffer notMember = new WowBuffer(lastPayload(outsider, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MEMBER, notMember.getU8());
+
+        b.clear();
+        b.handle(world, Opcodes.CMSG_CHANNEL_BAN, namePayload("MyChan", "Talker"));
+        WowBuffer notMod = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MODERATOR, notMod.getU8());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_BAN, namePayload("MyChan", "Nobody"));
+        WowBuffer missing = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PLAYER_NOT_FOUND, missing.getU8());
+        assertEquals("MyChan", missing.getCString());
+        assertEquals("Nobody", missing.getCString());
+
+        a.clear();
+        b.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_BAN, namePayload("MyChan", "Wavee"));
+        WowBuffer banned = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PLAYER_BANNED, banned.getU8());
+        assertEquals("MyChan", banned.getCString());
+        assertEquals(b.session().player().guid, banned.getU64());
+        assertEquals(a.session().player().guid, banned.getU64());
+        WowBuffer toB = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PLAYER_BANNED, toB.getU8());
+        assertEquals("MyChan", toB.getCString());
+        assertEquals(b.session().player().guid, toB.getU64());
+        assertEquals(a.session().player().guid, toB.getU64());
+
+        b.clear();
+        b.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+        WowBuffer rejoin = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.BANNED, rejoin.getU8());
+        assertEquals("MyChan", rejoin.getCString());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_INVITE, namePayload("MyChan", "Wavee"));
+        WowBuffer inviteBanned = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PLAYER_INVITE_BANNED, inviteBanned.getU8());
+        assertEquals("MyChan", inviteBanned.getCString());
+        assertEquals("Wavee", inviteBanned.getCString());
+    }
+
     private static byte[] channelOnly(String channel) {
         WowBuffer in = new WowBuffer(16);
         in.putCString(channel);
