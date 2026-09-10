@@ -65,6 +65,7 @@ public final class PetHandler {
             // PetHandler.cpp COMMAND_ATTACK → AttackStart; first swing hits when in range.
             Creature prey = world.map(p.mapId, p.instanceId).creatures.get(target);
             if (prey != null && prey.alive()) {
+                p.pet.victim = target;
                 Unit petUnit = new Unit(UpdateFields.UNIT_END, Unit.TYPEID_UNIT);
                 petUnit.guid = p.pet.guid;
                 int dmg = Math.max(1, (int) petUnit.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
@@ -200,6 +201,19 @@ public final class PetHandler {
             return;
         }
         s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(pet));
+    }
+
+    /** HandlePetStopAttack — AttackStop if this is the player's living pet. */
+    public static void stopAttack(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        Pet pet = p.pet;
+        if (pet == null || pet.guid != guid || pet.victim == 0) {
+            return;
+        }
+        long victim = pet.victim;
+        pet.victim = 0;
+        s.send(Opcodes.SMSG_ATTACKSTOP, world.combat.encodeAttackStop(pet.guid, victim, false));
     }
 
     /** HandlePetCastSpellOpcode — learned catalog spell; START caster is the pet. */

@@ -247,6 +247,10 @@ public final class LaterOpcodes {
             PetHandler.castSpell(s, world, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_PET_STOP_ATTACK) {
+            PetHandler.stopAttack(s, world, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_PET_RENAME) {
             PetHandler.rename(s, in);
             return true;

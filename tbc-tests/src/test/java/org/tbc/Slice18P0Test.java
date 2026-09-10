@@ -442,6 +442,62 @@ class Slice18P0Test {
         assertEquals(petGuid, packedGuid(lastPayload(client, Opcodes.SMSG_SPELL_GO), 0));
     }
 
+    /**
+     * TP-SL18-006 — CMSG_PET_STOP_ATTACK while the pet is swinging.
+     * HandlePetStopAttack → AttackStop → SMSG_ATTACKSTOP packed pet → victim, nowDead 0.
+     */
+    @Test
+    void tpSl18PetStopAttack() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "PetStop");
+        Player p = client.session().player();
+        p.clazz = PetHandler.CLASS_HUNTER;
+        Creature prey = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(prey);
+        WowBuffer summon = new WowBuffer(20);
+        summon.putU64(0);
+        summon.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        summon.putU64(0);
+        client.handle(world, Opcodes.CMSG_PET_ACTION, summon.array());
+        long petGuid = p.pet.guid;
+
+        client.clear();
+        WowBuffer stopIdle = new WowBuffer(8);
+        stopIdle.putU64(petGuid);
+        client.handle(world, Opcodes.CMSG_PET_STOP_ATTACK, stopIdle.array());
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKSTOP));
+
+        WowBuffer act = new WowBuffer(20);
+        act.putU64(petGuid);
+        act.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        act.putU64(prey.guid);
+        client.handle(world, Opcodes.CMSG_PET_ACTION, act.array());
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKSTART));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_STOP_ATTACK, new byte[0]);
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKSTOP));
+        WowBuffer wrong = new WowBuffer(8);
+        wrong.putU64(petGuid + 1);
+        client.handle(world, Opcodes.CMSG_PET_STOP_ATTACK, wrong.array());
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKSTOP));
+
+        WowBuffer stop = new WowBuffer(8);
+        stop.putU64(petGuid);
+        client.handle(world, Opcodes.CMSG_PET_STOP_ATTACK, stop.array());
+        byte[] pkt = lastPayload(client, Opcodes.SMSG_ATTACKSTOP);
+        int off = 0;
+        assertEquals(petGuid, packedGuid(pkt, off));
+        off = WowClientDouble.skipPackedGuid(pkt, off);
+        assertEquals(prey.guid, packedGuid(pkt, off));
+        off = WowClientDouble.skipPackedGuid(pkt, off);
+        assertEquals(0, WowClientDouble.u32le(pkt, off));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_STOP_ATTACK, stop.array());
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKSTOP));
+    }
+
     private static byte[] petCastPayload(long petGuid, int spellId, long targetGuid) {
         WowBuffer in = new WowBuffer(32);
         in.putU64(petGuid);

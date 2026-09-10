@@ -26,6 +26,8 @@ public final class Pet {
     public int nameTimestamp;
     public final int[] actionBar = new int[10];
     public boolean summoned;
+    /** Current melee victim (0 = not attacking). */
+    public long victim;
     public final java.util.List<Integer> spells = new java.util.ArrayList<>();
 
     /** ObjectMgr.cpp CheckPetName — length only (strict names off). */
