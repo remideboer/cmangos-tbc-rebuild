@@ -401,6 +401,12 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_SET_TRADE_ITEM, b.array());
     }
 
+    public void setTradeGold(World world, int copper) {
+        WowBuffer b = new WowBuffer(4);
+        b.putU32(copper);
+        handle(world, Opcodes.CMSG_SET_TRADE_GOLD, b.array());
+    }
+
     public void acceptTrade(World world) {
         WowBuffer b = new WowBuffer(4);
         b.putU32(0);

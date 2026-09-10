@@ -4,6 +4,7 @@ import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -153,5 +154,51 @@ class Slice09SocialTest {
         assertEquals(b.guid, out.getU64());
         assertEquals(0x01, out.getU32());
         assertEquals("hello", out.getCString());
+    }
+
+    @Test
+    void tpSl09SetTradeGold() {
+        World world = World.inMemory();
+        WowClientDouble alpha = new WowClientDouble();
+        WowClientDouble bravo = new WowClientDouble();
+        alpha.connect(ACC);
+        bravo.connect(ACC_B);
+        Player a = world.characters.create(ACC.id(), "TraderA", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player b = world.characters.create(2, "TraderB", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alpha.login(world, a.guid);
+        bravo.login(world, b.guid);
+        Player ap = alpha.session().player();
+        Player bp = bravo.session().player();
+        bp.relocate(ap.x, ap.y, ap.z, ap.o);
+        ap.setMoney(200);
+        bp.setMoney(0);
+
+        WowBuffer init = new WowBuffer(8);
+        init.putU64(bp.guid);
+        alpha.handle(world, Opcodes.CMSG_INITIATE_TRADE, init.array());
+        bravo.handle(world, Opcodes.CMSG_BEGIN_TRADE, new byte[0]);
+
+        alpha.clear();
+        bravo.clear();
+        WowBuffer gold = new WowBuffer(4);
+        gold.putU32(100);
+        alpha.handle(world, Opcodes.CMSG_SET_TRADE_GOLD, gold.array());
+        assertTrue(bravo.saw(Opcodes.SMSG_TRADE_STATUS_EXTENDED));
+        byte[] ext = bravo.payload(Opcodes.SMSG_TRADE_STATUS_EXTENDED);
+        assertEquals(1, ext[0] & 0xFF);
+        assertEquals(0, WowClientDouble.u32le(ext, 1));
+        assertEquals(7, WowClientDouble.u32le(ext, 5));
+        assertEquals(7, WowClientDouble.u32le(ext, 9));
+        assertEquals(100, WowClientDouble.u32le(ext, 13));
+        assertEquals(0, WowClientDouble.u32le(ext, 17));
+
+        alpha.clear();
+        bravo.clear();
+        WowBuffer accept = new WowBuffer(4);
+        accept.putU32(0);
+        alpha.handle(world, Opcodes.CMSG_ACCEPT_TRADE, accept.array());
+        bravo.handle(world, Opcodes.CMSG_ACCEPT_TRADE, accept.array());
+        assertEquals(100, alpha.valuesField(ap.guid, UpdateFields.PLAYER_FIELD_COINAGE));
+        assertEquals(100, bravo.valuesField(bp.guid, UpdateFields.PLAYER_FIELD_COINAGE));
     }
 }

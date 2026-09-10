@@ -84,6 +84,7 @@ class WowClientDoubleTest {
         d.initiateTrade(w, 0);
         d.beginTrade(w);
         d.setTradeItem(w, 0, 0, 23);
+        d.setTradeGold(w, 0);
         d.acceptTrade(w);
         d.getMailList(w, 1);
         d.takeMailItem(w, 1, 1, 1);

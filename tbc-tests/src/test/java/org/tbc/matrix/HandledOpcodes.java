@@ -74,6 +74,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_INITIATE_TRADE,
             Opcodes.CMSG_BEGIN_TRADE,
             Opcodes.CMSG_SET_TRADE_ITEM,
+            Opcodes.CMSG_SET_TRADE_GOLD,
             Opcodes.CMSG_ACCEPT_TRADE,
             Opcodes.CMSG_CANCEL_TRADE,
             Opcodes.CMSG_WHO,

@@ -483,6 +483,29 @@ public final class SocialHandler {
         }
     }
 
+    /** TradeHandler.cpp HandleSetTradeGoldOpcode → SendUpdateTrade to the partner. */
+    public static void setTradeGold(WorldSession s, WowBuffer in) {
+        if (in.remaining() < 4) {
+            return;
+        }
+        int gold = in.getU32();
+        Player p = s.player();
+        if (p.trade == null) {
+            return;
+        }
+        if (p.trade.gold == gold) {
+            return;
+        }
+        p.trade.gold = gold;
+        p.trade.accepted = false;
+        if (p.trade.partner != null && p.trade.partner.trade != null) {
+            p.trade.partner.trade.accepted = false;
+            if (p.trade.partner.session != null) {
+                sendUpdateTrade(p.trade.partner.session, p.trade, true);
+            }
+        }
+    }
+
     public static void acceptTrade(WorldSession s, WowBuffer in) {
         if (in.remaining() >= 4) {
             in.getU32();
@@ -915,6 +938,10 @@ public final class SocialHandler {
         int goldB = b.trade.gold;
         a.setMoney(a.money - goldA + goldB);
         b.setMoney(b.money - goldB + goldA);
+        if (goldA != 0 || goldB != 0) {
+            sendCoinage(a);
+            sendCoinage(b);
+        }
         return true;
     }
 
@@ -945,6 +972,31 @@ public final class SocialHandler {
                 m.session.send(Opcodes.SMSG_GROUP_LIST, g.listFor(m));
             }
         }
+    }
+
+    private static void sendUpdateTrade(WorldSession to, Player.TradeData view, boolean traderView) {
+        WowBuffer b = new WowBuffer(32 + TRADE_SLOTS * (1 + 18 * 4));
+        b.putU8(traderView ? 1 : 0);
+        b.putU32(0);
+        b.putU32(TRADE_SLOTS);
+        b.putU32(TRADE_SLOTS);
+        b.putU32(view.gold);
+        b.putU32(0);
+        for (int i = 0; i < TRADE_SLOTS; i++) {
+            b.putU8(i);
+            for (int j = 0; j < 18; j++) {
+                b.putU32(0);
+            }
+        }
+        to.send(Opcodes.SMSG_TRADE_STATUS_EXTENDED, b.array());
+    }
+
+    private static void sendCoinage(Player p) {
+        if (p.session == null) {
+            return;
+        }
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+        p.session.send(pkt.opcode(), pkt.payload());
     }
 
     private static void partyResult(WorldSession s, int op, String name, int result) {

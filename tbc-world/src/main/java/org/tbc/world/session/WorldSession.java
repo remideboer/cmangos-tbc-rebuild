@@ -390,6 +390,7 @@ public final class WorldSession {
             case Opcodes.CMSG_INITIATE_TRADE -> SocialHandler.initiateTrade(this, world, in);
             case Opcodes.CMSG_BEGIN_TRADE -> SocialHandler.beginTrade(this);
             case Opcodes.CMSG_SET_TRADE_ITEM -> SocialHandler.setTradeItem(this, in);
+            case Opcodes.CMSG_SET_TRADE_GOLD -> SocialHandler.setTradeGold(this, in);
             case Opcodes.CMSG_ACCEPT_TRADE -> SocialHandler.acceptTrade(this, in);
             case Opcodes.CMSG_CANCEL_TRADE -> SocialHandler.cancelTrade(this);
             case Opcodes.CMSG_WHO -> SocialHandler.who(this, world, in);
