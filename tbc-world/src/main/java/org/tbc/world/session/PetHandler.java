@@ -276,6 +276,15 @@ public final class PetHandler {
         }
     }
 
+    /** HandleRequestPetInfoOpcode — PetSpellInitialize resends the bar. */
+    public static void requestPetInfo(WorldSession s) {
+        Pet pet = s.player().pet;
+        if (pet == null) {
+            return;
+        }
+        s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(pet));
+    }
+
     public static void destroyTotem(WorldSession s, WowBuffer in) {
         Player p = s.player();
         int slot = in.remaining() > 0 ? in.getU8() : 0;

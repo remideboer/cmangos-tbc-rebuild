@@ -227,7 +227,8 @@ final class HandledOpcodes {
             Opcodes.CMSG_PET_SPELL_AUTOCAST,
             Opcodes.CMSG_PET_CAST_SPELL,
             Opcodes.CMSG_PET_STOP_ATTACK,
-            Opcodes.CMSG_PET_CANCEL_AURA
+            Opcodes.CMSG_PET_CANCEL_AURA,
+            Opcodes.CMSG_REQUEST_PET_INFO
     );
 
     static boolean handled(int id) {

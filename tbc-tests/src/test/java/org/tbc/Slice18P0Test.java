@@ -542,6 +542,37 @@ class Slice18P0Test {
         assertEquals(0, client.valuesField(petGuid, UpdateFields.UNIT_FIELD_AURA));
     }
 
+    /**
+     * TP-SL18-006 — CMSG_REQUEST_PET_INFO resends the pet bar.
+     * HandleRequestPetInfoOpcode → PetSpellInitialize → SMSG_PET_SPELLS.
+     */
+    @Test
+    void tpSl18RequestPetInfo() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "PetInfo");
+        Player p = client.session().player();
+        p.clazz = PetHandler.CLASS_HUNTER;
+        client.clear();
+        client.handle(world, Opcodes.CMSG_REQUEST_PET_INFO, new byte[0]);
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+
+        WowBuffer summon = new WowBuffer(20);
+        summon.putU64(0);
+        summon.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        summon.putU64(0);
+        client.handle(world, Opcodes.CMSG_PET_ACTION, summon.array());
+        long petGuid = p.pet.guid;
+        p.pet.learnSpell(2947);
+        int disabled = 2947 | (PetHandler.ACT_DISABLED << 24);
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, setActionPayload(petGuid, 3, disabled));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_REQUEST_PET_INFO, new byte[0]);
+        byte[] bar = lastPayload(client, Opcodes.SMSG_PET_SPELLS);
+        assertEquals(petGuid, WowClientDouble.u64le(bar, 0));
+        assertEquals(disabled, WowClientDouble.u32le(bar, 16 + 3 * 4));
+    }
+
     private static byte[] petCancelAuraPayload(long petGuid, int spellId) {
         WowBuffer in = new WowBuffer(12);
         in.putU64(petGuid);
