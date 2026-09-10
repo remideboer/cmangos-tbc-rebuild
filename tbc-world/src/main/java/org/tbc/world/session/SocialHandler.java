@@ -430,23 +430,11 @@ public final class SocialHandler {
         if (p.name.equalsIgnoreCase(name)) {
             return;
         }
+        if (!canUninvite(s)) {
+            return;
+        }
         Group g = p.group;
-        if (g == null) {
-            partyResult(s, PARTY_OP_LEAVE, "", ERR_NOT_IN_GROUP);
-            return;
-        }
-        boolean assistant = (g.flags.getOrDefault(p.guid, 0) & Group.FLAG_ASSISTANT) != 0;
-        if (g.leaderGuid != p.guid && !assistant) {
-            partyResult(s, PARTY_OP_LEAVE, "", ERR_NOT_LEADER);
-            return;
-        }
-        Player leader = null;
-        for (Player m : g.members) {
-            if (m.guid == g.leaderGuid) {
-                leader = m;
-                break;
-            }
-        }
+        Player leader = memberByGuid(g, g.leaderGuid);
         if (leader != null && leader.name.equalsIgnoreCase(name)) {
             partyResult(s, PARTY_OP_LEAVE, "", ERR_NOT_LEADER);
             return;
@@ -463,6 +451,56 @@ public final class SocialHandler {
             return;
         }
         removeMember(g, kicked);
+    }
+
+    /** HandleGroupUninviteGuidOpcode — raw guid. Same kick S2C as the name opcode. */
+    public static void groupUninviteGuid(WorldSession s, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Player p = s.player();
+        if (p.guid == guid) {
+            return;
+        }
+        if (!canUninvite(s)) {
+            return;
+        }
+        Group g = p.group;
+        if (g.leaderGuid == guid) {
+            partyResult(s, PARTY_OP_LEAVE, "", ERR_NOT_LEADER);
+            return;
+        }
+        Player kicked = memberByGuid(g, guid);
+        if (kicked == null) {
+            partyResult(s, PARTY_OP_LEAVE, "", ERR_TARGET_NOT_IN_GROUP);
+            return;
+        }
+        removeMember(g, kicked);
+    }
+
+    private static boolean canUninvite(WorldSession s) {
+        Player p = s.player();
+        Group g = p.group;
+        if (g == null) {
+            partyResult(s, PARTY_OP_LEAVE, "", ERR_NOT_IN_GROUP);
+            return false;
+        }
+        boolean assistant = (g.flags.getOrDefault(p.guid, 0) & Group.FLAG_ASSISTANT) != 0;
+        if (g.leaderGuid != p.guid && !assistant) {
+            partyResult(s, PARTY_OP_LEAVE, "", ERR_NOT_LEADER);
+            return false;
+        }
+        return true;
+    }
+
+    private static Player memberByGuid(Group g, long guid) {
+        for (Player m : g.members) {
+            if (m.guid == guid) {
+                return m;
+            }
+        }
+        return null;
     }
 
     /** Group::RemoveMember. Spec sends SMSG_GROUP_UNINVITE on a kick; hideDestroy when the party would drop below 2. */
