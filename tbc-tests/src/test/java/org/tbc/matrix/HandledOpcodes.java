@@ -155,6 +155,7 @@ final class HandledOpcodes {
             Opcodes.MSG_QUERY_GUILD_BANK_TEXT,
             Opcodes.CMSG_SET_GUILD_BANK_TEXT,
             Opcodes.CMSG_REQUEST_RAID_INFO,
+            Opcodes.CMSG_OPT_OUT_OF_LOOT,
             Opcodes.CMSG_GROUP_ASSISTANT_LEADER,
             Opcodes.CMSG_GROUP_CHANGE_SUB_GROUP,
             Opcodes.CMSG_GROUP_SWAP_SUB_GROUP,

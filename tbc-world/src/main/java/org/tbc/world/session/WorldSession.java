@@ -270,6 +270,10 @@ public final class WorldSession {
             handleRealmSplit(in);
             return;
         }
+        if (opcode == Opcodes.CMSG_OPT_OUT_OF_LOOT) {
+            GroupHandler.optOutOfLoot(in);
+            return;
+        }
         if (status < STATUS_LOGGEDIN) {
             return;
         }

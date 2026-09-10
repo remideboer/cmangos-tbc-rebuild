@@ -229,6 +229,27 @@ class Slice04MiscOpcodesTest {
     }
 
     /**
+     * CMSG_OPT_OUT_OF_LOOT — STATUS_AUTHED HandleOptOutOfLootOpcode: uint32, no SMSG.
+     * Nonzero is “activation not implemented” in this CMaNGOS tree (group.md). Character-screen
+     * (player not loaded) must not NPE; CHAR_ENUM still works.
+     */
+    @Test
+    void tpSl04OptOutOfLootAtCharacterScreenConsumesUint32() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        assertEquals(WorldSession.STATUS_AUTHED, client.session().status());
+        client.clear();
+        WowBuffer opt = new WowBuffer(4);
+        opt.putU32(1);
+        client.handle(world, Opcodes.CMSG_OPT_OUT_OF_LOOT, opt.array());
+        assertTrue(client.opcodes.isEmpty(), "HandleOptOutOfLootOpcode sends no SMSG");
+        assertEquals(WorldSession.STATUS_AUTHED, client.session().status());
+        client.handle(world, Opcodes.CMSG_CHAR_ENUM, new byte[0]);
+        assertTrue(client.saw(Opcodes.SMSG_CHAR_ENUM));
+    }
+
+    /**
      * CMSG_EMOTE WAVE (3) — HandleEmoteCommand SMSG_EMOTE emote u32 + raw guid to self and nearby.
      * chat.md: dance (10) is ignored; only NONE and WAVE are accepted.
      */

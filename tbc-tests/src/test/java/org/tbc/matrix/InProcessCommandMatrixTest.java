@@ -137,6 +137,9 @@ class InProcessCommandMatrixTest {
         sink.opcodes.clear();
         s.handle(w, Opcodes.CMSG_LOGOUT_REQUEST, new byte[0]);
         assertTrue(sink.opcodes.contains(Opcodes.SMSG_LOGOUT_RESPONSE));
+
+        assertTrue(HandledOpcodes.handled(Opcodes.CMSG_OPT_OUT_OF_LOOT),
+                "CMSG_OPT_OUT_OF_LOOT STATUS_AUTHED HandleOptOutOfLootOpcode");
     }
 
     private static boolean skipDuringScan(int id) {

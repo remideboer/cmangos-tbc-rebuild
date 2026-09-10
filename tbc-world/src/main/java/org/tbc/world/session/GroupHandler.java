@@ -291,4 +291,14 @@ public final class GroupHandler {
             s.send(Opcodes.MSG_MINIMAP_PING, payload);
         }
     }
+
+    /**
+     * HandleOptOutOfLootOpcode — STATUS_AUTHED uint32. Nonzero is not implemented in this tree.
+     * No SMSG. Player may still be null (character screen).
+     */
+    public static void optOutOfLoot(WowBuffer in) {
+        if (in.remaining() >= 4) {
+            in.getU32();
+        }
+    }
 }
