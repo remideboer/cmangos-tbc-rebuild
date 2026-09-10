@@ -2074,6 +2074,43 @@ class Slice14P0Test {
         assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 9));
     }
 
+    /**
+     * TP-SL14-013 — DestroyItem → _ApplyItemMods(false) ITEM_MOD_RESILIENCE_RATING.
+     * CMSG_DESTROYITEM of equipped Gladiator's Plate Chestpiece 24544 must write RESILIENCE 0
+     * on self VALUES CR_CRIT_TAKEN_MELEE / RANGED / SPELL (Unit.h 14 / 15 / 16).
+     */
+    @Test
+    void tpSl14DestroyEquippedItemReversesResilienceRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "DestroyRes", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_GLADIATORS_PLATE_CHESTPIECE);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int dest = chest.slot;
+
+        client.clear();
+        WowBuffer destroy = new WowBuffer(3);
+        destroy.putU8(0);
+        destroy.putU8(dest);
+        destroy.putU8(0);
+        client.handle(world, Opcodes.CMSG_DESTROYITEM, destroy.array());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 14));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 15));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 16));
+    }
+
     @Test
     void tpSl14AutoequipBagOpensContainer() throws Exception {
         World world = World.inMemory();
