@@ -107,7 +107,7 @@ public final class InventoryHandler {
     }
 
     /** bag, slot, count (0 = whole stack). Layout: spec/03-protocol/packets/inventory.md */
-    public static void destroyItem(WorldSession s, WowBuffer in) {
+    public static void destroyItem(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
         if (in.remaining() < 3) {
             return;
@@ -122,7 +122,22 @@ public final class InventoryHandler {
         p.items.remove((int) it.guid);
         int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
         p.setGuid(field, 0);
-        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+        if (world != null) {
+            world.objectMgr.applyEquippedMelee(p);
+        }
+        var pkt = UpdateBuilder.maybeCompress(
+                UpdateBuilder.values(p, field, field + 1,
+                        UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
+                        UpdateFields.UNIT_FIELD_BASEATTACKTIME,
+                        UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
+                        UpdateFields.UNIT_FIELD_STAT2, UpdateFields.UNIT_FIELD_STAT3,
+                        UpdateFields.UNIT_FIELD_STAT4, UpdateFields.UNIT_FIELD_RESISTANCES,
+                        UpdateFields.UNIT_FIELD_MAXHEALTH, UpdateFields.UNIT_FIELD_MAXPOWER1,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 2,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 3,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 4,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 5,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 6));
         s.send(pkt.opcode(), pkt.payload());
     }
 

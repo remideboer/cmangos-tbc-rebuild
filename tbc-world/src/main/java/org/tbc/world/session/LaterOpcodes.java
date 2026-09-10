@@ -24,7 +24,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_DESTROYITEM) {
-            InventoryHandler.destroyItem(s, in);
+            InventoryHandler.destroyItem(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_SPLIT_ITEM) {

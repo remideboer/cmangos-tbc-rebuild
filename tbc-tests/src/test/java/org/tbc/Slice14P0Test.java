@@ -986,6 +986,42 @@ class Slice14P0Test {
         assertEquals(40, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
     }
 
+    /**
+     * TP-SL14-013 — Player::DestroyItem → _ApplyItemMods(false). CMSG_DESTROYITEM of
+     * equipped Riverpaw Leather Vest 821 must put create STA 22 / armor 40 back on the
+     * self VALUES (same deltas as autostore unequip).
+     */
+    @Test
+    void tpSl14DestroyEquippedItemReversesMods() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "DestroyGear", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_RIVERPAW_LEATHER_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int chest = vest.slot;
+
+        client.clear();
+        WowBuffer destroy = new WowBuffer(3);
+        destroy.putU8(0);
+        destroy.putU8(chest);
+        destroy.putU8(0);
+        client.handle(world, Opcodes.CMSG_DESTROYITEM, destroy.array());
+        assertEquals(22, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(40, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
     @Test
     void tpSl14AutoequipBagOpensContainer() throws Exception {
         World world = World.inMemory();
