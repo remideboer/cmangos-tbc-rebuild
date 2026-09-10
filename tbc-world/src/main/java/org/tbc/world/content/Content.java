@@ -149,6 +149,8 @@ public final class Content {
     public static final int ITEM_GLADIATORS_PLATE_CHESTPIECE = 24544;
     /** tbc-db item_template 30976; AGI 37 / STA 69 / DEF 37 / PARRY 28 / BLOCK 23, armor 1825. */
     public static final int ITEM_ONSLAUGHT_CHESTGUARD = 30976;
+    /** tbc.cavernoftime.com item 34215; STR 61 / STA 67 / CRIT 41 / HASTE 32, armor 1983. */
+    public static final int ITEM_WARHARNESS_OF_RECKLESS_FURY = 34215;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */
