@@ -145,6 +145,8 @@ public final class Content {
     public static final int ITEM_DESTROYER_CHESTGUARD = 30113;
     /** tbc-db item_template 30118; STR 50 / STA 48 / CRIT 33 / HIT 15, armor 1668. */
     public static final int ITEM_DESTROYER_BREASTPLATE = 30118;
+    /** tbc.cavernoftime.com item 24544; STA 49 / STR 23 / CRIT 30 / RES 23 / HIT 12, armor 1547. */
+    public static final int ITEM_GLADIATORS_PLATE_CHESTPIECE = 24544;
     /** tbc-db item_template 30976; AGI 37 / STA 69 / DEF 37 / PARRY 28 / BLOCK 23, armor 1825. */
     public static final int ITEM_ONSLAUGHT_CHESTGUARD = 30976;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
