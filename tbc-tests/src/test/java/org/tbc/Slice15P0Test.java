@@ -347,6 +347,65 @@ class Slice15P0Test {
         assertTrue(auctionId > 1);
     }
 
+    /**
+     * TP-SL15-010 — CMSG_AUCTION_LIST_BIDDER_ITEMS lists auctions this player bid on
+     * (auction.md SMSG_AUCTION_BIDDER_LIST_RESULT count + BuildAuctionInfo + total + delay 300).
+     */
+    @Test
+    void tpSl15AuctionListBidderItems() {
+        World world = World.inMemory();
+        WowClientDouble seller = new WowClientDouble();
+        WowClientDouble bidder = new WowClientDouble();
+        seller.connect(ACC_A);
+        bidder.connect(ACC_B);
+        Player soldBy = world.characters.create(ACC_A.id(), "AhSeller", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player bidBy = world.characters.create(ACC_B.id(), "AhBidder", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        seller.login(world, soldBy.guid);
+        bidder.login(world, bidBy.guid);
+        Player sellerP = seller.session().player();
+        Player bidderP = bidder.session().player();
+        Creature ah = find(world, Content.NPC_AUCTIONEER_CHILTON);
+        sellerP.relocate(ah.x, ah.y, ah.z, ah.o);
+        bidderP.relocate(ah.x, ah.y, ah.z, ah.o);
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = sellerP.firstFreeBagSlot();
+        sellerP.items.put((int) sword.guid, sword);
+        sellerP.setMoney(10000);
+        bidderP.setMoney(10000);
+        seller.auctionSell(world, ah.guid, sword.guid, 100, 0, 720);
+        int auctionId = WowClientDouble.u32le(lastPayload(seller, Opcodes.SMSG_AUCTION_COMMAND_RESULT), 0);
+        bidder.auctionBid(world, ah.guid, auctionId, 100);
+        bidder.clear();
+        WowBuffer list = new WowBuffer(16);
+        list.putU64(ah.guid);
+        list.putU32(0);
+        list.putU32(0);
+        bidder.handle(world, Opcodes.CMSG_AUCTION_LIST_BIDDER_ITEMS, list.array());
+        WowBuffer out = new WowBuffer(lastPayload(bidder, Opcodes.SMSG_AUCTION_BIDDER_LIST_RESULT));
+        assertEquals(1, out.getU32());
+        assertEquals(auctionId, out.getU32());
+        assertEquals(Content.ITEM_WORN_SHORTSWORD, out.getU32());
+        for (int i = 0; i < 6; i++) {
+            out.getU32();
+            out.getU32();
+            out.getU32();
+        }
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU64();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        out.getU32();
+        assertEquals(bidderP.guid, out.getU64());
+        out.getU32();
+        assertEquals(1, out.getU32());
+        assertEquals(Content.AUCTION_LIST_DELAY_MS, out.getU32());
+    }
+
     private static Pair loginTwo(String aName, String bName) {
         World world = World.inMemory();
         WowClientDouble a = new WowClientDouble();

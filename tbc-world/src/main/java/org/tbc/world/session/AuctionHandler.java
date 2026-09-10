@@ -207,6 +207,48 @@ public final class AuctionHandler {
         sendList(s, Opcodes.SMSG_AUCTION_OWNER_LIST_RESULT, hits);
     }
 
+    /** CMSG_AUCTION_LIST_BIDDER_ITEMS — current bids. auction.md SMSG_AUCTION_BIDDER_LIST_RESULT. */
+    public static void listBidderItems(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 16) {
+            return;
+        }
+        long guid = in.getU64();
+        in.getU32();
+        int outbidCount = in.getU32();
+        if (in.remaining() != outbidCount * 4) {
+            outbidCount = 0;
+        }
+        Player p = s.player();
+        if (auctioneerOf(world, p, guid) == null) {
+            return;
+        }
+        List<ObjectMgr.Auction> hits = new ArrayList<>();
+        for (int i = 0; i < outbidCount && in.remaining() >= 4; i++) {
+            int id = in.getU32();
+            for (ObjectMgr.Auction a : world.objectMgr.auctions) {
+                if (a.id() == id) {
+                    hits.add(a);
+                    break;
+                }
+            }
+        }
+        for (ObjectMgr.Auction a : world.objectMgr.auctions) {
+            if (a.bidder() == p.guid) {
+                boolean already = false;
+                for (ObjectMgr.Auction h : hits) {
+                    if (h.id() == a.id()) {
+                        already = true;
+                        break;
+                    }
+                }
+                if (!already) {
+                    hits.add(a);
+                }
+            }
+        }
+        sendList(s, Opcodes.SMSG_AUCTION_BIDDER_LIST_RESULT, hits);
+    }
+
     static void sendList(WorldSession s, int opcode, List<ObjectMgr.Auction> hits) {
         WowBuffer out = new WowBuffer(256);
         out.putU32(hits.size());

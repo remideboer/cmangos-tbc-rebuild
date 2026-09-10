@@ -191,6 +191,20 @@ class AuctionHandlerTest {
         assertFalse(sink.ops.contains(Opcodes.SMSG_AUCTION_COMMAND_RESULT));
     }
 
+    @Test
+    void listBidderItemsWhenShortOrFarShouldIgnore() {
+        World world = World.inMemory();
+        Sink sink = login(world);
+        AuctionHandler.listBidderItems(sink.session, world, new WowBuffer(4));
+        assertFalse(sink.ops.contains(Opcodes.SMSG_AUCTION_BIDDER_LIST_RESULT));
+        WowBuffer far = new WowBuffer(16);
+        far.putU64(1);
+        far.putU32(0);
+        far.putU32(0);
+        AuctionHandler.listBidderItems(sink.session, world, far);
+        assertFalse(sink.ops.contains(Opcodes.SMSG_AUCTION_BIDDER_LIST_RESULT));
+    }
+
     private static WowBuffer bidBuf(long ah, int id, int price) {
         WowBuffer b = new WowBuffer(16);
         b.putU64(ah);
