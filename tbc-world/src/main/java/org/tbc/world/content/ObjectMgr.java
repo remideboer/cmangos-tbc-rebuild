@@ -679,6 +679,35 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Destroyer Breastplate — tbc.cavernoftime.com 30118 (STR 50, STA 48, CRIT 33, HIT 15, armor 1668). */
+        public static ItemTemplate destroyerBreastplate() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_DESTROYER_BREASTPLATE;
+            t.itemClass = 4;
+            t.subClass = 4;
+            t.name = "Destroyer Breastplate";
+            t.quality = 4;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 133;
+            t.requiredLevel = 70;
+            t.stackable = 1;
+            t.statType[0] = 4;
+            t.statValue[0] = 50;
+            t.statType[1] = 7;
+            t.statValue[1] = 48;
+            t.statType[2] = 32;
+            t.statValue[2] = 33;
+            t.statType[3] = 31;
+            t.statValue[3] = 15;
+            t.armor = 1668;
+            t.bonding = 1;
+            t.maxDurability = 165;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Onslaught Chestguard — tbc-db 30976 (AGI 37, STA 69, DEF 37, PARRY 28, BLOCK 23, armor 1825). */
         public static ItemTemplate onslaughtChestguard() {
             ItemTemplate t = new ItemTemplate();
@@ -1609,6 +1638,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_SOULCLOTH_VEST, ItemTemplate.soulclothVest());
         items.putIfAbsent(Content.ITEM_BLADE_OF_HANNA, ItemTemplate.bladeOfHanna());
         items.putIfAbsent(Content.ITEM_DESTROYER_CHESTGUARD, ItemTemplate.destroyerChestguard());
+        items.putIfAbsent(Content.ITEM_DESTROYER_BREASTPLATE, ItemTemplate.destroyerBreastplate());
         items.putIfAbsent(Content.ITEM_ONSLAUGHT_CHESTGUARD, ItemTemplate.onslaughtChestguard());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
@@ -2454,13 +2484,16 @@ public final class ObjectMgr {
     private static final int ITEM_MOD_PARRY_RATING = 14;
     private static final int ITEM_MOD_BLOCK_RATING = 15;
     private static final int ITEM_MOD_HIT_RATING = 31;
-    /** Unit.h CombatRating — ITEM_MOD_HIT_RATING writes melee and ranged. */
+    private static final int ITEM_MOD_CRIT_RATING = 32;
+    /** Unit.h CombatRating — ITEM_MOD_HIT_RATING / ITEM_MOD_CRIT_RATING write melee and ranged, not spell. */
     private static final int CR_DEFENSE_SKILL = 1;
     private static final int CR_DODGE = 2;
     private static final int CR_PARRY = 3;
     private static final int CR_BLOCK = 4;
     private static final int CR_HIT_MELEE = 5;
     private static final int CR_HIT_RANGED = 6;
+    private static final int CR_CRIT_MELEE = 8;
+    private static final int CR_CRIT_RANGED = 9;
 
     /** UNIT_FIELD_MIN/MAXDAMAGE + BASEATTACKTIME from weapons; STAT2 / RESISTANCES from _ApplyItemBonuses. */
     public void applyEquippedMelee(Player p) {
@@ -2502,6 +2535,7 @@ public final class ObjectMgr {
         int dodgeRating = 0;
         int parryRating = 0;
         int blockRating = 0;
+        int critRating = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
@@ -2534,6 +2568,8 @@ public final class ObjectMgr {
                     parryRating += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_BLOCK_RATING) {
                     blockRating += t.statValue[i];
+                } else if (t.statType[i] == ITEM_MOD_CRIT_RATING) {
+                    critRating += t.statValue[i];
                 }
             }
         }
@@ -2549,6 +2585,8 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_DODGE, dodgeRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_PARRY, parryRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_BLOCK, blockRating);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_CRIT_MELEE, critRating);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_CRIT_RANGED, critRating);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {
