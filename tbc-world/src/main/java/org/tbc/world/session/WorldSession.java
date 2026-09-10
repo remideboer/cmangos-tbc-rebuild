@@ -169,6 +169,12 @@ public final class WorldSession {
             if (c != null) {
                 world.meleeHit(player, c);
                 player.lastMeleeMs = world.nowMs();
+            } else {
+                Player opp = world.playerByGuid(player.victim);
+                if (opp != null && opp == player.duelOpponent && opp.alive()) {
+                    world.playerMeleeHit(player, opp);
+                    player.lastMeleeMs = world.nowMs();
+                }
             }
         }
         if (player.inCombat && player.hasOffhandWeapon()
@@ -1070,6 +1076,11 @@ public final class WorldSession {
             return;
         }
         long guid = in.getU64();
+        Player target = world.playerByGuid(guid);
+        if (target != null) {
+            handlePlayerAttack(world, target);
+            return;
+        }
         GameMap map = world.map(player.mapId, player.instanceId);
         Creature c = map.creatures.get(guid);
         if (c == null || !c.alive()) {
@@ -1086,6 +1097,37 @@ public final class WorldSession {
             return;
         }
         world.meleeHit(player, c);
+        player.lastMeleeMs = world.nowMs();
+        player.lastOffhandMeleeMs = world.nowMs();
+    }
+
+    private void handlePlayerAttack(World world, Player target) {
+        if (!target.alive()) {
+            send(Opcodes.SMSG_ATTACKSWING_DEADTARGET, new byte[0]);
+            return;
+        }
+        if (player.duelOpponent != target) {
+            return;
+        }
+        if (player.distance2d(target) > Combat.meleeRange(player, target, Combat.meleeLeeway(player, target))) {
+            send(Opcodes.SMSG_ATTACKSWING_NOTINRANGE, new byte[0]);
+            return;
+        }
+        if (!player.inCombat) {
+            player.inCombat = true;
+            player.victim = target.guid;
+            target.inCombat = true;
+            if (target.victim == 0) {
+                target.victim = player.guid;
+            }
+            player.setGuid(UpdateFields.UNIT_FIELD_TARGET, target.guid);
+            byte[] start = world.combat.encodeAttackStart(player.guid, target.guid);
+            send(Opcodes.SMSG_ATTACKSTART, start);
+            if (target.session != null) {
+                target.session.send(Opcodes.SMSG_ATTACKSTART, start);
+            }
+        }
+        world.playerMeleeHit(player, target);
         player.lastMeleeMs = world.nowMs();
         player.lastOffhandMeleeMs = world.nowMs();
     }

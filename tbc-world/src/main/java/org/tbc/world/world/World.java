@@ -388,6 +388,95 @@ public final class World implements Runnable {
         applyMeleeHit(p, c, true);
     }
 
+    /**
+     * Player auto-attack vs a player (duel). Unit::DealDamage clamps to 1 HP and DuelComplete(DUEL_WON).
+     */
+    public void playerMeleeHit(Player p, Player victim) {
+        if (p == null || victim == null || !victim.alive()) {
+            return;
+        }
+        int min = Math.round(p.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
+        int max = Math.round(p.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
+        MeleeTable.Result r = MeleeTable.roll(p, victim, min, max);
+        int before = victim.health();
+        int dealt = r.damage();
+        boolean duelEnded = false;
+        if (dealt > 0) {
+            if (p.duelOpponent == victim && dealt >= before - 1) {
+                dealt = Math.max(0, before - 1);
+                duelEnded = true;
+            } else if (dealt > before) {
+                dealt = before;
+            }
+            victim.setHealth(before - dealt);
+            if (dealt != r.damage()) {
+                r = new MeleeTable.Result(r.outcome(), dealt, dealt, r.blocked());
+            }
+        }
+        byte[] log = combat.encodeAttack(p, victim, r);
+        var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(victim, UpdateFields.UNIT_FIELD_HEALTH));
+        GameMap hitMap = map(p.mapId, p.instanceId);
+        java.util.LinkedHashSet<Player> set = new java.util.LinkedHashSet<>();
+        set.add(p);
+        set.add(victim);
+        set.addAll(hitMap.nearbyPlayers(p, GameMap.VISIBILITY));
+        set.addAll(hitMap.nearbyPlayers(victim, GameMap.VISIBILITY));
+        for (Player pl : set) {
+            if (pl.session == null) {
+                continue;
+            }
+            pl.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, log);
+            pl.session.send(hp.opcode(), hp.payload());
+        }
+        if (duelEnded) {
+            completeDuelWon(victim);
+        }
+    }
+
+    /** Player::DuelComplete(DUEL_WON) — inspect-duel.md COMPLETE 1, WINNER 0 + names. */
+    private void completeDuelWon(Player loser) {
+        Player winner = loser.duelOpponent;
+        if (winner == null) {
+            return;
+        }
+        byte[] complete = new byte[]{1};
+        if (loser.session != null) {
+            loser.session.send(Opcodes.SMSG_DUEL_COMPLETE, complete);
+        }
+        if (winner.session != null) {
+            winner.session.send(Opcodes.SMSG_DUEL_COMPLETE, complete);
+        }
+        WowBuffer names = new WowBuffer(64);
+        names.putU8(0);
+        names.putCString(winner.name);
+        names.putCString(loser.name);
+        byte[] winPkt = names.array();
+        java.util.LinkedHashSet<WorldSession> sinks = new java.util.LinkedHashSet<>();
+        if (loser.session != null) {
+            sinks.add(loser.session);
+        }
+        if (winner.session != null) {
+            sinks.add(winner.session);
+        }
+        GameMap m = map(loser.mapId, loser.instanceId);
+        for (Player pl : m.nearbyPlayers(loser, GameMap.VISIBILITY)) {
+            if (pl.session != null) {
+                sinks.add(pl.session);
+            }
+        }
+        for (Player pl : m.nearbyPlayers(winner, GameMap.VISIBILITY)) {
+            if (pl.session != null) {
+                sinks.add(pl.session);
+            }
+        }
+        for (WorldSession s : sinks) {
+            s.send(Opcodes.SMSG_DUEL_WINNER, winPkt);
+        }
+        combat.stopAttack(loser);
+        combat.stopAttack(winner);
+        loser.completeDuel();
+    }
+
     private void applyMeleeHit(Player p, Creature c, boolean offhand) {
         GameMap hitMap = map(p.mapId, p.instanceId);
         boolean spellSwing = !offhand && p.hasNextMeleeSwingQueued();

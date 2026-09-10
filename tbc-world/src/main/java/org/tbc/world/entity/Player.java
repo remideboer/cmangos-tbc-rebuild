@@ -1104,6 +1104,22 @@ public final class Player extends Unit {
         other.duelPhase = 1;
     }
 
+    /** Player::DuelComplete — clear arbiter pairing on both sides. */
+    public void completeDuel() {
+        Player other = duelOpponent;
+        duelOpponent = null;
+        duelPhase = 0;
+        setDuelFlag(null);
+        victim = 0;
+        if (other == null) {
+            return;
+        }
+        other.duelOpponent = null;
+        other.duelPhase = 0;
+        other.setDuelFlag(null);
+        other.victim = 0;
+    }
+
     public GameObject duelFlag() {
         return duelFlag;
     }

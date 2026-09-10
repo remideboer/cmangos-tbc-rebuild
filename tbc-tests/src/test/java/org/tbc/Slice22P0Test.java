@@ -4,11 +4,13 @@ import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.pvp.Honor;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL22-* from honor.md / inspect-duel.md */
@@ -136,6 +138,60 @@ class Slice22P0Test {
         assertTrue(client.saw(Opcodes.SMSG_UPDATE_OBJECT) || client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
     }
 
+    /**
+     * TP-SL22-007 — after duel countdown, CMSG_ATTACKSWING the opponent deals packed
+     * SMSG_ATTACKERSTATEUPDATE + UNIT_FIELD_HEALTH to both; a killing blow stops at 1 HP
+     * with SMSG_DUEL_COMPLETE 1 and SMSG_DUEL_WINNER 0 (inspect-duel.md; Unit.cpp duel_hasEnded).
+     */
+    @Test
+    void tpSl22DuelMeleeDamageAndWinner() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "DuelistA");
+        WowClientDouble b = login(world, ACC_B, "DuelistB");
+        Player attacker = a.session().player();
+        Player opponent = b.session().player();
+        opponent.relocate(attacker.x, attacker.y, attacker.z, attacker.o);
+        attacker.selection = opponent.guid;
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(7);
+        a.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        a.handle(world, Opcodes.CMSG_DUEL_ACCEPTED, new byte[0]);
+        world.advanceMs(3000);
+        opponent.setHealth(2);
+        a.clear();
+        b.clear();
+        a.attackSwing(world, opponent.guid);
+        int delay = attacker.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
+        if (delay <= 0) {
+            delay = 2000;
+        }
+        for (int i = 0; i < 20 && !a.saw(Opcodes.SMSG_DUEL_COMPLETE); i++) {
+            world.advanceMs(delay);
+            a.session().tick(world, delay);
+        }
+        byte[] log = lastPayload(a, Opcodes.SMSG_ATTACKERSTATEUPDATE);
+        long packedAttacker = packedGuid(log, 4);
+        int afterAttacker = packedGuidEnd(log, 4);
+        long packedVictim = packedGuid(log, afterAttacker);
+        assertEquals(attacker.guid, packedAttacker);
+        assertEquals(opponent.guid, packedVictim);
+        assertTrue(WowClientDouble.u32le(log, packedGuidEnd(log, afterAttacker)) > 0);
+        assertTrue(b.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        assertEquals(1, a.valuesField(opponent.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        assertEquals(1, b.valuesField(opponent.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        assertEquals(1, opponent.health());
+        assertFalse(opponent.ghost);
+        assertEquals(1, lastPayload(a, Opcodes.SMSG_DUEL_COMPLETE)[0] & 0xFF);
+        assertEquals(1, lastPayload(b, Opcodes.SMSG_DUEL_COMPLETE)[0] & 0xFF);
+        WowBuffer win = new WowBuffer(lastPayload(a, Opcodes.SMSG_DUEL_WINNER));
+        assertEquals(0, win.getU8());
+        assertEquals("DuelistA", win.getCString());
+        assertEquals("DuelistB", win.getCString());
+        assertTrue(b.saw(Opcodes.SMSG_DUEL_WINNER));
+        assertFalse(attacker.inCombat);
+        assertFalse(opponent.inCombat);
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
@@ -151,5 +207,28 @@ class Slice22P0Test {
             }
         }
         throw new AssertionError("missing opcode " + opcode);
+    }
+
+    private static long packedGuid(byte[] p, int off) {
+        int mask = p[off] & 0xFF;
+        long guid = 0;
+        int i = off + 1;
+        for (int bit = 0; bit < 8; bit++) {
+            if ((mask & (1 << bit)) != 0) {
+                guid |= ((long) (p[i++] & 0xFF)) << (8 * bit);
+            }
+        }
+        return guid;
+    }
+
+    private static int packedGuidEnd(byte[] p, int off) {
+        int mask = p[off] & 0xFF;
+        int i = off + 1;
+        for (int bit = 0; bit < 8; bit++) {
+            if ((mask & (1 << bit)) != 0) {
+                i++;
+            }
+        }
+        return i;
     }
 }
