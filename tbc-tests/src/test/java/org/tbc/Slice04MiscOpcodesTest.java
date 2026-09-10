@@ -1,10 +1,15 @@
 package org.tbc;
 
+import io.netty.buffer.Unpooled;
+import io.netty.channel.embedded.EmbeddedChannel;
 import org.tbc.bdd.WowClientDouble;
+import org.tbc.common.WorldHeader;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.net.wow8606.WorldSocket;
+import org.tbc.world.session.WorldSession;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -200,6 +205,30 @@ class Slice04MiscOpcodesTest {
     }
 
     /**
+     * CMSG_KEEP_ALIVE — WorldSocket.cpp OnRead consumes the packet (log size) and does not QueuePacket.
+     * STATUS_NEVER / Handle_EarlyProccess; no SMSG. The 8606 client sends this before AUTH and in-world.
+     */
+    @Test
+    void tpSl04KeepAliveIsConsumedOnSocketWithoutQueue() throws Exception {
+        World world = World.inMemory();
+        WorldSocket socket = new WorldSocket(world);
+        EmbeddedChannel ch = new EmbeddedChannel(socket);
+        try {
+            var inbound = sessionInbound(socket);
+            ch.writeInbound(Unpooled.copiedBuffer(WorldHeader.clientPacket(Opcodes.CMSG_KEEP_ALIVE, new byte[0])));
+            assertTrue(inbound.isEmpty(), "WorldSocket must not queue CMSG_KEEP_ALIVE");
+            assertTrue(ch.isActive());
+            WowBuffer ping = new WowBuffer(4);
+            ping.putU32(1);
+            ch.writeInbound(Unpooled.copiedBuffer(WorldHeader.clientPacket(Opcodes.CMSG_PING, ping.array())));
+            assertTrue(inbound.isEmpty(), "CMSG_PING is also OnRead-immediate");
+            assertTrue(ch.isActive());
+        } finally {
+            ch.finishAndReleaseAll();
+        }
+    }
+
+    /**
      * CMSG_EMOTE WAVE (3) — HandleEmoteCommand SMSG_EMOTE emote u32 + raw guid to self and nearby.
      * chat.md: dance (10) is ignored; only NONE and WAVE are accepted.
      */
@@ -249,6 +278,17 @@ class Slice04MiscOpcodesTest {
             inf.end();
         }
         return raw;
+    }
+
+    /** WorldSocket.session.inbound — the QueuePacket destination in WorldSocket.cpp OnRead. */
+    @SuppressWarnings("unchecked")
+    private static java.util.Queue<Object> sessionInbound(WorldSocket socket) throws Exception {
+        var sessionF = WorldSocket.class.getDeclaredField("session");
+        sessionF.setAccessible(true);
+        WorldSession session = (WorldSession) sessionF.get(socket);
+        var inboundF = WorldSession.class.getDeclaredField("inbound");
+        inboundF.setAccessible(true);
+        return (java.util.Queue<Object>) inboundF.get(session);
     }
 
     private static WowClientDouble enter(World world, World.Account acc, String name) {

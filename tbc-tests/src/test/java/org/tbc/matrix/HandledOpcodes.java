@@ -11,6 +11,7 @@ final class HandledOpcodes {
     static final Set<Integer> SET = Set.of(
             Opcodes.CMSG_WARDEN_DATA,
             Opcodes.CMSG_PING,
+            Opcodes.CMSG_KEEP_ALIVE,
             Opcodes.CMSG_AUTH_SESSION,
             Opcodes.CMSG_CHAR_ENUM,
             Opcodes.CMSG_CHAR_CREATE,

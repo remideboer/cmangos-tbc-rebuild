@@ -66,7 +66,9 @@ public final class WorldSocket extends ChannelInboundHandlerAdapter implements P
             acc.readBytes(payload);
             acc.discardReadBytes();
             pendingHdr = null;
-            if (opcode == Opcodes.CMSG_PING || opcode == Opcodes.CMSG_AUTH_SESSION) {
+            // WorldSocket.cpp OnRead: AUTH_SESSION, PING, KEEP_ALIVE are not QueuePacket.
+            if (opcode == Opcodes.CMSG_PING || opcode == Opcodes.CMSG_AUTH_SESSION
+                    || opcode == Opcodes.CMSG_KEEP_ALIVE) {
                 session.handle(world, opcode, payload);
             } else {
                 world.queuePacket(session, opcode, payload);

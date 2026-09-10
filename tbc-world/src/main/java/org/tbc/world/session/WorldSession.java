@@ -228,6 +228,9 @@ public final class WorldSession {
             handlePing(world, in);
             return;
         }
+        if (opcode == Opcodes.CMSG_KEEP_ALIVE) {
+            return;
+        }
         if (opcode == Opcodes.CMSG_AUTH_SESSION) {
             handleAuthSession(world, in);
             return;
