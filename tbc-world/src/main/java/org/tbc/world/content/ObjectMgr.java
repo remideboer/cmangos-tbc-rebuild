@@ -768,6 +768,33 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Gauntlets of Enforcement — tbc.cavernoftime.com 32280 (STA 70, DEF 32, EXPERTISE 21, armor 1103). */
+        public static ItemTemplate gauntletsOfEnforcement() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_GAUNTLETS_OF_ENFORCEMENT;
+            t.itemClass = 4;
+            t.subClass = 4;
+            t.name = "Gauntlets of Enforcement";
+            t.quality = 4;
+            t.inventoryType = 10;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 141;
+            t.requiredLevel = 70;
+            t.stackable = 1;
+            t.statType[0] = 7;
+            t.statValue[0] = 70;
+            t.statType[1] = 12;
+            t.statValue[1] = 32;
+            t.statType[2] = 37;
+            t.statValue[2] = 21;
+            t.armor = 1103;
+            t.bonding = 1;
+            t.maxDurability = 55;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Onslaught Chestguard — tbc-db 30976 (AGI 37, STA 69, DEF 37, PARRY 28, BLOCK 23, armor 1825). */
         public static ItemTemplate onslaughtChestguard() {
             ItemTemplate t = new ItemTemplate();
@@ -1702,6 +1729,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_GLADIATORS_PLATE_CHESTPIECE, ItemTemplate.gladiatorsPlateChestpiece());
         items.putIfAbsent(Content.ITEM_ONSLAUGHT_CHESTGUARD, ItemTemplate.onslaughtChestguard());
         items.putIfAbsent(Content.ITEM_WARHARNESS_OF_RECKLESS_FURY, ItemTemplate.warharnessOfRecklessFury());
+        items.putIfAbsent(Content.ITEM_GAUNTLETS_OF_ENFORCEMENT, ItemTemplate.gauntletsOfEnforcement());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -2549,6 +2577,7 @@ public final class ObjectMgr {
     private static final int ITEM_MOD_CRIT_RATING = 32;
     private static final int ITEM_MOD_RESILIENCE_RATING = 35;
     private static final int ITEM_MOD_HASTE_RATING = 36;
+    private static final int ITEM_MOD_EXPERTISE_RATING = 37;
     /** Unit.h CombatRating — ITEM_MOD_HIT_RATING / ITEM_MOD_CRIT_RATING / ITEM_MOD_HASTE_RATING write melee and ranged, not spell. */
     private static final int CR_DEFENSE_SKILL = 1;
     private static final int CR_DODGE = 2;
@@ -2563,6 +2592,7 @@ public final class ObjectMgr {
     private static final int CR_CRIT_TAKEN_SPELL = 16;
     private static final int CR_HASTE_MELEE = 17;
     private static final int CR_HASTE_RANGED = 18;
+    private static final int CR_EXPERTISE = 23;
 
     /** UNIT_FIELD_MIN/MAXDAMAGE + BASEATTACKTIME from weapons; STAT2 / RESISTANCES from _ApplyItemBonuses. */
     public void applyEquippedMelee(Player p) {
@@ -2607,6 +2637,7 @@ public final class ObjectMgr {
         int critRating = 0;
         int resilienceRating = 0;
         int hasteRating = 0;
+        int expertiseRating = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
@@ -2645,6 +2676,8 @@ public final class ObjectMgr {
                     resilienceRating += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_HASTE_RATING) {
                     hasteRating += t.statValue[i];
+                } else if (t.statType[i] == ITEM_MOD_EXPERTISE_RATING) {
+                    expertiseRating += t.statValue[i];
                 }
             }
         }
@@ -2667,6 +2700,7 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_CRIT_TAKEN_SPELL, resilienceRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_MELEE, hasteRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_RANGED, hasteRating);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_EXPERTISE, expertiseRating);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {

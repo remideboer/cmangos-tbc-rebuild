@@ -151,6 +151,8 @@ public final class Content {
     public static final int ITEM_ONSLAUGHT_CHESTGUARD = 30976;
     /** tbc.cavernoftime.com item 34215; STR 61 / STA 67 / CRIT 41 / HASTE 32, armor 1983. */
     public static final int ITEM_WARHARNESS_OF_RECKLESS_FURY = 34215;
+    /** tbc.cavernoftime.com item 32280; STA 70 / DEF 32 / EXPERTISE 21, armor 1103, hands. */
+    public static final int ITEM_GAUNTLETS_OF_ENFORCEMENT = 32280;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */
