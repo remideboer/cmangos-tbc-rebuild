@@ -12,6 +12,7 @@ public final class ChannelHandler {
     public static final int WRONG_PASSWORD = 0x04;
     public static final int NOT_MEMBER = 0x05;
     public static final int PASSWORD_CHANGED = 0x07;
+    public static final int CHANNEL_OWNER = 0x0B;
     public static final int CHANNEL_ID_GENERAL = 1;
 
     private ChannelHandler() {}
@@ -79,6 +80,28 @@ public final class ChannelHandler {
         n.putU8(PASSWORD_CHANGED);
         n.putCString(name);
         n.putU64(s.player().guid);
+        s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+    }
+
+    /** Channel::SendChannelOwnerResponse — member gets CHANNEL_OWNER + name. */
+    public static void owner(WorldSession s, WowBuffer in) {
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        if (name.isEmpty()) {
+            return;
+        }
+        if (!s.channels.contains(name)) {
+            WowBuffer n = new WowBuffer(32);
+            n.putU8(NOT_MEMBER);
+            n.putCString(name);
+            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            return;
+        }
+        Player p = s.player();
+        String ownerName = p.name != null && !p.name.isEmpty() ? p.name : "Nobody";
+        WowBuffer n = new WowBuffer(64);
+        n.putU8(CHANNEL_OWNER);
+        n.putCString(name);
+        n.putCString(ownerName);
         s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
     }
 

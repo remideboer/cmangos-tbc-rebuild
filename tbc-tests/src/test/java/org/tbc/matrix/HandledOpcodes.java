@@ -219,6 +219,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_BATTLEFIELD_LIST,
             Opcodes.CMSG_AREA_SPIRIT_HEALER_QUERY,
             Opcodes.CMSG_CHANNEL_LIST,
+            Opcodes.CMSG_CHANNEL_OWNER,
             Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE,
             Opcodes.CMSG_TOTEM_DESTROYED,
             Opcodes.CMSG_PET_ABANDON,

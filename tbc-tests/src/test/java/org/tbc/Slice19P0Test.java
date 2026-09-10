@@ -145,6 +145,35 @@ class Slice19P0Test {
         assertEquals("General", n.getCString());
     }
 
+    /**
+     * TP-SL19-008 — CMSG_CHANNEL_OWNER reports the owner name.
+     * SendChannelOwnerResponse: not a member → NOT_MEMBER; else CHANNEL_OWNER 0x0B + name.
+     */
+    @Test
+    void tpSl19ChannelOwner() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Talker");
+        client.clear();
+        WowBuffer query = new WowBuffer(16);
+        query.putCString("General");
+        client.handle(world, Opcodes.CMSG_CHANNEL_OWNER, query.array());
+        WowBuffer notMember = new WowBuffer(lastPayload(client, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MEMBER, notMember.getU8());
+        assertEquals("General", notMember.getCString());
+
+        client.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinGeneral().array());
+        client.clear();
+        client.handle(world, Opcodes.CMSG_CHANNEL_OWNER, query.array());
+        WowBuffer owner = new WowBuffer(lastPayload(client, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.CHANNEL_OWNER, owner.getU8());
+        assertEquals("General", owner.getCString());
+        assertEquals("Talker", owner.getCString());
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_CHANNEL_OWNER, new byte[0]);
+        assertFalse(client.saw(Opcodes.SMSG_CHANNEL_NOTIFY));
+    }
+
     private static WowBuffer joinGeneral() {
         WowBuffer join = new WowBuffer(32);
         join.putU32(0);
