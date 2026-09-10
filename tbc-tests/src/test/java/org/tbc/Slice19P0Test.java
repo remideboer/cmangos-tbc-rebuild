@@ -394,6 +394,64 @@ class Slice19P0Test {
         assertEquals(ChannelHandler.MEMBER_FLAG_NONE, toB.getU8());
     }
 
+    /**
+     * TP-SL19-008 — CMSG_CHANNEL_INVITE: INVITE 0x18 to the target, PLAYER_INVITED 0x1D to the inviter.
+     * Channel::Invite — not-member 0x05, missing 0x09, already 0x17, wrong faction 0x19.
+     */
+    @Test
+    void tpSl19ChannelInvite() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Talker");
+        WowClientDouble b = login(world, ACC_B, "Wavee");
+        a.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_INVITE, new byte[0]);
+        assertFalse(a.saw(Opcodes.SMSG_CHANNEL_NOTIFY));
+
+        WowClientDouble outsider = login(world, new World.Account(3, "OUT", new byte[40], 3, 1, "Win", "x86"), "Outsider");
+        outsider.clear();
+        outsider.handle(world, Opcodes.CMSG_CHANNEL_INVITE, namePayload("MyChan", "Wavee"));
+        WowBuffer notMember = new WowBuffer(lastPayload(outsider, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MEMBER, notMember.getU8());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_INVITE, namePayload("MyChan", "Nobody"));
+        WowBuffer missing = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PLAYER_NOT_FOUND, missing.getU8());
+        assertEquals("MyChan", missing.getCString());
+        assertEquals("Nobody", missing.getCString());
+
+        a.clear();
+        b.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_INVITE, namePayload("MyChan", "Wavee"));
+        WowBuffer invited = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PLAYER_INVITED, invited.getU8());
+        assertEquals("MyChan", invited.getCString());
+        assertEquals("Wavee", invited.getCString());
+        WowBuffer invite = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.INVITE, invite.getU8());
+        assertEquals("MyChan", invite.getCString());
+        assertEquals(a.session().player().guid, invite.getU64());
+
+        b.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_INVITE, namePayload("MyChan", "Wavee"));
+        WowBuffer already = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PLAYER_ALREADY_MEMBER, already.getU8());
+        assertEquals("MyChan", already.getCString());
+        assertEquals(b.session().player().guid, already.getU64());
+
+        WowClientDouble horde = login(world, new World.Account(4, "HORDE", new byte[40], 3, 1, "Win", "x86"), "Grunt", 2);
+        a.clear();
+        horde.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_INVITE, namePayload("MyChan", "Grunt"));
+        WowBuffer faction = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.INVITE_WRONG_FACTION, faction.getU8());
+        assertEquals("MyChan", faction.getCString());
+        assertFalse(horde.saw(Opcodes.SMSG_CHANNEL_NOTIFY));
+    }
+
     private static byte[] namePayload(String channel, String player) {
         WowBuffer in = new WowBuffer(48);
         in.putCString(channel);
@@ -423,9 +481,13 @@ class Slice19P0Test {
     }
 
     private static WowClientDouble login(World world, World.Account acc, String name) {
+        return login(world, acc, name, 1);
+    }
+
+    private static WowClientDouble login(World world, World.Account acc, String name, int race) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
-        Player created = world.characters.create(acc.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player created = world.characters.create(acc.id(), name, race, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         return client;
     }

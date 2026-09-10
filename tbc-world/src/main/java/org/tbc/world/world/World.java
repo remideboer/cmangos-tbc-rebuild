@@ -58,6 +58,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
@@ -94,6 +95,8 @@ public final class World implements Runnable {
     public final Map<String, Long> channelOwners = new ConcurrentHashMap<>();
     /** Custom channel → member guid → Channel.h PlayerInfo flags. */
     public final Map<String, ConcurrentHashMap<Long, Integer>> channelMemberFlags = new ConcurrentHashMap<>();
+    /** Custom channel → banned member guids (Channel.cpp IsBanned). */
+    public final Map<String, Set<Long>> channelBans = new ConcurrentHashMap<>();
     public final Terrain terrain;
     public final GraveyardManager graveyards;
     public final String motd;

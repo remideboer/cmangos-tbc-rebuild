@@ -19,6 +19,11 @@ public final class ChannelHandler {
     public static final int NOT_OWNER = 0x0A;
     public static final int CHANNEL_OWNER = 0x0B;
     public static final int MODE_CHANGE = 0x0C;
+    public static final int PLAYER_ALREADY_MEMBER = 0x17;
+    public static final int INVITE = 0x18;
+    public static final int INVITE_WRONG_FACTION = 0x19;
+    public static final int PLAYER_INVITED = 0x1D;
+    public static final int PLAYER_INVITE_BANNED = 0x1E;
     public static final int MEMBER_FLAG_NONE = 0x00;
     public static final int MEMBER_FLAG_OWNER = 0x01;
     public static final int MEMBER_FLAG_MODERATOR = 0x02;
@@ -197,6 +202,72 @@ public final class ChannelHandler {
     /** Channel::SetMute(..., false) via CMSG_CHANNEL_UNMUTE. */
     public static void unmute(WorldSession s, World world, WowBuffer in) {
         setMode(s, world, in, MEMBER_FLAG_MUTED, false);
+    }
+
+    /** Channel::Invite via CMSG_CHANNEL_INVITE. */
+    public static void invite(WorldSession s, World world, WowBuffer in) {
+        String channel = in.remaining() > 0 ? in.getCString() : "";
+        String raw = in.remaining() > 0 ? in.getCString() : "";
+        String targetName = PlayerNames.normalize(raw);
+        if (channel.isEmpty() || targetName == null) {
+            return;
+        }
+        Player p = s.player();
+        if (!s.channels.contains(channel)) {
+            notify(s, NOT_MEMBER, channel);
+            return;
+        }
+        Player target = world.playerByName(targetName);
+        if (target == null || target.session == null) {
+            WowBuffer n = new WowBuffer(64);
+            n.putU8(PLAYER_NOT_FOUND);
+            n.putCString(channel);
+            n.putCString(targetName);
+            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            return;
+        }
+        if (target.session.channels.contains(channel)) {
+            WowBuffer n = new WowBuffer(32);
+            n.putU8(PLAYER_ALREADY_MEMBER);
+            n.putCString(channel);
+            n.putU64(target.guid);
+            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            return;
+        }
+        var bans = world.channelBans.get(channel);
+        if (bans != null && bans.contains(target.guid)) {
+            WowBuffer n = new WowBuffer(64);
+            n.putU8(PLAYER_INVITE_BANNED);
+            n.putCString(channel);
+            n.putCString(targetName);
+            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            return;
+        }
+        if (target.team != p.team) {
+            notify(s, INVITE_WRONG_FACTION, channel);
+            return;
+        }
+        if (!ignores(target, p.guid)) {
+            WowBuffer n = new WowBuffer(32);
+            n.putU8(INVITE);
+            n.putCString(channel);
+            n.putU64(p.guid);
+            target.session.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+        }
+        WowBuffer invited = new WowBuffer(48);
+        invited.putU8(PLAYER_INVITED);
+        invited.putCString(channel);
+        invited.putCString(targetName);
+        s.send(Opcodes.SMSG_CHANNEL_NOTIFY, invited.array());
+    }
+
+    private static boolean ignores(Player who, long guid) {
+        for (Player.Friend f : who.friends) {
+            if (f.guid == guid && (f.flags & SocialHandler.SOCIAL_FLAG_IGNORED) != 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void setMode(WorldSession s, World world, WowBuffer in, int flag, boolean set) {
