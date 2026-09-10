@@ -43,6 +43,17 @@ public final class DeathHandler {
             return;
         }
         p.setHealth(0);
+        p.durabilityLossAll(0.10, false);
+        for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
+            Item it = p.itemAt(0, slot);
+            if (it == null || it.maxDurability <= 0) {
+                continue;
+            }
+            var itemUpd = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.valuesItem(it, UpdateFields.ITEM_FIELD_DURABILITY));
+            s.send(itemUpd.opcode(), itemUpd.payload());
+        }
+        s.send(Opcodes.SMSG_DURABILITY_DAMAGE_DEATH, new byte[0]);
         p.sendMoveRoot(true);
         // Non-instance maps only (death.md); continents 0/1/530.
         if (p.mapId == 0 || p.mapId == 1 || p.mapId == 530) {

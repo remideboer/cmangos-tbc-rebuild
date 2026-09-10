@@ -104,10 +104,26 @@ public final class UpdateBuilder {
 
     /** VALUES block where {@code viewerValue} may replace a field per viewer (Object::BuildValuesUpdate). */
     public static byte[] values(Unit u, IntUnaryOperator viewerValue, int... fields) {
+        return values(u.guid, u.values.length, viewerValue, fields);
+    }
+
+    /** Item VALUES (packed item GUID, ITEM_END). CMaNGOS Item::SetUInt32Value. */
+    public static byte[] valuesItem(Item it, int... fields) {
+        return values(itemGuid(it), UpdateFields.ITEM_END, f -> {
+            if (f == UpdateFields.ITEM_FIELD_DURABILITY) {
+                return it.durability;
+            }
+            if (f == UpdateFields.ITEM_FIELD_MAXDURABILITY) {
+                return it.maxDurability;
+            }
+            return 0;
+        }, fields);
+    }
+
+    static byte[] values(long guid, int count, IntUnaryOperator viewerValue, int... fields) {
         WowBuffer block = new WowBuffer(64 + fields.length * 4);
         block.putU8(UPDATETYPE_VALUES);
-        block.putPackedGuid(u.guid);
-        int count = u.values.length;
+        block.putPackedGuid(guid);
         int nblocks = (count + 31) / 32;
         block.putU8(nblocks);
         int[] mask = new int[nblocks];

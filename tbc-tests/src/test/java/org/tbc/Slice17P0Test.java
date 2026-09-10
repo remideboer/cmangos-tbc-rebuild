@@ -2,9 +2,11 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.session.DeathHandler;
@@ -167,6 +169,39 @@ class Slice17P0Test {
         assertTrue(p.ghost);
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.GHOST_AURA));
         assertNotNull(lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC));
+    }
+
+    /**
+     * TP-SL17-008 — Player::DurabilityLossAll(0.10f, false) on KillPlayer. Equipped
+     * Worn Shortsword 25 at 20/20 loses 10% (ITEM_FIELD_DURABILITY VALUES 18); backpack
+     * and bank stay 20 (death.md; Unit.cpp DealDamage durability packet).
+     */
+    @Test
+    void tpSl17DeathDurabilityLoss() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "DeathDurability");
+        Player p = client.session().player();
+        Item equipped = durableSword(world, Player.EQUIPMENT_SLOT_MAINHAND);
+        Item bag = durableSword(world, p.firstFreeBagSlot());
+        Item bank = durableSword(world, Player.BANK_SLOT_ITEM_START);
+        p.items.put((int) equipped.guid, equipped);
+        p.items.put((int) bag.guid, bag);
+        p.items.put((int) bank.guid, bank);
+        client.clear();
+        DeathHandler.killPlayer(client.session(), world);
+        assertEquals(18, client.valuesField(UpdateBuilder.itemGuid(equipped), UpdateFields.ITEM_FIELD_DURABILITY));
+        assertEquals(20, bag.durability);
+        assertEquals(20, bank.durability);
+        byte[] deathDur = lastPayload(client, Opcodes.SMSG_DURABILITY_DAMAGE_DEATH);
+        assertEquals(0, deathDur.length);
+    }
+
+    private static Item durableSword(World world, int slot) {
+        Item it = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        it.slot = slot;
+        it.durability = 20;
+        it.maxDurability = 20;
+        return it;
     }
 
     private static WowClientDouble login(World world, String name) {

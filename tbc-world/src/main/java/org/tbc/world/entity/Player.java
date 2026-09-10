@@ -383,6 +383,27 @@ public final class Player extends Unit {
     }
 
     /**
+     * CMaNGOS Player::DurabilityLossAll. Equipped always; backpack (and bags) when inventory.
+     */
+    public void durabilityLossAll(double percent, boolean inventory) {
+        for (int s = 0; s < EQUIPMENT_SLOT_END; s++) {
+            Item it = itemAt(0, s);
+            if (it != null) {
+                durabilityLoss(it, percent);
+            }
+        }
+        if (!inventory) {
+            return;
+        }
+        for (int s = INVENTORY_SLOT_ITEM_START; s < INVENTORY_SLOT_ITEM_END; s++) {
+            Item it = itemAt(0, s);
+            if (it != null) {
+                durabilityLoss(it, percent);
+            }
+        }
+    }
+
+    /**
      * CMaNGOS DurabilityPointsLossAll. Equipped always; backpack (and bags) when inventory.
      */
     public void durabilityPointsLossAll(int points, boolean inventory) {
