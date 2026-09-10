@@ -1214,6 +1214,88 @@ class Slice14P0Test {
         assertFalse(client.saw(Opcodes.SMSG_TAXINODE_STATUS));
     }
 
+    /**
+     * TP-SL14-014 — HandleTaxiQueryAvailableNodes known node. Dungar 352 in range with
+     * Stormwind 2 known → SMSG_SHOWTAXINODES unk 1, raw guid, curloc 2, 16×uint32 (taxi.md).
+     */
+    @Test
+    void tpSl14TaxiQueryAvailableNodes() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "TaxiMap", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature master = find(world, Content.NPC_DUNGAR_LONGDRINK);
+        assertNotNull(master);
+        p.relocate(master.x, master.y, master.z, master.o);
+        p.learnTaxi(Content.TAXI_STORMWIND);
+        client.clear();
+        WowBuffer q = new WowBuffer(8);
+        q.putU64(master.guid);
+        client.handle(world, Opcodes.CMSG_TAXIQUERYAVAILABLENODES, q.array());
+        WowBuffer b = new WowBuffer(lastPayload(client, Opcodes.SMSG_SHOWTAXINODES));
+        assertEquals(1, b.getU32());
+        assertEquals(master.guid, b.getU64());
+        assertEquals(Content.TAXI_STORMWIND, b.getU32());
+        for (int i = 0; i < 16; i++) {
+            assertEquals(p.taxiMask[i], b.getU32());
+        }
+        assertEquals(0, b.remaining());
+        assertFalse(client.saw(Opcodes.SMSG_NEW_TAXI_PATH));
+    }
+
+    /**
+     * TP-SL14-014 — SendLearnNewTaxiNode. Unknown nearest node → empty SMSG_NEW_TAXI_PATH
+     * and SMSG_TAXINODE_STATUS known 1 instead of the menu (taxi.md).
+     */
+    @Test
+    void tpSl14TaxiQueryAvailableNodesLearnsUnknown() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "NewPath", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature master = find(world, Content.NPC_DUNGAR_LONGDRINK);
+        assertNotNull(master);
+        p.relocate(master.x, master.y, master.z, master.o);
+        assertFalse(p.taxiKnown(Content.TAXI_STORMWIND));
+        client.clear();
+        WowBuffer q = new WowBuffer(8);
+        q.putU64(master.guid);
+        client.handle(world, Opcodes.CMSG_TAXIQUERYAVAILABLENODES, q.array());
+        assertTrue(client.saw(Opcodes.SMSG_NEW_TAXI_PATH));
+        assertEquals(0, lastPayload(client, Opcodes.SMSG_NEW_TAXI_PATH).length);
+        WowBuffer status = new WowBuffer(lastPayload(client, Opcodes.SMSG_TAXINODE_STATUS));
+        assertEquals(master.guid, status.getU64());
+        assertEquals(1, status.getU8());
+        assertFalse(client.saw(Opcodes.SMSG_SHOWTAXINODES));
+        assertTrue(p.taxiKnown(Content.TAXI_STORMWIND));
+    }
+
+    /** TP-SL14-014 — GetNPCIfCanInteractWith miss is silent (TaxiHandler.cpp). */
+    @Test
+    void tpSl14TaxiQueryAvailableNodesWhenOutOfRangeShouldSendNothing() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "TooFar", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature master = find(world, Content.NPC_DUNGAR_LONGDRINK);
+        assertNotNull(master);
+        p.learnTaxi(Content.TAXI_STORMWIND);
+        client.clear();
+        WowBuffer q = new WowBuffer(8);
+        q.putU64(master.guid);
+        client.handle(world, Opcodes.CMSG_TAXIQUERYAVAILABLENODES, q.array());
+        assertFalse(client.saw(Opcodes.SMSG_SHOWTAXINODES));
+        assertFalse(client.saw(Opcodes.SMSG_NEW_TAXI_PATH));
+        client.handle(world, Opcodes.CMSG_TAXIQUERYAVAILABLENODES, new byte[0]);
+        assertFalse(client.saw(Opcodes.SMSG_SHOWTAXINODES));
+    }
+
     @Test
     void tpSl14Weather() {
         World world = World.inMemory();

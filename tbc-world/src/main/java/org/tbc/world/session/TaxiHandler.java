@@ -11,7 +11,7 @@ import org.tbc.world.world.World;
 
 import java.util.function.BiConsumer;
 
-/** CMSG_TAXINODE_STATUS_QUERY / CMSG_ACTIVATETAXI / SMSG_SHOWTAXINODES. Layout: spec/03-protocol/packets/taxi.md */
+/** CMSG_TAXINODE_STATUS_QUERY / CMSG_TAXIQUERYAVAILABLENODES / CMSG_ACTIVATETAXI. Layout: spec/03-protocol/packets/taxi.md */
 public final class TaxiHandler {
     public static final int MONSTER_MOVE_NORMAL = 0;
     public static final int MONSTER_MOVE_FACING_SPOT = 2;
@@ -42,6 +42,43 @@ public final class TaxiHandler {
         out.putU64(guid);
         out.putU8(p.taxiKnown(curloc) ? 1 : 0);
         s.send(Opcodes.SMSG_TAXINODE_STATUS, out.array());
+    }
+
+    /** CMaNGOS HandleTaxiQueryAvailableNodes — interact + learn-new or menu. */
+    public static void queryAvailable(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Creature npc = Content.creature(world.map(p.mapId, p.instanceId), guid);
+        if (npc == null || Content.outOfRange(p, npc)
+                || (npc.npcFlags & Content.UNIT_NPC_FLAG_FLIGHTMASTER) == 0) {
+            return;
+        }
+        if (learnNewNode(s, world, npc)) {
+            return;
+        }
+        sendMenu(p, npc, world.objectMgr, s::send);
+    }
+
+    /** CMaNGOS SendLearnNewTaxiNode. True skips the menu (no node, or just learned). */
+    static boolean learnNewNode(WorldSession s, World world, Creature npc) {
+        Player p = s.player();
+        int curloc = world.objectMgr.nearestTaxiNode(npc.x, npc.y, npc.z, npc.mapId, p.team);
+        if (curloc == 0) {
+            return true;
+        }
+        if (p.taxiKnown(curloc)) {
+            return false;
+        }
+        p.learnTaxi(curloc);
+        s.send(Opcodes.SMSG_NEW_TAXI_PATH, new byte[0]);
+        WowBuffer update = new WowBuffer(9);
+        update.putU64(npc.guid);
+        update.putU8(1);
+        s.send(Opcodes.SMSG_TAXINODE_STATUS, update.array());
+        return true;
     }
 
     public static void sendMenu(Player p, Creature c, ObjectMgr mgr, BiConsumer<Integer, byte[]> send) {
