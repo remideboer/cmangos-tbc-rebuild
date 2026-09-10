@@ -32,6 +32,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_GUILD_QUERY,
             Opcodes.CMSG_ITEM_QUERY_SINGLE,
             Opcodes.CMSG_PAGE_TEXT_QUERY,
+            Opcodes.CMSG_ITEM_TEXT_QUERY,
             Opcodes.CMSG_NPC_TEXT_QUERY,
             Opcodes.CMSG_QUEST_QUERY,
             Opcodes.CMSG_GAMEOBJECT_QUERY,

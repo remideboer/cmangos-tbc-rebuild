@@ -156,6 +156,17 @@ public final class QueryHandler {
         session.send(Opcodes.SMSG_PAGE_TEXT_QUERY_RESPONSE, out.array());
     }
 
+    /** CMaNGOS MailHandler HandleItemTextQuery. Layout: spec/03-protocol/packets/misc-player.md */
+    public static void itemText(WorldSession session, World world, WowBuffer in) {
+        int itemTextId = readU32(in);
+        readU32(in);
+        readU32(in);
+        WowBuffer out = new WowBuffer(64);
+        out.putU32(itemTextId);
+        out.putCString(world.objectMgr.itemText(itemTextId));
+        session.send(Opcodes.SMSG_ITEM_TEXT_QUERY_RESPONSE, out.array());
+    }
+
     public static void npcText(WorldSession session, World world, WowBuffer in) {
         int textId = readU32(in);
         readU64(in);

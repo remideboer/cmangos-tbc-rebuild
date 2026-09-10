@@ -382,6 +382,8 @@ public final class ObjectMgr {
     public final Map<Integer, ItemTemplate> items = new HashMap<>();
     public final Map<Integer, GameObjectTemplate> gameObjects = new HashMap<>();
     public final Map<Integer, PageText> pageTexts = new HashMap<>();
+    /** Character DB `item_text` (ObjectMgr::GetItemText). */
+    public final Map<Integer, String> itemTexts = new HashMap<>();
     public final Map<Integer, NpcText> npcTexts = new HashMap<>();
     public final List<Spawn> spawns = new ArrayList<>();
     public final List<Spawn> goSpawns = new ArrayList<>();
@@ -1193,6 +1195,14 @@ public final class ObjectMgr {
 
     public static long taxiKey(int from, int to) {
         return ((long) from << 32) | (to & 0xFFFFFFFFL);
+    }
+
+    /** ObjectMgr.h GetItemText miss. */
+    public static final String MISSING_ITEM_TEXT = "There is no info for this item";
+
+    public String itemText(int id) {
+        String text = itemTexts.get(id);
+        return text != null ? text : MISSING_ITEM_TEXT;
     }
 
     /** ObjectMgr.cpp GetNearestTaxiNode. Alliance team 469 uses MountCreatureID[1]. */

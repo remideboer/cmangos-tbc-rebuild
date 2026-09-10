@@ -324,6 +324,7 @@ public final class WorldSession {
             case Opcodes.CMSG_ITEM_QUERY_SINGLE -> QueryHandler.item(this, world, in);
             case Opcodes.CMSG_QUEST_QUERY -> QueryHandler.quest(this, world, in);
             case Opcodes.CMSG_PAGE_TEXT_QUERY -> QueryHandler.pageText(this, world, in);
+            case Opcodes.CMSG_ITEM_TEXT_QUERY -> QueryHandler.itemText(this, world, in);
             case Opcodes.CMSG_NPC_TEXT_QUERY -> QueryHandler.npcText(this, world, in);
             case Opcodes.CMSG_PET_NAME_QUERY -> QueryHandler.petName(this, in);
             case Opcodes.CMSG_WHOIS -> QueryHandler.whois(this, world, in);

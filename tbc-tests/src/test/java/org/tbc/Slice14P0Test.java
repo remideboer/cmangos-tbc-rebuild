@@ -1296,6 +1296,49 @@ class Slice14P0Test {
         assertFalse(client.saw(Opcodes.SMSG_SHOWTAXINODES));
     }
 
+    /**
+     * TP-SL14-014 — HandleItemTextQuery. CMSG_ITEM_TEXT_QUERY itemTextId →
+     * SMSG_ITEM_TEXT_QUERY_RESPONSE id + C-string (misc-player.md).
+     */
+    @Test
+    void tpSl14ItemTextQuery() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Letter", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        world.objectMgr.itemTexts.put(1, "keep this");
+        client.clear();
+        WowBuffer q = new WowBuffer(12);
+        q.putU32(1);
+        q.putU32(0);
+        q.putU32(0);
+        client.handle(world, Opcodes.CMSG_ITEM_TEXT_QUERY, q.array());
+        WowBuffer b = new WowBuffer(lastPayload(client, Opcodes.SMSG_ITEM_TEXT_QUERY_RESPONSE));
+        assertEquals(1, b.getU32());
+        assertEquals("keep this", b.getCString());
+        assertEquals(0, b.remaining());
+    }
+
+    /** TP-SL14-014 — ObjectMgr::GetItemText miss still replies with the C++ fallback string. */
+    @Test
+    void tpSl14ItemTextQueryWhenMissingShouldReplyNoInfo() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "NoLetter", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        WowBuffer q = new WowBuffer(12);
+        q.putU32(99);
+        q.putU32(0);
+        q.putU32(0);
+        client.handle(world, Opcodes.CMSG_ITEM_TEXT_QUERY, q.array());
+        WowBuffer b = new WowBuffer(lastPayload(client, Opcodes.SMSG_ITEM_TEXT_QUERY_RESPONSE));
+        assertEquals(99, b.getU32());
+        assertEquals("There is no info for this item", b.getCString());
+    }
+
     @Test
     void tpSl14Weather() {
         World world = World.inMemory();
