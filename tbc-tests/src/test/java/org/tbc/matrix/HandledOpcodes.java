@@ -72,6 +72,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_GROUP_INVITE,
             Opcodes.CMSG_GROUP_ACCEPT,
             Opcodes.CMSG_GROUP_DECLINE,
+            Opcodes.CMSG_GROUP_UNINVITE,
             Opcodes.CMSG_GROUP_DISBAND,
             Opcodes.CMSG_INITIATE_TRADE,
             Opcodes.CMSG_BEGIN_TRADE,

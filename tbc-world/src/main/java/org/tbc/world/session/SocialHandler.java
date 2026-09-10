@@ -6,6 +6,7 @@ import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Mail;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.PlayerNames;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -42,10 +43,13 @@ public final class SocialHandler {
     public static final int MAIL_ERR_TOO_MANY = 18;
     public static final int MAIL_ERR_ATTACH = 19;
     public static final int PARTY_OP_INVITE = 0;
+    public static final int PARTY_OP_LEAVE = 2;
     public static final int ERR_PARTY_OK = 0;
     public static final int ERR_BAD_PLAYER_NAME = 1;
+    public static final int ERR_TARGET_NOT_IN_GROUP = 2;
     public static final int ERR_GROUP_FULL = 4;
     public static final int ERR_ALREADY_IN_GROUP = 5;
+    public static final int ERR_NOT_IN_GROUP = 6;
     public static final int ERR_NOT_LEADER = 7;
     public static final int ERR_WRONG_FACTION = 8;
     public static final int FRIEND_NOT_FOUND = 0x04;
@@ -410,6 +414,79 @@ public final class SocialHandler {
         WowBuffer out = new WowBuffer(16);
         out.putCString(p.name);
         from.session.send(Opcodes.SMSG_GROUP_DECLINE, out.array());
+    }
+
+    /**
+     * HandleGroupUninviteOpcode — name C-string. CanUninviteFromGroup then RemoveMember.
+     * Spec/YAML: empty SMSG_GROUP_UNINVITE to the kicked player (C++ only sends that when method==1).
+     */
+    public static void groupUninvite(WorldSession s, WowBuffer in) {
+        String raw = in.getCString();
+        String name = PlayerNames.normalize(raw);
+        if (name == null) {
+            return;
+        }
+        Player p = s.player();
+        if (p.name.equalsIgnoreCase(name)) {
+            return;
+        }
+        Group g = p.group;
+        if (g == null) {
+            partyResult(s, PARTY_OP_LEAVE, "", ERR_NOT_IN_GROUP);
+            return;
+        }
+        boolean assistant = (g.flags.getOrDefault(p.guid, 0) & Group.FLAG_ASSISTANT) != 0;
+        if (g.leaderGuid != p.guid && !assistant) {
+            partyResult(s, PARTY_OP_LEAVE, "", ERR_NOT_LEADER);
+            return;
+        }
+        Player leader = null;
+        for (Player m : g.members) {
+            if (m.guid == g.leaderGuid) {
+                leader = m;
+                break;
+            }
+        }
+        if (leader != null && leader.name.equalsIgnoreCase(name)) {
+            partyResult(s, PARTY_OP_LEAVE, "", ERR_NOT_LEADER);
+            return;
+        }
+        Player kicked = null;
+        for (Player m : g.members) {
+            if (m.name.equalsIgnoreCase(name)) {
+                kicked = m;
+                break;
+            }
+        }
+        if (kicked == null) {
+            partyResult(s, PARTY_OP_LEAVE, name, ERR_TARGET_NOT_IN_GROUP);
+            return;
+        }
+        removeMember(g, kicked);
+    }
+
+    /** Group::RemoveMember. Spec sends SMSG_GROUP_UNINVITE on a kick; hideDestroy when the party would drop below 2. */
+    private static void removeMember(Group g, Player kicked) {
+        if (g.members.size() > 2) {
+            g.members.remove(kicked);
+            kicked.group = null;
+            if (kicked.session != null) {
+                kicked.session.send(Opcodes.SMSG_GROUP_UNINVITE, new byte[0]);
+                kicked.session.send(Opcodes.SMSG_GROUP_LIST, Group.emptyList());
+            }
+            sendGroupList(g);
+            return;
+        }
+        for (Player m : new java.util.ArrayList<>(g.members)) {
+            m.group = null;
+            if (m.session != null) {
+                if (m == kicked) {
+                    m.session.send(Opcodes.SMSG_GROUP_UNINVITE, new byte[0]);
+                }
+                m.session.send(Opcodes.SMSG_GROUP_LIST, Group.emptyList());
+            }
+        }
+        g.members.clear();
     }
 
     public static void groupDisband(WorldSession s) {
