@@ -11,7 +11,7 @@ import org.tbc.world.world.World;
 
 import java.util.function.BiConsumer;
 
-/** CMSG_ACTIVATETAXI / SMSG_SHOWTAXINODES. Layout: spec/03-protocol/packets/taxi.md */
+/** CMSG_TAXINODE_STATUS_QUERY / CMSG_ACTIVATETAXI / SMSG_SHOWTAXINODES. Layout: spec/03-protocol/packets/taxi.md */
 public final class TaxiHandler {
     public static final int MONSTER_MOVE_NORMAL = 0;
     public static final int MONSTER_MOVE_FACING_SPOT = 2;
@@ -22,6 +22,27 @@ public final class TaxiHandler {
     public static final int TAXI_MASK_SIZE = 16;
 
     private TaxiHandler() {}
+
+    /** CMaNGOS TaxiHandler SendTaxiStatus — GetCreature, no range/flag check. */
+    public static void sendStatus(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Creature npc = Content.creature(world.map(p.mapId, p.instanceId), guid);
+        if (npc == null) {
+            return;
+        }
+        int curloc = world.objectMgr.nearestTaxiNode(npc.x, npc.y, npc.z, npc.mapId, p.team);
+        if (curloc == 0) {
+            return;
+        }
+        WowBuffer out = new WowBuffer(9);
+        out.putU64(guid);
+        out.putU8(p.taxiKnown(curloc) ? 1 : 0);
+        s.send(Opcodes.SMSG_TAXINODE_STATUS, out.array());
+    }
 
     public static void sendMenu(Player p, Creature c, ObjectMgr mgr, BiConsumer<Integer, byte[]> send) {
         byte[] payload = encodeMenu(p, c, mgr);

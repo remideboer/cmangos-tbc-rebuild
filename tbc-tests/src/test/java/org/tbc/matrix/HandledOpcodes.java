@@ -113,6 +113,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_BUY_ITEM_IN_SLOT,
             Opcodes.CMSG_LEARN_TALENT,
             Opcodes.CMSG_TRAINER_LIST,
+            Opcodes.CMSG_TAXINODE_STATUS_QUERY,
             Opcodes.CMSG_ACTIVATETAXI,
             Opcodes.CMSG_ACTIVATETAXIEXPRESS,
             Opcodes.CMSG_GAMEOBJ_USE,

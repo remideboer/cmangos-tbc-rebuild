@@ -461,6 +461,7 @@ public final class WorldSession {
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
             case Opcodes.CMSG_LEARN_TALENT -> TalentHandler.learn(this, world, in);
             case Opcodes.CMSG_TRAINER_LIST -> handleTrainer(world, in);
+            case Opcodes.CMSG_TAXINODE_STATUS_QUERY -> TaxiHandler.sendStatus(this, world, in);
             case Opcodes.CMSG_ACTIVATETAXI -> TaxiHandler.activate(this, world, in);
             case Opcodes.CMSG_ACTIVATETAXIEXPRESS -> {
             }

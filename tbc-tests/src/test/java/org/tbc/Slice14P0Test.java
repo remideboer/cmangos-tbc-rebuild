@@ -1171,6 +1171,49 @@ class Slice14P0Test {
         assertEquals(p.guid, move.getPackedGuid());
     }
 
+    /**
+     * TP-SL14-014 — TaxiHandler SendTaxiStatus. CMSG_TAXINODE_STATUS_QUERY Dungar 352 with
+     * Stormwind 2 known → SMSG_TAXINODE_STATUS raw guid + known 1 (taxi.md).
+     */
+    @Test
+    void tpSl14TaxiNodeStatusKnown() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "TaxiIcon", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature master = find(world, Content.NPC_DUNGAR_LONGDRINK);
+        assertNotNull(master);
+        p.relocate(master.x, master.y, master.z, master.o);
+        p.learnTaxi(Content.TAXI_STORMWIND);
+        client.clear();
+        WowBuffer q = new WowBuffer(8);
+        q.putU64(master.guid);
+        client.handle(world, Opcodes.CMSG_TAXINODE_STATUS_QUERY, q.array());
+        byte[] status = lastPayload(client, Opcodes.SMSG_TAXINODE_STATUS);
+        WowBuffer b = new WowBuffer(status);
+        assertEquals(master.guid, b.getU64());
+        assertEquals(1, b.getU8());
+    }
+
+    /** TP-SL14-014 — SendTaxiStatus: GetCreature miss is silent (TaxiHandler.cpp). */
+    @Test
+    void tpSl14TaxiNodeStatusWhenCreatureMissingShouldSendNothing() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "NoMaster", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        WowBuffer q = new WowBuffer(8);
+        q.putU64(0);
+        client.handle(world, Opcodes.CMSG_TAXINODE_STATUS_QUERY, q.array());
+        assertFalse(client.saw(Opcodes.SMSG_TAXINODE_STATUS));
+        client.handle(world, Opcodes.CMSG_TAXINODE_STATUS_QUERY, new byte[0]);
+        assertFalse(client.saw(Opcodes.SMSG_TAXINODE_STATUS));
+    }
+
     @Test
     void tpSl14Weather() {
         World world = World.inMemory();
