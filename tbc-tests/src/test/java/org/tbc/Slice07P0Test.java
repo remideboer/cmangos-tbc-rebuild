@@ -147,6 +147,24 @@ class Slice07P0Test {
     }
 
     /**
+     * TP-SL07-010 — HandleCancelAutoRepeatSpellOpcode: InterruptSpell(CURRENT_AUTOREPEAT_SPELL).
+     * Do not send SMSG_CANCEL_AUTO_REPEAT (client would loop). Spell.dbc 5019 Shoot is the armed wand repeat.
+     */
+    @Test
+    void tpSl07CancelAutoRepeatSpellStopsRepeatWithoutReply() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        world.spells.armAutoRepeat(p.guid);
+        assertTrue(world.spells.hasAutoRepeat(p.guid));
+        client.clear();
+        client.handle(world, Opcodes.CMSG_CANCEL_AUTO_REPEAT_SPELL, new byte[0]);
+        assertFalse(world.spells.hasAutoRepeat(p.guid), "CURRENT_AUTOREPEAT_SPELL cleared");
+        assertFalse(client.saw(Opcodes.SMSG_CANCEL_AUTO_REPEAT),
+                "do not send SMSG_CANCEL_AUTO_REPEAT");
+    }
+
+    /**
      * TP-SL07-010 — HandleUseItemOpcode / CastItemUseSpell: Hearthstone item 6948 ON_USE spell 8690.
      * Spell.dbc CastingTimeIndex 7 → SpellCastTimes.dbc 10000 ms on SMSG_SPELL_START. The player does
      * not know 8690; item use is not CMSG_CAST_SPELL.

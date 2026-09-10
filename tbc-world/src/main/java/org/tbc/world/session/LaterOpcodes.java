@@ -311,6 +311,10 @@ public final class LaterOpcodes {
             world.spells.cancelCast(p, spellId);
             return true;
         }
+        if (opcode == Opcodes.CMSG_CANCEL_AUTO_REPEAT_SPELL) {
+            world.spells.interruptAutoRepeat(p.guid);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_USE_ITEM) {
             InventoryHandler.useItem(s, world, in);
             return true;

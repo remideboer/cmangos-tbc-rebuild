@@ -24,6 +24,7 @@ import org.tbc.world.script.ClassScripts;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -291,6 +292,8 @@ public final class SpellEngine {
     public static final int SPELL_FAILED_INTERRUPTED = 0x25;
 
     private final Map<Long, PendingCast> pendingCasts = new HashMap<>();
+    /** Unit::m_currentSpells[CURRENT_AUTOREPEAT_SPELL] — guid of a caster with an armed auto-repeat. */
+    private final Set<Long> autoRepeat = new HashSet<>();
     /** Fireball 133 / Lesser Heal 2050 rank 1: CastingTimeIndex 16 = 1500 ms. */
     private static final int CAST_TIME_INDEX_16_MS = 1500;
 
@@ -602,6 +605,23 @@ public final class SpellEngine {
         }
         pendingCasts.remove(caster.guid);
         cancel(pc);
+    }
+
+    /** Unit::SetCurrentCastedSpell(CURRENT_AUTOREPEAT_SPELL). */
+    public void armAutoRepeat(long casterGuid) {
+        autoRepeat.add(casterGuid);
+    }
+
+    public boolean hasAutoRepeat(long casterGuid) {
+        return autoRepeat.contains(casterGuid);
+    }
+
+    /**
+     * HandleCancelAutoRepeatSpellOpcode → InterruptSpell(CURRENT_AUTOREPEAT_SPELL).
+     * Do not send SMSG_CANCEL_AUTO_REPEAT (client loop).
+     */
+    public void interruptAutoRepeat(long casterGuid) {
+        autoRepeat.remove(casterGuid);
     }
 
     /** Spell::cast: TakePower, effects, SMSG_SPELL_GO (+ miss / damage log). */
