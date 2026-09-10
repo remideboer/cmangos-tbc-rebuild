@@ -298,4 +298,75 @@ class ObjectMgrItemTemplateTest {
             assertEquals(657, chest.armor);
         }
     }
+
+    /**
+     * TP-SL14-013 — LoadItemPrototypes fifth proto stat. SQL must carry stat_type5
+     * (Blade of Hanna 2801 SPIRIT 11 in slot 5).
+     */
+    @Test
+    void loadItemsWhenTemplateHasFifthStatShouldCarrySpirit() throws Exception {
+        String url = "jdbc:h2:mem:items5_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "item-template-fifth-stat")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE item_template (
+                          entry INT,
+                          class INT,
+                          subclass INT,
+                          name VARCHAR(255),
+                          displayid INT,
+                          Quality INT,
+                          Flags INT,
+                          BuyPrice INT,
+                          SellPrice INT,
+                          InventoryType INT,
+                          AllowableClass INT,
+                          AllowableRace INT,
+                          ItemLevel INT,
+                          RequiredLevel INT,
+                          maxcount INT,
+                          stackable INT,
+                          ContainerSlots INT,
+                          armor INT,
+                          delay INT,
+                          bonding INT,
+                          description VARCHAR(255),
+                          MaxDurability INT,
+                          Duration INT,
+                          RequiredDisenchantSkill INT,
+                          dmg_min1 FLOAT,
+                          dmg_max1 FLOAT,
+                          stat_type1 INT,
+                          stat_value1 INT,
+                          stat_type2 INT,
+                          stat_value2 INT,
+                          stat_type3 INT,
+                          stat_value3 INT,
+                          stat_type4 INT,
+                          stat_value4 INT,
+                          stat_type5 INT,
+                          stat_value5 INT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO item_template (
+                          entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice,
+                          InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount,
+                          stackable, ContainerSlots, armor, delay, bonding, description, MaxDurability,
+                          Duration, RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1,
+                          stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4,
+                          stat_type5, stat_value5)
+                        VALUES (2801, 2, 8, 'Blade of Hanna', 0, 4, 0, 0, 90978, 17, -1, -1, 64, 59, 1,
+                          1, 0, 0, 2100, 2, '', 120, 0, -1, 101, 152, 4, 11, 3, 11, 7, 11, 5, 11, 6, 11)
+                        """);
+            }
+            ObjectMgr mgr = new ObjectMgr();
+            mgr.load(worldDb, null);
+            ObjectMgr.ItemTemplate sword = mgr.items.get(Content.ITEM_BLADE_OF_HANNA);
+            assertNotNull(sword);
+            assertEquals(6, sword.statType[4]);
+            assertEquals(11, sword.statValue[4]);
+        }
+    }
 }
