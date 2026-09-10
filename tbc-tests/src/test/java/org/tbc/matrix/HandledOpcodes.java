@@ -196,6 +196,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_CANCEL_AUTO_REPEAT_SPELL,
             Opcodes.CMSG_CANCEL_AURA,
             Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK,
+            Opcodes.CMSG_MOUNTSPECIAL_ANIM,
             Opcodes.CMSG_CANCEL_MOUNT_AURA,
             Opcodes.CMSG_PUSHQUESTTOPARTY,
             Opcodes.CMSG_LOOT_MASTER_GIVE,

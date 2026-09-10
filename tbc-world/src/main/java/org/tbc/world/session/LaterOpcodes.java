@@ -5,6 +5,7 @@ import org.tbc.world.entity.Group;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.world.World;
@@ -354,6 +355,17 @@ public final class LaterOpcodes {
             }
             if (in.remaining() >= 4) {
                 p.lastAckSpeed = in.getFloat();
+            }
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_MOUNTSPECIAL_ANIM) {
+            WowBuffer out = new WowBuffer(8);
+            out.putU64(p.guid);
+            byte[] pkt = out.array();
+            for (Player o : world.map(p.mapId, p.instanceId).nearbyPlayers(p, GameMap.VISIBILITY)) {
+                if (o.session != null) {
+                    o.session.send(Opcodes.SMSG_MOUNTSPECIAL_ANIM, pkt);
+                }
             }
             return true;
         }

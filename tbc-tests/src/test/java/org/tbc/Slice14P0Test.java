@@ -1339,6 +1339,33 @@ class Slice14P0Test {
         assertEquals("There is no info for this item", b.getCString());
     }
 
+    /**
+     * TP-SL14-014 — HandleMountSpecialAnimOpcode. Empty CMSG_MOUNTSPECIAL_ANIM →
+     * SMSG_MOUNTSPECIAL_ANIM raw guid to nearby, not self (movement.md; SendMessageToSet false).
+     */
+    @Test
+    void tpSl14MountSpecialAnim() {
+        World world = World.inMemory();
+        WowClientDouble rider = new WowClientDouble();
+        rider.connect(ACC);
+        Player createdA = world.characters.create(ACC.id(), "Rearing", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        rider.login(world, createdA.guid);
+        WowClientDouble watcher = new WowClientDouble();
+        watcher.connect(ACC_B);
+        Player createdB = world.characters.create(ACC_B.id(), "Watcher", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        watcher.login(world, createdB.guid);
+        Player a = rider.session().player();
+        Player b = watcher.session().player();
+        b.relocate(a.x, a.y, a.z, a.o);
+        rider.clear();
+        watcher.clear();
+        rider.handle(world, Opcodes.CMSG_MOUNTSPECIAL_ANIM, new byte[0]);
+        assertFalse(rider.saw(Opcodes.SMSG_MOUNTSPECIAL_ANIM));
+        WowBuffer pkt = new WowBuffer(lastPayload(watcher, Opcodes.SMSG_MOUNTSPECIAL_ANIM));
+        assertEquals(a.guid, pkt.getU64());
+        assertEquals(0, pkt.remaining());
+    }
+
     @Test
     void tpSl14Weather() {
         World world = World.inMemory();
