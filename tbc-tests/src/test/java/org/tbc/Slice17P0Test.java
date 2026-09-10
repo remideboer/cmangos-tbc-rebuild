@@ -3,6 +3,7 @@ package org.tbc;
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -194,6 +195,53 @@ class Slice17P0Test {
         assertEquals(20, bank.durability);
         byte[] deathDur = lastPayload(client, Opcodes.SMSG_DURABILITY_DAMAGE_DEATH);
         assertEquals(0, deathDur.length);
+    }
+
+    /**
+     * TP-SL17-009 — CMSG_REPAIR_ITEM cost is lost × DurabilityCosts[ilvl] × DurabilityQuality
+     * (inventory.md); broke player is left unrepaired.
+     */
+    @Test
+    void tpSl17RepairCost() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Repair");
+        Player p = client.session().player();
+        Creature smith = world.objectMgr.spawnCreature(Content.NPC_CORINA_STEELE,
+                0, p.x, p.y, p.z, p.o, world.scripts);
+        smith.npcFlags |= Content.UNIT_NPC_FLAG_REPAIR;
+        world.map(p.mapId, p.instanceId).add(smith);
+        Item first = durableSword(world, p.firstFreeBagSlot());
+        first.durability = 10;
+        p.items.put((int) first.guid, first);
+        Item second = durableSword(world, p.firstFreeBagSlot());
+        second.durability = 15;
+        p.items.put((int) second.guid, second);
+        p.setMoney(100);
+        client.clear();
+        WowBuffer one = new WowBuffer(17);
+        one.putU64(smith.guid);
+        one.putU64(first.guid);
+        one.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPAIR_ITEM, one.array());
+        assertEquals(20, client.valuesField(UpdateBuilder.itemGuid(first), UpdateFields.ITEM_FIELD_DURABILITY));
+        assertEquals(92, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COINAGE));
+        assertEquals(15, second.durability);
+        client.clear();
+        WowBuffer all = new WowBuffer(17);
+        all.putU64(smith.guid);
+        all.putU64(0);
+        all.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPAIR_ITEM, all.array());
+        assertEquals(20, client.valuesField(UpdateBuilder.itemGuid(second), UpdateFields.ITEM_FIELD_DURABILITY));
+        assertEquals(88, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COINAGE));
+        p.setMoney(0);
+        first.durability = 10;
+        client.clear();
+        client.handle(world, Opcodes.CMSG_REPAIR_ITEM, all.array());
+        assertEquals(10, first.durability);
+        assertEquals(0, p.money);
+        assertFalse(client.saw(Opcodes.SMSG_UPDATE_OBJECT));
+        assertFalse(client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
     }
 
     private static Item durableSword(World world, int slot) {

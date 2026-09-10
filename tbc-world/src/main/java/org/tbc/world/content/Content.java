@@ -32,6 +32,8 @@ public final class Content {
     public static final int UNIT_NPC_FLAG_AUCTIONEER = 0x200000;
     public static final int UNIT_NPC_FLAG_BANKER = 0x00020000;
     public static final int UNIT_NPC_FLAG_INNKEEPER = 0x00010000;
+    /** Unit.h UNIT_NPC_FLAG_REPAIR. */
+    public static final int UNIT_NPC_FLAG_REPAIR = 0x00001000;
     /** Unit.h UNIT_NPC_FLAG_PETITIONER. */
     public static final int UNIT_NPC_FLAG_PETITIONER = 0x00040000;
     /** Unit.h UNIT_NPC_FLAG_TABARDDESIGNER. */

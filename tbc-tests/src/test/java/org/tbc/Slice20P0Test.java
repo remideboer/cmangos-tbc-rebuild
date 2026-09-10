@@ -87,19 +87,24 @@ class Slice20P0Test {
         WowClientDouble client = login(world, "Smith");
         Player p = client.session().player();
         p.money = 10;
+        Creature smith = world.objectMgr.spawnCreature(Content.NPC_CORINA_STEELE,
+                0, p.x, p.y, p.z, p.o, world.scripts);
+        smith.npcFlags |= Content.UNIT_NPC_FLAG_REPAIR;
+        world.map(p.mapId, p.instanceId).add(smith);
         Item it = new Item(world.nextItemGuid(), 25);
         it.slot = 32;
         it.durability = 10;
+        it.maxDurability = 20;
         p.items.put((int) it.guid, it);
         client.clear();
         WowBuffer repair = new WowBuffer(17);
-        repair.putU64(0);
+        repair.putU64(smith.guid);
         repair.putU64(0);
         repair.putU8(0);
         client.handle(world, Opcodes.CMSG_REPAIR_ITEM, repair.array());
-        assertEquals(100, it.durability);
-        assertEquals(9, p.money);
-        assertEquals(9, p.getInt(UpdateFields.PLAYER_FIELD_COINAGE));
+        assertEquals(20, it.durability);
+        assertEquals(2, p.money);
+        assertEquals(2, p.getInt(UpdateFields.PLAYER_FIELD_COINAGE));
     }
 
     @Test

@@ -2,6 +2,7 @@ package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
+import org.tbc.world.content.DurabilityCosts;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
@@ -674,21 +675,85 @@ public final class InventoryHandler {
         s.send(pkt.opcode(), pkt.payload());
     }
 
-    public static void repairItem(WorldSession s, WowBuffer in) {
+    public static void repairItem(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 16) {
+            return;
+        }
         Player p = s.player();
-        if (in.remaining() >= 8) {
-            in.getU64();
+        long npcGuid = in.getU64();
+        long itemGuid = in.getU64();
+        if (in.remaining() >= 1) {
+            in.getU8();
         }
-        if (in.remaining() >= 8) {
-            in.getU64();
+        Creature npc = Content.creature(world.map(p.mapId, p.instanceId), npcGuid);
+        if (npc == null || Content.outOfRange(p, npc)
+                || (npc.npcFlags & Content.UNIT_NPC_FLAG_REPAIR) == 0) {
+            return;
         }
-        p.money = Math.max(0, p.money - 1);
-        p.setInt(UpdateFields.PLAYER_FIELD_COINAGE, p.money);
-        for (Item it : p.items.values()) {
-            it.durability = 100;
+        boolean charged = false;
+        if (itemGuid != 0) {
+            Item it = p.items.get(Guid.low(itemGuid));
+            charged = repairOne(s, world, p, it, true);
+        } else {
+            for (Item it : p.items.values()) {
+                if (!repairableSlot(it)) {
+                    continue;
+                }
+                charged |= repairOne(s, world, p, it, true);
+            }
         }
-        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
-        s.send(pkt.opcode(), pkt.payload());
+        if (charged) {
+            var pkt = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+            s.send(pkt.opcode(), pkt.payload());
+        }
+    }
+
+    static boolean repairableSlot(Item it) {
+        if (it.bag >= Player.INVENTORY_SLOT_BAG_START && it.bag < Player.INVENTORY_SLOT_BAG_END) {
+            return true;
+        }
+        return it.bag == 0 && it.slot < Player.BANK_SLOT_ITEM_START;
+    }
+
+    static boolean repairOne(WorldSession s, World world, Player p, Item it, boolean cost) {
+        if (it == null) {
+            return false;
+        }
+        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(it.entry);
+        int max = it.maxDurability;
+        if (max <= 0 && t != null) {
+            max = t.maxDurability;
+        }
+        if (max <= 0) {
+            return false;
+        }
+        int lost = max - it.durability;
+        if (cost && lost > 0) {
+            if (t == null) {
+                return false;
+            }
+            int copper = DurabilityCosts.repairCopper(
+                    lost, t.itemLevel, t.itemClass, t.subClass, t.quality, 1.0f);
+            if (copper <= 0) {
+                return false;
+            }
+            if (p.money < copper) {
+                return false;
+            }
+            p.setMoney(p.money - copper);
+        }
+        if (it.durability == max) {
+            return cost && lost > 0;
+        }
+        it.durability = max;
+        if (it.maxDurability <= 0) {
+            it.maxDurability = max;
+        }
+        var itemUpd = UpdateBuilder.maybeCompress(
+                UpdateBuilder.valuesItem(it, UpdateFields.ITEM_FIELD_DURABILITY));
+        s.send(itemUpd.opcode(), itemUpd.payload());
+        return cost && lost > 0;
     }
 
     public static void socketGems(WorldSession s, WowBuffer in) {

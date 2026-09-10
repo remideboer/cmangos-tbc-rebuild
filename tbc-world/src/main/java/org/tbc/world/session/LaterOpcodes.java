@@ -268,7 +268,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_REPAIR_ITEM) {
-            InventoryHandler.repairItem(s, in);
+            InventoryHandler.repairItem(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_SOCKET_GEMS) {

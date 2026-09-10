@@ -2,6 +2,8 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
@@ -206,13 +208,19 @@ class LaterP0Test {
         sock.putU64(0);
         c.client.handle(c.world, Opcodes.CMSG_SOCKET_GEMS, sock.array());
         assertEquals(1, it.enchant);
+        Creature smith = c.world.objectMgr.spawnCreature(Content.NPC_CORINA_STEELE,
+                0, p.x, p.y, p.z, p.o, c.world.scripts);
+        smith.npcFlags |= Content.UNIT_NPC_FLAG_REPAIR;
+        c.world.map(p.mapId, p.instanceId).add(smith);
+        it.maxDurability = 20;
+        int before = p.money;
         WowBuffer repair = new WowBuffer(17);
-        repair.putU64(0);
+        repair.putU64(smith.guid);
         repair.putU64(0);
         repair.putU8(0);
         c.client.handle(c.world, Opcodes.CMSG_REPAIR_ITEM, repair.array());
-        assertEquals(100, it.durability);
-        assertEquals(9, p.money);
+        assertEquals(20, it.durability);
+        assertEquals(before - 8, p.money);
     }
 
     @Test

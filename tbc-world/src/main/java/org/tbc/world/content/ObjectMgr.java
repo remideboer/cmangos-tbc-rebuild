@@ -972,6 +972,7 @@ public final class ObjectMgr {
             loadStartOutfit(dataDir);
             loadTalents(dataDir);
             levelStats.loadGt(dataDir);
+            DurabilityCosts.load(dataDir);
             return;
         }
         try (Connection c = world.get()) {
@@ -1033,6 +1034,7 @@ public final class ObjectMgr {
         loadStartOutfit(dataDir);
         loadTalents(dataDir);
         levelStats.loadGt(dataDir);
+        DurabilityCosts.load(dataDir);
     }
 
     private void loadCreate(Connection c) throws Exception {
