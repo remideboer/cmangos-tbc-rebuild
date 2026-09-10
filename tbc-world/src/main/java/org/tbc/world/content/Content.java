@@ -131,6 +131,8 @@ public final class Content {
     public static final int ITEM_LIGHTFORGE_BREASTPLATE = 16726;
     /** tbc-db item_template 16853; STR 8 / STA 26 / INT 21 / SPI 13, armor 855, FireRes 10. */
     public static final int ITEM_LAWBRINGER_CHESTGUARD = 16853;
+    /** tbc-db item_template 15059; STA 10 / SPI 25, armor 169, NatureRes 5. */
+    public static final int ITEM_LIVING_BREASTPLATE = 15059;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

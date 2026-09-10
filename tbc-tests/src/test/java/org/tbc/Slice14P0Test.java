@@ -750,6 +750,34 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses NatureRes → UNIT_MOD_RESISTANCE_NATURE.
+     * Autoequip Living Breastplate 15059 (+5 Nature Resistance) must write that on
+     * self VALUES UNIT_FIELD_RESISTANCES+3 (school nature).
+     */
+    @Test
+    void tpSl14EquipAppliesNatureResistance() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Living", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_LIVING_BREASTPLATE);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(5, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES + 3));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */

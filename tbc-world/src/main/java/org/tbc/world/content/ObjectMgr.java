@@ -503,6 +503,33 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Living Breastplate — tbc-db 15059 (STA 10, SPI 25, armor 169, NatureRes 5). */
+        public static ItemTemplate livingBreastplate() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_LIVING_BREASTPLATE;
+            t.itemClass = 4;
+            t.subClass = 2;
+            t.name = "Living Breastplate";
+            t.quality = 3;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 60;
+            t.requiredLevel = 55;
+            t.stackable = 1;
+            t.statType[0] = 7;
+            t.statValue[0] = 10;
+            t.statType[1] = 6;
+            t.statValue[1] = 25;
+            t.armor = 169;
+            t.natureRes = 5;
+            t.bonding = 2;
+            t.sellPrice = 24776;
+            t.maxDurability = 100;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1318,6 +1345,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_BLACKENED_DEFIAS_ARMOR, ItemTemplate.blackenedDefiasArmor());
         items.putIfAbsent(Content.ITEM_LIGHTFORGE_BREASTPLATE, ItemTemplate.lightforgeBreastplate());
         items.putIfAbsent(Content.ITEM_LAWBRINGER_CHESTGUARD, ItemTemplate.lawbringerChestguard());
+        items.putIfAbsent(Content.ITEM_LIVING_BREASTPLATE, ItemTemplate.livingBreastplate());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -2189,6 +2217,7 @@ public final class ObjectMgr {
         int spirit = 0;
         int armor = 0;
         int fire = 0;
+        int nature = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
@@ -2196,6 +2225,7 @@ public final class ObjectMgr {
             }
             armor += t.armor;
             fire += t.fireRes;
+            nature += t.natureRes;
             for (int i = 0; i < t.statType.length; i++) {
                 if (t.statType[i] == ITEM_MOD_STAMINA) {
                     stamina += t.statValue[i];
@@ -2212,6 +2242,7 @@ public final class ObjectMgr {
         }
         p.applyGearBonuses(stamina, armor, agility, strength, intellect, spirit);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 2, fire);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 3, nature);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {
