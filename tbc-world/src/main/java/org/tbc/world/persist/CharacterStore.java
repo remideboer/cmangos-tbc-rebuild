@@ -943,6 +943,37 @@ public final class CharacterStore {
         }
     }
 
+    public void setFriendNote(int guid, long friendGuid, String note) {
+        List<Player.Friend> rows = social.get(guid);
+        if (rows == null) {
+            return;
+        }
+        Player.Friend found = null;
+        for (Player.Friend f : rows) {
+            if (f.guid == friendGuid) {
+                found = f;
+                break;
+            }
+        }
+        if (found == null) {
+            return;
+        }
+        found.note = note == null ? "" : note;
+        if (chars == null) {
+            return;
+        }
+        try (Connection c = chars.get()) {
+            PreparedStatement ps = c.prepareStatement(
+                    "UPDATE character_social SET note = ? WHERE guid = ? AND friend = ?");
+            ps.setString(1, found.note);
+            ps.setInt(2, guid);
+            ps.setInt(3, Guid.low(friendGuid));
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.warn("setFriendNote {}", e.getMessage());
+        }
+    }
+
     public void removeFriend(int guid, long friendGuid) {
         List<Player.Friend> rows = social.get(guid);
         if (rows != null) {

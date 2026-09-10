@@ -120,4 +120,38 @@ class Slice09SocialTest {
         assertEquals(missing, WowClientDouble.u64le(st, 1));
         assertEquals(9, st.length);
     }
+
+    @Test
+    void tpSl09SetContactNotes() {
+        World world = World.inMemory();
+        WowClientDouble alpha = new WowClientDouble();
+        WowClientDouble bravo = new WowClientDouble();
+        alpha.connect(ACC);
+        bravo.connect(ACC_B);
+        Player a = world.characters.create(ACC.id(), "Noter", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player b = world.characters.create(2, "Noted", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alpha.login(world, a.guid);
+        bravo.login(world, b.guid);
+        WowBuffer add = new WowBuffer(16);
+        add.putCString("Noted");
+        add.putCString("");
+        alpha.handle(world, Opcodes.CMSG_ADD_FRIEND, add.array());
+
+        alpha.clear();
+        WowBuffer in = new WowBuffer(32);
+        in.putU64(b.guid);
+        in.putCString("hello");
+        alpha.handle(world, Opcodes.CMSG_SET_CONTACT_NOTES, in.array());
+        assertEquals(0, alpha.payload(Opcodes.SMSG_FRIEND_STATUS).length);
+
+        WowBuffer list = new WowBuffer(4);
+        list.putU32(0);
+        alpha.handle(world, Opcodes.CMSG_CONTACT_LIST, list.array());
+        WowBuffer out = new WowBuffer(alpha.payload(Opcodes.SMSG_CONTACT_LIST));
+        assertEquals(0x01, out.getU32());
+        assertEquals(1, out.getU32());
+        assertEquals(b.guid, out.getU64());
+        assertEquals(0x01, out.getU32());
+        assertEquals("hello", out.getCString());
+    }
 }

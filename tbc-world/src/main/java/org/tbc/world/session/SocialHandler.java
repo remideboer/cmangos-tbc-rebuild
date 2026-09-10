@@ -23,6 +23,7 @@ public final class SocialHandler {
     public static final int IGNORE_LIST = 0x2;
     public static final int SOCIAL_FLAG_FRIEND = 0x01;
     public static final int SOCIAL_FLAG_IGNORED = 0x02;
+    public static final int CONTACT_NOTE_LIMIT = 48;
     public static final int MAIL_POSTAGE = 30;
     public static final int MAIL_ITEM_POSTAGE = 30;
     public static final int MAX_MAIL_ITEMS = 12;
@@ -214,6 +215,26 @@ public final class SocialHandler {
             }
         }
         friendStatus(s, FRIEND_IGNORE_REMOVED, guid, "", 0, 0, 0, 0);
+    }
+
+    /** MiscHandler.cpp HandleSetContactNotesOpcode — no SMSG; utf8truncate 48. */
+    public static void setContactNotes(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        String note = in.remaining() > 0 ? in.getCString() : "";
+        if (note.length() > CONTACT_NOTE_LIMIT) {
+            note = note.substring(0, CONTACT_NOTE_LIMIT);
+        }
+        Player p = s.player();
+        for (Player.Friend f : p.friends) {
+            if (f.guid == guid) {
+                f.note = note;
+                world.characters.setFriendNote(Guid.low(p.guid), guid, note);
+                return;
+            }
+        }
     }
 
     public static void delFriend(WorldSession s, World world, WowBuffer in) {

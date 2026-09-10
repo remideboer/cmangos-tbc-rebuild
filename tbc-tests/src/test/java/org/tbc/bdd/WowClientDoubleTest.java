@@ -58,6 +58,7 @@ class WowClientDoubleTest {
         d.sendMail(w, 1, "Nobody", "s", "b", 1);
         d.who(w);
         d.addFriend(w, "Nobody");
+        d.setContactNotes(w, created.guid, "hi");
         d.addIgnore(w, "Nobody");
         d.delIgnore(w, created.guid);
         d.delFriend(w, created.guid);

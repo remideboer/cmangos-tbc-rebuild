@@ -78,6 +78,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_CANCEL_TRADE,
             Opcodes.CMSG_WHO,
             Opcodes.CMSG_ADD_FRIEND,
+            Opcodes.CMSG_SET_CONTACT_NOTES,
             Opcodes.CMSG_ADD_IGNORE,
             Opcodes.CMSG_DEL_IGNORE,
             Opcodes.CMSG_DEL_FRIEND,

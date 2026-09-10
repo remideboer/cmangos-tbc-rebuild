@@ -439,6 +439,13 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_ADD_FRIEND, b.array());
     }
 
+    public void setContactNotes(World world, long guid, String note) {
+        WowBuffer b = new WowBuffer(8 + note.length() + 1);
+        b.putU64(guid);
+        b.putCString(note);
+        handle(world, Opcodes.CMSG_SET_CONTACT_NOTES, b.array());
+    }
+
     public void delFriend(World world, long guid) {
         WowBuffer b = new WowBuffer(8);
         b.putU64(guid);
