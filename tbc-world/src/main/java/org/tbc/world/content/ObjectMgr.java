@@ -2418,9 +2418,11 @@ public final class ObjectMgr {
     private static final int ITEM_MOD_SPIRIT = 6;
     private static final int ITEM_MOD_STAMINA = 7;
     private static final int ITEM_MOD_DEFENSE_SKILL_RATING = 12;
+    private static final int ITEM_MOD_DODGE_RATING = 13;
     private static final int ITEM_MOD_HIT_RATING = 31;
     /** Unit.h CombatRating — ITEM_MOD_HIT_RATING writes melee and ranged. */
     private static final int CR_DEFENSE_SKILL = 1;
+    private static final int CR_DODGE = 2;
     private static final int CR_HIT_MELEE = 5;
     private static final int CR_HIT_RANGED = 6;
 
@@ -2461,6 +2463,7 @@ public final class ObjectMgr {
         int arcane = 0;
         int hitRating = 0;
         int defenseRating = 0;
+        int dodgeRating = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
@@ -2487,6 +2490,8 @@ public final class ObjectMgr {
                     hitRating += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_DEFENSE_SKILL_RATING) {
                     defenseRating += t.statValue[i];
+                } else if (t.statType[i] == ITEM_MOD_DODGE_RATING) {
+                    dodgeRating += t.statValue[i];
                 }
             }
         }
@@ -2499,6 +2504,7 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_MELEE, hitRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_RANGED, hitRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_DEFENSE_SKILL, defenseRating);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_DODGE, dodgeRating);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {

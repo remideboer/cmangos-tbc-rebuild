@@ -334,7 +334,8 @@ public final class InventoryHandler {
                         UpdateFields.UNIT_FIELD_RESISTANCES + 6,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 5,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 6,
-                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 1));
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 1,
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 2));
         s.send(pkt.opcode(), pkt.payload());
         if (dest >= Player.INVENTORY_SLOT_BAG_START && dest < Player.INVENTORY_SLOT_BAG_END) {
             WowBuffer opened = new WowBuffer(8);
