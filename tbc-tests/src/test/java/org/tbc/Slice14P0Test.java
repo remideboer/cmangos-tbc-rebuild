@@ -969,6 +969,39 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — HandleSwapItem → EquipItem → _ApplyItemMods ITEM_MOD_RESILIENCE_RATING.
+     * CMSG_SWAP_ITEM of Gladiator's Plate Chestpiece 24544 onto the chest slot must write
+     * RESILIENCE 23 on self VALUES CR_CRIT_TAKEN_MELEE / RANGED / SPELL (Unit.h 14 / 15 / 16).
+     */
+    @Test
+    void tpSl14SwapItemAppliesResilienceRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "ResBagSwap", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_GLADIATORS_PLATE_CHESTPIECE);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+        int dest = world.objectMgr.destEquipSlot(p, 5);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(4);
+        swap.putU8(0);
+        swap.putU8(dest);
+        swap.putU8(0);
+        swap.putU8(src);
+        client.handle(world, Opcodes.CMSG_SWAP_ITEM, swap.array());
+        assertEquals(23, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 14));
+        assertEquals(23, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 15));
+        assertEquals(23, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 16));
+    }
+
+    /**
      * TP-SL14-013 — Player::UpdateStats STAT_STAMINA → Unit::UpdateMaxHealth. Autoequip
      * Riverpaw Leather Vest 821 (+2 STA) must raise self VALUES UNIT_FIELD_MAXHEALTH from
      * create 60 (20 + bonus(22)) to 80 (20 + bonus(24)).
