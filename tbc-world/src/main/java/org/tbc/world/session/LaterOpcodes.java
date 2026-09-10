@@ -55,7 +55,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_AUTOSTORE_BAG_ITEM) {
-            InventoryHandler.autostoreBagItem(s, in);
+            InventoryHandler.autostoreBagItem(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_SET_AMMO) {

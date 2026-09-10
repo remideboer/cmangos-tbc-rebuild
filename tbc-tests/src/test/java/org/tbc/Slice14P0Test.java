@@ -474,6 +474,41 @@ class Slice14P0Test {
         assertEquals(105, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
     }
 
+    /**
+     * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
+     * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
+     */
+    @Test
+    void tpSl14UnequipReversesItemMods() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Unequipper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_RIVERPAW_LEATHER_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int chest = vest.slot;
+
+        client.clear();
+        WowBuffer store = new WowBuffer(3);
+        store.putU8(0);
+        store.putU8(chest);
+        store.putU8(0);
+        client.handle(world, Opcodes.CMSG_AUTOSTORE_BAG_ITEM, store.array());
+        assertEquals(22, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(40, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
     @Test
     void tpSl14AutoequipBagOpensContainer() throws Exception {
         World world = World.inMemory();

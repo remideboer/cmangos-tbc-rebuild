@@ -296,7 +296,7 @@ public final class InventoryHandler {
     }
 
     /** srcbag, srcslot, dstbag. Store into a free slot of dstbag. inventory.md */
-    public static void autostoreBagItem(WorldSession s, WowBuffer in) {
+    public static void autostoreBagItem(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
         if (in.remaining() < 3) {
             return;
@@ -317,8 +317,10 @@ public final class InventoryHandler {
         it.slot = dest;
         p.setGuid(srcField, 0);
         p.setGuid(dstField, UpdateBuilder.itemGuid(it));
+        world.objectMgr.applyEquippedMelee(p);
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
+                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1,
+                        UpdateFields.UNIT_FIELD_STAT2, UpdateFields.UNIT_FIELD_RESISTANCES));
         s.send(pkt.opcode(), pkt.payload());
     }
 
