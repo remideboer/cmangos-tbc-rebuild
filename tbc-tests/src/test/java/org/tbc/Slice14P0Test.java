@@ -512,6 +512,34 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::UpdateStats STAT_STAMINA → Unit::UpdateMaxHealth. Autoequip
+     * Riverpaw Leather Vest 821 (+2 STA) must raise self VALUES UNIT_FIELD_MAXHEALTH from
+     * create 60 (20 + bonus(22)) to 80 (20 + bonus(24)).
+     */
+    @Test
+    void tpSl14EquipAppliesStaminaToMaxHealth() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "HpEquipper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_RIVERPAW_LEATHER_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(80, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXHEALTH));
+    }
+
+    /**
      * TP-SL14-013 — Player::_ApplyItemBonuses extra proto slots. Autoequip Tunic of Westfall
      * 2041 (stat_type1 AGILITY 3 / 11, stat_type2 STAMINA 7 / 5, armor 92) must add those
      * to the self VALUES: human warrior create AGI 20 / STA 22 / armor agi×2 40.
