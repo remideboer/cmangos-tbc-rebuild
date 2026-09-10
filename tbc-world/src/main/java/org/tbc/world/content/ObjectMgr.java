@@ -582,6 +582,35 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Soulcloth Vest — tbc-db 21865 (STA 24, INT 20, SPI 16, armor 170, ArcaneRes 45). */
+        public static ItemTemplate soulclothVest() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_SOULCLOTH_VEST;
+            t.itemClass = 4;
+            t.subClass = 1;
+            t.name = "Soulcloth Vest";
+            t.quality = 4;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 100;
+            t.requiredLevel = 70;
+            t.stackable = 1;
+            t.statType[0] = 7;
+            t.statValue[0] = 24;
+            t.statType[1] = 5;
+            t.statValue[1] = 20;
+            t.statType[2] = 6;
+            t.statValue[2] = 16;
+            t.armor = 170;
+            t.arcaneRes = 45;
+            t.bonding = 2;
+            t.sellPrice = 41251;
+            t.maxDurability = 100;
+            t.requiredDisenchantSkill = 300;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1400,6 +1429,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_LIVING_BREASTPLATE, ItemTemplate.livingBreastplate());
         items.putIfAbsent(Content.ITEM_ICEBANE_BREASTPLATE, ItemTemplate.icebaneBreastplate());
         items.putIfAbsent(Content.ITEM_SHADESTEEL_GREAVES, ItemTemplate.shadesteelGreaves());
+        items.putIfAbsent(Content.ITEM_SOULCLOTH_VEST, ItemTemplate.soulclothVest());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -2274,6 +2304,7 @@ public final class ObjectMgr {
         int nature = 0;
         int frost = 0;
         int shadow = 0;
+        int arcane = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
@@ -2284,6 +2315,7 @@ public final class ObjectMgr {
             nature += t.natureRes;
             frost += t.frostRes;
             shadow += t.shadowRes;
+            arcane += t.arcaneRes;
             for (int i = 0; i < t.statType.length; i++) {
                 if (t.statType[i] == ITEM_MOD_STAMINA) {
                     stamina += t.statValue[i];
@@ -2303,6 +2335,7 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 3, nature);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 4, frost);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 5, shadow);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 6, arcane);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {

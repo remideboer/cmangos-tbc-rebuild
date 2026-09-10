@@ -137,6 +137,8 @@ public final class Content {
     public static final int ITEM_ICEBANE_BREASTPLATE = 22669;
     /** tbc-db item_template 32404; STA 54, armor 1428, ShadowRes 72. */
     public static final int ITEM_SHADESTEEL_GREAVES = 32404;
+    /** tbc-db item_template 21865; STA 24 / INT 20 / SPI 16, armor 170, ArcaneRes 45. */
+    public static final int ITEM_SOULCLOTH_VEST = 21865;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

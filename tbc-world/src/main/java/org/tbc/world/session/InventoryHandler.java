@@ -293,7 +293,8 @@ public final class InventoryHandler {
                         UpdateFields.UNIT_FIELD_RESISTANCES + 2,
                         UpdateFields.UNIT_FIELD_RESISTANCES + 3,
                         UpdateFields.UNIT_FIELD_RESISTANCES + 4,
-                        UpdateFields.UNIT_FIELD_RESISTANCES + 5));
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 5,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 6));
         s.send(pkt.opcode(), pkt.payload());
         if (dest >= Player.INVENTORY_SLOT_BAG_START && dest < Player.INVENTORY_SLOT_BAG_END) {
             WowBuffer opened = new WowBuffer(8);
@@ -336,7 +337,8 @@ public final class InventoryHandler {
                         UpdateFields.UNIT_FIELD_RESISTANCES + 2,
                         UpdateFields.UNIT_FIELD_RESISTANCES + 3,
                         UpdateFields.UNIT_FIELD_RESISTANCES + 4,
-                        UpdateFields.UNIT_FIELD_RESISTANCES + 5));
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 5,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 6));
         s.send(pkt.opcode(), pkt.payload());
     }
 
