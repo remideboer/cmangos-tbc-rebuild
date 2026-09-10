@@ -542,6 +542,38 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — HandleSwapItem → Player::SwapItem → EquipItem → _ApplyItemMods.
+     * CMSG_SWAP_ITEM of Riverpaw Leather Vest 821 onto the chest slot must put create+gear
+     * STA 24 / armor 105 on the self VALUES (same deltas as CMSG_SWAP_INV_ITEM).
+     */
+    @Test
+    void tpSl14SwapItemAppliesStaminaAndArmor() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "StaBagSwapper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_RIVERPAW_LEATHER_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+        int chest = world.objectMgr.destEquipSlot(p, 5);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(4);
+        swap.putU8(0);
+        swap.putU8(chest);
+        swap.putU8(0);
+        swap.putU8(src);
+        client.handle(world, Opcodes.CMSG_SWAP_ITEM, swap.array());
+        assertEquals(24, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(105, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
+    /**
      * TP-SL14-013 — Player::UpdateStats STAT_STAMINA → Unit::UpdateMaxHealth. Autoequip
      * Riverpaw Leather Vest 821 (+2 STA) must raise self VALUES UNIT_FIELD_MAXHEALTH from
      * create 60 (20 + bonus(22)) to 80 (20 + bonus(24)).

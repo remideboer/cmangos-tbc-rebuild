@@ -87,12 +87,23 @@ public final class InventoryHandler {
         int dstField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + dstSlot * 2;
         p.setGuid(srcField, b == null ? 0 : UpdateBuilder.itemGuid(b));
         p.setGuid(dstField, a == null ? 0 : UpdateBuilder.itemGuid(a));
-        var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
-        s.send(pkt.opcode(), pkt.payload());
         if (world != null) {
             world.objectMgr.applyEquippedMelee(p);
         }
+        var pkt = UpdateBuilder.maybeCompress(
+                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1,
+                        UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
+                        UpdateFields.UNIT_FIELD_BASEATTACKTIME,
+                        UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
+                        UpdateFields.UNIT_FIELD_STAT2, UpdateFields.UNIT_FIELD_STAT3,
+                        UpdateFields.UNIT_FIELD_STAT4, UpdateFields.UNIT_FIELD_RESISTANCES,
+                        UpdateFields.UNIT_FIELD_MAXHEALTH, UpdateFields.UNIT_FIELD_MAXPOWER1,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 2,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 3,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 4,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 5,
+                        UpdateFields.UNIT_FIELD_RESISTANCES + 6));
+        s.send(pkt.opcode(), pkt.payload());
     }
 
     /** bag, slot, count (0 = whole stack). Layout: spec/03-protocol/packets/inventory.md */
