@@ -638,6 +638,54 @@ class Slice19P0Test {
         assertEquals("MyChan", rejoined.getCString());
     }
 
+    /**
+     * TP-SL19-008 — CMSG_CHANNEL_ANNOUNCEMENTS toggles 0x0D/0x0E (custom default on → first toggle off).
+     * Channel::ToggleAnnouncements.
+     */
+    @Test
+    void tpSl19ChannelAnnouncements() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Talker");
+        WowClientDouble b = login(world, ACC_B, "Wavee");
+        a.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+        b.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_ANNOUNCEMENTS, new byte[0]);
+        assertFalse(a.saw(Opcodes.SMSG_CHANNEL_NOTIFY));
+
+        WowClientDouble outsider = login(world, new World.Account(3, "OUT", new byte[40], 3, 1, "Win", "x86"), "Outsider");
+        outsider.clear();
+        outsider.handle(world, Opcodes.CMSG_CHANNEL_ANNOUNCEMENTS, channelOnly("MyChan"));
+        WowBuffer notMember = new WowBuffer(lastPayload(outsider, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MEMBER, notMember.getU8());
+
+        b.clear();
+        b.handle(world, Opcodes.CMSG_CHANNEL_ANNOUNCEMENTS, channelOnly("MyChan"));
+        WowBuffer notMod = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MODERATOR, notMod.getU8());
+
+        a.clear();
+        b.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_ANNOUNCEMENTS, channelOnly("MyChan"));
+        WowBuffer off = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.ANNOUNCEMENTS_OFF, off.getU8());
+        assertEquals("MyChan", off.getCString());
+        assertEquals(a.session().player().guid, off.getU64());
+        WowBuffer offB = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.ANNOUNCEMENTS_OFF, offB.getU8());
+
+        a.clear();
+        b.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_ANNOUNCEMENTS, channelOnly("MyChan"));
+        WowBuffer on = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.ANNOUNCEMENTS_ON, on.getU8());
+        assertEquals("MyChan", on.getCString());
+        assertEquals(a.session().player().guid, on.getU64());
+        WowBuffer onB = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.ANNOUNCEMENTS_ON, onB.getU8());
+    }
+
     private static byte[] channelOnly(String channel) {
         WowBuffer in = new WowBuffer(16);
         in.putCString(channel);

@@ -19,6 +19,8 @@ public final class ChannelHandler {
     public static final int NOT_OWNER = 0x0A;
     public static final int CHANNEL_OWNER = 0x0B;
     public static final int MODE_CHANGE = 0x0C;
+    public static final int ANNOUNCEMENTS_ON = 0x0D;
+    public static final int ANNOUNCEMENTS_OFF = 0x0E;
     public static final int PLAYER_KICKED = 0x12;
     public static final int BANNED = 0x13;
     public static final int PLAYER_BANNED = 0x14;
@@ -376,6 +378,36 @@ public final class ChannelHandler {
         n.putU8(PLAYER_UNBANNED);
         n.putCString(channel);
         n.putU64(target.guid);
+        n.putU64(p.guid);
+        byte[] pkt = n.array();
+        for (Player m : world.playersOnline()) {
+            if (m.session != null && m.session.channels.contains(channel)) {
+                m.session.send(Opcodes.SMSG_CHANNEL_NOTIFY, pkt);
+            }
+        }
+    }
+
+    /** Channel::ToggleAnnouncements via CMSG_CHANNEL_ANNOUNCEMENTS. Custom default on. */
+    public static void announcements(WorldSession s, World world, WowBuffer in) {
+        String channel = in.remaining() > 0 ? in.getCString() : "";
+        if (channel.isEmpty()) {
+            return;
+        }
+        Player p = s.player();
+        if (!s.channels.contains(channel)) {
+            notify(s, NOT_MEMBER, channel);
+            return;
+        }
+        var flags = world.channelMemberFlags.computeIfAbsent(channel, k -> new java.util.concurrent.ConcurrentHashMap<>());
+        if ((flags.getOrDefault(p.guid, MEMBER_FLAG_NONE) & MEMBER_FLAG_MODERATOR) == 0) {
+            notify(s, NOT_MODERATOR, channel);
+            return;
+        }
+        boolean on = !world.channelAnnouncements.getOrDefault(channel, !"General".equals(channel));
+        world.channelAnnouncements.put(channel, on);
+        WowBuffer n = new WowBuffer(32);
+        n.putU8(on ? ANNOUNCEMENTS_ON : ANNOUNCEMENTS_OFF);
+        n.putCString(channel);
         n.putU64(p.guid);
         byte[] pkt = n.array();
         for (Player m : world.playersOnline()) {

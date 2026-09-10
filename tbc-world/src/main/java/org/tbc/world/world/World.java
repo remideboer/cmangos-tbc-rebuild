@@ -97,6 +97,8 @@ public final class World implements Runnable {
     public final Map<String, ConcurrentHashMap<Long, Integer>> channelMemberFlags = new ConcurrentHashMap<>();
     /** Custom channel → banned member guids (Channel.cpp IsBanned). */
     public final Map<String, Set<Long>> channelBans = new ConcurrentHashMap<>();
+    /** Channel name → join/leave announcements (custom default true, Channel.cpp). */
+    public final Map<String, Boolean> channelAnnouncements = new ConcurrentHashMap<>();
     public final Terrain terrain;
     public final GraveyardManager graveyards;
     public final String motd;
