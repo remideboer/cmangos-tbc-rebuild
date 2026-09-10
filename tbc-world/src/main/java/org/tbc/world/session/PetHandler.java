@@ -10,6 +10,7 @@ import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.spell.AuraSlots;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.world.World;
 
@@ -27,6 +28,7 @@ public final class PetHandler {
     public static final int UNSTABLE_OK = 0x09;
     public static final int BUY_SLOT_OK = 0x0A;
     public static final int CLASS_HUNTER = 3;
+    public static final int FEEDBACK_PET_DEAD = 1;
 
     private PetHandler() {}
 
@@ -214,6 +216,33 @@ public final class PetHandler {
         long victim = pet.victim;
         pet.victim = 0;
         s.send(Opcodes.SMSG_ATTACKSTOP, world.combat.encodeAttackStop(pet.guid, victim, false));
+    }
+
+    /** HandlePetCancelAuraOpcode — RemoveAurasDueToSpell; dead → FEEDBACK_PET_DEAD. */
+    public static void cancelAura(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        int spellId = in.remaining() >= 4 ? in.getU32() : 0;
+        Pet pet = p.pet;
+        if (pet == null || pet.guid != guid || spellId == 0 || world.spells.info(spellId) == null) {
+            return;
+        }
+        if (!pet.alive) {
+            s.send(Opcodes.SMSG_PET_ACTION_FEEDBACK, new byte[]{(byte) FEEDBACK_PET_DEAD});
+            return;
+        }
+        Unit u = pet.asUnit();
+        int slot = AuraSlots.slotOf(u, spellId);
+        world.spells.cancelAura(u, spellId);
+        if (slot >= 0) {
+            AuraSlots.clearVisible(u, slot);
+            var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(u,
+                    UpdateFields.UNIT_FIELD_AURA + slot,
+                    UpdateFields.UNIT_FIELD_AURAFLAGS + slot / 4,
+                    UpdateFields.UNIT_FIELD_AURALEVELS + slot / 4,
+                    UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + slot / 4));
+            s.send(upd.opcode(), upd.payload());
+        }
     }
 
     /** HandlePetCastSpellOpcode — learned catalog spell; START caster is the pet. */

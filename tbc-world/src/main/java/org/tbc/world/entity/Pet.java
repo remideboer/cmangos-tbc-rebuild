@@ -1,5 +1,7 @@
 package org.tbc.world.entity;
 
+import org.tbc.world.net.wow8606.UpdateFields;
+
 public final class Pet {
     /** Pet.h PetType */
     public static final int SUMMON_PET = 0;
@@ -28,7 +30,18 @@ public final class Pet {
     public boolean summoned;
     /** Current melee victim (0 = not attacking). */
     public long victim;
+    public boolean alive = true;
     public final java.util.List<Integer> spells = new java.util.ArrayList<>();
+    private Unit body;
+
+    /** Map unit for pet auras / VALUES (pets are not continent creatures). */
+    public Unit asUnit() {
+        if (body == null) {
+            body = new Unit(UpdateFields.UNIT_END, Unit.TYPEID_UNIT);
+        }
+        body.guid = guid;
+        return body;
+    }
 
     /** ObjectMgr.cpp CheckPetName — length only (strict names off). */
     public static int checkName(String name) {

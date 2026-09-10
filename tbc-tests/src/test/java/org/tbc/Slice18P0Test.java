@@ -4,9 +4,11 @@ import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.PetHandler;
+import org.tbc.world.spell.AuraSlots;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
@@ -496,6 +498,55 @@ class Slice18P0Test {
         client.clear();
         client.handle(world, Opcodes.CMSG_PET_STOP_ATTACK, stop.array());
         assertFalse(client.saw(Opcodes.SMSG_ATTACKSTOP));
+    }
+
+    /**
+     * TP-SL18-006 — CMSG_PET_CANCEL_AURA removes the pet's visible aura.
+     * HandlePetCancelAuraOpcode → RemoveAurasDueToSpell; dead pet → FEEDBACK_PET_DEAD 1.
+     */
+    @Test
+    void tpSl18PetCancelAura() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "PetAura");
+        Player p = client.session().player();
+        p.clazz = PetHandler.CLASS_HUNTER;
+        WowBuffer summon = new WowBuffer(20);
+        summon.putU64(0);
+        summon.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        summon.putU64(0);
+        client.handle(world, Opcodes.CMSG_PET_ACTION, summon.array());
+        long petGuid = p.pet.guid;
+        Unit petUnit = p.pet.asUnit();
+        petUnit.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, 30_000, 1));
+        AuraSlots.applyVisible(petUnit, SpellEngine.FROST_ARMOR, p.level, 1);
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_CANCEL_AURA, new byte[0]);
+        assertTrue(petUnit.hasAura(SpellEngine.FROST_ARMOR));
+        client.handle(world, Opcodes.CMSG_PET_CANCEL_AURA, petCancelAuraPayload(petGuid + 1, SpellEngine.FROST_ARMOR));
+        assertTrue(petUnit.hasAura(SpellEngine.FROST_ARMOR));
+        client.handle(world, Opcodes.CMSG_PET_CANCEL_AURA, petCancelAuraPayload(petGuid, 99999));
+        assertTrue(petUnit.hasAura(SpellEngine.FROST_ARMOR));
+
+        p.pet.alive = false;
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_CANCEL_AURA, petCancelAuraPayload(petGuid, SpellEngine.FROST_ARMOR));
+        assertTrue(petUnit.hasAura(SpellEngine.FROST_ARMOR));
+        byte[] dead = lastPayload(client, Opcodes.SMSG_PET_ACTION_FEEDBACK);
+        assertEquals(1, dead[0] & 0xFF);
+        p.pet.alive = true;
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_CANCEL_AURA, petCancelAuraPayload(petGuid, SpellEngine.FROST_ARMOR));
+        assertFalse(petUnit.hasAura(SpellEngine.FROST_ARMOR));
+        assertEquals(0, client.valuesField(petGuid, UpdateFields.UNIT_FIELD_AURA));
+    }
+
+    private static byte[] petCancelAuraPayload(long petGuid, int spellId) {
+        WowBuffer in = new WowBuffer(12);
+        in.putU64(petGuid);
+        in.putU32(spellId);
+        return in.array();
     }
 
     private static byte[] petCastPayload(long petGuid, int spellId, long targetGuid) {

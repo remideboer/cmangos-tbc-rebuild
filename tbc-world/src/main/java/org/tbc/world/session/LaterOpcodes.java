@@ -251,6 +251,10 @@ public final class LaterOpcodes {
             PetHandler.stopAttack(s, world, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_PET_CANCEL_AURA) {
+            PetHandler.cancelAura(s, world, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_PET_RENAME) {
             PetHandler.rename(s, in);
             return true;
