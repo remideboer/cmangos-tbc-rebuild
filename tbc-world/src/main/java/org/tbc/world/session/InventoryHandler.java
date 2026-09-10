@@ -159,7 +159,9 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 1,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 2,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 3,
-                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 4));
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 4,
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 8,
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 9));
         s.send(pkt.opcode(), pkt.payload());
     }
 
