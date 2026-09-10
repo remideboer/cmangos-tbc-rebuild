@@ -90,6 +90,8 @@ public final class World implements Runnable {
     public final Map<Long, Corpse> corpses = new ConcurrentHashMap<>();
     /** Channel name → password for CMSG_CHANNEL_PASSWORD / join checks. */
     public final Map<String, String> channelPasswords = new ConcurrentHashMap<>();
+    /** Custom channel → owner guid (Channel.cpp first joiner when !IsPublic). */
+    public final Map<String, Long> channelOwners = new ConcurrentHashMap<>();
     public final Terrain terrain;
     public final GraveyardManager graveyards;
     public final String motd;

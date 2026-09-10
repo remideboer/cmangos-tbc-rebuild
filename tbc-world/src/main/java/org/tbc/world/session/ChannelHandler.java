@@ -2,6 +2,7 @@ package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.PlayerNames;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
 
@@ -12,6 +13,9 @@ public final class ChannelHandler {
     public static final int WRONG_PASSWORD = 0x04;
     public static final int NOT_MEMBER = 0x05;
     public static final int PASSWORD_CHANGED = 0x07;
+    public static final int OWNER_CHANGED = 0x08;
+    public static final int PLAYER_NOT_FOUND = 0x09;
+    public static final int NOT_OWNER = 0x0A;
     public static final int CHANNEL_OWNER = 0x0B;
     public static final int CHANNEL_ID_GENERAL = 1;
 
@@ -41,6 +45,9 @@ public final class ChannelHandler {
             return;
         }
         s.channels.add(name);
+        if (!"General".equals(name)) {
+            world.channelOwners.putIfAbsent(name, s.player().guid);
+        }
         WowBuffer n = new WowBuffer(32);
         n.putU8(YOU_JOINED);
         n.putCString(name);
@@ -84,24 +91,79 @@ public final class ChannelHandler {
     }
 
     /** Channel::SendChannelOwnerResponse — member gets CHANNEL_OWNER + name. */
-    public static void owner(WorldSession s, WowBuffer in) {
+    public static void owner(WorldSession s, World world, WowBuffer in) {
         String name = in.remaining() > 0 ? in.getCString() : "";
         if (name.isEmpty()) {
             return;
         }
         if (!s.channels.contains(name)) {
-            WowBuffer n = new WowBuffer(32);
-            n.putU8(NOT_MEMBER);
-            n.putCString(name);
-            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            notify(s, NOT_MEMBER, name);
             return;
         }
         Player p = s.player();
-        String ownerName = p.name != null && !p.name.isEmpty() ? p.name : "Nobody";
+        Long ownerGuid = world.channelOwners.get(name);
+        Player owner = ownerGuid != null ? world.playerByGuid(ownerGuid) : p;
+        String ownerName = owner != null && owner.name != null && !owner.name.isEmpty() ? owner.name : "Nobody";
         WowBuffer n = new WowBuffer(64);
         n.putU8(CHANNEL_OWNER);
         n.putCString(name);
         n.putCString(ownerName);
+        s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+    }
+
+    /** Channel::SetOwner — transfer; OWNER_CHANGED when more than one member. */
+    public static void setOwner(WorldSession s, World world, WowBuffer in) {
+        String channel = in.remaining() > 0 ? in.getCString() : "";
+        String raw = in.remaining() > 0 ? in.getCString() : "";
+        String targetName = PlayerNames.normalize(raw);
+        if (channel.isEmpty() || targetName == null) {
+            return;
+        }
+        Player p = s.player();
+        if (!s.channels.contains(channel)) {
+            notify(s, NOT_MEMBER, channel);
+            return;
+        }
+        Long ownerGuid = world.channelOwners.get(channel);
+        if (ownerGuid == null || ownerGuid != p.guid) {
+            notify(s, NOT_OWNER, channel);
+            return;
+        }
+        Player target = world.playerByName(targetName);
+        if (target == null || target.session == null || !target.session.channels.contains(channel)) {
+            WowBuffer n = new WowBuffer(64);
+            n.putU8(PLAYER_NOT_FOUND);
+            n.putCString(channel);
+            n.putCString(targetName);
+            s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            return;
+        }
+        world.channelOwners.put(channel, target.guid);
+        int members = 0;
+        for (Player m : world.playersOnline()) {
+            if (m.session != null && m.session.channels.contains(channel)) {
+                members++;
+            }
+        }
+        if (members <= 1) {
+            return;
+        }
+        WowBuffer n = new WowBuffer(32);
+        n.putU8(OWNER_CHANGED);
+        n.putCString(channel);
+        n.putU64(target.guid);
+        byte[] pkt = n.array();
+        for (Player m : world.playersOnline()) {
+            if (m.session != null && m.session.channels.contains(channel)) {
+                m.session.send(Opcodes.SMSG_CHANNEL_NOTIFY, pkt);
+            }
+        }
+    }
+
+    private static void notify(WorldSession s, int type, String channel) {
+        WowBuffer n = new WowBuffer(32);
+        n.putU8(type);
+        n.putCString(channel);
         s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
     }
 

@@ -174,12 +174,86 @@ class Slice19P0Test {
         assertFalse(client.saw(Opcodes.SMSG_CHANNEL_NOTIFY));
     }
 
+    /**
+     * TP-SL19-008 — CMSG_CHANNEL_SET_OWNER on a custom channel.
+     * Channel::SetOwner: not member 0x05, not owner 0x0A, missing player 0x09;
+     * success with 2+ members → OWNER_CHANGED 0x08 + new owner guid.
+     */
+    @Test
+    void tpSl19ChannelSetOwner() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Talker");
+        WowClientDouble b = login(world, ACC_B, "Wavee");
+        a.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+        b.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinChannel("MyChan").array());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_SET_OWNER, new byte[0]);
+        assertFalse(a.saw(Opcodes.SMSG_CHANNEL_NOTIFY));
+        WowBuffer noName = new WowBuffer(16);
+        noName.putCString("MyChan");
+        a.handle(world, Opcodes.CMSG_CHANNEL_SET_OWNER, noName.array());
+        assertFalse(a.saw(Opcodes.SMSG_CHANNEL_NOTIFY));
+
+        WowClientDouble outsider = login(world, new World.Account(3, "OUT", new byte[40], 3, 1, "Win", "x86"), "Outsider");
+        outsider.clear();
+        outsider.handle(world, Opcodes.CMSG_CHANNEL_SET_OWNER, setOwnerPayload("MyChan", "Wavee"));
+        WowBuffer notMember = new WowBuffer(lastPayload(outsider, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_MEMBER, notMember.getU8());
+        assertEquals("MyChan", notMember.getCString());
+
+        b.clear();
+        b.handle(world, Opcodes.CMSG_CHANNEL_SET_OWNER, setOwnerPayload("MyChan", "Talker"));
+        WowBuffer notOwner = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.NOT_OWNER, notOwner.getU8());
+        assertEquals("MyChan", notOwner.getCString());
+
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_SET_OWNER, setOwnerPayload("MyChan", "Nobody"));
+        WowBuffer missing = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.PLAYER_NOT_FOUND, missing.getU8());
+        assertEquals("MyChan", missing.getCString());
+        assertEquals("Nobody", missing.getCString());
+
+        a.clear();
+        b.clear();
+        a.handle(world, Opcodes.CMSG_CHANNEL_SET_OWNER, setOwnerPayload("MyChan", "Wavee"));
+        WowBuffer changed = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.OWNER_CHANGED, changed.getU8());
+        assertEquals("MyChan", changed.getCString());
+        assertEquals(b.session().player().guid, changed.getU64());
+        WowBuffer toB = new WowBuffer(lastPayload(b, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.OWNER_CHANGED, toB.getU8());
+        assertEquals("MyChan", toB.getCString());
+        assertEquals(b.session().player().guid, toB.getU64());
+
+        a.clear();
+        WowBuffer query = new WowBuffer(16);
+        query.putCString("MyChan");
+        a.handle(world, Opcodes.CMSG_CHANNEL_OWNER, query.array());
+        WowBuffer owner = new WowBuffer(lastPayload(a, Opcodes.SMSG_CHANNEL_NOTIFY));
+        assertEquals(ChannelHandler.CHANNEL_OWNER, owner.getU8());
+        assertEquals("MyChan", owner.getCString());
+        assertEquals("Wavee", owner.getCString());
+    }
+
+    private static byte[] setOwnerPayload(String channel, String newOwner) {
+        WowBuffer in = new WowBuffer(48);
+        in.putCString(channel);
+        in.putCString(newOwner);
+        return in.array();
+    }
+
     private static WowBuffer joinGeneral() {
+        return joinChannel("General");
+    }
+
+    private static WowBuffer joinChannel(String name) {
         WowBuffer join = new WowBuffer(32);
         join.putU32(0);
         join.putU8(0);
         join.putU8(0);
-        join.putCString("General");
+        join.putCString(name);
         join.putCString("");
         return join;
     }
