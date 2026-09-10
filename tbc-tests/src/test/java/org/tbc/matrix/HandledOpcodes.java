@@ -221,6 +221,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_CHANNEL_LIST,
             Opcodes.CMSG_CHANNEL_OWNER,
             Opcodes.CMSG_CHANNEL_SET_OWNER,
+            Opcodes.CMSG_CHANNEL_UNMODERATOR,
             Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE,
             Opcodes.CMSG_TOTEM_DESTROYED,
             Opcodes.CMSG_PET_ABANDON,

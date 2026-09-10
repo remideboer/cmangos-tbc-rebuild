@@ -92,6 +92,8 @@ public final class World implements Runnable {
     public final Map<String, String> channelPasswords = new ConcurrentHashMap<>();
     /** Custom channel → owner guid (Channel.cpp first joiner when !IsPublic). */
     public final Map<String, Long> channelOwners = new ConcurrentHashMap<>();
+    /** Custom channel → member guid → Channel.h PlayerInfo flags. */
+    public final Map<String, ConcurrentHashMap<Long, Integer>> channelMemberFlags = new ConcurrentHashMap<>();
     public final Terrain terrain;
     public final GraveyardManager graveyards;
     public final String motd;

@@ -12,11 +12,16 @@ public final class ChannelHandler {
     public static final int YOU_LEFT = 0x03;
     public static final int WRONG_PASSWORD = 0x04;
     public static final int NOT_MEMBER = 0x05;
+    public static final int NOT_MODERATOR = 0x06;
     public static final int PASSWORD_CHANGED = 0x07;
     public static final int OWNER_CHANGED = 0x08;
     public static final int PLAYER_NOT_FOUND = 0x09;
     public static final int NOT_OWNER = 0x0A;
     public static final int CHANNEL_OWNER = 0x0B;
+    public static final int MODE_CHANGE = 0x0C;
+    public static final int MEMBER_FLAG_NONE = 0x00;
+    public static final int MEMBER_FLAG_OWNER = 0x01;
+    public static final int MEMBER_FLAG_MODERATOR = 0x02;
     public static final int CHANNEL_ID_GENERAL = 1;
 
     private ChannelHandler() {}
@@ -46,7 +51,13 @@ public final class ChannelHandler {
         }
         s.channels.add(name);
         if (!"General".equals(name)) {
-            world.channelOwners.putIfAbsent(name, s.player().guid);
+            long guid = s.player().guid;
+            var flags = world.channelMemberFlags.computeIfAbsent(name, k -> new java.util.concurrent.ConcurrentHashMap<>());
+            if (world.channelOwners.putIfAbsent(name, guid) == null) {
+                flags.put(guid, MEMBER_FLAG_OWNER | MEMBER_FLAG_MODERATOR);
+            } else {
+                flags.putIfAbsent(guid, MEMBER_FLAG_NONE);
+            }
         }
         WowBuffer n = new WowBuffer(32);
         n.putU8(YOU_JOINED);
@@ -168,19 +179,69 @@ public final class ChannelHandler {
     }
 
     /** Channel::SetModerator — not a member → NOT_MEMBER. */
-    public static void moderator(WorldSession s, WowBuffer in) {
-        String name = in.remaining() > 0 ? in.getCString() : "";
-        if (in.remaining() > 0) {
-            in.getCString();
-        }
-        if (name.isEmpty()) {
+    public static void moderator(WorldSession s, World world, WowBuffer in) {
+        setMode(s, world, in, MEMBER_FLAG_MODERATOR, true);
+    }
+
+    /** Channel::SetModerator(..., false) via CMSG_CHANNEL_UNMODERATOR. */
+    public static void unmoderator(WorldSession s, World world, WowBuffer in) {
+        setMode(s, world, in, MEMBER_FLAG_MODERATOR, false);
+    }
+
+    private static void setMode(WorldSession s, World world, WowBuffer in, int flag, boolean set) {
+        String channel = in.remaining() > 0 ? in.getCString() : "";
+        String raw = in.remaining() > 0 ? in.getCString() : "";
+        String targetName = PlayerNames.normalize(raw);
+        if (channel.isEmpty() || targetName == null) {
             return;
         }
-        if (!s.channels.contains(name)) {
-            WowBuffer n = new WowBuffer(32);
-            n.putU8(NOT_MEMBER);
-            n.putCString(name);
+        Player p = s.player();
+        if (!s.channels.contains(channel)) {
+            notify(s, NOT_MEMBER, channel);
+            return;
+        }
+        var flags = world.channelMemberFlags.computeIfAbsent(channel, k -> new java.util.concurrent.ConcurrentHashMap<>());
+        int mine = flags.getOrDefault(p.guid, MEMBER_FLAG_NONE);
+        if ((mine & MEMBER_FLAG_MODERATOR) == 0) {
+            notify(s, NOT_MODERATOR, channel);
+            return;
+        }
+        Player target = world.playerByName(targetName);
+        if (target == null || target.session == null || !target.session.channels.contains(channel)) {
+            WowBuffer n = new WowBuffer(64);
+            n.putU8(PLAYER_NOT_FOUND);
+            n.putCString(channel);
+            n.putCString(targetName);
             s.send(Opcodes.SMSG_CHANNEL_NOTIFY, n.array());
+            return;
+        }
+        Long ownerGuid = world.channelOwners.get(channel);
+        if ((flag & MEMBER_FLAG_MODERATOR) != 0 && ownerGuid != null
+                && ownerGuid == p.guid && ownerGuid == target.guid) {
+            return;
+        }
+        if (ownerGuid != null && ownerGuid == target.guid && ownerGuid != p.guid) {
+            notify(s, NOT_OWNER, channel);
+            return;
+        }
+        int oldFlag = flags.getOrDefault(target.guid, MEMBER_FLAG_NONE);
+        boolean has = (oldFlag & flag) != 0;
+        if (has == set) {
+            return;
+        }
+        int newFlag = set ? (oldFlag | flag) : (oldFlag & ~flag);
+        flags.put(target.guid, newFlag);
+        WowBuffer n = new WowBuffer(32);
+        n.putU8(MODE_CHANGE);
+        n.putCString(channel);
+        n.putU64(target.guid);
+        n.putU8(oldFlag);
+        n.putU8(newFlag);
+        byte[] pkt = n.array();
+        for (Player m : world.playersOnline()) {
+            if (m.session != null && m.session.channels.contains(channel)) {
+                m.session.send(Opcodes.SMSG_CHANNEL_NOTIFY, pkt);
+            }
         }
     }
 
