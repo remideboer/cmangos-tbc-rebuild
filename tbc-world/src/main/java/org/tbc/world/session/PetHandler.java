@@ -170,6 +170,37 @@ public final class PetHandler {
         s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(pet));
     }
 
+    /** HandlePetSpellAutocastOpcode — known spell on a spell-bar slot. */
+    public static void spellAutocast(WorldSession s, WowBuffer in) {
+        Player p = s.player();
+        long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        int spellId = in.remaining() >= 4 ? in.getU32() : 0;
+        int state = in.remaining() > 0 ? in.getU8() : 0;
+        Pet pet = p.pet;
+        if (pet == null || pet.guid != guid || spellId == 0 || !pet.spells.contains(spellId)) {
+            return;
+        }
+        int type = state != 0 ? ACT_ENABLED : ACT_DISABLED;
+        boolean found = false;
+        for (int i = 0; i < pet.actionBar.length; i++) {
+            int packed = pet.actionBar[i];
+            int act = (packed >>> 24) & 0xFF;
+            if ((packed & 0xFFFFFF) != spellId) {
+                continue;
+            }
+            if (act != ACT_ENABLED && act != ACT_DISABLED && act != ACT_PASSIVE) {
+                continue;
+            }
+            pet.actionBar[i] = spellId | (type << 24);
+            found = true;
+            break;
+        }
+        if (!found) {
+            return;
+        }
+        s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(pet));
+    }
+
     public static void abandon(WorldSession s, WowBuffer in) {
         if (in.remaining() >= 8) {
             in.getU64();

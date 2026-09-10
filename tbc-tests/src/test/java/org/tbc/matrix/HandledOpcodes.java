@@ -223,7 +223,8 @@ final class HandledOpcodes {
             Opcodes.CMSG_TOTEM_DESTROYED,
             Opcodes.CMSG_PET_ABANDON,
             Opcodes.CMSG_PET_RENAME,
-            Opcodes.CMSG_PET_SET_ACTION
+            Opcodes.CMSG_PET_SET_ACTION,
+            Opcodes.CMSG_PET_SPELL_AUTOCAST
     );
 
     static boolean handled(int id) {

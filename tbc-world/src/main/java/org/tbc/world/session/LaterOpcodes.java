@@ -239,6 +239,10 @@ public final class LaterOpcodes {
             PetHandler.setAction(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_PET_SPELL_AUTOCAST) {
+            PetHandler.spellAutocast(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_PET_RENAME) {
             PetHandler.rename(s, in);
             return true;

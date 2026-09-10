@@ -323,6 +323,70 @@ class Slice18P0Test {
         assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
     }
 
+    /**
+     * TP-SL18-006 — CMSG_PET_SPELL_AUTOCAST toggles the autocast bit in SMSG_PET_SPELLS.
+     * HandlePetSpellAutocastOpcode → SetSpellAutocast ACT_ENABLED / ACT_DISABLED.
+     */
+    @Test
+    void tpSl18PetSpellAutocast() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "AutoCast");
+        Player p = client.session().player();
+        p.clazz = PetHandler.CLASS_HUNTER;
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, autocastPayload(1, 2947, 1));
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        WowBuffer summon = new WowBuffer(20);
+        summon.putU64(0);
+        summon.putU32(PetHandler.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24));
+        summon.putU64(0);
+        client.handle(world, Opcodes.CMSG_PET_ACTION, summon.array());
+        long petGuid = p.pet.guid;
+        p.pet.learnSpell(2947);
+        int disabled = 2947 | (PetHandler.ACT_DISABLED << 24);
+        int enabled = 2947 | (PetHandler.ACT_ENABLED << 24);
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION, setActionPayload(petGuid, 3, disabled));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, autocastPayload(petGuid, 2947, 1));
+        byte[] on = lastPayload(client, Opcodes.SMSG_PET_SPELLS);
+        assertEquals(enabled, WowClientDouble.u32le(on, 16 + 3 * 4));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, autocastPayload(petGuid, 2947, 0));
+        byte[] off = lastPayload(client, Opcodes.SMSG_PET_SPELLS);
+        assertEquals(disabled, WowClientDouble.u32le(off, 16 + 3 * 4));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, autocastPayload(petGuid, 99999, 1));
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        p.pet.learnSpell(133);
+        client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, autocastPayload(petGuid, 133, 1));
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, autocastPayload(petGuid + 1, 2947, 1));
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, new byte[0]);
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        WowBuffer guidOnly = new WowBuffer(8);
+        guidOnly.putU64(petGuid);
+        client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, guidOnly.array());
+        assertFalse(client.saw(Opcodes.SMSG_PET_SPELLS));
+        client.handle(world, Opcodes.CMSG_PET_SET_ACTION,
+                setActionPayload(petGuid, 3, 2947 | (PetHandler.ACT_PASSIVE << 24)));
+        client.clear();
+        client.handle(world, Opcodes.CMSG_PET_SPELL_AUTOCAST, autocastPayload(petGuid, 2947, 1));
+        byte[] fromPassive = lastPayload(client, Opcodes.SMSG_PET_SPELLS);
+        assertEquals(enabled, WowClientDouble.u32le(fromPassive, 16 + 3 * 4));
+    }
+
+    private static byte[] autocastPayload(long petGuid, int spellId, int state) {
+        WowBuffer in = new WowBuffer(13);
+        in.putU64(petGuid);
+        in.putU32(spellId);
+        in.putU8(state);
+        return in.array();
+    }
+
     private static byte[] setActionPayload(long petGuid, int position, int data) {
         WowBuffer in = new WowBuffer(16);
         in.putU64(petGuid);
