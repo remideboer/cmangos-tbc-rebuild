@@ -1245,6 +1245,13 @@ public final class ObjectMgr {
                         + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
                         + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
                         + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
+                        + "dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6 FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
+                        + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
+                        + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
                         + "dmg_min2, dmg_max2, dmg_type2 FROM item_template LIMIT 50000",
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
@@ -1377,6 +1384,10 @@ public final class ObjectMgr {
                         t.dmgMin[1] = rs.getFloat(42);
                         t.dmgMax[1] = rs.getFloat(43);
                         t.dmgType[1] = rs.getInt(44);
+                    }
+                    if (cols >= 46) {
+                        t.statType[5] = rs.getInt(45);
+                        t.statValue[5] = rs.getInt(46);
                     }
                     items.put(t.entry, t);
                 }

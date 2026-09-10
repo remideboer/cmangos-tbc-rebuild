@@ -817,4 +817,88 @@ class ObjectMgrItemTemplateTest {
             assertEquals(3, sword.dmgType[1]);
         }
     }
+
+    /**
+     * TP-SL14-013 — LoadItemPrototypes sixth proto stat. SQL item_template must carry
+     * stat_type6/stat_value6 (Destroyer Chestguard 30113 HIT_RATING 24 in slot 6).
+     * Wowhead TBC tooltip: STR/AGI/STA + defense/dodge/hit Equip lines; spells:[].
+     */
+    @Test
+    void loadItemsWhenTemplateHasSixthStatShouldCarryHitRating() throws Exception {
+        String url = "jdbc:h2:mem:items6_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "item-template-sixth-stat")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE item_template (
+                          entry INT,
+                          class INT,
+                          subclass INT,
+                          name VARCHAR(255),
+                          displayid INT,
+                          Quality INT,
+                          Flags INT,
+                          BuyPrice INT,
+                          SellPrice INT,
+                          InventoryType INT,
+                          AllowableClass INT,
+                          AllowableRace INT,
+                          ItemLevel INT,
+                          RequiredLevel INT,
+                          maxcount INT,
+                          stackable INT,
+                          ContainerSlots INT,
+                          armor INT,
+                          delay INT,
+                          bonding INT,
+                          description VARCHAR(255),
+                          MaxDurability INT,
+                          Duration INT,
+                          RequiredDisenchantSkill INT,
+                          dmg_min1 FLOAT,
+                          dmg_max1 FLOAT,
+                          stat_type1 INT,
+                          stat_value1 INT,
+                          stat_type2 INT,
+                          stat_value2 INT,
+                          stat_type3 INT,
+                          stat_value3 INT,
+                          stat_type4 INT,
+                          stat_value4 INT,
+                          stat_type5 INT,
+                          stat_value5 INT,
+                          fire_res INT,
+                          nature_res INT,
+                          frost_res INT,
+                          shadow_res INT,
+                          arcane_res INT,
+                          dmg_min2 FLOAT,
+                          dmg_max2 FLOAT,
+                          dmg_type2 INT,
+                          stat_type6 INT,
+                          stat_value6 INT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO item_template (
+                          entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice,
+                          InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount,
+                          stackable, ContainerSlots, armor, delay, bonding, description, MaxDurability,
+                          Duration, RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1,
+                          stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4,
+                          stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res,
+                          dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6)
+                        VALUES (30113, 4, 4, 'Destroyer Chestguard', 0, 4, 0, 0, 0, 5, -1, -1, 133, 70, 1,
+                          1, 0, 1668, 0, 1, '', 165, 0, -1, 0, 0, 4, 25, 3, 26, 7, 57, 12, 27, 13, 24, 0, 0, 0, 0, 0,
+                          0, 0, 0, 31, 24)
+                        """);
+            }
+            ObjectMgr mgr = new ObjectMgr();
+            mgr.load(worldDb, null);
+            ObjectMgr.ItemTemplate chest = mgr.items.get(30113);
+            assertNotNull(chest);
+            assertEquals(31, chest.statType[5]);
+            assertEquals(24, chest.statValue[5]);
+        }
+    }
 }
