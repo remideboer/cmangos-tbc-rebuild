@@ -133,6 +133,8 @@ public final class Content {
     public static final int ITEM_LAWBRINGER_CHESTGUARD = 16853;
     /** tbc-db item_template 15059; STA 10 / SPI 25, armor 169, NatureRes 5. */
     public static final int ITEM_LIVING_BREASTPLATE = 15059;
+    /** tbc-db item_template 22669; STR 12 / STA 24, armor 1027, FrostRes 42. */
+    public static final int ITEM_ICEBANE_BREASTPLATE = 22669;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */
