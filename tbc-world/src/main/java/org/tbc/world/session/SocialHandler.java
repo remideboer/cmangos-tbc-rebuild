@@ -18,8 +18,11 @@ public final class SocialHandler {
     public static final int TRADE_TRADED = 6;
     public static final int WHO_DISPLAY_CAP = 49;
     public static final int FRIEND_LIMIT = 50;
+    public static final int IGNORE_LIMIT = 25;
     public static final int FRIEND_LIST = 0x1;
+    public static final int IGNORE_LIST = 0x2;
     public static final int SOCIAL_FLAG_FRIEND = 0x01;
+    public static final int SOCIAL_FLAG_IGNORED = 0x02;
     public static final int MAIL_POSTAGE = 30;
     public static final int MAIL_ITEM_POSTAGE = 30;
     public static final int MAX_MAIL_ITEMS = 12;
@@ -51,6 +54,12 @@ public final class SocialHandler {
     public static final int FRIEND_SELF = 0x09;
     public static final int FRIEND_REMOVED = 0x05;
     public static final int FRIEND_LIST_FULL = 0x01;
+    public static final int FRIEND_IGNORE_FULL = 0x0B;
+    public static final int FRIEND_IGNORE_SELF = 0x0C;
+    public static final int FRIEND_IGNORE_NOT_FOUND = 0x0D;
+    public static final int FRIEND_IGNORE_ALREADY = 0x0E;
+    public static final int FRIEND_IGNORE_ADDED = 0x0F;
+    public static final int FRIEND_IGNORE_REMOVED = 0x10;
     public static final int TRADE_BUSY = 0;
     public static final int TRADE_BEGIN = 1;
     public static final int TRADE_OPEN = 2;
@@ -70,7 +79,16 @@ public final class SocialHandler {
             return;
         }
         WowBuffer b = new WowBuffer(64 + p.friends.size() * 32);
-        b.putU32(p.friends.isEmpty() ? 0 : FRIEND_LIST);
+        int lists = 0;
+        for (Player.Friend f : p.friends) {
+            if ((f.flags & SOCIAL_FLAG_FRIEND) != 0) {
+                lists |= FRIEND_LIST;
+            }
+            if ((f.flags & SOCIAL_FLAG_IGNORED) != 0) {
+                lists |= IGNORE_LIST;
+            }
+        }
+        b.putU32(lists);
         b.putU32(p.friends.size());
         for (Player.Friend f : p.friends) {
             b.putU64(f.guid);
@@ -101,7 +119,7 @@ public final class SocialHandler {
             friendStatus(s, FRIEND_SELF, p.guid, "", 0, 0, 0, 0);
             return;
         }
-        if (p.friends.size() >= FRIEND_LIMIT) {
+        if (countSocial(p, SOCIAL_FLAG_FRIEND) >= FRIEND_LIMIT) {
             friendStatus(s, FRIEND_LIST_FULL, 0, "", 0, 0, 0, 0);
             return;
         }
@@ -121,12 +139,57 @@ public final class SocialHandler {
         }
         Player.Friend row = new Player.Friend();
         row.guid = t.guid;
+        row.flags = SOCIAL_FLAG_FRIEND;
         row.note = note;
         world.characters.addFriend(Guid.low(p.guid), row);
         p.friends.add(row);
         boolean online = t.session != null;
         friendStatus(s, online ? FRIEND_ADDED_ONLINE : FRIEND_ADDED_OFFLINE, t.guid, note,
                 online ? 1 : 0, t.zoneId, t.level, t.clazz);
+    }
+
+    /** MiscHandler.cpp HandleAddIgnoreOpcode — FRIEND_IGNORE_ADDED, SOCIAL_FLAG_IGNORED. */
+    public static void addIgnore(WorldSession s, World world, WowBuffer in) {
+        String name = in.getCString();
+        Player p = s.player();
+        if (p.name.equalsIgnoreCase(name)) {
+            friendStatus(s, FRIEND_IGNORE_SELF, p.guid, "", 0, 0, 0, 0);
+            return;
+        }
+        Player t = world.playerByName(name);
+        if (t == null) {
+            t = world.characters.storedByName(name);
+        }
+        if (t == null) {
+            return;
+        }
+        for (Player.Friend f : p.friends) {
+            if (f.guid == t.guid && (f.flags & SOCIAL_FLAG_IGNORED) != 0) {
+                friendStatus(s, FRIEND_IGNORE_ALREADY, t.guid, "", 0, 0, 0, 0);
+                return;
+            }
+        }
+        if (countSocial(p, SOCIAL_FLAG_IGNORED) >= IGNORE_LIMIT) {
+            friendStatus(s, FRIEND_IGNORE_FULL, t.guid, "", 0, 0, 0, 0);
+            return;
+        }
+        Player.Friend existing = null;
+        for (Player.Friend f : p.friends) {
+            if (f.guid == t.guid) {
+                existing = f;
+                break;
+            }
+        }
+        if (existing != null) {
+            existing.flags |= SOCIAL_FLAG_IGNORED;
+        } else {
+            Player.Friend row = new Player.Friend();
+            row.guid = t.guid;
+            row.flags = SOCIAL_FLAG_IGNORED;
+            world.characters.addFriend(Guid.low(p.guid), row);
+            p.friends.add(row);
+        }
+        friendStatus(s, FRIEND_IGNORE_ADDED, t.guid, "", 0, 0, 0, 0);
     }
 
     public static void delFriend(WorldSession s, World world, WowBuffer in) {
@@ -761,6 +824,16 @@ public final class SocialHandler {
             world.characters.storeMail(m);
         }
         mailResult(s, mailId, MAIL_DELETED, MAIL_OK, 0, 0);
+    }
+
+    private static int countSocial(Player p, int flag) {
+        int n = 0;
+        for (Player.Friend f : p.friends) {
+            if ((f.flags & flag) != 0) {
+                n++;
+            }
+        }
+        return n;
     }
 
     private static boolean swapTraded(Player a, Player b) {

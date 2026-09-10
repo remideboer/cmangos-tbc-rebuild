@@ -394,6 +394,7 @@ public final class WorldSession {
             case Opcodes.CMSG_CANCEL_TRADE -> SocialHandler.cancelTrade(this);
             case Opcodes.CMSG_WHO -> SocialHandler.who(this, world, in);
             case Opcodes.CMSG_ADD_FRIEND -> SocialHandler.addFriend(this, world, in);
+            case Opcodes.CMSG_ADD_IGNORE -> SocialHandler.addIgnore(this, world, in);
             case Opcodes.CMSG_DEL_FRIEND -> SocialHandler.delFriend(this, world, in);
             case Opcodes.CMSG_GUILD_INVITE -> GuildHandler.invite(this, world, in);
             case Opcodes.CMSG_GUILD_ACCEPT -> GuildHandler.accept(this, world);
