@@ -314,6 +314,30 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Riverpaw Leather Vest — tbc-db item_template 821 (ITEM_MOD_STAMINA 7 / 2, armor 65). */
+        public static ItemTemplate riverpawLeatherVest() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_RIVERPAW_LEATHER_VEST;
+            t.itemClass = 4;
+            t.subClass = 2;
+            t.name = "Riverpaw Leather Vest";
+            t.displayId = 17102;
+            t.quality = 2;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 13;
+            t.requiredLevel = 1;
+            t.stackable = 1;
+            t.statType[0] = 7;
+            t.statValue[0] = 2;
+            t.armor = 65;
+            t.bonding = 2;
+            t.maxDurability = 60;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1077,6 +1101,7 @@ public final class ObjectMgr {
         creatures.putIfAbsent(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         items.putIfAbsent(25, ItemTemplate.wornShortsword());
+        items.putIfAbsent(Content.ITEM_RIVERPAW_LEATHER_VEST, ItemTemplate.riverpawLeatherVest());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -1902,7 +1927,10 @@ public final class ObjectMgr {
         }
     }
 
-    /** UNIT_FIELD_MIN/MAXDAMAGE + BASEATTACKTIME from equipped weapons. */
+    /** ItemPrototype.h ITEM_MOD_STAMINA. */
+    private static final int ITEM_MOD_STAMINA = 7;
+
+    /** UNIT_FIELD_MIN/MAXDAMAGE + BASEATTACKTIME from weapons; STAT2 / RESISTANCES from _ApplyItemBonuses. */
     public void applyEquippedMelee(Player p) {
         if (p == null) {
             return;
@@ -1922,6 +1950,21 @@ public final class ObjectMgr {
             p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE, off.dmgMax[0]);
             p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, off.delay > 0 ? off.delay : 2000);
         }
+        int stamina = 0;
+        int armor = 0;
+        for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
+            ItemTemplate t = equippedTemplate(p, slot);
+            if (t == null) {
+                continue;
+            }
+            armor += t.armor;
+            for (int i = 0; i < t.statType.length; i++) {
+                if (t.statType[i] == ITEM_MOD_STAMINA) {
+                    stamina += t.statValue[i];
+                }
+            }
+        }
+        p.applyGearBonuses(stamina, armor);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {

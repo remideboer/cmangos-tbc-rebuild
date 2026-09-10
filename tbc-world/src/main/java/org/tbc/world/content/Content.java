@@ -117,6 +117,8 @@ public final class Content {
     /** gossip_menu_option.option_text on Farley menu 1291. */
     public static final String GOSSIP_FARLEY_INN_INFO = "What can I do at an inn?";
     public static final int ITEM_WORN_SHORTSWORD = 25;
+    /** tbc-db item_template 821; stat_type1 STAMINA 7 / stat_value1 2, armor 65. */
+    public static final int ITEM_RIVERPAW_LEATHER_VEST = 821;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

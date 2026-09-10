@@ -285,7 +285,8 @@ public final class InventoryHandler {
         var pkt = UpdateBuilder.maybeCompress(
                 UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
-                        UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+                        UpdateFields.UNIT_FIELD_BASEATTACKTIME,
+                        UpdateFields.UNIT_FIELD_STAT2, UpdateFields.UNIT_FIELD_RESISTANCES));
         s.send(pkt.opcode(), pkt.payload());
         if (dest >= Player.INVENTORY_SLOT_BAG_START && dest < Player.INVENTORY_SLOT_BAG_END) {
             WowBuffer opened = new WowBuffer(8);

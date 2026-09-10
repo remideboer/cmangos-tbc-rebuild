@@ -660,6 +660,15 @@ public final class Player extends Unit {
         setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, manaRegenPerSecond);
     }
 
+    /**
+     * CMaNGOS Player::_ApplyItemBonuses (stamina + armor half): STAT2 and RESISTANCES from
+     * create stats plus the equipped-item totals. Idempotent; the caller recomputes the extras.
+     */
+    public void applyGearBonuses(int stamina, int armor) {
+        setInt(UpdateFields.UNIT_FIELD_STAT2, createStats[2] + stamina);
+        setInt(UpdateFields.UNIT_FIELD_RESISTANCES, createStats[1] * 2 + armor);
+    }
+
     /** CMaNGOS Unit::GetHealthBonusFromStamina: first 20 stamina 1 hp each, then 10 hp per point. */
     static int healthBonusFromStamina(int stamina) {
         int base = Math.min(stamina, 20);

@@ -445,6 +445,35 @@ class Slice14P0Test {
         assertEquals(1900, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_BASEATTACKTIME));
     }
 
+    /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses. Autoequip Riverpaw Leather Vest 821
+     * (stat_type1 STAMINA 7 / stat_value1 2, armor 65) must add those to the self VALUES:
+     * human warrior create STA 22 / armor agi×2 40 (create-self.md).
+     */
+    @Test
+    void tpSl14EquipAppliesStaminaAndArmor() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "StaEquipper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_RIVERPAW_LEATHER_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(24, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(105, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+    }
+
     @Test
     void tpSl14AutoequipBagOpensContainer() throws Exception {
         World world = World.inMemory();
