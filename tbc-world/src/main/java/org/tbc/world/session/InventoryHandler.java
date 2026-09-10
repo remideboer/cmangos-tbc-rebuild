@@ -281,15 +281,17 @@ public final class InventoryHandler {
         int dstField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + dest * 2;
         p.setGuid(srcField, occupied == null ? 0 : UpdateBuilder.itemGuid(occupied));
         p.setGuid(dstField, UpdateBuilder.itemGuid(it));
+        world.objectMgr.applyEquippedMelee(p);
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1));
+                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1,
+                        UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
+                        UpdateFields.UNIT_FIELD_BASEATTACKTIME));
         s.send(pkt.opcode(), pkt.payload());
         if (dest >= Player.INVENTORY_SLOT_BAG_START && dest < Player.INVENTORY_SLOT_BAG_END) {
             WowBuffer opened = new WowBuffer(8);
             opened.putU64(UpdateBuilder.itemGuid(it));
             s.send(Opcodes.SMSG_OPEN_CONTAINER, opened.array());
         }
-        world.objectMgr.applyEquippedMelee(p);
     }
 
     /** srcbag, srcslot, dstbag. Store into a free slot of dstbag. inventory.md */

@@ -417,6 +417,34 @@ class Slice14P0Test {
         assertEquals(UpdateBuilder.itemGuid(sword), guidAt(update, invSlotField(Player.EQUIPMENT_SLOT_MAINHAND)));
     }
 
+    /**
+     * TP-SL14-013 — Player::_ApplyItemMods weapon half. Autoequip Worn Shortsword 25 must put
+     * UNIT_FIELD_MINDAMAGE/MAXDAMAGE and UNIT_FIELD_BASEATTACKTIME on the self VALUES (inventory.md).
+     */
+    @Test
+    void tpSl14EquipAppliesItemMods() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "ModEquipper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = src;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(1f, Float.intBitsToFloat(client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MINDAMAGE)));
+        assertEquals(3f, Float.intBitsToFloat(client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXDAMAGE)));
+        assertEquals(1900, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+    }
+
     @Test
     void tpSl14AutoequipBagOpensContainer() throws Exception {
         World world = World.inMemory();
