@@ -165,6 +165,8 @@ public final class Content {
     public static final int ITEM_SUNGLOW_VEST = 34212;
     /** tbc-db item_template 2362; shield InventoryType 14, block 1, armor 5. */
     public static final int ITEM_WORN_WOODEN_SHIELD = 2362;
+    /** tbc-db item_template 33122; STA 25 / ITEM_MOD_CRIT_MELEE_RATING 19 / 24 / STR 23, armor 101. */
+    public static final int ITEM_CLOAK_OF_DARKNESS = 33122;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */
