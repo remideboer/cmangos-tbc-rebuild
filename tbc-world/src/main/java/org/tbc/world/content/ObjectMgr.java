@@ -826,6 +826,44 @@ public final class ObjectMgr {
             return t;
         }
 
+        /**
+         * Vengeful Gladiator's Dragonhide Tunic — tbc-db 33675 (STA 54, STR 30, INT 22, AGI 31,
+         * RES 26, HIT 12, CRIT 19 in stat_type7, armor 529).
+         */
+        public static ItemTemplate vengefulGladiatorsDragonhideTunic() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_VENGEFUL_GLADIATORS_DRAGONHIDE_TUNIC;
+            t.itemClass = 4;
+            t.subClass = 2;
+            t.name = "Vengeful Gladiator's Dragonhide Tunic";
+            t.quality = 4;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 146;
+            t.requiredLevel = 70;
+            t.stackable = 1;
+            t.statType[0] = 7;
+            t.statValue[0] = 54;
+            t.statType[1] = 4;
+            t.statValue[1] = 30;
+            t.statType[2] = 5;
+            t.statValue[2] = 22;
+            t.statType[3] = 3;
+            t.statValue[3] = 31;
+            t.statType[4] = 35;
+            t.statValue[4] = 26;
+            t.statType[5] = 31;
+            t.statValue[5] = 12;
+            t.statType[6] = 32;
+            t.statValue[6] = 19;
+            t.armor = 529;
+            t.bonding = 1;
+            t.maxDurability = 120;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Guild Charter — item 5863. PetitionsHandler.cpp GUILD_CHARTER. */
         public static ItemTemplate guildCharter() {
             ItemTemplate t = new ItemTemplate();
@@ -1427,6 +1465,14 @@ public final class ObjectMgr {
                         + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
                         + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
                         + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
+                        + "dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6, stat_type7, stat_value7 "
+                        + "FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
+                        + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
+                        + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
                         + "dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6 FROM item_template LIMIT 50000",
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
@@ -1570,6 +1616,10 @@ public final class ObjectMgr {
                     if (cols >= 46) {
                         t.statType[5] = rs.getInt(45);
                         t.statValue[5] = rs.getInt(46);
+                    }
+                    if (cols >= 48) {
+                        t.statType[6] = rs.getInt(47);
+                        t.statValue[6] = rs.getInt(48);
                     }
                     items.put(t.entry, t);
                 }
@@ -1732,6 +1782,8 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_ONSLAUGHT_CHESTGUARD, ItemTemplate.onslaughtChestguard());
         items.putIfAbsent(Content.ITEM_WARHARNESS_OF_RECKLESS_FURY, ItemTemplate.warharnessOfRecklessFury());
         items.putIfAbsent(Content.ITEM_GAUNTLETS_OF_ENFORCEMENT, ItemTemplate.gauntletsOfEnforcement());
+        items.putIfAbsent(Content.ITEM_VENGEFUL_GLADIATORS_DRAGONHIDE_TUNIC,
+                ItemTemplate.vengefulGladiatorsDragonhideTunic());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
