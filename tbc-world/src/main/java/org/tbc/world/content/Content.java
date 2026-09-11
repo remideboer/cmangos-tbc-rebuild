@@ -171,6 +171,8 @@ public final class Content {
     public static final int ITEM_NETHERSTRAND_LONGBOW = 30318;
     /** tbc-db item_template 18582; physical 148–155 plus shadow 40–60 and arcane 40–60. */
     public static final int ITEM_TWIN_BLADES_OF_AZZINOTH = 18582;
+    /** tbc-db item_template 32954; STR 30 / STA 43 / CRIT 23 / HIT_MELEE 15 / HIT_RANGED 15, armor 997. */
+    public static final int ITEM_TOMS_BOOTS_1 = 32954;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */
