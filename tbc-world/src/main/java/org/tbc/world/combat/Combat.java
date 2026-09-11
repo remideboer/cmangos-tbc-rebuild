@@ -386,6 +386,8 @@ public final class Combat {
         it.count = found.count();
         it.displayId = found.displayId();
         p.items.put(Guid.low(it.guid), it);
+        p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bagSlot * 2,
+                Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
         p.dirty = true;
         c.lootItems.remove(idx);
         return it;

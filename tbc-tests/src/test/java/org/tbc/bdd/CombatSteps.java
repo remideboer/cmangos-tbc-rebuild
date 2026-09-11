@@ -10,6 +10,8 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -216,6 +218,23 @@ public class CombatSteps {
         byte[] p = client.payload(Opcodes.SMSG_LOOT_REMOVED);
         assertEquals(1, p.length);
         assertEquals(slot, p[0] & 0xFF);
+    }
+
+    @Then("the backpack shows looted item {int} on the wire")
+    public void backpackShowsLootedItem(int entry) {
+        Player p = client.session().player();
+        Item looted = null;
+        for (Item it : p.items.values()) {
+            if (it.entry == entry && client.sawCreateObject(UpdateBuilder.itemGuid(it))) {
+                looted = it;
+                break;
+            }
+        }
+        assertTrue(looted != null, "no CREATE_OBJECT for looted item " + entry);
+        int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + looted.slot * 2;
+        long guid = UpdateBuilder.itemGuid(looted);
+        assertEquals((int) guid, client.valuesField(p.guid, field));
+        assertEquals((int) (guid >>> 32), client.valuesField(p.guid, field + 1));
     }
 
     @When("the player takes the corpse copper")

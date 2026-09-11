@@ -38,6 +38,7 @@ Feature: Slice 6 melee combat and loot
     When the player takes loot slot 0
     Then SMSG_ITEM_PUSH_RESULT is a loot push of item 25
     And SMSG_LOOT_REMOVED is loot slot 0
+    And the backpack shows looted item 25 on the wire
 
   @tp-sl06-007
   Scenario: Take corpse copper as solo looter

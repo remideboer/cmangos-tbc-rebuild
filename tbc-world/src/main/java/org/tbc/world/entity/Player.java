@@ -679,6 +679,11 @@ public final class Player extends Unit {
         setInt(UpdateFields.PLAYER_NEXT_LEVEL_XP, nextLevelXp);
         setInt(UpdateFields.PLAYER_XP, xp);
         setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, manaRegenPerSecond);
+        // InitStatsForLevel: SetFloatValue(PLAYER_FIELD_MOD_DAMAGE_DONE_PCT + i, 1.00f)
+        // for MAX_SPELL_SCHOOL. Zero bits make PaperDollFrame UnitDamage() divide by 0.
+        for (int i = 0; i < 7; i++) {
+            setFloat(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_PCT + i, 1.0f);
+        }
     }
 
     /**
@@ -897,12 +902,14 @@ public final class Player extends Unit {
 
     public void applyEquippedVisuals() {
         for (Item it : items.values()) {
-            if (it.bag != 0 || it.slot < 0 || it.slot >= EQUIPMENT_SLOT_END) {
+            if (it.bag != 0 || it.slot < 0) {
                 continue;
             }
             setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2,
                     Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
-            setInt(UpdateFields.PLAYER_VISIBLE_ITEM_1_0 + it.slot * MAX_VISIBLE_ITEM_OFFSET, it.entry);
+            if (it.slot < EQUIPMENT_SLOT_END) {
+                setInt(UpdateFields.PLAYER_VISIBLE_ITEM_1_0 + it.slot * MAX_VISIBLE_ITEM_OFFSET, it.entry);
+            }
         }
     }
 

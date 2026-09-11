@@ -7,6 +7,8 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.loot.GroupLoot;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 
 /** Corpse loot take, group loot method and rolls. Layout: spec/03-protocol/packets/loot.md */
@@ -63,6 +65,11 @@ public final class LootHandler {
                 total += x.count;
             }
         }
+        int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
+        var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(it, p.guid));
+        s.send(created.opcode(), created.payload());
+        var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+        s.send(inv.opcode(), inv.payload());
         s.send(Opcodes.SMSG_LOOT_REMOVED, world.combat.encodeLootRemoved(slot));
         s.send(Opcodes.SMSG_ITEM_PUSH_RESULT, Content.encodeLootPush(p, it, total));
         world.content.itemAddedQuestCheck(p, it.entry, it.count, s::send);

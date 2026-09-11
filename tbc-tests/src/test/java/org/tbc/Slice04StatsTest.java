@@ -108,6 +108,21 @@ class Slice04StatsTest {
         assertEquals(150, self.get(UpdateFields.PLAYER_XP), "characters.xp shows on the bar");
     }
 
+    /**
+     * PaperDollFrame Damage uses UnitDamage() percent (PLAYER_FIELD_MOD_DAMAGE_DONE_PCT).
+     * CMaNGOS InitStatsForLevel SetFloatValue(..., 1.00f) for MAX_SPELL_SCHOOL. Zero bits
+     * make the client divide by 0 and render 1.#INF - 1.#INFx0.0%.
+     */
+    @Test
+    void tpSl04DamageDonePctShouldBeOne() {
+        World world = World.inMemory();
+        Map<Integer, Integer> self = enterAndDecodeSelf(world, RACE_HUMAN, CLASS_WARRIOR, "Dmgpct");
+        int one = Float.floatToIntBits(1.0f);
+        for (int i = 0; i < 7; i++) {
+            assertEquals(one, self.get(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_PCT + i), "school " + i);
+        }
+    }
+
     private static Map<Integer, Integer> enterAndDecodeSelf(World world, int race, int clazz, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);

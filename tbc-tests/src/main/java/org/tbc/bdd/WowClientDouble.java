@@ -202,6 +202,35 @@ public final class WowClientDouble implements PacketSink {
         throw new AssertionError("no VALUES update for field " + field);
     }
 
+    /** Latest CREATE_OBJECT / CREATE_OBJECT2 whose packed guid is {@code guid}. */
+    public boolean sawCreateObject(long guid) {
+        for (int i = opcodes.size() - 1; i >= 0; i--) {
+            Long found = decodeCreateObjectGuid(inflateUpdate(opcodes.get(i), payloads.get(i)));
+            if (found != null && found == guid) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static Long decodeCreateObjectGuid(byte[] raw) {
+        if (raw == null) {
+            return null;
+        }
+        WowBuffer b = new WowBuffer(raw);
+        b.getU32();
+        b.getU8();
+        if (b.remaining() == 0) {
+            return null;
+        }
+        int type = b.getU8();
+        if (type != UpdateBuilder.UPDATETYPE_CREATE_OBJECT
+                && type != UpdateBuilder.UPDATETYPE_CREATE_OBJECT2) {
+            return null;
+        }
+        return b.getPackedGuid();
+    }
+
     static Integer decodeValuesField(byte[] raw, long guid, int field) {
         if (raw == null) {
             return null;

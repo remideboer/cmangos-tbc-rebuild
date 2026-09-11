@@ -307,6 +307,8 @@ class CombatTest {
         assertEquals(1, it.count);
         assertTrue(it.slot >= Player.INVENTORY_SLOT_ITEM_START);
         assertEquals(it, p.items.get(Guid.low(100)));
+        assertEquals(Guid.HIGH_ITEM | 100L,
+                p.getGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2));
         assertTrue(c.lootItems.isEmpty());
     }
 
