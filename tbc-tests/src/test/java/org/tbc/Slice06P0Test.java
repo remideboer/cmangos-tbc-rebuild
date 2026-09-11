@@ -397,6 +397,8 @@ class Slice06P0Test {
         }
         assertFalse(c.alive());
         assertTrue(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_STOP));
+        assertEquals(0, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_TARGET));
+        assertEquals(0, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_TARGET + 1));
         client.clear();
         ox = p.x;
         oy = p.y;
