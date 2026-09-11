@@ -161,6 +161,8 @@ public final class Content {
     public static final int ITEM_AUCHENAI_ANCHORITES_ROBE = 29341;
     /** tbc-db item_template 34229; STA 48 / INT 41 / ITEM_MOD_CRIT_SPELL_RATING 21 / 25, armor 1110. */
     public static final int ITEM_GARMENTS_OF_SERENE_SHORES = 34229;
+    /** tbc-db item_template 34212; STA 48 / INT 41 / ITEM_MOD_HASTE_SPELL_RATING 30 / 33, armor 499. */
+    public static final int ITEM_SUNGLOW_VEST = 34212;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */
