@@ -1873,6 +1873,34 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses proto-&gt;Block → HandleBaseModValue(SHIELD_BLOCK_VALUE).
+     * Autoequip Worn Wooden Shield 2362 must write block 1 on self VALUES PLAYER_SHIELD_BLOCK
+     * (update-fields.yaml 1331).
+     */
+    @Test
+    void tpSl14EquipAppliesShieldBlock() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Buckler", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item shield = new Item(world.nextItemGuid(), Content.ITEM_WORN_WOODEN_SHIELD);
+        shield.inventoryType = 14;
+        shield.slot = src;
+        p.items.put((int) shield.guid, shield);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(shield));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(1, client.valuesField(p.guid, UpdateFields.PLAYER_SHIELD_BLOCK));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */

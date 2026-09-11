@@ -73,7 +73,8 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 17,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 18,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
-                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23));
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
+                        UpdateFields.PLAYER_SHIELD_BLOCK));
         s.send(pkt.opcode(), pkt.payload());
     }
     public static void swapItem(WorldSession s, World world, WowBuffer in) {
@@ -137,7 +138,8 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 17,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 18,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
-                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23));
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
+                        UpdateFields.PLAYER_SHIELD_BLOCK));
         s.send(pkt.opcode(), pkt.payload());
     }
 
@@ -189,7 +191,8 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 17,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 18,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
-                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23));
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
+                        UpdateFields.PLAYER_SHIELD_BLOCK));
         s.send(pkt.opcode(), pkt.payload());
     }
 
@@ -400,7 +403,8 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 17,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 18,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
-                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23));
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
+                        UpdateFields.PLAYER_SHIELD_BLOCK));
         s.send(pkt.opcode(), pkt.payload());
         if (dest >= Player.INVENTORY_SLOT_BAG_START && dest < Player.INVENTORY_SLOT_BAG_END) {
             WowBuffer opened = new WowBuffer(8);
@@ -461,7 +465,8 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 17,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 18,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
-                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23));
+                        UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
+                        UpdateFields.PLAYER_SHIELD_BLOCK));
         s.send(pkt.opcode(), pkt.payload());
     }
 

@@ -163,6 +163,8 @@ public final class Content {
     public static final int ITEM_GARMENTS_OF_SERENE_SHORES = 34229;
     /** tbc-db item_template 34212; STA 48 / INT 41 / ITEM_MOD_HASTE_SPELL_RATING 30 / 33, armor 499. */
     public static final int ITEM_SUNGLOW_VEST = 34212;
+    /** tbc-db item_template 2362; shield InventoryType 14, block 1, armor 5. */
+    public static final int ITEM_WORN_WOODEN_SHIELD = 2362;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

@@ -912,6 +912,32 @@ public final class ObjectMgr {
         }
 
         /**
+         * Worn Wooden Shield — tbc-db 2362 (InventoryType 14, block 1, armor 5).
+         */
+        public static ItemTemplate wornWoodenShield() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_WORN_WOODEN_SHIELD;
+            t.itemClass = 4;
+            t.subClass = 6;
+            t.name = "Worn Wooden Shield";
+            t.displayId = 18730;
+            t.quality = 0;
+            t.buyPrice = 7;
+            t.sellPrice = 1;
+            t.inventoryType = 14;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 1;
+            t.requiredLevel = 1;
+            t.stackable = 1;
+            t.armor = 5;
+            t.block = 1;
+            t.maxDurability = 20;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
+        /**
          * Vengeful Gladiator's Dragonhide Tunic — tbc-db 33675 (STA 54, STR 30, INT 22, AGI 31,
          * RES 26, HIT 12, CRIT 19 in stat_type7, armor 529).
          */
@@ -1550,6 +1576,14 @@ public final class ObjectMgr {
                         + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
                         + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
                         + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
+                        + "dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6, stat_type7, stat_value7, "
+                        + "`block` FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
+                        + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
+                        + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
                         + "dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6, stat_type7, stat_value7 "
                         + "FROM item_template LIMIT 50000",
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
@@ -1705,6 +1739,9 @@ public final class ObjectMgr {
                     if (cols >= 48) {
                         t.statType[6] = rs.getInt(47);
                         t.statValue[6] = rs.getInt(48);
+                    }
+                    if (cols >= 49) {
+                        t.block = rs.getInt(49);
                     }
                     items.put(t.entry, t);
                 }
@@ -1872,6 +1909,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_AUCHENAI_ANCHORITES_ROBE, ItemTemplate.auchenaiAnchoritesRobe());
         items.putIfAbsent(Content.ITEM_GARMENTS_OF_SERENE_SHORES, ItemTemplate.garmentsOfSereneShores());
         items.putIfAbsent(Content.ITEM_SUNGLOW_VEST, ItemTemplate.sunglowVest());
+        items.putIfAbsent(Content.ITEM_WORN_WOODEN_SHIELD, ItemTemplate.wornWoodenShield());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -2789,12 +2827,14 @@ public final class ObjectMgr {
         int hasteRating = 0;
         int spellHasteRating = 0;
         int expertiseRating = 0;
+        int shieldBlock = 0;
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
                 continue;
             }
             armor += t.armor;
+            shieldBlock += t.block;
             fire += t.fireRes;
             nature += t.natureRes;
             frost += t.frostRes;
@@ -2861,6 +2901,7 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_RANGED, hasteRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_SPELL, spellHasteRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_EXPERTISE, expertiseRating);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_SHIELD_BLOCK, shieldBlock);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {
