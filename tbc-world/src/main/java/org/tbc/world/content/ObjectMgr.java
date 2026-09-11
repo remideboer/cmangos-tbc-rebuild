@@ -15,7 +15,6 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.DbcFile;
 import org.tbc.world.script.ScriptRegistry;
-import org.tbc.world.spell.AuraSlots;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,8 +23,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
@@ -3153,6 +3154,7 @@ public final class ObjectMgr {
 
     /** Player::ApplyItemEquipSpell — ITEM_SPELLTRIGGER_ON_EQUIP writes UNIT_FIELD_AURA. */
     private void applyEquippedItemSpells(Player p) {
+        Set<Integer> wanted = new LinkedHashSet<>();
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
@@ -3162,12 +3164,10 @@ public final class ObjectMgr {
                 if (t.spellId[i] == 0 || t.spellTrigger[i] != ITEM_SPELLTRIGGER_ON_EQUIP) {
                     continue;
                 }
-                if (AuraSlots.slotOf(p, t.spellId[i]) >= 0) {
-                    continue;
-                }
-                AuraSlots.applyVisible(p, t.spellId[i], p.level, 1);
+                wanted.add(t.spellId[i]);
             }
         }
+        p.syncItemEquipAuras(wanted);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {

@@ -5,12 +5,15 @@ import org.tbc.world.content.LevelStats;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.WorldSession;
+import org.tbc.world.spell.AuraSlots;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class Player extends Unit {
     public static final int TYPEMASK_PLAYER = 0x0019;
@@ -175,6 +178,8 @@ public final class Player extends Unit {
     private final java.util.Set<Integer> unlearnableSkills = new java.util.HashSet<>();
     public final int[] tut = new int[8];
     public final Map<Integer, Item> items = new HashMap<>();
+    /** ON_EQUIP spells currently applied from paper-doll (Player::ApplyItemEquipSpell). */
+    private final Set<Integer> itemEquipSpellIds = new HashSet<>();
     /** CMaNGOS ReputationMgr standing keyed by Faction.dbc id (spell EffectMiscValue). */
     private final Map<Integer, Integer> reputation = new HashMap<>();
     /** CMaNGOS ReputationMgr list-id flags for SMSG_INITIALIZE_FACTIONS. */
@@ -721,6 +726,28 @@ public final class Player extends Unit {
             setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, Math.max(0, maxMana));
             if (power() > maxPower()) {
                 setPower(maxPower());
+            }
+        }
+    }
+
+    /**
+     * Player::ApplyItemEquipSpell / RemoveAurasDueToItemSpell — apply ON_EQUIP spells
+     * that are on the paper-doll and clear those that left it. Does not touch cast auras.
+     */
+    public void syncItemEquipAuras(Set<Integer> wanted) {
+        for (int id : new ArrayList<>(itemEquipSpellIds)) {
+            if (!wanted.contains(id)) {
+                int slot = AuraSlots.slotOf(this, id);
+                if (slot >= 0) {
+                    AuraSlots.clearVisible(this, slot);
+                }
+                itemEquipSpellIds.remove(id);
+            }
+        }
+        for (int id : wanted) {
+            itemEquipSpellIds.add(id);
+            if (AuraSlots.slotOf(this, id) < 0) {
+                AuraSlots.applyVisible(this, id, level, 1);
             }
         }
     }

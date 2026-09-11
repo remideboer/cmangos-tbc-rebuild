@@ -2148,6 +2148,40 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::ApplyItemEquipSpell(apply=false). CMSG_AUTOSTORE_BAG_ITEM of
+     * Band of the Eternal Champion 29301 must clear UNIT_FIELD_AURA[0] on the self VALUES.
+     */
+    @Test
+    void tpSl14UnequipRemovesOnEquipSpellAura() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "NoEternal", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item band = new Item(world.nextItemGuid(), Content.ITEM_BAND_OF_THE_ETERNAL_CHAMPION);
+        band.inventoryType = 11;
+        band.slot = src;
+        p.items.put((int) band.guid, band);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(band));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int finger = band.slot;
+
+        client.clear();
+        WowBuffer store = new WowBuffer(3);
+        store.putU8(0);
+        store.putU8(finger);
+        store.putU8(0);
+        client.handle(world, Opcodes.CMSG_AUTOSTORE_BAG_ITEM, store.array());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */
