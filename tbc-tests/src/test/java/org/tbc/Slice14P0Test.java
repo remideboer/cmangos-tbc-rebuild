@@ -2062,6 +2062,35 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses ITEM_MOD_HEALTH (ItemPrototype.h 0 is mana, 1 is health).
+     * Autoequip Test HP Ring 6673 (−60 health) must write 1 on self VALUES UNIT_FIELD_MAXHEALTH
+     * (create 60 + (−60), clamped) and leave UNIT_FIELD_STAT2 at create 22.
+     */
+    @Test
+    void tpSl14EquipAppliesItemHealth() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "HpRing", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item ring = new Item(world.nextItemGuid(), Content.ITEM_TEST_HP_RING);
+        ring.inventoryType = 11;
+        ring.slot = src;
+        p.items.put((int) ring.guid, ring);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(ring));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(1, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXHEALTH));
+        assertEquals(22, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT2));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */

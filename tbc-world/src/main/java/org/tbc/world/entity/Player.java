@@ -694,6 +694,15 @@ public final class Player extends Unit {
      * agility ×2 plus item armor. Mana classes only (createMana 0 keeps the bar hidden).
      */
     public void applyGearBonuses(int stamina, int armor, int agility, int strength, int intellect, int spirit) {
+        applyGearBonuses(stamina, armor, agility, strength, intellect, spirit, 0);
+    }
+
+    /**
+     * Same as {@link #applyGearBonuses(int, int, int, int, int, int)} plus ITEM_MOD_HEALTH
+     * ({@code HandleStatModifier(UNIT_MOD_HEALTH)}).
+     */
+    public void applyGearBonuses(int stamina, int armor, int agility, int strength, int intellect, int spirit,
+            int itemHealth) {
         setInt(UpdateFields.UNIT_FIELD_STAT0, createStats[0] + strength);
         setInt(UpdateFields.UNIT_FIELD_STAT1, createStats[1] + agility);
         setInt(UpdateFields.UNIT_FIELD_STAT2, createStats[2] + stamina);
@@ -701,7 +710,7 @@ public final class Player extends Unit {
         setInt(UpdateFields.UNIT_FIELD_STAT4, createStats[4] + spirit);
         setInt(UpdateFields.UNIT_FIELD_RESISTANCES, (createStats[1] + agility) * 2 + armor);
         if (createHealth != 0) {
-            int maxHealth = createHealth + healthBonusFromStamina(createStats[2] + stamina);
+            int maxHealth = createHealth + healthBonusFromStamina(createStats[2] + stamina) + itemHealth;
             setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, Math.max(1, maxHealth));
             if (health() > maxHealth()) {
                 setHealth(maxHealth());
