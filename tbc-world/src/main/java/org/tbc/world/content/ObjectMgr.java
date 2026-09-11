@@ -998,6 +998,37 @@ public final class ObjectMgr {
         }
 
         /**
+         * Twin Blades of Azzinoth — tbc-db 18582 (physical 148–155, shadow 40–60, arcane 40–60).
+         */
+        public static ItemTemplate twinBladesOfAzzinoth() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_TWIN_BLADES_OF_AZZINOTH;
+            t.itemClass = 2;
+            t.subClass = 7;
+            t.name = "The Twin Blades of Azzinoth";
+            t.displayId = 30936;
+            t.quality = 6;
+            t.inventoryType = 13;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 100;
+            t.requiredLevel = 1;
+            t.stackable = 1;
+            t.dmgMin[0] = 148;
+            t.dmgMax[0] = 155;
+            t.dmgMin[1] = 40;
+            t.dmgMax[1] = 60;
+            t.dmgType[1] = 5;
+            t.dmgMin[2] = 40;
+            t.dmgMax[2] = 60;
+            t.dmgType[2] = 6;
+            t.delay = 1500;
+            t.bonding = 1;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
+        /**
          * Vengeful Gladiator's Dragonhide Tunic — tbc-db 33675 (STA 54, STR 30, INT 22, AGI 31,
          * RES 26, HIT 12, CRIT 19 in stat_type7, armor 529).
          */
@@ -1637,6 +1668,14 @@ public final class ObjectMgr {
                         + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
                         + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
                         + "dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6, stat_type7, stat_value7, "
+                        + "`block`, dmg_min3, dmg_max3, dmg_type3 FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
+                        + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
+                        + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
+                        + "dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6, stat_type7, stat_value7, "
                         + "`block` FROM item_template LIMIT 50000",
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
@@ -1802,6 +1841,11 @@ public final class ObjectMgr {
                     }
                     if (cols >= 49) {
                         t.block = rs.getInt(49);
+                    }
+                    if (cols >= 52) {
+                        t.dmgMin[2] = rs.getFloat(50);
+                        t.dmgMax[2] = rs.getFloat(51);
+                        t.dmgType[2] = rs.getInt(52);
                     }
                     items.put(t.entry, t);
                 }
@@ -1972,6 +2016,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_WORN_WOODEN_SHIELD, ItemTemplate.wornWoodenShield());
         items.putIfAbsent(Content.ITEM_CLOAK_OF_DARKNESS, ItemTemplate.cloakOfDarkness());
         items.putIfAbsent(Content.ITEM_NETHERSTRAND_LONGBOW, ItemTemplate.netherstrandLongbow());
+        items.putIfAbsent(Content.ITEM_TWIN_BLADES_OF_AZZINOTH, ItemTemplate.twinBladesOfAzzinoth());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,

@@ -169,6 +169,8 @@ public final class Content {
     public static final int ITEM_CLOAK_OF_DARKNESS = 33122;
     /** tbc-db item_template 30318; ITEM_MOD_CRIT_RANGED_RATING 20 / 50 / STA 20, bow. */
     public static final int ITEM_NETHERSTRAND_LONGBOW = 30318;
+    /** tbc-db item_template 18582; physical 148–155 plus shadow 40–60 and arcane 40–60. */
+    public static final int ITEM_TWIN_BLADES_OF_AZZINOTH = 18582;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

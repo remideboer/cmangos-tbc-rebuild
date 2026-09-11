@@ -1959,6 +1959,50 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — LoadItemPrototypes third damage line (dmg_min3). CMSG_ITEM_QUERY_SINGLE of
+     * Twin Blades of Azzinoth 18582 must put arcane 40–60 school 6 on the third proto damage
+     * slot (queries.md; Player::_ApplyWeaponDamage index 2).
+     */
+    @Test
+    void tpSl14ItemQueryCarriesThirdDamageLine() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Glaive", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+
+        client.clear();
+        WowBuffer q = new WowBuffer(4);
+        q.putU32(Content.ITEM_TWIN_BLADES_OF_AZZINOTH);
+        client.handle(world, Opcodes.CMSG_ITEM_QUERY_SINGLE, q.array());
+        WowBuffer b = new WowBuffer(lastPayload(client, Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE));
+        assertEquals(Content.ITEM_TWIN_BLADES_OF_AZZINOTH, b.getU32());
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        b.getCString();
+        b.getU8();
+        b.getU8();
+        b.getU8();
+        for (int i = 0; i < 20; i++) {
+            b.getU32();
+        }
+        for (int i = 0; i < 10; i++) {
+            b.getU32();
+            b.getU32();
+        }
+        b.getFloat();
+        b.getFloat();
+        b.getU32();
+        b.getFloat();
+        b.getFloat();
+        b.getU32();
+        assertEquals(40f, b.getFloat());
+        assertEquals(60f, b.getFloat());
+        assertEquals(6, b.getU32());
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */
