@@ -2120,6 +2120,34 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::ApplyItemEquipSpell ITEM_SPELLTRIGGER_ON_EQUIP (ItemPrototype.h 1).
+     * Autoequip Band of the Eternal Champion 29301 must write spell 14052 on self VALUES
+     * UNIT_FIELD_AURA[0] (Attack Power 60).
+     */
+    @Test
+    void tpSl14EquipAppliesOnEquipSpellAura() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "EternalAp", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item band = new Item(world.nextItemGuid(), Content.ITEM_BAND_OF_THE_ETERNAL_CHAMPION);
+        band.inventoryType = 11;
+        band.slot = src;
+        p.items.put((int) band.guid, band);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(band));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(Content.SPELL_ATTACK_POWER_60, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+    }
+
+    /**
      * TP-SL14-013 — RemoveItem → _ApplyItemMods(false). CMSG_AUTOSTORE_BAG_ITEM from the chest
      * must put create STA 22 / armor 40 back on the self VALUES (inventory.md).
      */

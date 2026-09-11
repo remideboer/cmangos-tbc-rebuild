@@ -15,6 +15,7 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.DbcFile;
 import org.tbc.world.script.ScriptRegistry;
+import org.tbc.world.spell.AuraSlots;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -1109,6 +1110,34 @@ public final class ObjectMgr {
         }
 
         /**
+         * Band of the Eternal Champion — tbc-db 29301 (AGI 29, ON_EQUIP 14052 + 35080).
+         */
+        public static ItemTemplate bandOfTheEternalChampion() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_BAND_OF_THE_ETERNAL_CHAMPION;
+            t.itemClass = 4;
+            t.subClass = 0;
+            t.name = "Band of the Eternal Champion";
+            t.displayId = 39126;
+            t.quality = 4;
+            t.inventoryType = 11;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 152;
+            t.requiredLevel = 1;
+            t.stackable = 1;
+            t.statType[0] = 3;
+            t.statValue[0] = 29;
+            t.spellId[0] = Content.SPELL_ATTACK_POWER_60;
+            t.spellTrigger[0] = 1;
+            t.spellId[1] = 35080;
+            t.spellTrigger[1] = 1;
+            t.bonding = 1;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
+        /**
          * Vengeful Gladiator's Dragonhide Tunic — tbc-db 33675 (STA 54, STR 30, INT 22, AGI 31,
          * RES 26, HIT 12, CRIT 19 in stat_type7, armor 529).
          */
@@ -2100,6 +2129,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_TOMS_BOOTS_1, ItemTemplate.tomsBoots1());
         items.putIfAbsent(Content.ITEM_TEST_HP_RING, ItemTemplate.testHpRing());
         items.putIfAbsent(Content.ITEM_TEST_MP_RING, ItemTemplate.testMpRing());
+        items.putIfAbsent(Content.ITEM_BAND_OF_THE_ETERNAL_CHAMPION, ItemTemplate.bandOfTheEternalChampion());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -2933,6 +2963,8 @@ public final class ObjectMgr {
         }
     }
 
+    /** ItemPrototype.h ITEM_SPELLTRIGGER_ON_EQUIP. */
+    private static final int ITEM_SPELLTRIGGER_ON_EQUIP = 1;
     /** ItemPrototype.h ITEM_MOD_MANA / HEALTH / AGILITY / STRENGTH / INTELLECT / SPIRIT / STAMINA / HIT_RATING. */
     private static final int ITEM_MOD_MANA = 0;
     private static final int ITEM_MOD_HEALTH = 1;
@@ -3116,6 +3148,26 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_SPELL, spellHasteRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_EXPERTISE, expertiseRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_SHIELD_BLOCK, shieldBlock);
+        applyEquippedItemSpells(p);
+    }
+
+    /** Player::ApplyItemEquipSpell — ITEM_SPELLTRIGGER_ON_EQUIP writes UNIT_FIELD_AURA. */
+    private void applyEquippedItemSpells(Player p) {
+        for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
+            ItemTemplate t = equippedTemplate(p, slot);
+            if (t == null) {
+                continue;
+            }
+            for (int i = 0; i < t.spellId.length; i++) {
+                if (t.spellId[i] == 0 || t.spellTrigger[i] != ITEM_SPELLTRIGGER_ON_EQUIP) {
+                    continue;
+                }
+                if (AuraSlots.slotOf(p, t.spellId[i]) >= 0) {
+                    continue;
+                }
+                AuraSlots.applyVisible(p, t.spellId[i], p.level, 1);
+            }
+        }
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {
