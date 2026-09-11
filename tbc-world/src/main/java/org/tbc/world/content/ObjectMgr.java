@@ -827,6 +827,33 @@ public final class ObjectMgr {
         }
 
         /**
+         * Auchenai Anchorite's Robe — tbc-db 29341 (INT 24, HIT_SPELL_RATING 23, armor 136).
+         */
+        public static ItemTemplate auchenaiAnchoritesRobe() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_AUCHENAI_ANCHORITES_ROBE;
+            t.itemClass = 4;
+            t.subClass = 1;
+            t.name = "Auchenai Anchorite's Robe";
+            t.quality = 3;
+            t.inventoryType = 20;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 100;
+            t.requiredLevel = 1;
+            t.stackable = 1;
+            t.statType[0] = 5;
+            t.statValue[0] = 24;
+            t.statType[1] = 18;
+            t.statValue[1] = 23;
+            t.armor = 136;
+            t.bonding = 1;
+            t.maxDurability = 80;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
+        /**
          * Vengeful Gladiator's Dragonhide Tunic — tbc-db 33675 (STA 54, STR 30, INT 22, AGI 31,
          * RES 26, HIT 12, CRIT 19 in stat_type7, armor 529).
          */
@@ -1784,6 +1811,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_GAUNTLETS_OF_ENFORCEMENT, ItemTemplate.gauntletsOfEnforcement());
         items.putIfAbsent(Content.ITEM_VENGEFUL_GLADIATORS_DRAGONHIDE_TUNIC,
                 ItemTemplate.vengefulGladiatorsDragonhideTunic());
+        items.putIfAbsent(Content.ITEM_AUCHENAI_ANCHORITES_ROBE, ItemTemplate.auchenaiAnchoritesRobe());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -2627,6 +2655,7 @@ public final class ObjectMgr {
     private static final int ITEM_MOD_DODGE_RATING = 13;
     private static final int ITEM_MOD_PARRY_RATING = 14;
     private static final int ITEM_MOD_BLOCK_RATING = 15;
+    private static final int ITEM_MOD_HIT_SPELL_RATING = 18;
     private static final int ITEM_MOD_HIT_RATING = 31;
     private static final int ITEM_MOD_CRIT_RATING = 32;
     private static final int ITEM_MOD_RESILIENCE_RATING = 35;
@@ -2639,6 +2668,7 @@ public final class ObjectMgr {
     private static final int CR_BLOCK = 4;
     private static final int CR_HIT_MELEE = 5;
     private static final int CR_HIT_RANGED = 6;
+    private static final int CR_HIT_SPELL = 7;
     private static final int CR_CRIT_MELEE = 8;
     private static final int CR_CRIT_RANGED = 9;
     private static final int CR_CRIT_TAKEN_MELEE = 14;
@@ -2684,6 +2714,7 @@ public final class ObjectMgr {
         int shadow = 0;
         int arcane = 0;
         int hitRating = 0;
+        int spellHitRating = 0;
         int defenseRating = 0;
         int dodgeRating = 0;
         int parryRating = 0;
@@ -2716,6 +2747,8 @@ public final class ObjectMgr {
                     spirit += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_HIT_RATING) {
                     hitRating += t.statValue[i];
+                } else if (t.statType[i] == ITEM_MOD_HIT_SPELL_RATING) {
+                    spellHitRating += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_DEFENSE_SKILL_RATING) {
                     defenseRating += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_DODGE_RATING) {
@@ -2743,6 +2776,7 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 6, arcane);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_MELEE, hitRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_RANGED, hitRating);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_SPELL, spellHitRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_DEFENSE_SKILL, defenseRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_DODGE, dodgeRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_PARRY, parryRating);

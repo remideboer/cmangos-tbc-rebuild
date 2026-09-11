@@ -157,6 +157,8 @@ public final class Content {
     public static final int ITEM_GAUNTLETS_OF_ENFORCEMENT = 32280;
     /** tbc-db item_template 33675; STA/STR/INT/AGI/RES/HIT + CRIT 19 in stat_type7, armor 529. */
     public static final int ITEM_VENGEFUL_GLADIATORS_DRAGONHIDE_TUNIC = 33675;
+    /** tbc-db item_template 29341; INT 24 / ITEM_MOD_HIT_SPELL_RATING 18 / 23, armor 136, robe. */
+    public static final int ITEM_AUCHENAI_ANCHORITES_ROBE = 29341;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */
