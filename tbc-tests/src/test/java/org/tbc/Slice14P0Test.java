@@ -2005,7 +2005,8 @@ class Slice14P0Test {
     /**
      * TP-SL14-013 — Player::_ApplyItemBonuses ITEM_MOD_HIT_MELEE_RATING (ItemPrototype.h 16).
      * Autoequip Tom's Boots 1 32954 (+15 melee hit) must write 15 on self VALUES
-     * PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_MELEE (Unit.h 5) only, not CR_HIT_RANGED.
+     * PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_MELEE (Unit.h 5). Type 16 must not dump into
+     * combined hitRating (that would make CR_HIT_MELEE 30 once type 17 also applies).
      */
     @Test
     void tpSl14EquipAppliesMeleeHitRating() throws Exception {
@@ -2028,7 +2029,36 @@ class Slice14P0Test {
         equip.putU8(src);
         client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
         assertEquals(15, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 5));
-        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 6));
+    }
+
+    /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses ITEM_MOD_HIT_RANGED_RATING (ItemPrototype.h 17).
+     * Autoequip Tom's Boots 1 32954 (+15 ranged hit) must write 15 on self VALUES
+     * PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_RANGED (Unit.h 6) and leave CR_HIT_MELEE at 15
+     * from type 16 (do not dump 17 into the combined hitRating bucket).
+     */
+    @Test
+    void tpSl14EquipAppliesRangedHitRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "TomsRanged", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item boots = new Item(world.nextItemGuid(), Content.ITEM_TOMS_BOOTS_1);
+        boots.inventoryType = 8;
+        boots.slot = src;
+        p.items.put((int) boots.guid, boots);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(boots));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(15, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 6));
+        assertEquals(15, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 5));
     }
 
     /**

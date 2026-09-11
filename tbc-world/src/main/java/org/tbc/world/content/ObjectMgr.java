@@ -2896,6 +2896,7 @@ public final class ObjectMgr {
     private static final int ITEM_MOD_PARRY_RATING = 14;
     private static final int ITEM_MOD_BLOCK_RATING = 15;
     private static final int ITEM_MOD_HIT_MELEE_RATING = 16;
+    private static final int ITEM_MOD_HIT_RANGED_RATING = 17;
     private static final int ITEM_MOD_HIT_SPELL_RATING = 18;
     private static final int ITEM_MOD_CRIT_MELEE_RATING = 19;
     private static final int ITEM_MOD_CRIT_RANGED_RATING = 20;
@@ -2962,6 +2963,7 @@ public final class ObjectMgr {
         int arcane = 0;
         int hitRating = 0;
         int hitMeleeRating = 0;
+        int hitRangedRating = 0;
         int spellHitRating = 0;
         int defenseRating = 0;
         int dodgeRating = 0;
@@ -3003,6 +3005,8 @@ public final class ObjectMgr {
                     hitRating += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_HIT_MELEE_RATING) {
                     hitMeleeRating += t.statValue[i];
+                } else if (t.statType[i] == ITEM_MOD_HIT_RANGED_RATING) {
+                    hitRangedRating += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_HIT_SPELL_RATING) {
                     spellHitRating += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_CRIT_SPELL_RATING) {
@@ -3039,7 +3043,7 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 5, shadow);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 6, arcane);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_MELEE, hitRating + hitMeleeRating);
-        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_RANGED, hitRating);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_RANGED, hitRating + hitRangedRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_SPELL, spellHitRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_DEFENSE_SKILL, defenseRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_DODGE, dodgeRating);
