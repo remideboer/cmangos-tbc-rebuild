@@ -137,6 +137,43 @@ class MotionMasterTest {
     }
 
     @Test
+    void stopWhenCalledShouldIdleSoUpdateDoesNotFace() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.relocate(5, 0, 0, 0);
+        Player p = new Player();
+        p.guid = 1;
+        p.relocate(0, 0, 0, 0);
+        c.motion.moveChase(p);
+        c.motion.stop(c);
+        float o = c.o;
+        p.relocate(0, 5, 0, 0);
+        assertEquals(null, c.motion.update(c, 50));
+        assertEquals(o, c.o, 0.001f);
+        assertEquals(MotionMaster.IDLE, c.motion.type());
+    }
+
+    @Test
+    void stopWhenCalledShouldEmitMonsterMoveStopAndIdle() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.relocate(5, 0, 0, 0);
+        Player p = new Player();
+        p.guid = 1;
+        c.motion.moveChase(p);
+        byte[] stop = c.motion.stop(c);
+        assertNotNull(stop);
+        WowBuffer pkt = new WowBuffer(stop);
+        pkt.getPackedGuid();
+        assertEquals(5f, pkt.getFloat(), 0.001f);
+        assertEquals(0f, pkt.getFloat(), 0.001f);
+        assertEquals(0f, pkt.getFloat(), 0.001f);
+        pkt.getU32();
+        assertEquals(TaxiHandler.MONSTER_MOVE_STOP, pkt.getU8());
+        assertEquals(MotionMaster.IDLE, c.motion.type());
+    }
+
+    @Test
     void chaseWhenArrivingShouldStopAtMeleeAndFaceVictim() {
         Creature c = new Creature();
         c.guid = 2;

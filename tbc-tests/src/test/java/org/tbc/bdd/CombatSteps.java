@@ -256,6 +256,22 @@ public class CombatSteps {
         assertEquals(0, client.payload(Opcodes.SMSG_LOOT_CLEAR_MONEY).length);
     }
 
+    @Then("SMSG_LOOT_RELEASE_RESPONSE is for the kobold")
+    public void lootReleaseForKobold() {
+        byte[] p = client.payload(Opcodes.SMSG_LOOT_RELEASE_RESPONSE);
+        assertTrue(p.length >= 9);
+        assertEquals(kobold.guid, WowClientDouble.u64le(p, 0));
+        assertEquals(1, p[8] & 0xFF);
+    }
+
+    @Then("the corpse is not lootable on the wire")
+    public void corpseNotLootable() {
+        assertFalse(kobold.lootable);
+        int flags = client.valuesField(kobold.guid, UpdateFields.UNIT_DYNAMIC_FLAGS);
+        assertEquals(0, flags & org.tbc.world.combat.Combat.UNIT_DYNFLAG_LOOTABLE);
+        assertTrue(world.combat.lootResponse(client.session().player(), kobold) == null);
+    }
+
     @Then("the server has not sent SMSG_LOOT_MONEY_NOTIFY")
     public void noLootMoneyNotify() {
         assertFalse(client.saw(Opcodes.SMSG_LOOT_MONEY_NOTIFY));

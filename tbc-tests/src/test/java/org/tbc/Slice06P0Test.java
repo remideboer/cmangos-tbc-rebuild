@@ -371,6 +371,42 @@ class Slice06P0Test {
                 "observer gets no loot sparkle");
     }
 
+    /**
+     * Unit::SetDeathState(JUST_DIED) StopMoving: SMSG_MONSTER_MOVE MonsterMoveStop so the client
+     * drops FACING_TARGET (otherwise the corpse keeps turning toward the looter).
+     */
+    @Test
+    void tpSl06DeadCreatureShouldStopFacingOnWire() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Corpse", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.attackSwing(world, c.guid);
+        world.tick(50);
+        int n = 0;
+        while (c.alive() && n++ < 80) {
+            world.meleeHit(p, c);
+        }
+        assertFalse(c.alive());
+        assertTrue(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_STOP));
+        client.clear();
+        ox = p.x;
+        oy = p.y;
+        p.relocate(c.x + 4, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        world.tick(200);
+        assertFalse(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_TARGET));
+        assertEquals(org.tbc.world.ai.MotionMaster.IDLE, c.motion.type());
+    }
+
     private static final int UNIT_DYNFLAG_LOOTABLE = 0x0001;
 
     private static Creature killKobold(World world, WowClientDouble client, Player p) {
@@ -404,6 +440,23 @@ class Slice06P0Test {
             long v = packedGuid(payload, off);
             off = WowClientDouble.skipPackedGuid(payload, off);
             if (a == attacker && v == victim && WowClientDouble.u32le(payload, off) == nowDead) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean sawMonsterMoveType(WowClientDouble client, long guid, int moveType) {
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_MONSTER_MOVE) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            if (packedGuid(payload, 0) != guid) {
+                continue;
+            }
+            int off = WowClientDouble.skipPackedGuid(payload, 0) + 16;
+            if (off < payload.length && (payload[off] & 0xFF) == moveType) {
                 return true;
             }
         }

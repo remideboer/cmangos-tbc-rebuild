@@ -531,6 +531,14 @@ public final class World implements Runnable {
         }
         objectMgr.fillCorpseLoot(c);
         sendCorpseValues(m, c);
+        byte[] stop = c.motion.stop(c);
+        if (stop != null) {
+            for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+                if (pl.session != null) {
+                    pl.session.send(Opcodes.SMSG_MONSTER_MOVE, stop);
+                }
+            }
+        }
         m.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, c.entry, c, p,
                 (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
         if (p.mapId == 30 && av.onGeneralKilled(c.entry)) {
@@ -555,6 +563,20 @@ public final class World implements Runnable {
             var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(c,
                     i -> i == UpdateFields.UNIT_DYNAMIC_FLAGS ? Combat.dynamicFlagsFor(c, pl) : c.values[i],
                     UpdateFields.UNIT_FIELD_HEALTH, UpdateFields.UNIT_DYNAMIC_FLAGS));
+            pl.session.send(upd.opcode(), upd.payload());
+        }
+    }
+
+    /** Loot::ForceLootAnimationClientUpdate — UNIT_DYNAMIC_FLAGS only, per viewer. */
+    public void sendLootableFlags(Creature c, int instanceId) {
+        GameMap m = map(c.mapId, instanceId);
+        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+            if (pl.session == null) {
+                continue;
+            }
+            var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(c,
+                    i -> i == UpdateFields.UNIT_DYNAMIC_FLAGS ? Combat.dynamicFlagsFor(c, pl) : c.values[i],
+                    UpdateFields.UNIT_DYNAMIC_FLAGS));
             pl.session.send(upd.opcode(), upd.payload());
         }
     }

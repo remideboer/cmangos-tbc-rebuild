@@ -221,6 +221,7 @@ public final class Combat {
         c.lootable = true;
         c.victim = 0;
         c.respawnAtMs = nowMs + Math.max(1, c.respawnDelayMs);
+        c.motion.moveIdle();
         clearCombatVisual(c);
         stopAttack(killer);
         if (c.eventAi != null) {
@@ -390,6 +391,7 @@ public final class Combat {
                 Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
         p.dirty = true;
         c.lootItems.remove(idx);
+        finishLootIfEmpty(c);
         return it;
     }
 
@@ -402,7 +404,15 @@ public final class Combat {
         if (gold > 0) {
             p.setMoney(p.money + gold);
         }
+        finishLootIfEmpty(c);
         return true;
+    }
+
+    /** Loot::IsLootedForAll → Creature::SetLootStatus(LOOTED): sparkle off when nothing remains. */
+    static void finishLootIfEmpty(Creature c) {
+        if (c.lootItems.isEmpty() && c.lootGold == 0) {
+            c.lootable = false;
+        }
     }
 
     public byte[] encodeLootRemoved(int lootIndex) {

@@ -14,6 +14,7 @@ import java.util.function.BiConsumer;
 /** CMSG_TAXINODE_STATUS_QUERY / CMSG_TAXIQUERYAVAILABLENODES / CMSG_ACTIVATETAXI. Layout: spec/03-protocol/packets/taxi.md */
 public final class TaxiHandler {
     public static final int MONSTER_MOVE_NORMAL = 0;
+    public static final int MONSTER_MOVE_STOP = 1;
     public static final int MONSTER_MOVE_FACING_SPOT = 2;
     public static final int MONSTER_MOVE_FACING_TARGET = 3;
     public static final int MONSTER_MOVE_FACING_ANGLE = 4;

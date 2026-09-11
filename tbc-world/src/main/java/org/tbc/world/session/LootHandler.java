@@ -39,15 +39,6 @@ public final class LootHandler {
         GroupLoot.vote(p, lootGuid, slot, type);
     }
 
-    public static void lootMoney(WorldSession s, World world) {
-        Player p = s.player();
-        Creature c = world.map(p.mapId, p.instanceId).creatures.get(p.lootGuid);
-        if (!world.combat.takeMoney(p, c)) {
-            return;
-        }
-        s.send(Opcodes.SMSG_LOOT_CLEAR_MONEY, new byte[0]);
-    }
-
     public static void autostoreLootItem(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() < 1) {
             return;
@@ -73,6 +64,30 @@ public final class LootHandler {
         s.send(Opcodes.SMSG_LOOT_REMOVED, world.combat.encodeLootRemoved(slot));
         s.send(Opcodes.SMSG_ITEM_PUSH_RESULT, Content.encodeLootPush(p, it, total));
         world.content.itemAddedQuestCheck(p, it.entry, it.count, s::send);
+        maybeReleaseEmptyCorpse(s, world, p, c);
+    }
+
+    public static void lootMoney(WorldSession s, World world) {
+        Player p = s.player();
+        Creature c = world.map(p.mapId, p.instanceId).creatures.get(p.lootGuid);
+        if (!world.combat.takeMoney(p, c)) {
+            return;
+        }
+        s.send(Opcodes.SMSG_LOOT_CLEAR_MONEY, new byte[0]);
+        maybeReleaseEmptyCorpse(s, world, p, c);
+    }
+
+    /**
+     * Loot::SendItem / SendGold → IsLootedForAll → SendReleaseFor + ForceLootAnimationClientUpdate
+     * (clear UNIT_DYNFLAG_LOOTABLE).
+     */
+    static void maybeReleaseEmptyCorpse(WorldSession s, World world, Player p, Creature c) {
+        if (c == null || c.lootable) {
+            return;
+        }
+        p.lootGuid = 0;
+        s.send(Opcodes.SMSG_LOOT_RELEASE_RESPONSE, world.combat.encodeLootRelease(c.guid));
+        world.sendLootableFlags(c, p.instanceId);
     }
 
     public static void maybeStartRoll(Player p, Creature c, long guid) {

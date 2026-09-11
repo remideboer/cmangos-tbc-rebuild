@@ -2,6 +2,7 @@ package org.tbc.bdd;
 
 import org.junit.jupiter.api.Test;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
@@ -10,9 +11,11 @@ import org.tbc.world.net.wow8606.UpdateFields;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The double's create-self decoder must ignore non-update, VALUES, and other-player blocks. */
 class WowClientDoubleDecodeTest {
@@ -66,6 +69,39 @@ class WowClientDoubleDecodeTest {
         WowClientDouble client = new WowClientDouble();
         client.send(Opcodes.SMSG_MESSAGECHAT, new byte[] {1});
         assertEquals(Map.of(), client.selfCreateValues());
+    }
+
+    @Test
+    void sawCreateObjectWhenCreateBlockMatchesGuidShouldReturnTrue() {
+        Player p = player();
+        WowClientDouble client = new WowClientDouble();
+        client.send(Opcodes.SMSG_MESSAGECHAT, new byte[] {1});
+        client.send(Opcodes.SMSG_UPDATE_OBJECT, UpdateBuilder.createUnit(p, true, 0));
+        assertTrue(client.sawCreateObject(p.guid));
+        assertFalse(client.sawCreateObject(p.guid + 1));
+    }
+
+    @Test
+    void sawCreateObjectWhenItemCreateShouldMatchCreateObjectType() {
+        Item it = new Item(100, 25);
+        WowClientDouble client = new WowClientDouble();
+        client.send(Opcodes.SMSG_UPDATE_OBJECT, UpdateBuilder.createItem(it, 1));
+        assertTrue(client.sawCreateObject(UpdateBuilder.itemGuid(it)));
+    }
+
+    @Test
+    void sawCreateObjectWhenEmptyValuesOrTruncatedShouldReturnFalse() {
+        Player p = player();
+        WowClientDouble client = new WowClientDouble();
+        assertFalse(client.sawCreateObject(p.guid));
+        client.send(Opcodes.SMSG_UPDATE_OBJECT, UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_HEALTH));
+        assertFalse(client.sawCreateObject(p.guid));
+        WowBuffer truncated = new WowBuffer(5);
+        truncated.putU32(1);
+        truncated.putU8(0);
+        client.send(Opcodes.SMSG_UPDATE_OBJECT, truncated.array());
+        assertFalse(client.sawCreateObject(p.guid));
+        assertNull(WowClientDouble.decodeCreateObjectGuid(null));
     }
 
     @Test

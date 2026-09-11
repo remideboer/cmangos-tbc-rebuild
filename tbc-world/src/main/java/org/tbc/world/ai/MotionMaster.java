@@ -98,6 +98,22 @@ public final class MotionMaster {
         sincePacketMs = CHASE_REACTION_MS;
     }
 
+    /** MoveSplineInit::Stop — MonsterMoveStop so the client drops FACING_TARGET. */
+    public byte[] stop(Creature c) {
+        moveIdle();
+        if (c == null) {
+            return null;
+        }
+        WowBuffer b = new WowBuffer(32);
+        b.putPackedGuid(c.guid);
+        b.putFloat(c.x);
+        b.putFloat(c.y);
+        b.putFloat(c.z);
+        b.putU32(nextSplineId++);
+        b.putU8(TaxiHandler.MONSTER_MOVE_STOP);
+        return b.array();
+    }
+
     public byte[] update(Creature c, int diffMs) {
         return update(c, diffMs, Terrain.NONE);
     }

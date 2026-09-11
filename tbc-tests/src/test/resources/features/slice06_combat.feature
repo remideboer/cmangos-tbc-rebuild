@@ -50,6 +50,16 @@ Feature: Slice 6 melee combat and loot
     And the server has sent SMSG_LOOT_CLEAR_MONEY
     And the server has not sent SMSG_LOOT_MONEY_NOTIFY
 
+  @tp-sl06-016
+  Scenario: Empty corpse is no longer lootable
+    When the player auto-attacks until the kobold is dead
+    And the player loots the corpse
+    Then SMSG_LOOT_RESPONSE is a corpse window for that guid
+    When the player takes loot slot 0
+    And the player takes the corpse copper
+    Then SMSG_LOOT_RELEASE_RESPONSE is for the kobold
+    And the corpse is not lootable on the wire
+
   @tp-sl06-008
   Scenario: Corpse respawns after delay with health update
     Given the kobold respawn delay is 1 ms

@@ -59,6 +59,7 @@ class CombatTest {
         assertTrue(c.lootable);
         assertEquals(p.guid, c.taggedBy);
         assertFalse(p.inCombat);
+        assertEquals(org.tbc.world.ai.MotionMaster.IDLE, c.motion.type());
         byte[] loot = combat.lootResponse(p, c);
         assertNotNull(loot);
         assertEquals(2L, guidAt(loot));
@@ -310,6 +311,29 @@ class CombatTest {
         assertEquals(Guid.HIGH_ITEM | 100L,
                 p.getGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2));
         assertTrue(c.lootItems.isEmpty());
+        assertFalse(c.lootable);
+    }
+
+    @Test
+    void takeItemWhenGoldRemainsShouldKeepLootable() {
+        c.lootable = true;
+        c.taggedBy = p.guid;
+        c.lootGold = 1;
+        c.lootItems.add(new LootSlot(0, 25, 1, 42));
+        assertNotNull(combat.takeItem(p, c, 0, 100));
+        assertTrue(c.lootItems.isEmpty());
+        assertTrue(c.lootable);
+    }
+
+    @Test
+    void takeMoneyWhenItemsRemainShouldKeepLootable() {
+        c.lootable = true;
+        c.taggedBy = p.guid;
+        c.lootGold = 12;
+        c.lootItems.add(new LootSlot(0, 25, 1, 42));
+        assertTrue(combat.takeMoney(p, c));
+        assertEquals(0, c.lootGold);
+        assertTrue(c.lootable);
     }
 
     @Test
@@ -321,6 +345,7 @@ class CombatTest {
         assertTrue(combat.takeMoney(p, c));
         assertEquals(17, p.money);
         assertEquals(0, c.lootGold);
+        assertFalse(c.lootable);
     }
 
     @Test
