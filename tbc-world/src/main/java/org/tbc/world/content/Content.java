@@ -175,6 +175,8 @@ public final class Content {
     public static final int ITEM_TOMS_BOOTS_1 = 32954;
     /** tbc-db item_template 6673; ITEM_MOD_HEALTH 1 / −60, finger. */
     public static final int ITEM_TEST_HP_RING = 6673;
+    /** tbc-db item_template 6674; ITEM_MOD_MANA 0 / −60, finger. */
+    public static final int ITEM_TEST_MP_RING = 6674;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

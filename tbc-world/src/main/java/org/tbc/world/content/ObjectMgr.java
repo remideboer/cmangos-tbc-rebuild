@@ -1086,6 +1086,29 @@ public final class ObjectMgr {
         }
 
         /**
+         * Test MP Ring — tbc-db 6674 (ITEM_MOD_MANA −60, finger).
+         */
+        public static ItemTemplate testMpRing() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_TEST_MP_RING;
+            t.itemClass = 4;
+            t.subClass = 0;
+            t.name = "Test MP Ring";
+            t.displayId = 9832;
+            t.inventoryType = 11;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 1;
+            t.requiredLevel = 1;
+            t.stackable = 1;
+            t.statType[0] = 0;
+            t.statValue[0] = -60;
+            t.bonding = 2;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
+        /**
          * Vengeful Gladiator's Dragonhide Tunic — tbc-db 33675 (STA 54, STR 30, INT 22, AGI 31,
          * RES 26, HIT 12, CRIT 19 in stat_type7, armor 529).
          */
@@ -2076,6 +2099,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_TWIN_BLADES_OF_AZZINOTH, ItemTemplate.twinBladesOfAzzinoth());
         items.putIfAbsent(Content.ITEM_TOMS_BOOTS_1, ItemTemplate.tomsBoots1());
         items.putIfAbsent(Content.ITEM_TEST_HP_RING, ItemTemplate.testHpRing());
+        items.putIfAbsent(Content.ITEM_TEST_MP_RING, ItemTemplate.testMpRing());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
@@ -2910,6 +2934,7 @@ public final class ObjectMgr {
     }
 
     /** ItemPrototype.h ITEM_MOD_MANA / HEALTH / AGILITY / STRENGTH / INTELLECT / SPIRIT / STAMINA / HIT_RATING. */
+    private static final int ITEM_MOD_MANA = 0;
     private static final int ITEM_MOD_HEALTH = 1;
     private static final int ITEM_MOD_AGILITY = 3;
     private static final int ITEM_MOD_STRENGTH = 4;
@@ -2977,6 +3002,7 @@ public final class ObjectMgr {
         }
         int stamina = 0;
         int itemHealth = 0;
+        int itemMana = 0;
         int agility = 0;
         int strength = 0;
         int intellect = 0;
@@ -3021,6 +3047,8 @@ public final class ObjectMgr {
                     stamina += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_HEALTH) {
                     itemHealth += t.statValue[i];
+                } else if (t.statType[i] == ITEM_MOD_MANA) {
+                    itemMana += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_AGILITY) {
                     agility += t.statValue[i];
                 } else if (t.statType[i] == ITEM_MOD_STRENGTH) {
@@ -3064,7 +3092,7 @@ public final class ObjectMgr {
                 }
             }
         }
-        p.applyGearBonuses(stamina, armor, agility, strength, intellect, spirit, itemHealth);
+        p.applyGearBonuses(stamina, armor, agility, strength, intellect, spirit, itemHealth, itemMana);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 2, fire);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 3, nature);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 4, frost);

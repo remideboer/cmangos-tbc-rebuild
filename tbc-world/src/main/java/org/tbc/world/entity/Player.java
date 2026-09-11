@@ -694,15 +694,15 @@ public final class Player extends Unit {
      * agility ×2 plus item armor. Mana classes only (createMana 0 keeps the bar hidden).
      */
     public void applyGearBonuses(int stamina, int armor, int agility, int strength, int intellect, int spirit) {
-        applyGearBonuses(stamina, armor, agility, strength, intellect, spirit, 0);
+        applyGearBonuses(stamina, armor, agility, strength, intellect, spirit, 0, 0);
     }
 
     /**
-     * Same as {@link #applyGearBonuses(int, int, int, int, int, int)} plus ITEM_MOD_HEALTH
-     * ({@code HandleStatModifier(UNIT_MOD_HEALTH)}).
+     * Same as {@link #applyGearBonuses(int, int, int, int, int, int)} plus ITEM_MOD_HEALTH /
+     * ITEM_MOD_MANA ({@code HandleStatModifier(UNIT_MOD_HEALTH/MANA)}).
      */
     public void applyGearBonuses(int stamina, int armor, int agility, int strength, int intellect, int spirit,
-            int itemHealth) {
+            int itemHealth, int itemMana) {
         setInt(UpdateFields.UNIT_FIELD_STAT0, createStats[0] + strength);
         setInt(UpdateFields.UNIT_FIELD_STAT1, createStats[1] + agility);
         setInt(UpdateFields.UNIT_FIELD_STAT2, createStats[2] + stamina);
@@ -717,7 +717,7 @@ public final class Player extends Unit {
             }
         }
         if (createMana != 0) {
-            int maxMana = createMana + manaBonusFromIntellect(createStats[3] + intellect);
+            int maxMana = createMana + manaBonusFromIntellect(createStats[3] + intellect) + itemMana;
             setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, Math.max(0, maxMana));
             if (power() > maxPower()) {
                 setPower(maxPower());
