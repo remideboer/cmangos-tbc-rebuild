@@ -180,6 +180,32 @@ public final class Combat {
         clearCombatVisual(p);
     }
 
+    /**
+     * CMaNGOS HostileRefManager::getSize — a living in-combat creature still hates this player.
+     */
+    public boolean hasHostiles(Player p, Iterable<Creature> creatures) {
+        if (p == null || creatures == null) {
+            return false;
+        }
+        for (Creature c : creatures) {
+            if (!c.inCombat || !c.alive()) {
+                continue;
+            }
+            if (c.victim == p.guid || c.threatManager.threatOf(p) > 0f) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * CMaNGOS CombatManager player path: IN_COMBAT and empty HostileRefManager → HandleExitCombat.
+     * Duel partners are player hostiles (not on the creature threat list).
+     */
+    public boolean shouldLeaveCombat(Player p, Iterable<Creature> creatures) {
+        return p != null && p.inCombat && p.duelOpponent == null && !hasHostiles(p, creatures);
+    }
+
     public MeleeTable.Result swing(Player p, Creature c, long nowMs) {
         return swing(p, c, nowMs, EventAi.NOOP);
     }

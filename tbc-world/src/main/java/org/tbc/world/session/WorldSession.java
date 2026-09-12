@@ -165,7 +165,7 @@ public final class WorldSession {
                 send(v.opcode(), v.payload());
             }
         }
-        if (player.inCombat && player.lastMeleeMs + swingDelayMs(false) <= world.nowMs()) {
+        if (player.victim != 0 && player.lastMeleeMs + swingDelayMs(false) <= world.nowMs()) {
             Creature c = meleeTarget(world);
             if (c != null) {
                 world.meleeHit(player, c);
@@ -178,7 +178,7 @@ public final class WorldSession {
                 }
             }
         }
-        if (player.inCombat && player.hasOffhandWeapon()
+        if (player.victim != 0 && player.hasOffhandWeapon()
                 && player.lastOffhandMeleeMs + swingDelayMs(true) <= world.nowMs()) {
             Creature c = meleeTarget(world);
             if (c != null) {
@@ -1124,7 +1124,6 @@ public final class WorldSession {
     /** CMaNGOS Unit::Attack + SendMeleeAttackStart — player auto-attack without creature AttackStart. */
     private void beginPlayerAutoAttack(World world, Creature c) {
         player.victim = c.guid;
-        player.inCombat = true;
         player.setGuid(UpdateFields.UNIT_FIELD_TARGET, c.guid);
         byte[] start = world.combat.encodeAttackStart(player.guid, c.guid);
         send(Opcodes.SMSG_ATTACKSTART, start);

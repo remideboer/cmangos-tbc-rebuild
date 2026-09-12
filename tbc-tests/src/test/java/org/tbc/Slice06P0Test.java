@@ -248,6 +248,42 @@ class Slice06P0Test {
     }
 
     /**
+     * TP-SL06-020 — CombatManager player path: empty hostile refs → HandleExitCombat → CombatStop.
+     * After creature evade the player drops UNIT_FLAG_IN_COMBAT (not stuck until CMSG_ATTACKSTOP).
+     */
+    @Test
+    void tpSl06PlayerLeavesCombatWhenCreatureEvades() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "DropFlag", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        // Northshire in-memory cluster includes Garrick (103); kite +35 from create-pos pulls him.
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(20_000f, 20_000f, 80f, 0);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        client.attackSwing(world, c.guid);
+        assertTrue(p.inCombat);
+        assertEquals(Unit.UNIT_FLAG_IN_COMBAT, p.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_IN_COMBAT);
+        ox = p.x;
+        oy = p.y;
+        p.relocate(c.spawnX + 35, c.spawnY, c.spawnZ, 0);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        c.lastHitMs = world.nowMs() - org.tbc.world.combat.Combat.PURSUIT_MS - 1;
+        client.clear();
+        world.tick(50);
+        assertFalse(c.inCombat);
+        assertFalse(p.inCombat);
+        assertEquals(0, p.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_IN_COMBAT);
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_IN_COMBAT);
+        assertTrue(sawAttackStop(client, p.guid, c.guid, 0));
+    }
+
+    /**
      * TP-SL06-019 — SelectHostileTarget unreachable (Z above CREATURE_Z_ATTACK_RANGE_MELEE) starts
      * CombatManager's 10 s evade timer (hits EVADES); expiry EnterEvadeMode / SendMeleeAttackStop.
      */

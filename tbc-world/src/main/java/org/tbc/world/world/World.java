@@ -816,6 +816,7 @@ public final class World implements Runnable {
             }
             m.dbScripts.process(diff, (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
         }
+        dropPlayerCombatWithoutHostiles();
         if (timers.passed(WorldTimers.GROUPS)) {
             timers.reset(WorldTimers.GROUPS);
             GroupHandler.updateOfflineLeaders(this);
@@ -832,6 +833,42 @@ public final class World implements Runnable {
             int next = events.update(this, nowMs());
             timers.setInterval(WorldTimers.EVENTS, next);
             timers.reset(WorldTimers.EVENTS);
+        }
+    }
+
+    /**
+     * CMaNGOS CombatManager: player IN_COMBAT with empty HostileRefManager → HandleExitCombat → CombatStop.
+     * Walks map players (not World.sessions) so in-process doubles without AUTH_SESSION still drop.
+     */
+    private void dropPlayerCombatWithoutHostiles() {
+        for (GameMap m : maps.values()) {
+            for (Player p : m.players()) {
+                if (p == null || !p.inCombat) {
+                    continue;
+                }
+                if (!combat.shouldLeaveCombat(p, m.nearbyCreatures(p, GameMap.VISIBILITY))) {
+                    continue;
+                }
+                long victim = p.victim;
+                combat.stopAttack(p);
+                byte[] stop = victim != 0 ? combat.encodeAttackStop(p.guid, victim, !p.alive()) : null;
+                var flags = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_FLAGS));
+                if (p.session != null) {
+                    if (stop != null) {
+                        p.session.send(Opcodes.SMSG_ATTACKSTOP, stop);
+                    }
+                    p.session.send(flags.opcode(), flags.payload());
+                }
+                for (Player pl : m.nearbyPlayers(p, GameMap.VISIBILITY)) {
+                    if (pl.session == null) {
+                        continue;
+                    }
+                    if (stop != null) {
+                        pl.session.send(Opcodes.SMSG_ATTACKSTOP, stop);
+                    }
+                    pl.session.send(flags.opcode(), flags.payload());
+                }
+            }
         }
     }
 

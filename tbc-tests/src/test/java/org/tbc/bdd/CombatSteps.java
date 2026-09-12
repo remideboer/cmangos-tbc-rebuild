@@ -122,6 +122,35 @@ public class CombatSteps {
         assertTrue(kobold.inCombat);
     }
 
+    @Then("the player is not in combat")
+    public void playerNotInCombat() {
+        Player p = client.session().player();
+        assertFalse(p.inCombat);
+        assertEquals(0, p.getInt(UpdateFields.UNIT_FIELD_FLAGS) & org.tbc.world.entity.Unit.UNIT_FLAG_IN_COMBAT);
+    }
+
+    @Then("SMSG_ATTACKSTOP is the player stopping attack on the kobold")
+    public void attackStopPlayerOnKobold() {
+        Player p = client.session().player();
+        boolean saw = false;
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKSTOP) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            int off = 0;
+            long attacker = packedGuid(payload, off);
+            off = WowClientDouble.skipPackedGuid(payload, off);
+            long victim = packedGuid(payload, off);
+            off = WowClientDouble.skipPackedGuid(payload, off);
+            int nowDead = WowClientDouble.u32le(payload, off);
+            if (attacker == p.guid && victim == kobold.guid && nowDead == 0) {
+                saw = true;
+            }
+        }
+        assertTrue(saw);
+    }
+
     @Then("SMSG_ATTACKERSTATEUPDATE is an evade swing")
     public void attackerStateIsEvade() {
         boolean saw = false;

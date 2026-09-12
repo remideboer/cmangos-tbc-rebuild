@@ -377,6 +377,39 @@ class CombatTest {
     }
 
     @Test
+    void hasHostilesWhenCreatureVictimOrThreatShouldReturnTrue() {
+        assertFalse(combat.hasHostiles(null, java.util.List.of(c)));
+        assertFalse(combat.hasHostiles(p, null));
+        assertFalse(combat.hasHostiles(p, java.util.List.<Creature>of()));
+        c.inCombat = true;
+        c.victim = p.guid;
+        assertTrue(combat.hasHostiles(p, java.util.List.of(c)));
+        c.victim = 99;
+        assertFalse(combat.hasHostiles(p, java.util.List.of(c)));
+        c.threatManager.add(p, 1f);
+        assertTrue(combat.hasHostiles(p, java.util.List.of(c)));
+        c.inCombat = false;
+        assertFalse(combat.hasHostiles(p, java.util.List.of(c)));
+        c.inCombat = true;
+        c.setHealth(0);
+        assertFalse(combat.hasHostiles(p, java.util.List.of(c)));
+    }
+
+    @Test
+    void shouldLeaveCombatWhenInCombatWithoutHostiles() {
+        assertFalse(combat.shouldLeaveCombat(p, java.util.List.of(c)));
+        p.inCombat = true;
+        assertTrue(combat.shouldLeaveCombat(p, java.util.List.of(c)));
+        c.inCombat = true;
+        c.victim = p.guid;
+        assertFalse(combat.shouldLeaveCombat(p, java.util.List.of(c)));
+        c.inCombat = false;
+        p.duelOpponent = new Player();
+        assertFalse(combat.shouldLeaveCombat(p, java.util.List.of(c)));
+        assertFalse(combat.shouldLeaveCombat(null, java.util.List.of(c)));
+    }
+
+    @Test
     void takeItemWhenOwnerLootableSlotShouldMoveItemToBackpack() {
         c.lootable = true;
         c.taggedBy = p.guid;

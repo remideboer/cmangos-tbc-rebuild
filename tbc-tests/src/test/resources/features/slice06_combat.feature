@@ -104,6 +104,13 @@ Feature: Slice 6 melee combat and loot
     Then SMSG_ATTACKSTOP is the kobold stopping attack on the player
     And the kobold is at spawn with full health and an empty threat list
 
+  @tp-sl06-020
+  Scenario: Player leaves combat when the creature evades
+    Given the player is in combat with the kobold
+    When the player runs past the 30 yard leash
+    Then the player is not in combat
+    And SMSG_ATTACKSTOP is the player stopping attack on the kobold
+
   @negative
   Scenario: Living creature has no loot window
     When the player loots the living kobold
