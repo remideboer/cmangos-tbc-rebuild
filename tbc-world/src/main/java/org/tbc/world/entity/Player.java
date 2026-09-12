@@ -568,8 +568,12 @@ public final class Player extends Unit {
     /**
      * CMaNGOS Player::Update → RegenerateAll every REGEN_TIME_FULL: health and rage decay only out of
      * combat, mana always (five-second rule drops the spirit part). Returns the unit fields that changed.
+     * CMaNGOS only calls this while IsAlive() — ghosts keep HP 1 and corpses stay at 0.
      */
     public int[] regenerateAll(int diff) {
+        if (ghost || !alive()) {
+            return new int[0];
+        }
         lastManaUseTimerMs = Math.max(0, lastManaUseTimerMs - diff);
         regenTimerMs += diff;
         if (regenTimerMs < REGEN_TIME_FULL) {

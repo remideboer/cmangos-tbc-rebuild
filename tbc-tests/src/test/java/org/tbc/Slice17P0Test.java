@@ -169,6 +169,30 @@ class Slice17P0Test {
         assertTrue(client.saw(Opcodes.SMSG_MOVE_LAND_WALK));
     }
 
+    /**
+     * TP-SL17-013 — Player::Update skips RegenerateAll unless IsAlive(); ghosts keep HP 1
+     * and do not use out-of-combat spirit regen.
+     */
+    @Test
+    void tpSl17GhostShouldNotRegenerateHealthOrMana() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "NoRegen");
+        Player p = client.session().player();
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        assertTrue(p.ghost);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER1, 40);
+        client.clear();
+        world.tick(Player.REGEN_TIME_FULL);
+        assertEquals(1, p.health());
+        assertEquals(40, p.getInt(UpdateFields.UNIT_FIELD_POWER1));
+        assertFalse(client.saw(Opcodes.SMSG_UPDATE_OBJECT));
+        assertFalse(client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
     @Test
     void tpSl17SpiritHealerSickness() {
         World world = World.inMemory();
