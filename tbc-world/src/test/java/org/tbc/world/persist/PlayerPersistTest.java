@@ -82,4 +82,40 @@ class PlayerPersistTest {
         assertEquals(ReputationMgr.FLAG_INACTIVE,
                 d.reputations.flags(ReputationMgr.LIST_STORMWIND) & ReputationMgr.FLAG_INACTIVE);
     }
+
+    @Test
+    void copyWhenGhostShouldKeepGhostFlagAndHealth() {
+        Player src = new Player();
+        src.guid = 11;
+        src.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 60);
+        src.setHealth(1);
+        src.setGhost(true);
+        Player d = PlayerPersist.copy(src);
+        assertTrue(d.ghost);
+        assertEquals(Player.PLAYER_FLAGS_GHOST, d.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FLAGS)
+                & Player.PLAYER_FLAGS_GHOST);
+        assertEquals(1, d.health());
+    }
+
+    @Test
+    void copyWhenCorpseHealthZeroShouldKeepZero() {
+        Player src = new Player();
+        src.guid = 12;
+        src.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 60);
+        src.setHealth(0);
+        Player d = PlayerPersist.copy(src);
+        assertFalse(d.ghost);
+        assertEquals(0, d.health());
+    }
+
+    @Test
+    void copyWhenAliveShouldKeepPositiveHealth() {
+        Player src = new Player();
+        src.guid = 13;
+        src.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXHEALTH, 60);
+        src.setHealth(40);
+        Player d = PlayerPersist.copy(src);
+        assertFalse(d.ghost);
+        assertEquals(40, d.health());
+    }
 }

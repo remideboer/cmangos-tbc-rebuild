@@ -260,7 +260,12 @@ public final class CharacterStore {
         }
         initStatsForLevel(p, mgr);
         p.applyCreateFields();
+        int flags = col(rs, "playerFlags", 0);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FLAGS, flags);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, col(rs, "health", 50)));
+        if ((flags & Player.PLAYER_FLAGS_GHOST) != 0) {
+            p.setGhost(true);
+        }
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER1,
                 Math.min(col(rs, "power1", 0), p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER1)));
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER4,
@@ -732,7 +737,7 @@ public final class CharacterStore {
         int pb = (p.skin & 0xFF) | ((p.face & 0xFF) << 8) | ((p.hairStyle & 0xFF) << 16) | ((p.hairColor & 0xFF) << 24);
         ins.setInt(i++, pb);
         ins.setInt(i++, p.facialHair & 0xFF);
-        ins.setInt(i++, 0);
+        ins.setInt(i++, p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FLAGS));
         ins.setFloat(i++, p.x);
         ins.setFloat(i++, p.y);
         ins.setFloat(i++, p.z);

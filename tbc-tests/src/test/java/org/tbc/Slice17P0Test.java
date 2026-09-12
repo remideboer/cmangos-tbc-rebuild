@@ -14,6 +14,8 @@ import org.tbc.world.session.DeathHandler;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -233,6 +235,47 @@ class Slice17P0Test {
         assertEquals(40, p.getInt(UpdateFields.UNIT_FIELD_POWER1));
         assertFalse(client.saw(Opcodes.SMSG_UPDATE_OBJECT));
         assertFalse(client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
+    /**
+     * TP-SL17-015 — Logout while ghost persists PLAYER_FLAGS_GHOST; the next login
+     * create-self is still dead (HP 1, aura 8326, water walk, corpse delay).
+     */
+    @Test
+    void tpSl17LogoutWhileGhostShouldLoginStillGhost() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "StayDead");
+        Player p = client.session().player();
+        long guid = p.guid;
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        assertTrue(p.ghost);
+        client.session().logout(world, true);
+
+        WowClientDouble relog = new WowClientDouble();
+        relog.connect(ACC);
+        relog.login(world, guid);
+        Player loaded = relog.session().player();
+        assertTrue(loaded.ghost);
+        assertEquals(1, loaded.health());
+        Map<Integer, Integer> self = relog.selfCreateValues();
+        assertEquals(Player.PLAYER_FLAGS_GHOST,
+                self.getOrDefault(UpdateFields.PLAYER_FLAGS, 0) & Player.PLAYER_FLAGS_GHOST);
+        assertEquals(1, self.getOrDefault(UpdateFields.UNIT_FIELD_HEALTH, 0).intValue());
+        boolean ghostAura = false;
+        for (int slot = 0; slot < 56; slot++) {
+            if (Integer.valueOf(PvpObjectives.GHOST_AURA).equals(self.get(UpdateFields.UNIT_FIELD_AURA + slot))) {
+                ghostAura = true;
+                break;
+            }
+        }
+        assertTrue(ghostAura);
+        assertTrue(loaded.auras.stream().anyMatch(a -> a.spellId() == PvpObjectives.GHOST_AURA));
+        assertTrue(relog.saw(Opcodes.SMSG_MOVE_WATER_WALK));
+        assertEquals(DeathHandler.CORPSE_RECLAIM_DELAY_FIRST_MS,
+                WowClientDouble.u32le(lastPayload(relog, Opcodes.SMSG_CORPSE_RECLAIM_DELAY), 0));
     }
 
     @Test

@@ -59,7 +59,15 @@ public final class PlayerPersist {
             }
         }
         d.applyCreateFields();
-        d.setInt(UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, src.health()));
+        d.setInt(UpdateFields.PLAYER_FLAGS, src.getInt(UpdateFields.PLAYER_FLAGS));
+        if (src.ghost) {
+            d.setGhost(true);
+            d.setInt(UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, src.health()));
+        } else if (src.health() <= 0) {
+            d.setInt(UpdateFields.UNIT_FIELD_HEALTH, 0);
+        } else {
+            d.setInt(UpdateFields.UNIT_FIELD_HEALTH, src.health());
+        }
         d.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, Math.max(1, src.maxHealth()));
         d.setInt(UpdateFields.UNIT_FIELD_POWER1, src.getInt(UpdateFields.UNIT_FIELD_POWER1));
         d.setInt(UpdateFields.UNIT_FIELD_POWER4, src.getInt(UpdateFields.UNIT_FIELD_POWER4));

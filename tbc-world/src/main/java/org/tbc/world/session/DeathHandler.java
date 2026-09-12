@@ -13,6 +13,7 @@ import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.pvp.AvBattlefield;
 import org.tbc.world.pvp.PvpObjectives;
+import org.tbc.world.spell.AuraSlots;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.world.World;
 
@@ -159,6 +160,24 @@ public final class DeathHandler {
         s.send(Opcodes.MSG_CORPSE_QUERY, q.array());
         s.send(Opcodes.SMSG_SPELL_GO, world.spells.encodeGo(
                 p.guid, p.guid, PvpObjectives.GHOST_AURA, world.nowMs(), new SpellCastTargets()));
+    }
+
+    /** Relog while {@link Player#ghost}: recreate BuildPlayerRepop visuals before create-self. */
+    public static void restoreGhostOnLogin(WorldSession s) {
+        Player p = s.player();
+        if (!p.ghost) {
+            return;
+        }
+        p.setGhost(true);
+        p.setHealth(1);
+        if (p.auras.stream().noneMatch(a -> a.spellId() == PvpObjectives.GHOST_AURA)) {
+            p.auras.add(new Unit.Aura(PvpObjectives.GHOST_AURA, 0, 1));
+            AuraSlots.applyVisible(p, PvpObjectives.GHOST_AURA, Math.max(1, p.level), 1);
+        }
+        sendWaterWalk(s, true);
+        WowBuffer delay = new WowBuffer(4);
+        delay.putU32(CORPSE_RECLAIM_DELAY_FIRST_MS);
+        s.send(Opcodes.SMSG_CORPSE_RECLAIM_DELAY, delay.array());
     }
 
     public static void query(WorldSession s) {

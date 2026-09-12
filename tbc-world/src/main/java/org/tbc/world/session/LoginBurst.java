@@ -129,6 +129,7 @@ public final class LoginBurst {
             s.send(Opcodes.SMSG_TRIGGER_CINEMATIC, u32(cine));
         }
         p.applyCreateFields();
+        DeathHandler.restoreGhostOnLogin(s);
         sendInventory(s, p);
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, true, (int) world.nowMs()));
         s.send(upd.opcode(), upd.payload());
