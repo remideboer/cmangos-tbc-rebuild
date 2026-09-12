@@ -4,6 +4,7 @@ import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
@@ -460,6 +461,39 @@ class Slice08P0Test {
         fac.getU32();
         int flags = fac.getU8();
         assertEquals(0x02, flags & 0x02);
+    }
+
+    /**
+     * TP-SL08-028 — Vendor buy success sends the same CREATE item + inventory slot
+     * VALUES + PLAYER_FIELD_COINAGE as loot autostore (not only ITEM_PUSH_RESULT).
+     */
+    @Test
+    void tpSl08VendorBuyCreatesItemAndCoinageValues() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Shopper", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.setMoney(50);
+        Creature vendor = world.objectMgr.spawnCreature(Content.NPC_CORINA_STEELE, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(vendor);
+        java.util.Set<Integer> before = new java.util.HashSet<>(p.items.keySet());
+        client.clear();
+        client.buyItem(world, vendor.guid, Content.ITEM_WORN_SHORTSWORD, 1);
+        Item bought = p.items.entrySet().stream()
+                .filter(e -> !before.contains(e.getKey()))
+                .map(java.util.Map.Entry::getValue)
+                .findFirst()
+                .orElseThrow();
+        assertTrue(client.sawCreateObject(UpdateBuilder.itemGuid(bought)));
+        int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bought.slot * 2;
+        long slotGuid = Integer.toUnsignedLong(client.valuesField(p.guid, field))
+                | ((long) client.valuesField(p.guid, field + 1) << 32);
+        assertEquals(UpdateBuilder.itemGuid(bought), slotGuid);
+        assertEquals(15, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COINAGE));
+        assertEquals(15, p.money);
+        assertTrue(client.saw(Opcodes.SMSG_ITEM_PUSH_RESULT));
     }
 
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */

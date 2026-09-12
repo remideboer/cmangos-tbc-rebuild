@@ -381,7 +381,16 @@ public final class Content {
         it.inventoryType = t.inventoryType;
         it.quality = t.quality;
         p.items.put(Guid.low(it.guid), it);
+        p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + slot * 2,
+                Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
         p.dirty = true;
+        var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(it, p.guid));
+        send.accept(created.opcode(), created.payload());
+        int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
+        var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+        send.accept(inv.opcode(), inv.payload());
+        var coin = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+        send.accept(coin.opcode(), coin.payload());
         send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, count));
         itemAddedQuestCheck(p, itemId, count, send);
     }
