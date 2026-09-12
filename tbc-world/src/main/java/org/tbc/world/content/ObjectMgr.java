@@ -2593,7 +2593,7 @@ public final class ObjectMgr {
                 yield stock != null && !stock.isEmpty();
             }
             case GOSSIP_OPTION_TRAINER -> isTrainerOf(p, c);
-            case GOSSIP_OPTION_SPIRITHEALER -> p != null && !p.alive();
+            case GOSSIP_OPTION_SPIRITHEALER -> p != null && (p.ghost || !p.alive());
             case GOSSIP_OPTION_STABLEPET -> p != null && p.clazz == CLASS_HUNTER;
             case GOSSIP_OPTION_TAXIVENDOR, GOSSIP_OPTION_SPIRITGUIDE, GOSSIP_OPTION_INNKEEPER,
                     GOSSIP_OPTION_BANKER, GOSSIP_OPTION_PETITIONER, GOSSIP_OPTION_TABARDDESIGNER,

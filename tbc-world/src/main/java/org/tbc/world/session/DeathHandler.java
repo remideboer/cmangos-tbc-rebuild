@@ -220,6 +220,16 @@ public final class DeathHandler {
         resurrect(s, p);
         int max = p.maxHealth() == 0 ? 100 : p.maxHealth();
         p.setHealth(max / 2);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER1, p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1) / 2);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER2, 0);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER4, p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER4) / 2);
+        var stats = UpdateBuilder.maybeCompress(UpdateBuilder.values(p,
+                UpdateFields.UNIT_FIELD_HEALTH,
+                UpdateFields.UNIT_FIELD_POWER1,
+                UpdateFields.UNIT_FIELD_POWER2,
+                UpdateFields.UNIT_FIELD_POWER4,
+                UpdateFields.PLAYER_FLAGS));
+        s.send(stats.opcode(), stats.payload());
         for (Item it : p.items.values()) {
             it.durability = (int) (it.durability * 0.75);
         }

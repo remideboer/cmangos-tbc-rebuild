@@ -732,6 +732,54 @@ class ContentTest {
     }
 
     @Test
+    void gossipSelectSpiritHealerWhenGhostShouldConfirm() {
+        Creature healer = spiritHealer();
+        p.setHealth(1);
+        p.setGhost(true);
+        content.gossipHello(p, map, u64(healer.guid), this::capture);
+        ops.clear();
+        last.clear();
+        content.gossipSelect(p, map, select(healer.guid, 0, 0), this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_SPIRIT_HEALER_CONFIRM));
+        WowBuffer b = new WowBuffer(last.get(Opcodes.SMSG_SPIRIT_HEALER_CONFIRM));
+        assertEquals(healer.guid, b.getU64());
+    }
+
+    @Test
+    void gossipSelectSpiritHealerWhenCorpseShouldConfirm() {
+        Creature healer = spiritHealer();
+        p.setHealth(0);
+        content.gossipHello(p, map, u64(healer.guid), this::capture);
+        ops.clear();
+        content.gossipSelect(p, map, select(healer.guid, 0, 0), this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_SPIRIT_HEALER_CONFIRM));
+    }
+
+    @Test
+    void gossipSelectSpiritHealerWhenAliveShouldStaySilent() {
+        Creature healer = spiritHealer();
+        p.setHealth(1);
+        p.setGhost(true);
+        content.gossipHello(p, map, u64(healer.guid), this::capture);
+        p.setGhost(false);
+        ops.clear();
+        content.gossipSelect(p, map, select(healer.guid, 0, 0), this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_SPIRIT_HEALER_CONFIRM));
+    }
+
+    @Test
+    void gossipHelloSpiritHealerWhenAliveShouldOmitOption() {
+        Creature healer = spiritHealer();
+        p.setHealth(50);
+        content.gossipHello(p, map, u64(healer.guid), this::capture);
+        WowBuffer b = gossipBody();
+        b.getU64();
+        b.getU32();
+        b.getU32();
+        assertEquals(0, b.getU32());
+    }
+
+    @Test
     void gossipSelectIgnoresBadInput() {
         Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
         Creature kobold = spawn(6, 0, 0);
@@ -1030,6 +1078,12 @@ class ContentTest {
         Creature c = mgr.spawnCreature(entry, 0, x, y, 0, 0, null);
         map.add(c);
         return c;
+    }
+
+    private Creature spiritHealer() {
+        mgr.creatures.put(6491, new ObjectMgr.CreatureTemplate(6491, "Spirit Healer", 0, 35, 100, 60,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_SPIRITHEALER, "", "", 0));
+        return spawn(6491, 0, 0);
     }
 
     private Creature vendor(int entry) {

@@ -62,6 +62,10 @@ public final class Content {
     public static final int GOSSIP_OPTION_TAXIVENDOR = 4;
     /** GossipDef.h GOSSIP_OPTION_TRAINER. */
     public static final int GOSSIP_OPTION_TRAINER = 5;
+    /** GossipDef.h GOSSIP_OPTION_SPIRITHEALER. */
+    public static final int GOSSIP_OPTION_SPIRITHEALER = 6;
+    /** Unit.h UNIT_NPC_FLAG_SPIRITHEALER. */
+    public static final int UNIT_NPC_FLAG_SPIRITHEALER = 0x00004000;
     /** GossipDef.h GOSSIP_OPTION_BANKER. */
     public static final int GOSSIP_OPTION_BANKER = 9;
     /** GossipDef.h GOSSIP_OPTION_INNKEEPER. */
@@ -287,6 +291,13 @@ public final class Content {
                 return;
             }
             AuctionHandler.sendHello(c, send);
+        } else if (option == GOSSIP_OPTION_SPIRITHEALER) {
+            if (!p.ghost && p.alive()) {
+                return;
+            }
+            WowBuffer confirm = new WowBuffer(8);
+            confirm.putU64(c.guid);
+            send.accept(Opcodes.SMSG_SPIRIT_HEALER_CONFIRM, confirm.array());
         } else if (option == GOSSIP_OPTION_GOSSIP) {
             int poiId = p.gossipActionPoi(gossipListId);
             if (poiId != 0) {

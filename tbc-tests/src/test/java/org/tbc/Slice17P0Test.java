@@ -125,6 +125,50 @@ class Slice17P0Test {
         assertTrue(p.auras.stream().noneMatch(a -> a.spellId() == PvpObjectives.SICKNESS));
     }
 
+    /**
+     * TP-SL17-011 — Ghost gossip on a spirit healer casts dummy 17251 →
+     * SMSG_SPIRIT_HEALER_CONFIRM (raw NPC guid). CMSG_SPIRIT_HEALER_ACTIVATE then
+     * ResurrectPlayer(0.5) on the wire: not ghost, 50% HP/mana/energy VALUES,
+     * PLAYER_FLAGS without GHOST, land walk.
+     */
+    @Test
+    void tpSl17SpiritHealerReviveRestoresLivingStatsOnWire() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Healed");
+        Player p = client.session().player();
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER1, 0);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER4, 100);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER4, 0);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER2, 500);
+        Creature healer = spawnSpiritHealer(world, p);
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        healer.relocate(p.x, p.y, p.z, p.o);
+        client.clear();
+        client.gossipHello(world, healer.guid);
+        assertTrue(client.saw(Opcodes.SMSG_GOSSIP_MESSAGE));
+        client.gossipSelect(world, healer.guid, 0, 0);
+        byte[] confirm = lastPayload(client, Opcodes.SMSG_SPIRIT_HEALER_CONFIRM);
+        assertEquals(healer.guid, WowClientDouble.u64le(confirm, 0));
+        client.clear();
+        WowBuffer activate = new WowBuffer(8);
+        activate.putU64(healer.guid);
+        client.handle(world, Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, activate.array());
+        assertFalse(p.ghost);
+        assertEquals(p.maxHealth() / 2, p.health());
+        assertEquals(100, p.getInt(UpdateFields.UNIT_FIELD_POWER1));
+        assertEquals(50, p.getInt(UpdateFields.UNIT_FIELD_POWER4));
+        assertEquals(0, p.getInt(UpdateFields.UNIT_FIELD_POWER2));
+        assertEquals(p.maxHealth() / 2, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        assertEquals(100, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER1));
+        assertEquals(50, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER4));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST);
+        assertTrue(client.saw(Opcodes.SMSG_MOVE_LAND_WALK));
+    }
+
     @Test
     void tpSl17SpiritHealerSickness() {
         World world = World.inMemory();
@@ -270,6 +314,16 @@ class Slice17P0Test {
         assertEquals(0, p.money);
         assertFalse(client.saw(Opcodes.SMSG_UPDATE_OBJECT));
         assertFalse(client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
+    private static Creature spawnSpiritHealer(World world, Player p) {
+        int entry = 6491;
+        world.objectMgr.creatures.put(entry, new org.tbc.world.content.ObjectMgr.CreatureTemplate(
+                entry, "Spirit Healer", 0, 35, 100, 60,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_SPIRITHEALER, "", "", 0));
+        Creature healer = world.objectMgr.spawnCreature(entry, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(healer);
+        return healer;
     }
 
     private static Item durableSword(World world, int slot) {
