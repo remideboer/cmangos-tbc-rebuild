@@ -43,14 +43,41 @@ class Slice17P0Test {
         assertEquals(deathY, p.corpse.y, 0.01);
         byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
         assertEquals(DeathHandler.GY_ELWYNN_MAP, WowClientDouble.u32le(loc, 0));
-        assertEquals(DeathHandler.GY_ELWYNN_X, WowClientDouble.floatle(loc, 4), 0.01);
-        assertEquals(DeathHandler.GY_ELWYNN_Y, WowClientDouble.floatle(loc, 8), 0.01);
-        assertEquals(DeathHandler.GY_ELWYNN_Z, WowClientDouble.floatle(loc, 12), 0.01);
+        assertEquals(-8935.33f, WowClientDouble.floatle(loc, 4), 0.05);
+        assertEquals(-188.646f, WowClientDouble.floatle(loc, 8), 0.05);
         assertEquals(DeathHandler.CORPSE_RECLAIM_DELAY_FIRST_MS,
                 WowClientDouble.u32le(lastPayload(client, Opcodes.SMSG_CORPSE_RECLAIM_DELAY), 0));
         assertTrue(sawSpellGo(client, PvpObjectives.GHOST_AURA));
         assertEquals(Player.PLAYER_FLAGS_GHOST, p.getInt(UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST);
         assertTrue(client.saw(Opcodes.SMSG_MOVE_WATER_WALK));
+        assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
+        assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
+    }
+
+    /**
+     * TP-SL17-010 — RepopAtGraveyard uses the closest world_safe_locs linked to the
+     * zone (CMaNGOS GetClosestGraveYard area then zone). Goldshire → loc 106, not
+     * the map default / Northshire.
+     */
+    @Test
+    void tpSl17RepopWhenGoldshireShouldUseClosestSpiritHealerInZone() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "GoldshireGhost");
+        Player p = client.session().player();
+        p.relocate(Content.GOLDSHIRE_X, Content.GOLDSHIRE_Y, Content.GOLDSHIRE_Z, 0);
+        p.zoneId = 1;
+        p.zoneClient = 87;
+        p.setHealth(0);
+        client.clear();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
+        assertEquals(0, WowClientDouble.u32le(loc, 0));
+        assertEquals(-9339.46f, WowClientDouble.floatle(loc, 4), 0.05);
+        assertEquals(171.408f, WowClientDouble.floatle(loc, 8), 0.05);
+        assertTrue(Math.abs(WowClientDouble.floatle(loc, 4) - DeathHandler.GY_ELWYNN_X) > 100);
+        assertTrue(p.ghost);
         assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
         assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
     }
@@ -61,6 +88,7 @@ class Slice17P0Test {
         WowClientDouble client = login(world, "Piep");
         Player p = client.session().player();
         p.relocate(-6240f, 331f, 383f, 0);
+        p.zoneId = 1;
         p.setHealth(0);
         client.clear();
         WowBuffer repop = new WowBuffer(1);

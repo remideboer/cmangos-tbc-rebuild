@@ -42,6 +42,14 @@ public final class GraveyardManager {
         g.addLink(DEFAULT_HORDE, 1, MAPLINK, HORDE);
         g.addLoc(new Loc(100, 0, -6220f, 330f, 383f, 0f));
         g.addLink(100, 0, MAPLINK, ALLIANCE);
+        g.addLink(100, AreaTable.DUN_MOROGH, AREALINK, TEAM_BOTH);
+        // tbc-db world_safe_locs + game_graveyard_zone Elwynn Forest (zone 12).
+        g.addLoc(new Loc(105, 0, -8935.33f, -188.646f, 80.4165f, 2.72271f));
+        g.addLoc(new Loc(106, 0, -9339.46f, 171.408f, 61.5618f, 4.57276f));
+        g.addLoc(new Loc(854, 0, -9552.46f, -1374.05f, 51.2332f, 1.76278f));
+        g.addLink(105, AreaTable.ELWYNN_FOREST, AREALINK, ALLIANCE);
+        g.addLink(106, AreaTable.ELWYNN_FOREST, AREALINK, ALLIANCE);
+        g.addLink(854, AreaTable.ELWYNN_FOREST, AREALINK, TEAM_BOTH);
         return g;
     }
 
@@ -88,9 +96,20 @@ public final class GraveyardManager {
     }
 
     public Loc closest(int mapId, float x, float y, float z, int team, int areaId) {
+        return closest(mapId, x, y, z, team, areaId, 0);
+    }
+
+    /**
+     * CMaNGOS GraveyardManager::GetClosestGraveYard: area AREALINK, then zone
+     * AREALINK, then map MAPLINK, then default Alliance 4 / Horde 10.
+     */
+    public Loc closest(int mapId, float x, float y, float z, int team, int areaId, int zoneId) {
         Loc found = null;
         if (areaId != 0) {
             found = closestIn(key(areaId, AREALINK), x, y, z, mapId, team);
+        }
+        if (found == null && zoneId != 0) {
+            found = closestIn(key(zoneId, AREALINK), x, y, z, mapId, team);
         }
         if (found == null) {
             found = closestIn(key(mapId, MAPLINK), x, y, z, mapId, team);

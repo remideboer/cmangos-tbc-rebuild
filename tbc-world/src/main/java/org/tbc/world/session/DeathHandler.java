@@ -18,7 +18,7 @@ import org.tbc.world.world.World;
 
 /** Repop, reclaim, spirit healer. Layout: spec/03-protocol/packets/death.md */
 public final class DeathHandler {
-    /** WorldSafeLocs id 4 — Northshire Abbey, closest to human start. */
+    /** CMaNGOS defaultGraveyardA — WorldSafeLocs id 4 when no area/zone/map link. */
     public static final int GY_ELWYNN_MAP = 0;
     public static final float GY_ELWYNN_X = -9115.27f;
     public static final float GY_ELWYNN_Y = 423.261f;
@@ -122,8 +122,18 @@ public final class DeathHandler {
         if (p.auras.stream().noneMatch(a -> a.spellId() == PvpObjectives.GHOST_AURA)) {
             p.auras.add(new Unit.Aura(PvpObjectives.GHOST_AURA, 0, 1));
         }
+        int flag = world.terrain.area(p.mapId, deathX, deathY);
+        int areaId = world.areas.areaId(flag);
+        int zoneId = world.areas.zoneId(flag);
+        if (areaId == 0 && p.zoneClient != 0) {
+            areaId = world.areas.areaId(p.zoneClient);
+            zoneId = world.areas.zoneId(p.zoneClient);
+        }
+        if (zoneId == 0) {
+            zoneId = p.zoneId;
+        }
         GraveyardManager.Loc gy = world.graveyards.closest(p.mapId, deathX, deathY, deathZ, p.team,
-                world.terrain.area(p.mapId, deathX, deathY));
+                areaId, zoneId);
         if (gy != null) {
             float z = world.terrain.at(gy.map(), gy.x(), gy.y(), gy.z());
             world.teleport(p, gy.map(), gy.x(), gy.y(), z, gy.o());

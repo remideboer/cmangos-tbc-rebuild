@@ -25,6 +25,7 @@ import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.gm.GmCommands;
+import org.tbc.world.map.AreaTable;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.map.GraveyardManager;
 import org.tbc.world.map.LineOfSight;
@@ -102,6 +103,7 @@ public final class World implements Runnable {
     /** Channel name → moderation (Channel.cpp m_moderation default false). */
     public final Map<String, Boolean> channelModeration = new ConcurrentHashMap<>();
     public final Terrain terrain;
+    public final AreaTable areas;
     public final GraveyardManager graveyards;
     public final String motd;
     public final int realmId;
@@ -133,6 +135,8 @@ public final class World implements Runnable {
         this.characters.clearOnline();
         Path dataDir = conf == null ? null : Path.of(conf.get("DataDir", "."));
         this.terrain = Terrain.fromDataDir(dataDir);
+        this.areas = AreaTable.seeded();
+        this.areas.loadFromDataDir(dataDir);
         this.graveyards = GraveyardManager.seeded();
         this.objectMgr.load(worldDb, scripts, dataDir);
         this.factions = Factions.seeded();
