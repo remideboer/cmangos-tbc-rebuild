@@ -780,6 +780,17 @@ class ContentTest {
     }
 
     @Test
+    void gossipHelloWhenGhostAtVendorShouldStaySilent() {
+        Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
+        p.setGhost(true);
+        content.gossipHello(p, map, u64(vendor.guid), this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_GOSSIP_MESSAGE));
+        p.setGhost(false);
+        content.gossipHello(p, map, u64(vendor.guid), this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_GOSSIP_MESSAGE));
+    }
+
+    @Test
     void gossipSelectIgnoresBadInput() {
         Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
         Creature kobold = spawn(6, 0, 0);

@@ -253,6 +253,9 @@ public final class Content {
         if (c == null || outOfRange(p, c)) {
             return;
         }
+        if (p.ghost && (c.npcFlags & (UNIT_NPC_FLAG_SPIRITHEALER | UNIT_NPC_FLAG_SPIRITGUIDE)) == 0) {
+            return;
+        }
         send.accept(Opcodes.SMSG_GOSSIP_MESSAGE, encodeGossip(p, c));
     }
 

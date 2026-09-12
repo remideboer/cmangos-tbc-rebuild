@@ -209,6 +209,43 @@ class Slice17P0Test {
     }
 
     /**
+     * TP-SL17-017 — Ghosts cannot attack or use living-world interact (vendor/GO);
+     * spirit healer gossip still works. Creatures skip ghost aggro.
+     */
+    @Test
+    void tpSl17GhostCannotAttackOrGossipVendor() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "GhostLock");
+        Player p = client.session().player();
+        Creature kobold = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(kobold);
+        Creature vendor = world.objectMgr.spawnCreature(Content.NPC_CORINA_STEELE, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(vendor);
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        kobold.relocate(p.x, p.y, p.z, p.o);
+        vendor.relocate(p.x, p.y, p.z, p.o);
+        client.clear();
+        client.attackSwing(world, kobold.guid);
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKSTART));
+        client.clear();
+        client.gossipHello(world, vendor.guid);
+        assertFalse(client.saw(Opcodes.SMSG_GOSSIP_MESSAGE));
+        client.clear();
+        WowBuffer goUse = new WowBuffer(8);
+        goUse.putU64(1);
+        client.handle(world, Opcodes.CMSG_GAMEOBJ_USE, goUse.array());
+        assertFalse(client.saw(Opcodes.SMSG_LOOT_RESPONSE));
+        Creature healer = spawnSpiritHealer(world, p);
+        healer.relocate(p.x, p.y, p.z, p.o);
+        client.clear();
+        client.gossipHello(world, healer.guid);
+        assertTrue(client.saw(Opcodes.SMSG_GOSSIP_MESSAGE));
+    }
+
+    /**
      * TP-SL17-012 — Unit::Kill of a player: attackers EnterEvadeMode / MoveTargetedHome
      * so they walk back to spawn instead of standing on the corpse.
      */

@@ -195,7 +195,7 @@ public final class Combat {
             return false;
         }
         if (target instanceof Player pl
-                && (pl.getInt(UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST) != 0) {
+                && (pl.ghost || (pl.getInt(UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST) != 0)) {
             return false;
         }
         if (factions == null) {

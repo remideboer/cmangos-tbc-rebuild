@@ -874,6 +874,18 @@ class CombatTest {
     }
 
     @Test
+    void canAggroOnSightWhenGhostBooleanWithoutFlagShouldBeFalse() {
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 50);
+        p.setHealth(50);
+        setFaction(p, 1);
+        p.ghost = true;
+        p.relocate(2, 0, 0, 0);
+        setFaction(c, 7);
+        org.tbc.world.ai.FactorySelector.selectAI(c, null);
+        assertFalse(Combat.canAggroOnSight(c, p, Factions.seeded()));
+    }
+
+    @Test
     void canAggroOnSightWhenHostileInsideDetectionShouldBeTrue() {
         setFaction(p, 1);
         p.level = 1;

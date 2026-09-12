@@ -93,6 +93,12 @@ class RelationsTest {
     }
 
     @Test
+    void canAttackNowWhenGhostShouldBeFalse() {
+        p.setGhost(true);
+        assertFalse(Relations.canAttackNow(p, c, factions));
+    }
+
+    @Test
     void canAttackWhenNeutralTimberWolfShouldBeTrue() {
         setFaction(p, 115);
         setFaction(c, 32);

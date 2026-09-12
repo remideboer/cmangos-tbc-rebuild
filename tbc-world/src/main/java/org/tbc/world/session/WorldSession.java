@@ -1634,6 +1634,9 @@ public final class WorldSession {
             return;
         }
         long guid = in.getU64();
+        if (player.ghost) {
+            return;
+        }
         if (player.selection != 0 && player.selection != player.guid) {
             WowBuffer d = new WowBuffer(16);
             d.putU64(guid);

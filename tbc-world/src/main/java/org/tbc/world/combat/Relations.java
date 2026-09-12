@@ -33,7 +33,7 @@ public final class Relations {
             return false;
         }
         if (attacker instanceof Creature && target instanceof Player pl
-                && (pl.getInt(UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST) != 0) {
+                && (pl.ghost || (pl.getInt(UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST) != 0)) {
             return false;
         }
         int tflags = target.getInt(UpdateFields.UNIT_FIELD_FLAGS);
@@ -66,6 +66,9 @@ public final class Relations {
     /** CMaNGOS Unit::CanAttackNow — both alive and {@link #canAttack} (mount omitted). */
     public static boolean canAttackNow(Unit attacker, Unit target, Factions factions) {
         if (attacker == null || target == null || !attacker.alive() || !target.alive()) {
+            return false;
+        }
+        if (attacker instanceof Player pl && pl.ghost) {
             return false;
         }
         return canAttack(attacker, target, factions);
