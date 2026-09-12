@@ -119,6 +119,21 @@ Feature: Slice 6 melee combat and loot
     Then the server has sent SMSG_MONSTER_MOVE
     And the server has not sent SMSG_ATTACKERSTATEUPDATE
 
+  @tp-sl06-022
+  Scenario: Creature evades when it is too far from combat start
+    Given the player is in combat with the kobold
+    When the kobold is 91 yards from combat start
+    Then the kobold is not in combat
+    And the kobold is alive with full health
+    And SMSG_ATTACKSTOP is the kobold stopping attack on the player
+
+  @tp-sl06-023
+  Scenario: Player cannot melee a creature they are not facing
+    Given the player is 2 yards from the kobold facing away
+    When the player starts auto-attack
+    Then the server has sent SMSG_ATTACKSWING_BADFACING
+    And the server has not sent SMSG_ATTACKERSTATEUPDATE
+
   @negative
   Scenario: Living creature has no loot window
     When the player loots the living kobold

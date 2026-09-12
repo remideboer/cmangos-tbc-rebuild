@@ -697,6 +697,10 @@ public final class World implements Runnable {
             c.meleeCooldownMs = Combat.SWING_ERROR_RETRY_MS;
             return;
         }
+        if (!Combat.hasMeleeFacing(c, victim)) {
+            c.meleeCooldownMs = Combat.SWING_ERROR_RETRY_MS;
+            return;
+        }
         int swing = c.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
         c.meleeCooldownMs = swing > 0 ? swing : 2000;
         creatureMeleeHit(c, victim);
@@ -756,7 +760,7 @@ public final class World implements Runnable {
                     continue;
                 }
                 EventAi.SpellCast sink = (cr, t, spell) -> sendEventAiCast(m, cr, t, spell);
-                if (!c.inCombat && c.ai != null) {
+                if (!c.inCombat && !c.evading && c.ai != null) {
                     c.ai.updateOoc(c, m.nearbyPlayers(c, GameMap.VISIBILITY), factions, LineOfSight::clear,
                             pl -> engage(c, pl));
                 }

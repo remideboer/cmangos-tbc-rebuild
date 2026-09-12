@@ -290,6 +290,7 @@ public class Unit extends Entity {
     }
     public long lastMeleeMs;
     public long lastOffhandMeleeMs;
+    public int lastSwingError;
     public int threat;
 
     public Unit(int valueCount, int typeId) {

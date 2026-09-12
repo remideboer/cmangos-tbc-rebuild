@@ -318,6 +318,40 @@ class CombatTest {
         assertFalse(combat.shouldEvade(c, p, 0));
     }
 
+    /**
+     * TP-SL06-022 — CMaNGOS comment 90 yd drop + template Leash from combat-start.
+     * Template Leash 0 still hard-leashes outdoor so a hitting chase cannot cross the map.
+     */
+    @Test
+    void shouldEvadeWhenOutdoorCreatureExceedsDefaultCombatStartLeash() {
+        combat.startAttack(p, c, 0);
+        c.relocate(Combat.COMBAT_START_LEASH + 1f, 0, 0, 0);
+        assertTrue(combat.shouldEvade(c, p, 0));
+        c.relocate(Combat.COMBAT_START_LEASH - 1f, 0, 0, 0);
+        assertFalse(combat.shouldEvade(c, p, 0));
+        c.mapId = 1;
+        c.relocate(Combat.COMBAT_START_LEASH + 1f, 0, 0, 0);
+        assertTrue(combat.shouldEvade(c, p, 0));
+        c.mapId = 530;
+        assertTrue(combat.shouldEvade(c, p, 0));
+    }
+
+    @Test
+    void usesDefaultCombatStartLeashWhenContinentShouldBeTrue() {
+        assertTrue(Combat.usesDefaultCombatStartLeash(0));
+        assertTrue(Combat.usesDefaultCombatStartLeash(1));
+        assertTrue(Combat.usesDefaultCombatStartLeash(530));
+        assertFalse(Combat.usesDefaultCombatStartLeash(389));
+    }
+
+    @Test
+    void shouldNotApplyDefaultCombatStartLeashInDungeon() {
+        combat.startAttack(p, c, 0);
+        c.mapId = 389;
+        c.relocate(Combat.COMBAT_START_LEASH + 1f, 0, 0, 0);
+        assertFalse(combat.shouldEvade(c, p, 0));
+    }
+
     @Test
     void tickUnreachableEvadeWhenVictimTooHighShouldEnterEvadeAfterTenSeconds() {
         combat.startAttack(p, c, 0);
@@ -707,6 +741,35 @@ class CombatTest {
         p.setHealth(0);
         p.relocate(0, 0, 0, 0);
         assertFalse(Combat.canReachWithMeleeAttack(c, p));
+    }
+
+    @Test
+    void hasMeleeFacingWhenVictimBehindShouldReturnFalse() {
+        assertFalse(Combat.hasMeleeFacing(null, p));
+        assertFalse(Combat.hasMeleeFacing(c, null));
+        p.relocate(0, 0, 0, 0);
+        c.relocate(0, 0, 0, 0);
+        assertTrue(Combat.hasMeleeFacing(p, c));
+        c.relocate(2, 0, 0, 0);
+        p.relocate(0, 0, 0, 0);
+        assertTrue(Combat.hasMeleeFacing(p, c));
+        p.relocate(0, 0, 0, (float) Math.PI);
+        assertFalse(Combat.hasMeleeFacing(p, c));
+        c.relocate(0, 2, 0, 0);
+        p.relocate(0, 0, 0, 0);
+        assertFalse(Combat.hasMeleeFacing(p, c));
+        assertTrue(Combat.hasInArc(p, p, Combat.MELEE_FACING_ARC));
+        assertFalse(Combat.hasInArc(null, p, Combat.MELEE_FACING_ARC));
+        p.relocate(0, 0, 0, (float) -0.1);
+        c.relocate(2, 0, 0, 0);
+        assertTrue(Combat.hasMeleeFacing(p, c));
+        p.relocate(0, 0, 0, 0);
+        c.relocate(-1f, -0.01f, 0, 0);
+        assertFalse(Combat.hasMeleeFacing(p, c));
+        assertFalse(Combat.hasInArc(p, null, Combat.MELEE_FACING_ARC));
+        c.relocate(2, 0, 0, 0);
+        p.relocate(0, 0, 0, 0);
+        assertTrue(Combat.hasInArc(p, c, -Combat.MELEE_FACING_ARC));
     }
 
     @Test

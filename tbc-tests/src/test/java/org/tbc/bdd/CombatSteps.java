@@ -87,6 +87,16 @@ public class CombatSteps {
         float ox = p.x;
         float oy = p.y;
         p.relocate(kobold.x + yards, kobold.y, kobold.z, kobold.o);
+        p.setFacingTo(kobold.x, kobold.y);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+    }
+
+    @Given("the player is {int} yards from the kobold facing away")
+    public void playerYardsFacingAway(int yards) {
+        Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(kobold.x + yards, kobold.y, kobold.z, 0f);
         world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
     }
 
@@ -94,6 +104,23 @@ public class CombatSteps {
     public void elapseWorld(int ms) {
         client.clear();
         world.tick(ms);
+    }
+
+    @When("the kobold is {int} yards from combat start")
+    public void koboldYardsFromCombatStart(int yards) {
+        Player p = client.session().player();
+        float destX = kobold.combatStartX + yards;
+        float destY = kobold.combatStartY;
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(destX, destY, kobold.z, p.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        ox = kobold.x;
+        oy = kobold.y;
+        kobold.relocate(destX, destY, kobold.z, kobold.o);
+        world.map(p.mapId, p.instanceId).reindex(kobold, ox, oy);
+        client.clear();
+        world.tick(50);
     }
 
     @When("the player starts auto-attack")
@@ -176,6 +203,11 @@ public class CombatSteps {
     @Then("the server has sent SMSG_ATTACKSWING_NOTINRANGE")
     public void sawNotInRange() {
         assertTrue(client.saw(Opcodes.SMSG_ATTACKSWING_NOTINRANGE));
+    }
+
+    @Then("the server has sent SMSG_ATTACKSWING_BADFACING")
+    public void sawBadFacing() {
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKSWING_BADFACING));
     }
 
     @Given("the kobold is faction {int} versus player faction {int}")

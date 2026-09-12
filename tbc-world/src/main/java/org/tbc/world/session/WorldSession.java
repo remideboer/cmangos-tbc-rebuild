@@ -168,20 +168,32 @@ public final class WorldSession {
         if (player.victim != 0 && player.lastMeleeMs + swingDelayMs(false) <= world.nowMs()) {
             Creature c = meleeTarget(world);
             if (c != null) {
-                world.meleeHit(player, c);
-                player.lastMeleeMs = world.nowMs();
+                if (!Combat.hasMeleeFacing(player, c)) {
+                    sendSwingError(Combat.SWING_ERROR_BAD_FACING);
+                    retrySwingIn(world, Combat.SWING_ERROR_RETRY_MS);
+                } else {
+                    player.lastSwingError = Combat.SWING_ERROR_NONE;
+                    world.meleeHit(player, c);
+                    player.lastMeleeMs = world.nowMs();
+                }
             } else {
                 Player opp = world.playerByGuid(player.victim);
                 if (opp != null && opp == player.duelOpponent && opp.alive()) {
-                    world.playerMeleeHit(player, opp);
-                    player.lastMeleeMs = world.nowMs();
+                    if (!Combat.hasMeleeFacing(player, opp)) {
+                        sendSwingError(Combat.SWING_ERROR_BAD_FACING);
+                        retrySwingIn(world, Combat.SWING_ERROR_RETRY_MS);
+                    } else {
+                        player.lastSwingError = Combat.SWING_ERROR_NONE;
+                        world.playerMeleeHit(player, opp);
+                        player.lastMeleeMs = world.nowMs();
+                    }
                 }
             }
         }
         if (player.victim != 0 && player.hasOffhandWeapon()
                 && player.lastOffhandMeleeMs + swingDelayMs(true) <= world.nowMs()) {
             Creature c = meleeTarget(world);
-            if (c != null) {
+            if (c != null && Combat.hasMeleeFacing(player, c)) {
                 world.meleeHitOffhand(player, c);
                 player.lastOffhandMeleeMs = world.nowMs();
             }
@@ -203,6 +215,24 @@ public final class WorldSession {
     private int swingDelayMs(boolean offhand) {
         int delay = player.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME + (offhand ? 1 : 0));
         return delay > 0 ? delay : 2000;
+    }
+
+    private void retrySwingIn(World world, int ms) {
+        player.lastMeleeMs = world.nowMs() - swingDelayMs(false) + ms;
+        player.lastOffhandMeleeMs = world.nowMs() - swingDelayMs(true) + ms;
+    }
+
+    /** CMaNGOS Player::SendAttackSwingBadFacingAttack — only when the error changes. */
+    private void sendSwingError(int error) {
+        if (error == player.lastSwingError) {
+            return;
+        }
+        player.lastSwingError = error;
+        if (error == Combat.SWING_ERROR_BAD_FACING) {
+            send(Opcodes.SMSG_ATTACKSWING_BADFACING, new byte[0]);
+        } else if (error == Combat.SWING_ERROR_NOT_IN_RANGE) {
+            send(Opcodes.SMSG_ATTACKSWING_NOTINRANGE, new byte[0]);
+        }
     }
 
     private Creature meleeTarget(World world) {
@@ -1111,6 +1141,12 @@ public final class WorldSession {
             send(Opcodes.SMSG_ATTACKSWING_NOTINRANGE, new byte[0]);
             return;
         }
+        if (!Combat.hasMeleeFacing(player, c)) {
+            beginPlayerAutoAttack(world, c);
+            sendSwingError(Combat.SWING_ERROR_BAD_FACING);
+            retrySwingIn(world, Combat.SWING_ERROR_RETRY_MS);
+            return;
+        }
         if (!c.inCombat) {
             world.engage(c, player);
         } else {
@@ -1119,6 +1155,7 @@ public final class WorldSession {
         world.meleeHit(player, c);
         player.lastMeleeMs = world.nowMs();
         player.lastOffhandMeleeMs = world.nowMs();
+        player.lastSwingError = Combat.SWING_ERROR_NONE;
     }
 
     /** CMaNGOS Unit::Attack + SendMeleeAttackStart — player auto-attack without creature AttackStart. */
@@ -1147,6 +1184,11 @@ public final class WorldSession {
             send(Opcodes.SMSG_ATTACKSWING_NOTINRANGE, new byte[0]);
             return;
         }
+        if (!Combat.hasMeleeFacing(player, target)) {
+            sendSwingError(Combat.SWING_ERROR_BAD_FACING);
+            retrySwingIn(world, Combat.SWING_ERROR_RETRY_MS);
+            return;
+        }
         if (!player.inCombat) {
             player.inCombat = true;
             player.victim = target.guid;
@@ -1164,6 +1206,7 @@ public final class WorldSession {
         world.playerMeleeHit(player, target);
         player.lastMeleeMs = world.nowMs();
         player.lastOffhandMeleeMs = world.nowMs();
+        player.lastSwingError = Combat.SWING_ERROR_NONE;
     }
 
     /** movement.md CMSG_MOVE_SPLINE_DONE — MovementInfo + uint32 counter (CMaNGOS TaxiHandler). */

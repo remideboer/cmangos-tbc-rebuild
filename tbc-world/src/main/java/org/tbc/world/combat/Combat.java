@@ -13,6 +13,11 @@ import org.tbc.world.net.wow8606.UpdateFields;
 public final class Combat {
     /** CMaNGOS CONFIG_FLOAT_LEASH_RADIUS — victim 2d from last refresh after pursuit. */
     public static final float LEASH_RADIUS = 30f;
+    /**
+     * Outdoor combat-start hard leash when template Leash is 0.
+     * CMaNGOS CombatManager comment: drop combat at 90 yd; template Leash is the same check.
+     */
+    public static final float COMBAT_START_LEASH = 90f;
     /** CMaNGOS CombatManager::StartEvadeTimer. */
     public static final int EVADE_TIMER_MS = 10_000;
     /** CMaNGOS CREATURE_Z_ATTACK_RANGE_MELEE. */
@@ -20,6 +25,11 @@ public final class Combat {
     public static final float ATTACK_DISTANCE = 5f;
     /** CMaNGOS Unit::UpdateMeleeAttackingState swingError timer. */
     public static final int SWING_ERROR_RETRY_MS = 100;
+    public static final int SWING_ERROR_NONE = 0;
+    public static final int SWING_ERROR_NOT_IN_RANGE = 1;
+    public static final int SWING_ERROR_BAD_FACING = 2;
+    /** CMaNGOS UpdateMeleeAttackingState HasInArc(2π/3). */
+    public static final float MELEE_FACING_ARC = (float) (2.0 * Math.PI / 3.0);
     /** CMaNGOS BASE_MELEERANGE_OFFSET */
     public static final float BASE_MELEERANGE_OFFSET = 1.33f;
     /** CMaNGOS MELEE_LEEWAY (8/3) when both units run. */
@@ -87,6 +97,50 @@ public final class Combat {
             return false;
         }
         return attacker.distance2d(victim) <= meleeRange(attacker, victim, meleeLeeway(attacker, victim));
+    }
+
+    /** CMaNGOS UpdateMeleeAttackingState HasInArc — stacked targets count as facing. */
+    public static boolean hasMeleeFacing(Unit attacker, Unit victim) {
+        if (attacker == null || victim == null) {
+            return false;
+        }
+        if (attacker.distance2d(victim) < 1e-4) {
+            return true;
+        }
+        return hasInArc(attacker, victim, MELEE_FACING_ARC);
+    }
+
+    /** CMaNGOS WorldObject::HasInArc. */
+    public static boolean hasInArc(Unit attacker, Unit victim, float arc) {
+        if (attacker == null || victim == null) {
+            return false;
+        }
+        if (attacker == victim) {
+            return true;
+        }
+        arc = normalizeOrientation(arc);
+        float angle = angleTo(attacker.x, attacker.y, victim.x, victim.y);
+        angle -= attacker.o;
+        angle = normalizeOrientation(angle);
+        if (angle > Math.PI) {
+            angle -= (float) (2.0 * Math.PI);
+        }
+        float half = arc / 2f;
+        return angle >= -half && angle <= half;
+    }
+
+    static float angleTo(float x, float y, float ox, float oy) {
+        float ang = (float) Math.atan2(oy - y, ox - x);
+        return ang >= 0 ? ang : (float) (2.0 * Math.PI + ang);
+    }
+
+    static float normalizeOrientation(float o) {
+        double twoPi = Math.PI * 2.0;
+        if (o < 0) {
+            double mod = (-o) % twoPi;
+            return (float) (-mod + twoPi);
+        }
+        return (float) (o % twoPi);
     }
 
     /** CMaNGOS CanReachWithMeleeAttack leeway: both moving and not walking. */
@@ -327,9 +381,10 @@ public final class Combat {
         if (victim == null) {
             return true;
         }
-        if (c.leashYards > 0) {
+        float leash = combatStartLeashYards(c);
+        if (leash > 0) {
             double fromStart = Math.hypot(c.x - c.combatStartX, c.y - c.combatStartY);
-            if (fromStart > c.leashYards) {
+            if (fromStart > leash) {
                 return true;
             }
         }
@@ -338,6 +393,21 @@ public final class Combat {
             return false;
         }
         return Math.hypot(victim.x - c.lastRefreshX, victim.y - c.lastRefreshY) > LEASH_RADIUS;
+    }
+
+    /**
+     * Template Leash from combat-start; outdoor default 90 yd when Leash is 0 (not dungeons).
+     */
+    public static float combatStartLeashYards(Creature c) {
+        if (c.leashYards > 0) {
+            return c.leashYards;
+        }
+        return usesDefaultCombatStartLeash(c.mapId) ? COMBAT_START_LEASH : 0f;
+    }
+
+    /** Continents: Eastern Kingdoms, Kalimdor, Outland. CMaNGOS skips this timer path in dungeons. */
+    public static boolean usesDefaultCombatStartLeash(int mapId) {
+        return mapId == 0 || mapId == 1 || mapId == 530;
     }
 
     /** CMaNGOS CombatManager::IsInEvadeMode — timer or HOME. */

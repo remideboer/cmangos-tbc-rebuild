@@ -325,6 +325,86 @@ class Slice06P0Test {
     }
 
     /**
+     * TP-SL06-022 — outdoor combat-start leash (CMaNGOS 90 yd drop): a chase that keeps
+     * landing hits still EnterEvadeMode when the creature is past combat start.
+     */
+    @Test
+    void tpSl06EvadeWhenCreaturePastCombatStartLeashShouldSendAttackStop() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Leash", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(20_000f, 20_000f, 80f, 0);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        client.attackSwing(world, c.guid);
+        assertTrue(c.inCombat);
+        float destX = c.combatStartX + org.tbc.world.combat.Combat.COMBAT_START_LEASH + 1f;
+        float destY = c.combatStartY;
+        ox = p.x;
+        oy = p.y;
+        p.relocate(destX, destY, p.z, p.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        ox = c.x;
+        oy = c.y;
+        c.relocate(destX, destY, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(c, ox, oy);
+        client.clear();
+        world.tick(50);
+        assertFalse(c.inCombat);
+        assertTrue(c.evading);
+        assertTrue(sawAttackStop(client, c.guid, p.guid, 0));
+        world.tick(50);
+        assertFalse(c.inCombat);
+        assertTrue(c.evading);
+    }
+
+    /**
+     * TP-SL06-023 — CMaNGOS UpdateMeleeAttackingState HasInArc(2π/3): back to the target
+     * is SWING_ERROR_BAD_FACING (SMSG_ATTACKSWING_BADFACING), no SMSG_ATTACKERSTATEUPDATE.
+     */
+    @Test
+    void tpSl06SwingWhenNotFacingShouldSendBadFacing() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Turner", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(20_000f, 20_000f, 80f, (float) Math.PI);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x + 2f, p.y, p.z, 0, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        client.clear();
+        client.attackSwing(world, c.guid);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKSWING_BADFACING));
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        ox = p.x;
+        oy = p.y;
+        p.relocate(p.x, p.y, p.z, 0);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.clear();
+        client.attackSwing(world, c.guid);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        ox = p.x;
+        oy = p.y;
+        p.relocate(p.x, p.y, p.z, (float) Math.PI);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        p.lastMeleeMs = 0;
+        client.clear();
+        client.session().tick(world, 50);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKSWING_BADFACING));
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+    }
+
+    /**
      * TP-SL06-019 — SelectHostileTarget unreachable (Z above CREATURE_Z_ATTACK_RANGE_MELEE) starts
      * CombatManager's 10 s evade timer (hits EVADES); expiry EnterEvadeMode / SendMeleeAttackStop.
      */
