@@ -684,8 +684,19 @@ public final class World implements Runnable {
             }
         }
         // Unit::Kill → SetDeathState(JUST_DIED) → Player::Update KillPlayer.
+        // Creatures that hated the victim EnterEvadeMode / MoveTargetedHome (not idle on the corpse).
         if (wasAlive && !p.alive() && p.session != null) {
             DeathHandler.killPlayer(p.session, this);
+            EventAi.SpellCast sink = (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell);
+            enterEvadeMode(hitMap, c, sink);
+            for (Creature other : hitMap.creatures.values()) {
+                if (other == c || !other.alive()) {
+                    continue;
+                }
+                if (other.victim == p.guid || other.threatManager.threatOf(p) > 0f) {
+                    enterEvadeMode(hitMap, other, sink);
+                }
+            }
         }
     }
 

@@ -170,6 +170,48 @@ class Slice17P0Test {
     }
 
     /**
+     * TP-SL17-012 — Unit::Kill of a player: attackers EnterEvadeMode / MoveTargetedHome
+     * so they walk back to spawn instead of standing on the corpse.
+     */
+    @Test
+    void tpSl17CreaturesWhenPlayerDiesShouldEvadeHome() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "EvadeHome");
+        Player p = client.session().player();
+        Creature killer = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(killer);
+        float homeX = killer.spawnX;
+        float homeY = killer.spawnY;
+        float fightX = homeX + 20f;
+        float fightY = homeY;
+        killer.relocate(fightX, fightY, killer.z, killer.o);
+        world.map(p.mapId, p.instanceId).reindex(killer, homeX, homeY);
+        Creature add = world.objectMgr.spawnCreature(6, 0, homeX, homeY, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(add);
+        add.relocate(fightX, fightY, add.z, add.o);
+        world.map(p.mapId, p.instanceId).reindex(add, homeX, homeY);
+        add.inCombat = true;
+        add.victim = p.guid;
+        add.threatManager.add(p, 10f);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(fightX, fightY, p.z, p.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.attackSwing(world, killer.guid);
+        p.setHealth(1);
+        client.clear();
+        int n = 0;
+        while (p.alive() && n++ < 400) {
+            world.creatureMeleeHit(killer, p);
+        }
+        assertFalse(p.alive());
+        assertTrue(killer.evading || killer.motion.type() == org.tbc.world.ai.MotionMaster.HOME);
+        assertTrue(add.evading || add.motion.type() == org.tbc.world.ai.MotionMaster.HOME);
+        world.tick(500);
+        assertTrue(client.saw(Opcodes.SMSG_MONSTER_MOVE));
+    }
+
+    /**
      * TP-SL17-013 — Player::Update skips RegenerateAll unless IsAlive(); ghosts keep HP 1
      * and do not use out-of-combat spirit regen.
      */
