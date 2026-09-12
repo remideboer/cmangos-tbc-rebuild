@@ -87,6 +87,7 @@ public final class LoginBurst {
         s.send(Opcodes.SMSG_INSTANCE_DIFFICULTY, u32(p.difficulty, 0));
         sent.add(Opcodes.SMSG_INSTANCE_DIFFICULTY);
         p.applyCreateFields();
+        world.spells.applyDefaultWarriorStance(p);
         var remaining = p.cooldowns.remainingSpells(world.nowMs());
         WowBuffer spells = new WowBuffer(8 + p.spells.size() * 4 + remaining.size() * 14);
         spells.putU8(0);

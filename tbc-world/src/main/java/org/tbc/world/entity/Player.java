@@ -799,7 +799,8 @@ public final class Player extends Unit {
         setInt(UpdateFields.PLAYER_BYTES_2, pb2);
         setInt(UpdateFields.PLAYER_BYTES_3, gender & 0xFF);
         int sheath = itemAt(0, 15) != null ? 1 : 0;
-        setInt(UpdateFields.UNIT_FIELD_BYTES_2, sheath | (PLAYER_CONTROLLED_DEBUFF_LIMIT << 8));
+        int shapeshift = shapeshiftForm();
+        setInt(UpdateFields.UNIT_FIELD_BYTES_2, sheath | (PLAYER_CONTROLLED_DEBUFF_LIMIT << 8) | (shapeshift << 24));
         setInt(UpdateFields.UNIT_FIELD_FACTIONTEMPLATE, faction);
         setInt(UpdateFields.UNIT_FIELD_DISPLAYID, displayId);
         setInt(UpdateFields.UNIT_FIELD_NATIVEDISPLAYID, displayId);

@@ -8,6 +8,7 @@ import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -36,6 +37,37 @@ public final class AuraSlots {
         setPackedByte(target, UpdateFields.UNIT_FIELD_AURALEVELS, slot, casterLevel & 0xFF);
         setPackedByte(target, UpdateFields.UNIT_FIELD_AURAAPPLICATIONS, slot, Math.max(0, stacks - 1) & 0xFF);
         return slot;
+    }
+
+    /**
+     * VALUES fields after paper-doll sync: occupied slots plus the first free slot so an unequip
+     * that cleared the last extra aura still reaches the client (Battle Stance stays in slot 0).
+     */
+    public static int[] paperDollAuraFields(Unit u) {
+        int lastOcc = -1;
+        for (int i = 0; i < MAX_AURAS; i++) {
+            if (u.getInt(UpdateFields.UNIT_FIELD_AURA + i) != 0) {
+                lastOcc = i;
+            }
+        }
+        int firstFree = lastOcc + 1;
+        if (firstFree >= MAX_AURAS) {
+            firstFree = MAX_AURAS - 1;
+        }
+        int until = Math.max(lastOcc, firstFree);
+        LinkedHashSet<Integer> fields = new LinkedHashSet<>();
+        for (int slot = 0; slot <= until; slot++) {
+            fields.add(UpdateFields.UNIT_FIELD_AURA + slot);
+            fields.add(UpdateFields.UNIT_FIELD_AURAFLAGS + slot / 4);
+            fields.add(UpdateFields.UNIT_FIELD_AURALEVELS + slot / 4);
+            fields.add(UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + slot / 4);
+        }
+        int[] out = new int[fields.size()];
+        int n = 0;
+        for (int f : fields) {
+            out[n++] = f;
+        }
+        return out;
     }
 
     public static int slotOf(Unit target, int spellId) {

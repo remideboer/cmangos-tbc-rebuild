@@ -36,6 +36,24 @@ class AuraSlotsTest {
     }
 
     @Test
+    void paperDollAuraFieldsWhenSlotZeroTakenShouldIncludeNextFreeSlot() {
+        Player p = new Player();
+        AuraSlots.applyVisible(p, 2457, 1, 1);
+        int[] f = AuraSlots.paperDollAuraFields(p);
+        assertTrue(containsField(f, UpdateFields.UNIT_FIELD_AURA));
+        assertTrue(containsField(f, UpdateFields.UNIT_FIELD_AURA + 1));
+    }
+
+    private static boolean containsField(int[] fields, int field) {
+        for (int f : fields) {
+            if (f == field) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Test
     void applyVisibleWhenAllSlotsTakenShouldReturnMinusOne() {
         Player p = new Player();
         for (int i = 0; i < AuraSlots.MAX_AURAS; i++) {

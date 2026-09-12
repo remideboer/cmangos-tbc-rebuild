@@ -2122,7 +2122,7 @@ class Slice14P0Test {
     /**
      * TP-SL14-013 — Player::ApplyItemEquipSpell ITEM_SPELLTRIGGER_ON_EQUIP (ItemPrototype.h 1).
      * Autoequip Band of the Eternal Champion 29301 must write spell 14052 on self VALUES
-     * UNIT_FIELD_AURA[0] (Attack Power 60).
+     * UNIT_FIELD_AURA first free slot (Attack Power 60). Warriors already have Battle Stance in [0].
      */
     @Test
     void tpSl14EquipAppliesOnEquipSpellAura() throws Exception {
@@ -2144,12 +2144,13 @@ class Slice14P0Test {
         equip.putU8(0);
         equip.putU8(src);
         client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
-        assertEquals(Content.SPELL_ATTACK_POWER_60, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+        assertEquals(2457, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+        assertEquals(Content.SPELL_ATTACK_POWER_60, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA + 1));
     }
 
     /**
      * TP-SL14-013 — Player::ApplyItemEquipSpell(apply=false). CMSG_AUTOSTORE_BAG_ITEM of
-     * Band of the Eternal Champion 29301 must clear UNIT_FIELD_AURA[0] on the self VALUES.
+     * Band of the Eternal Champion 29301 must clear the ON_EQUIP aura; Battle Stance stays in slot 0.
      */
     @Test
     void tpSl14UnequipRemovesOnEquipSpellAura() throws Exception {
@@ -2178,7 +2179,8 @@ class Slice14P0Test {
         store.putU8(finger);
         store.putU8(0);
         client.handle(world, Opcodes.CMSG_AUTOSTORE_BAG_ITEM, store.array());
-        assertEquals(0, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+        assertEquals(2457, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA + 1));
     }
 
     /**

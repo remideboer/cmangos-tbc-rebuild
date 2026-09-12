@@ -11,13 +11,23 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.spell.AuraSlots;
 import org.tbc.world.world.World;
 
+import java.util.Arrays;
 import java.util.function.BiConsumer;
 
 /** Bag 0 swap. Layout: spec/03-protocol/packets/inventory.md */
 public final class InventoryHandler {
     private InventoryHandler() {}
+
+    /** Slot 0 is Battle Stance on warriors; ON_EQUIP / unequip must push later slots too. */
+    private static int[] withAuras(Player p, int... fields) {
+        int[] extra = AuraSlots.paperDollAuraFields(p);
+        int[] all = Arrays.copyOf(fields, fields.length + extra.length);
+        System.arraycopy(extra, 0, all, fields.length, extra.length);
+        return all;
+    }
 
     public static void swapInvItem(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
@@ -45,7 +55,7 @@ public final class InventoryHandler {
             world.objectMgr.applyEquippedMelee(p);
         }
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1,
+                UpdateBuilder.values(p, withAuras(p, srcField, srcField + 1, dstField, dstField + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -75,7 +85,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA));
+                        UpdateFields.UNIT_FIELD_AURA)));
         s.send(pkt.opcode(), pkt.payload());
     }
     public static void swapItem(WorldSession s, World world, WowBuffer in) {
@@ -111,7 +121,7 @@ public final class InventoryHandler {
             world.objectMgr.applyEquippedMelee(p);
         }
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1,
+                UpdateBuilder.values(p, withAuras(p, srcField, srcField + 1, dstField, dstField + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -141,7 +151,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA));
+                        UpdateFields.UNIT_FIELD_AURA)));
         s.send(pkt.opcode(), pkt.payload());
     }
 
@@ -165,7 +175,7 @@ public final class InventoryHandler {
             world.objectMgr.applyEquippedMelee(p);
         }
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, field, field + 1,
+                UpdateBuilder.values(p, withAuras(p, field, field + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -195,7 +205,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA));
+                        UpdateFields.UNIT_FIELD_AURA)));
         s.send(pkt.opcode(), pkt.payload());
     }
 
@@ -378,7 +388,7 @@ public final class InventoryHandler {
         p.setGuid(dstField, UpdateBuilder.itemGuid(it));
         world.objectMgr.applyEquippedMelee(p);
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1,
+                UpdateBuilder.values(p, withAuras(p, srcField, srcField + 1, dstField, dstField + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -408,7 +418,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA));
+                        UpdateFields.UNIT_FIELD_AURA)));
         s.send(pkt.opcode(), pkt.payload());
         if (dest >= Player.INVENTORY_SLOT_BAG_START && dest < Player.INVENTORY_SLOT_BAG_END) {
             WowBuffer opened = new WowBuffer(8);
@@ -441,7 +451,7 @@ public final class InventoryHandler {
         p.setGuid(dstField, UpdateBuilder.itemGuid(it));
         world.objectMgr.applyEquippedMelee(p);
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, srcField, srcField + 1, dstField, dstField + 1,
+                UpdateBuilder.values(p, withAuras(p, srcField, srcField + 1, dstField, dstField + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -471,7 +481,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA));
+                        UpdateFields.UNIT_FIELD_AURA)));
         s.send(pkt.opcode(), pkt.payload());
     }
 

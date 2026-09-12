@@ -179,6 +179,9 @@ public final class SpellEngine {
     public static final int FROST_ARMOR = 168;
     public static final int FROST_ARMOR_DURATION_MS = 1_800_000;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
+    /** SharedDefines.h SPELL_ID_PASSIVE_BATTLE_STANCE. Effect APPLY_AURA, aura 36, misc FORM_BATTLESTANCE 17. */
+    public static final int SPELL_BATTLE_STANCE = 2457;
+    public static final int CLASS_WARRIOR = 1;
     /** Spell.dbc EffectAmplitude1 for Unstable Affliction rank 1. */
     public static final int UA_AMPLITUDE_MS = 3000;
     /** Hearthstone. Spell.dbc CastingTimeIndex 7 → SpellCastTimes.dbc 10000 ms, StartRecoveryTime 1500. */
@@ -327,6 +330,8 @@ public final class SpellEngine {
                 .withCastTime(HEARTHSTONE_CAST_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
+        spells.put(SPELL_BATTLE_STANCE, new SpellInfo(SPELL_BATTLE_STANCE, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_SHAPESHIFT, 0, 0, 0, 0, 0f, Unit.FORM_BATTLESTANCE));
     }
 
     public static SpellEngine alwaysHit() {
@@ -340,6 +345,20 @@ public final class SpellEngine {
     /** SPELL_AURA_* modifier catalog applied by EFFECT_APPLY_AURA. */
     public AuraEngine auras() {
         return auras;
+    }
+
+    /**
+     * Player::_LoadAuras: warrior without SPELL_AURA_MOD_SHAPESHIFT casts SPELL_ID_PASSIVE_BATTLE_STANCE 2457.
+     * nowMs 0 so the holder is permanent (stance lasts until another shapeshift).
+     */
+    public void applyDefaultWarriorStance(Player p) {
+        if (p == null || p.clazz != CLASS_WARRIOR || p.shapeshiftForm() != Unit.FORM_NONE) {
+            return;
+        }
+        if (!p.spells.contains(SPELL_BATTLE_STANCE)) {
+            p.spells.add(SPELL_BATTLE_STANCE);
+        }
+        apply(p, p, info(SPELL_BATTLE_STANCE), 0L);
     }
 
     public void catalogDummy(int effectId) {

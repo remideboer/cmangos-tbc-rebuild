@@ -266,7 +266,9 @@ class Slice09GroupTest {
         assertEquals(b.zoneId, full.getU16());
         assertEquals((int) b.x & 0xFFFF, full.getU16());
         assertEquals((int) b.y & 0xFFFF, full.getU16());
-        assertEquals(0L, full.getU64());
+        assertEquals(1L, full.getU64(), "Battle Stance occupies aura slot 0");
+        assertEquals(2457, full.getU16());
+        assertEquals(1, full.getU8());
         assertEquals(0, full.getU8());
         assertEquals(0L, full.getU64());
         assertEquals(0, full.remaining());
