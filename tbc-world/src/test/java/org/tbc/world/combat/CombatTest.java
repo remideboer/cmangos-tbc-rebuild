@@ -580,6 +580,15 @@ class CombatTest {
     }
 
     @Test
+    void attackStopWhenHostilesRemainShouldKeepInCombatFlag() {
+        combat.startAttack(p, c, 2000);
+        combat.attackStop(p);
+        assertEquals(0, p.victim);
+        assertTrue(p.inCombat);
+        assertEquals(Unit.UNIT_FLAG_IN_COMBAT, p.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_IN_COMBAT);
+    }
+
+    @Test
     void swingWhenEventAiShouldFireDeathCastAtKiller() {
         c.eventAi = new EventAi();
         c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_DEATH, 0, 100, 0, 0, 0, 0, 0,

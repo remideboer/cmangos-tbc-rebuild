@@ -57,6 +57,32 @@ class Slice17P0Test {
     }
 
     /**
+     * TP-SL17-018 — BuildPlayerRepop: ghost at the graveyard stands and can walk.
+     * KillPlayer roots + HEALTH 0; release must UNROOT, HEALTH 1, and
+     * UNIT_BYTE1_FLAG_ALWAYS_STAND (Player.cpp BuildPlayerRepop / ResurrectPlayer).
+     */
+    @Test
+    void tpSl17RepopWhenKilledShouldStandUnrootAndSendHealthOne() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Walker");
+        Player p = client.session().player();
+        DeathHandler.killPlayer(client.session(), world);
+        assertTrue(client.saw(Opcodes.SMSG_FORCE_MOVE_ROOT));
+        client.clear();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        assertTrue(p.ghost);
+        assertEquals(1, p.health());
+        assertEquals(1, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        assertTrue(client.saw(Opcodes.SMSG_FORCE_MOVE_UNROOT));
+        int bytes1 = client.valuesField(p.guid, UpdateFields.UNIT_FIELD_BYTES_1);
+        assertEquals(org.tbc.world.entity.Unit.UNIT_STAND_STATE_STAND, bytes1 & 0xFF);
+        assertEquals(org.tbc.world.entity.Unit.UNIT_BYTE1_FLAG_ALWAYS_STAND,
+                (bytes1 >>> 24) & org.tbc.world.entity.Unit.UNIT_BYTE1_FLAG_ALWAYS_STAND);
+    }
+
+    /**
      * TP-SL17-010 — RepopAtGraveyard uses the closest world_safe_locs linked to the
      * zone (CMaNGOS GetClosestGraveYard area then zone). Goldshire → loc 106, not
      * the map default / Northshire.

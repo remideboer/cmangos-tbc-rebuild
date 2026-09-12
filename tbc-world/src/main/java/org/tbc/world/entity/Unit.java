@@ -34,6 +34,8 @@ public class Unit extends Entity {
     public static final int UNIT_STAND_STATE_SIT = 1;
     public static final int UNIT_STAND_STATE_SLEEP = 3;
     public static final int UNIT_STAND_STATE_KNEEL = 8;
+    /** UNIT_FIELD_BYTES_1 byte 3 — ghosts (BuildPlayerRepop). */
+    public static final int UNIT_BYTE1_FLAG_ALWAYS_STAND = 0x01;
     /** SpellDefines.h ShapeshiftForm — UNIT_FIELD_BYTES_2 byte 3. */
     public static final int FORM_NONE = 0;
     public static final int FORM_BATTLESTANCE = 0x11;
@@ -370,6 +372,12 @@ public class Unit extends Entity {
     private void setStandState(int state) {
         int bytes = getInt(UpdateFields.UNIT_FIELD_BYTES_1);
         setInt(UpdateFields.UNIT_FIELD_BYTES_1, (bytes & ~0xFF) | (state & 0xFF));
+    }
+
+    /** UNIT_FIELD_BYTES_1 byte 3 (UNIT_BYTES_1_OFFSET_MISC_FLAGS). */
+    public void setBytes1MiscFlags(int flags) {
+        int bytes = getInt(UpdateFields.UNIT_FIELD_BYTES_1);
+        setInt(UpdateFields.UNIT_FIELD_BYTES_1, (bytes & 0x00FFFFFF) | ((flags & 0xFF) << 24));
     }
 
     /** UNIT_FIELD_BYTES_2 byte 3 — CMaNGOS SetShapeshiftForm. */

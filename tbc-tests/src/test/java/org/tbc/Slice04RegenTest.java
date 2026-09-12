@@ -64,6 +64,33 @@ class Slice04RegenTest {
         assertEquals(23, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
     }
 
+    /**
+     * TP-SL06-024 — CMSG_ATTACKSTOP is Unit::AttackStop (stop swinging). HostileRefManager
+     * still has the creature, so IsInCombat stays set and spirit HP regen stays off.
+     */
+    @Test
+    void tpSl06AttackStopWhileHostileShouldNotSpiritHeal() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, HUMAN, MAGE, "Tankmage");
+        Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(20_000f, 20_000f, 80f, 0);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        org.tbc.world.entity.Creature c = world.objectMgr.spawnCreature(
+                6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        world.engage(c, p);
+        c.meleeCooldownMs = 60_000;
+        client.handle(world, org.tbc.world.net.wow8606.Opcodes.CMSG_ATTACKSTOP, new byte[0]);
+        p.setHealth(20);
+        client.clear();
+
+        world.tick(2000);
+
+        assertEquals(20, p.health());
+    }
+
     @Test
     void tpSl04RegenWhenInCombatShouldNotHealButStillRegenMana() {
         World world = World.inMemory();

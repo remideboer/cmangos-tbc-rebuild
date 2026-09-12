@@ -1485,7 +1485,7 @@ public final class WorldSession {
     private void handleAttackStop(World world) {
         long victim = player.victim;
         boolean dead = !player.alive();
-        world.combat.stopAttack(player);
+        world.combat.attackStop(player);
         send(Opcodes.SMSG_ATTACKSTOP, world.combat.encodeAttackStop(player.guid, victim, dead));
     }
 

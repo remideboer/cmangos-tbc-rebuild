@@ -247,6 +247,14 @@ public final class Combat {
     }
 
     /**
+     * CMaNGOS Unit::AttackStop (CMSG_ATTACKSTOP). Stops melee swinging; CombatStop /
+     * HandleExitCombat still owns leaving UNIT_FLAG_IN_COMBAT when hostiles are gone.
+     */
+    public void attackStop(Player p) {
+        p.victim = 0;
+    }
+
+    /**
      * CMaNGOS HostileRefManager::getSize — a living in-combat creature still hates this player.
      */
     public boolean hasHostiles(Player p, Iterable<Creature> creatures) {

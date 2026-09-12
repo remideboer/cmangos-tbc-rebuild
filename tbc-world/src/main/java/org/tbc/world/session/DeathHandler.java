@@ -107,6 +107,8 @@ public final class DeathHandler {
         p.setGhost(true);
         p.ghostTimeMs = world.nowMs();
         p.setHealth(1);
+        p.stand();
+        p.setBytes1MiscFlags(Unit.UNIT_BYTE1_FLAG_ALWAYS_STAND);
         // BuildPlayerRepop: clear the release timer byte, unroot unless still immobilized.
         p.setInt(UpdateFields.PLAYER_FIELD_BYTES,
                 p.getInt(UpdateFields.PLAYER_FIELD_BYTES) & ~PLAYER_FIELD_BYTE_RELEASE_TIMER);
@@ -170,6 +172,8 @@ public final class DeathHandler {
         }
         p.setGhost(true);
         p.setHealth(1);
+        p.stand();
+        p.setBytes1MiscFlags(Unit.UNIT_BYTE1_FLAG_ALWAYS_STAND);
         if (p.auras.stream().noneMatch(a -> a.spellId() == PvpObjectives.GHOST_AURA)) {
             p.auras.add(new Unit.Aura(PvpObjectives.GHOST_AURA, 0, 1));
             AuraSlots.applyVisible(p, PvpObjectives.GHOST_AURA, Math.max(1, p.level), 1);
@@ -364,6 +368,9 @@ public final class DeathHandler {
     private static void resurrect(WorldSession s, World world, Player p) {
         p.setGhost(false);
         p.auras.removeIf(a -> a.spellId() == PvpObjectives.GHOST_AURA);
+        p.stand();
+        p.setBytes1MiscFlags(0);
+        p.sendMoveRoot(false);
         WowBuffer hide = new WowBuffer(16);
         hide.putU32(0xFFFFFFFF);
         hide.putFloat(0);
@@ -376,7 +383,8 @@ public final class DeathHandler {
     }
 
     private static void sendGhostValues(WorldSession s, Player p) {
-        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FLAGS));
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p,
+                UpdateFields.UNIT_FIELD_HEALTH, UpdateFields.UNIT_FIELD_BYTES_1, UpdateFields.PLAYER_FLAGS));
         s.send(upd.opcode(), upd.payload());
     }
 
