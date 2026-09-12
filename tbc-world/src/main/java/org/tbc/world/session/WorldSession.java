@@ -934,6 +934,28 @@ public final class WorldSession {
         seen.clear();
     }
 
+    /** Unit::isSpiritService — healer or guide. */
+    static boolean isSpiritService(Creature c) {
+        return (c.npcFlags & (Content.UNIT_NPC_FLAG_SPIRITHEALER | Content.UNIT_NPC_FLAG_SPIRITGUIDE)) != 0;
+    }
+
+    /** After resurrect, spirit service is invisible for alive — DestroyForPlayer. */
+    public void hideSpiritService(World world) {
+        GameMap map = world.map(player.mapId, player.instanceId);
+        var it = seen.iterator();
+        while (it.hasNext()) {
+            long guid = it.next();
+            Creature c = Content.creature(map, guid);
+            if (c == null || !isSpiritService(c)) {
+                continue;
+            }
+            WowBuffer d = new WowBuffer(8);
+            d.putU64(guid);
+            send(Opcodes.SMSG_DESTROY_OBJECT, d.array());
+            it.remove();
+        }
+    }
+
     public void revealNearby(World world) {
         if (player == null) {
             return;
@@ -941,6 +963,9 @@ public final class WorldSession {
         GameMap map = world.map(player.mapId, player.instanceId);
         int t = (int) world.nowMs();
         for (Creature c : map.nearbyCreatures(player, GameMap.VISIBILITY)) {
+            if (isSpiritService(c) && player.alive() && !player.ghost) {
+                continue;
+            }
             if (!seen.add(c.guid)) {
                 continue;
             }

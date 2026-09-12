@@ -172,6 +172,43 @@ class Slice17P0Test {
     }
 
     /**
+     * TP-SL17-016 — Spirit service (healer/guide) CREATE only for ghosts
+     * ({@code isInvisibleForAlive}). Living {@code revealNearby} skips them; resurrect
+     * sends {@code SMSG_DESTROY_OBJECT} raw guid and drops them from seen.
+     */
+    @Test
+    void tpSl17SpiritHealersVisibleOnlyToGhosts() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "SeeHealer");
+        Player p = client.session().player();
+        Creature healer = spawnSpiritHealer(world, p);
+        client.clear();
+        client.session().forgetSeen();
+        client.session().revealNearby(world);
+        assertFalse(client.sawCreateObject(healer.guid));
+
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        healer.relocate(p.x, p.y, p.z, p.o);
+        client.clear();
+        client.session().forgetSeen();
+        client.session().revealNearby(world);
+        assertTrue(client.sawCreateObject(healer.guid));
+
+        client.clear();
+        WowBuffer activate = new WowBuffer(8);
+        activate.putU64(healer.guid);
+        client.handle(world, Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, activate.array());
+        assertFalse(p.ghost);
+        assertEquals(healer.guid, WowClientDouble.u64le(lastPayload(client, Opcodes.SMSG_DESTROY_OBJECT), 0));
+        client.clear();
+        client.session().revealNearby(world);
+        assertFalse(client.sawCreateObject(healer.guid));
+    }
+
+    /**
      * TP-SL17-012 — Unit::Kill of a player: attackers EnterEvadeMode / MoveTargetedHome
      * so they walk back to spawn instead of standing on the corpse.
      */

@@ -229,14 +229,14 @@ public final class DeathHandler {
         if (p.distance2d(p.corpse) > CORPSE_RECLAIM_RADIUS) {
             return;
         }
-        resurrect(s, p);
+        resurrect(s, world, p);
         int max = p.maxHealth() == 0 ? 100 : p.maxHealth();
         p.setHealth(max / 2);
     }
 
     public static void spiritHealer(WorldSession s, World world) {
         Player p = s.player();
-        resurrect(s, p);
+        resurrect(s, world, p);
         int max = p.maxHealth() == 0 ? 100 : p.maxHealth();
         p.setHealth(max / 2);
         p.setInt(UpdateFields.UNIT_FIELD_POWER1, p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1) / 2);
@@ -343,7 +343,7 @@ public final class DeathHandler {
         if (p.resurrectGuid != guid) {
             return;
         }
-        resurrect(s, p);
+        resurrect(s, world, p);
         int max = p.maxHealth() == 0 ? 100 : p.maxHealth();
         int hp = p.resurrectHealth;
         p.setHealth(hp > 0 && hp < max ? hp : max);
@@ -361,7 +361,7 @@ public final class DeathHandler {
         p.resurrectMana = 0;
     }
 
-    private static void resurrect(WorldSession s, Player p) {
+    private static void resurrect(WorldSession s, World world, Player p) {
         p.setGhost(false);
         p.auras.removeIf(a -> a.spellId() == PvpObjectives.GHOST_AURA);
         WowBuffer hide = new WowBuffer(16);
@@ -372,6 +372,7 @@ public final class DeathHandler {
         s.send(Opcodes.SMSG_DEATH_RELEASE_LOC, hide.array());
         sendWaterWalk(s, false);
         sendGhostValues(s, p);
+        s.hideSpiritService(world);
     }
 
     private static void sendGhostValues(WorldSession s, Player p) {

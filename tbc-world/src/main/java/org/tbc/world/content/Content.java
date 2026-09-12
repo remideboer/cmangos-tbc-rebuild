@@ -66,6 +66,8 @@ public final class Content {
     public static final int GOSSIP_OPTION_SPIRITHEALER = 6;
     /** Unit.h UNIT_NPC_FLAG_SPIRITHEALER. */
     public static final int UNIT_NPC_FLAG_SPIRITHEALER = 0x00004000;
+    /** Unit.h UNIT_NPC_FLAG_SPIRITGUIDE. */
+    public static final int UNIT_NPC_FLAG_SPIRITGUIDE = 0x00008000;
     /** GossipDef.h GOSSIP_OPTION_BANKER. */
     public static final int GOSSIP_OPTION_BANKER = 9;
     /** GossipDef.h GOSSIP_OPTION_INNKEEPER. */
