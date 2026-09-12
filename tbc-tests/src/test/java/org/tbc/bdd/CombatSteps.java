@@ -104,20 +104,49 @@ public class CombatSteps {
 
     @Then("SMSG_ATTACKSTART includes the creature attacking the player")
     public void creatureAttackStart() {
+        assertTrue(sawCreatureAttackStart());
+    }
+
+    @Then("SMSG_ATTACKSTART does not include the creature attacking the player")
+    public void noCreatureAttackStart() {
+        assertFalse(sawCreatureAttackStart());
+    }
+
+    @Then("the kobold is not in combat")
+    public void koboldNotInCombat() {
+        assertFalse(kobold.inCombat);
+    }
+
+    @Then("the server has sent SMSG_ATTACKSWING_NOTINRANGE")
+    public void sawNotInRange() {
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKSWING_NOTINRANGE));
+    }
+
+    @Given("the kobold is faction {int} versus player faction {int}")
+    public void setNeutralFactions(int creatureFaction, int playerFaction) {
+        setFaction(kobold, creatureFaction);
+        setFaction(client.session().player(), playerFaction);
+    }
+
+    private boolean sawCreatureAttackStart() {
         long playerGuid = client.session().player().guid;
-        boolean saw = false;
         for (int i = 0; i < client.opcodes.size(); i++) {
             if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKSTART) {
                 continue;
             }
             byte[] p = client.payloads.get(i);
-            assertTrue(p.length >= 16);
-            if (WowClientDouble.u64le(p, 0) == kobold.guid
+            if (p.length >= 16
+                    && WowClientDouble.u64le(p, 0) == kobold.guid
                     && WowClientDouble.u64le(p, 8) == playerGuid) {
-                saw = true;
+                return true;
             }
         }
-        assertTrue(saw);
+        return false;
+    }
+
+    private static void setFaction(org.tbc.world.entity.Unit u, int templateId) {
+        u.faction = templateId;
+        u.setInt(UpdateFields.UNIT_FIELD_FACTIONTEMPLATE, templateId);
     }
 
     @When("{int} ms elapse on the combat session")

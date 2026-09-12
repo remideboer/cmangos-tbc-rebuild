@@ -63,6 +63,14 @@ public final class Relations {
         return factions.isHostile(attacker, target) || factions.isHostile(target, attacker);
     }
 
+    /** CMaNGOS Unit::CanAttackNow — both alive and {@link #canAttack} (mount omitted). */
+    public static boolean canAttackNow(Unit attacker, Unit target, Factions factions) {
+        if (attacker == null || target == null || !attacker.alive() || !target.alive()) {
+            return false;
+        }
+        return canAttack(attacker, target, factions);
+    }
+
     /** CMaNGOS Unit::CanAttackOnSight (no stealth / pet-disabled). */
     public static boolean canAttackOnSight(Unit attacker, Unit target, Factions factions) {
         if (target instanceof Creature victim && victim.evading) {

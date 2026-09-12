@@ -74,6 +74,25 @@ class RelationsTest {
     }
 
     @Test
+    void canAttackNowWhenFriendlyNpcShouldBeFalse() {
+        setFaction(c, 12);
+        assertFalse(Relations.canAttackNow(p, c, factions));
+    }
+
+    @Test
+    void canAttackNowWhenDeadOrNullShouldBeFalse() {
+        assertFalse(Relations.canAttackNow(null, c, factions));
+        assertFalse(Relations.canAttackNow(p, null, factions));
+        c.setHealth(0);
+        assertFalse(Relations.canAttackNow(p, c, factions));
+    }
+
+    @Test
+    void canAttackNowWhenHostileAliveShouldBeTrue() {
+        assertTrue(Relations.canAttackNow(p, c, factions));
+    }
+
+    @Test
     void canAttackWhenNeutralTimberWolfShouldBeTrue() {
         setFaction(p, 115);
         setFaction(c, 32);

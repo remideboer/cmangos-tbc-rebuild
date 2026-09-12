@@ -30,6 +30,23 @@ Feature: Slice 6 melee combat and loot
     When 50 ms elapse on the world
     Then SMSG_ATTACKSTART includes the creature attacking the player
 
+  @tp-sl06-018
+  Scenario: Out of range auto-attack does not pull the creature
+    Given the player is 40 yards from the kobold
+    When the player starts auto-attack
+    Then the server has sent SMSG_ATTACKSWING_NOTINRANGE
+    And SMSG_ATTACKSTART does not include the creature attacking the player
+    And the kobold is not in combat
+
+  @tp-sl06-018
+  Scenario: Neutral creature does not aggro from an out-of-melee swing
+    Given the kobold is faction 32 versus player faction 115
+    And the player is 10 yards from the kobold
+    When the player starts auto-attack
+    And 500 ms elapse on the world
+    Then SMSG_ATTACKSTART does not include the creature attacking the player
+    And the kobold is not in combat
+
   @tp-sl06-006
   Scenario: Autostore corpse loot into bags
     When the player auto-attacks until the kobold is dead

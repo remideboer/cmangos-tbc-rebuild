@@ -141,8 +141,8 @@ class Slice11EventAiTest {
         WowClientDouble client = login(world, "Chase");
         Player p = client.session().player();
         Creature c = world.objectMgr.spawnCreature(6, 0, p.x + 20, p.y, p.z, p.o, world.scripts);
+        c.detectionRange = 25f;
         world.map(p.mapId, p.instanceId).add(c);
-        client.attackSwing(world, c.guid);
         client.clear();
         world.tick(1000);
         assertTrue(client.saw(Opcodes.SMSG_MONSTER_MOVE));

@@ -4,6 +4,7 @@ import org.tbc.bdd.WowClientDouble;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.DeathHandler;
@@ -46,6 +47,62 @@ class Slice06P0Test {
             }
         }
         assertTrue(sawCreatureStart);
+    }
+
+    /**
+     * TP-SL06-018 — CMSG_ATTACKSWING out of melee and out of GetAttackDistance must not
+     * AttackStart the creature (Unit::Attack only starts the player; DetectOrAttack is range-gated).
+     */
+    @Test
+    void tpSl06OutOfRangeSwingShouldNotStartCreatureAttack() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "FarSwing", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x + 40f, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.clear();
+        client.attackSwing(world, c.guid);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKSWING_NOTINRANGE));
+        assertTrue(sawAttackStart(client, p.guid, c.guid));
+        assertFalse(sawAttackStart(client, c.guid, p.guid));
+        assertFalse(c.inCombat);
+        assertEquals(0, c.victim);
+    }
+
+    /**
+     * TP-SL06-018 — yellow/neutral (CanAttack, not CanAttackOnSight) must not aggro from a
+     * click outside melee; MoveInLineOfSight ignores neutrals.
+     */
+    @Test
+    void tpSl06NeutralOutOfMeleeSwingShouldNotAggro() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "WolfClick", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        setFaction(p, 115);
+        setFaction(c, 32);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x + 10f, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.clear();
+        client.attackSwing(world, c.guid);
+        assertFalse(sawAttackStart(client, c.guid, p.guid));
+        assertFalse(c.inCombat);
+        world.tick(500);
+        assertFalse(c.inCombat);
+        assertFalse(sawAttackStart(client, c.guid, p.guid));
     }
 
     @Test
@@ -474,5 +531,25 @@ class Slice06P0Test {
             }
         }
         return g;
+    }
+
+    private static boolean sawAttackStart(WowClientDouble client, long attacker, long victim) {
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKSTART) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            if (payload.length >= 16
+                    && WowClientDouble.u64le(payload, 0) == attacker
+                    && WowClientDouble.u64le(payload, 8) == victim) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void setFaction(Unit u, int templateId) {
+        u.faction = templateId;
+        u.setInt(UpdateFields.UNIT_FIELD_FACTIONTEMPLATE, templateId);
     }
 }

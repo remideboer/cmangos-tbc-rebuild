@@ -8,6 +8,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.content.ChrStatic;
 import org.tbc.world.content.Content;
 import org.tbc.world.combat.Combat;
+import org.tbc.world.combat.Relations;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -1101,18 +1102,38 @@ public final class WorldSession {
             send(Opcodes.SMSG_ATTACKSWING_DEADTARGET, new byte[0]);
             return;
         }
+        if (!Relations.canAttackNow(player, c, world.factions)) {
+            send(Opcodes.SMSG_ATTACKSTOP, world.combat.encodeAttackStop(player.guid, c.guid, !player.alive()));
+            return;
+        }
+        if (player.distance2d(c) > Combat.meleeRange(player, c, Combat.meleeLeeway(player, c))) {
+            beginPlayerAutoAttack(world, c);
+            send(Opcodes.SMSG_ATTACKSWING_NOTINRANGE, new byte[0]);
+            return;
+        }
         if (!c.inCombat) {
             world.engage(c, player);
         } else {
             world.combat.startAttack(player, c, world.nowMs());
         }
-        if (player.distance2d(c) > Combat.meleeRange(player, c, Combat.meleeLeeway(player, c))) {
-            send(Opcodes.SMSG_ATTACKSWING_NOTINRANGE, new byte[0]);
-            return;
-        }
         world.meleeHit(player, c);
         player.lastMeleeMs = world.nowMs();
         player.lastOffhandMeleeMs = world.nowMs();
+    }
+
+    /** CMaNGOS Unit::Attack + SendMeleeAttackStart — player auto-attack without creature AttackStart. */
+    private void beginPlayerAutoAttack(World world, Creature c) {
+        player.victim = c.guid;
+        player.inCombat = true;
+        player.setGuid(UpdateFields.UNIT_FIELD_TARGET, c.guid);
+        byte[] start = world.combat.encodeAttackStart(player.guid, c.guid);
+        send(Opcodes.SMSG_ATTACKSTART, start);
+        GameMap map = world.map(player.mapId, player.instanceId);
+        for (Player pl : map.nearbyPlayers(player, GameMap.VISIBILITY)) {
+            if (pl.session != null) {
+                pl.session.send(Opcodes.SMSG_ATTACKSTART, start);
+            }
+        }
     }
 
     private void handlePlayerAttack(World world, Player target) {

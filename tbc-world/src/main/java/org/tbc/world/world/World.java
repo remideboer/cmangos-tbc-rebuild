@@ -493,6 +493,9 @@ public final class World implements Runnable {
         boolean spellSwing = !offhand && p.hasNextMeleeSwingQueued();
         MeleeTable.Result r = combat.swing(p, c, nowMs(),
                 (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell), offhand);
+        if (c.alive() && !c.inCombat) {
+            engage(c, p);
+        }
         if (r.damage() > 0) {
             p.rewardRageFromHit(r.damage(), r.outcome() == MeleeTable.Outcome.CRIT);
         }
