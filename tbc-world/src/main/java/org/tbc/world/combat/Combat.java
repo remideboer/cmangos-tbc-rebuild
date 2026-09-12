@@ -18,6 +18,8 @@ public final class Combat {
     /** CMaNGOS CREATURE_Z_ATTACK_RANGE_MELEE. */
     public static final float CREATURE_Z_ATTACK_RANGE_MELEE = 3f;
     public static final float ATTACK_DISTANCE = 5f;
+    /** CMaNGOS Unit::UpdateMeleeAttackingState swingError timer. */
+    public static final int SWING_ERROR_RETRY_MS = 100;
     /** CMaNGOS BASE_MELEERANGE_OFFSET */
     public static final float BASE_MELEERANGE_OFFSET = 1.33f;
     /** CMaNGOS MELEE_LEEWAY (8/3) when both units run. */
@@ -75,6 +77,16 @@ public final class Combat {
             reach += MELEE_LEEWAY;
         }
         return reach;
+    }
+
+    /**
+     * CMaNGOS Unit::CanReachWithMeleeAttack — creatures use 2d; equality hits so chase-stop can swing.
+     */
+    public static boolean canReachWithMeleeAttack(Unit attacker, Unit victim) {
+        if (attacker == null || victim == null || !victim.alive()) {
+            return false;
+        }
+        return attacker.distance2d(victim) <= meleeRange(attacker, victim, meleeLeeway(attacker, victim));
     }
 
     /** CMaNGOS CanReachWithMeleeAttack leeway: both moving and not walking. */

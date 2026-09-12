@@ -284,6 +284,47 @@ class Slice06P0Test {
     }
 
     /**
+     * TP-SL06-021 — CMaNGOS ChaseMovementGenerator + UpdateMeleeAttackingState:
+     * out of melee the creature chases (SMSG_MONSTER_MOVE) and swingError retries in 100 ms,
+     * then hits when the victim re-enters melee (not a full BASEATTACKTIME delay).
+     */
+    @Test
+    void tpSl06ChaseWhenVictimLeavesMeleeShouldRetrySwingIn100Ms() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Kiter", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(20_000f, 20_000f, 80f, 0);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        client.attackSwing(world, c.guid);
+        assertTrue(c.inCombat);
+        c.meleeCooldownMs = 0;
+        ox = p.x;
+        oy = p.y;
+        p.relocate(c.x + 15f, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.clear();
+        world.tick(50);
+        assertTrue(c.inCombat);
+        assertEquals(org.tbc.world.combat.Combat.SWING_ERROR_RETRY_MS, c.meleeCooldownMs);
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        assertTrue(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_TARGET));
+        ox = p.x;
+        oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.clear();
+        world.tick(org.tbc.world.combat.Combat.SWING_ERROR_RETRY_MS);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+    }
+
+    /**
      * TP-SL06-019 — SelectHostileTarget unreachable (Z above CREATURE_Z_ATTACK_RANGE_MELEE) starts
      * CombatManager's 10 s evade timer (hits EVADES); expiry EnterEvadeMode / SendMeleeAttackStop.
      */

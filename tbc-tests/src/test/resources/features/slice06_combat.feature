@@ -111,6 +111,14 @@ Feature: Slice 6 melee combat and loot
     Then the player is not in combat
     And SMSG_ATTACKSTOP is the player stopping attack on the kobold
 
+  @tp-sl06-021
+  Scenario: Creature chases when the player leaves melee
+    Given the player is in combat with the kobold
+    When the player is 15 yards from the kobold
+    And 150 ms elapse on the world
+    Then the server has sent SMSG_MONSTER_MOVE
+    And the server has not sent SMSG_ATTACKERSTATEUPDATE
+
   @negative
   Scenario: Living creature has no loot window
     When the player loots the living kobold

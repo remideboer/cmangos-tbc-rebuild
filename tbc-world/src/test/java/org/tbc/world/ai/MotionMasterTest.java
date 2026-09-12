@@ -188,6 +188,31 @@ class MotionMasterTest {
     }
 
     @Test
+    void chaseWhenVictimLeavesMeleeShouldResumeRunTowardVictim() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.relocate(5, 0, 0, 0);
+        Player p = new Player();
+        p.guid = 1;
+        p.relocate(0, 0, 0, 0);
+        c.motion.moveChase(p);
+        c.motion.update(c, 50);
+        assertTrue(c.distance2d(p) <= Combat.meleeRange(c, p) + 0.05f);
+        p.relocate(20, 0, 0, 0);
+        byte[] spline = c.motion.update(c, MotionMaster.CHASE_REACTION_MS);
+        assertNotNull(spline);
+        WowBuffer pkt = new WowBuffer(spline);
+        pkt.getPackedGuid();
+        pkt.getFloat();
+        pkt.getFloat();
+        pkt.getFloat();
+        pkt.getU32();
+        assertEquals(TaxiHandler.MONSTER_MOVE_FACING_TARGET, pkt.getU8());
+        assertEquals(p.guid, pkt.getU64());
+        assertTrue(c.x > 5f);
+    }
+
+    @Test
     void wanderWhenSpawnDistShouldMoveWithinRadius() {
         Creature c = new Creature();
         c.guid = 2;

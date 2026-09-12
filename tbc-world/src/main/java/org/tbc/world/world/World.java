@@ -693,11 +693,12 @@ public final class World implements Runnable {
         if (c.meleeCooldownMs > 0) {
             return;
         }
-        int swing = c.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
-        c.meleeCooldownMs = swing > 0 ? swing : 2000;
-        if (c.distance2d(victim) > Combat.meleeRange(c, victim, Combat.meleeLeeway(c, victim))) {
+        if (!Combat.canReachWithMeleeAttack(c, victim)) {
+            c.meleeCooldownMs = Combat.SWING_ERROR_RETRY_MS;
             return;
         }
+        int swing = c.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
+        c.meleeCooldownMs = swing > 0 ? swing : 2000;
         creatureMeleeHit(c, victim);
     }
 

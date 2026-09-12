@@ -233,6 +233,16 @@ public class CombatSteps {
         assertFalse(kobold.alive());
     }
 
+    @Then("the server has sent SMSG_MONSTER_MOVE")
+    public void sawMonsterMove() {
+        assertTrue(client.saw(Opcodes.SMSG_MONSTER_MOVE));
+    }
+
+    @Then("the server has not sent SMSG_ATTACKERSTATEUPDATE")
+    public void noAttackerState() {
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+    }
+
     @Then("the server has sent SMSG_ATTACKERSTATEUPDATE")
     public void sawAttackerState() {
         assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));

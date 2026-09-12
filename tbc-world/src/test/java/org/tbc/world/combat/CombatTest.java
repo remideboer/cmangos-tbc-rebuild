@@ -694,6 +694,22 @@ class CombatTest {
     }
 
     @Test
+    void canReachWithMeleeAttackWhenInRangeShouldReturnTrue() {
+        assertFalse(Combat.canReachWithMeleeAttack(null, p));
+        assertFalse(Combat.canReachWithMeleeAttack(c, null));
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 50);
+        p.setHealth(50);
+        c.relocate(0, 0, 0, 0);
+        p.relocate(0, 0, 0, 0);
+        assertTrue(Combat.canReachWithMeleeAttack(c, p));
+        p.relocate(Combat.ATTACK_DISTANCE + 10f, 0, 0, 0);
+        assertFalse(Combat.canReachWithMeleeAttack(c, p));
+        p.setHealth(0);
+        p.relocate(0, 0, 0, 0);
+        assertFalse(Combat.canReachWithMeleeAttack(c, p));
+    }
+
+    @Test
     void attackDistanceWhenSameLevelShouldBeDetectionRange() {
         p.level = 1;
         c.level = 1;
