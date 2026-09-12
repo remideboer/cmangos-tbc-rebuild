@@ -117,6 +117,33 @@ public class CombatSteps {
         assertFalse(kobold.inCombat);
     }
 
+    @Then("the kobold is in combat")
+    public void koboldIsInCombat() {
+        assertTrue(kobold.inCombat);
+    }
+
+    @Then("SMSG_ATTACKERSTATEUPDATE is an evade swing")
+    public void attackerStateIsEvade() {
+        boolean saw = false;
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKERSTATEUPDATE) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            int hitInfo = WowClientDouble.u32le(payload, 0);
+            int off = WowClientDouble.skipPackedGuid(payload, 4);
+            off = WowClientDouble.skipPackedGuid(payload, off);
+            off += 4 + 1 + 4 + 4 + 4 + 4 + 4;
+            int victimState = WowClientDouble.u32le(payload, off);
+            if ((hitInfo & Combat.HITINFO_MISS) != 0
+                    && (hitInfo & Combat.HITINFO_SWINGNOHITSOUND) != 0
+                    && victimState == Combat.VICTIM_EVADES) {
+                saw = true;
+            }
+        }
+        assertTrue(saw);
+    }
+
     @Then("the server has sent SMSG_ATTACKSWING_NOTINRANGE")
     public void sawNotInRange() {
         assertTrue(client.saw(Opcodes.SMSG_ATTACKSWING_NOTINRANGE));
@@ -320,8 +347,18 @@ public class CombatSteps {
         float oy = p.y;
         p.relocate(kobold.spawnX + yards + 5, kobold.spawnY, kobold.spawnZ, 0);
         world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        kobold.lastHitMs = world.nowMs() - Combat.PURSUIT_MS - 1;
         client.clear();
         world.tick(50);
+    }
+
+    @Given("the player is {int} yards above the kobold")
+    public void playerAboveKobold(int yards) {
+        Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(kobold.x, kobold.y, kobold.z + yards, kobold.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
     }
 
     @Then("SMSG_ATTACKSTOP is the kobold stopping attack on the player")
@@ -418,7 +455,12 @@ public class CombatSteps {
 
     @When("the creature pursuit timer expires")
     public void pursuitExpires() {
-        kobold.lastHitMs = world.nowMs() - org.tbc.world.combat.Combat.PURSUIT_MS - 1;
+        Player p = client.session().player();
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(kobold.spawnX + Combat.LEASH_RADIUS + 5, kobold.spawnY, kobold.spawnZ, 0);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        kobold.lastHitMs = world.nowMs() - Combat.PURSUIT_MS - 1;
         client.clear();
         world.tick(50);
     }

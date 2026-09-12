@@ -404,6 +404,10 @@ class MeleeTableTest {
         v.evading = true;
         MeleeTable.Result r = table(0.99).rollOne(a, v, 2, 2);
         assertEquals(MeleeTable.Outcome.EVADE, r.outcome());
+        v.evading = false;
+        v.evadeTimerMs = Combat.EVADE_TIMER_MS;
+        r = table(0.99).rollOne(a, v, 2, 2);
+        assertEquals(MeleeTable.Outcome.EVADE, r.outcome());
         assertEquals(0, r.damage());
         assertEquals(0, r.threat());
     }

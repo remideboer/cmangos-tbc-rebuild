@@ -50,7 +50,7 @@ public final class MeleeTable {
     }
 
     public Result rollOne(Unit attacker, Unit victim, int weaponMin, int weaponMax, boolean offhand) {
-        if (victim instanceof Creature creature && creature.evading) {
+        if (victim instanceof Creature creature && (creature.evading || creature.evadeTimerMs > 0)) {
             return new Result(Outcome.EVADE, 0, 0);
         }
         double r = unitRoll.getAsDouble();

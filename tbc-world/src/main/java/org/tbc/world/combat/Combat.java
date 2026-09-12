@@ -11,7 +11,12 @@ import org.tbc.world.net.wow8606.UpdateFields;
 
 /** Auto-attack, evade, corpse loot. Packets: combat-log.md, loot.md. */
 public final class Combat {
+    /** CMaNGOS CONFIG_FLOAT_LEASH_RADIUS — victim 2d from last refresh after pursuit. */
     public static final float LEASH_RADIUS = 30f;
+    /** CMaNGOS CombatManager::StartEvadeTimer. */
+    public static final int EVADE_TIMER_MS = 10_000;
+    /** CMaNGOS CREATURE_Z_ATTACK_RANGE_MELEE. */
+    public static final float CREATURE_Z_ATTACK_RANGE_MELEE = 3f;
     public static final float ATTACK_DISTANCE = 5f;
     /** CMaNGOS BASE_MELEERANGE_OFFSET */
     public static final float BASE_MELEERANGE_OFFSET = 1.33f;
@@ -153,12 +158,14 @@ public final class Combat {
         p.setGuid(UpdateFields.UNIT_FIELD_TARGET, c.guid);
         c.setInt(UpdateFields.UNIT_FIELD_FLAGS, c.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
         p.setInt(UpdateFields.UNIT_FIELD_FLAGS, p.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
-        c.lastHitMs = nowMs;
         c.lastMeleeMs = nowMs;
+        refreshCombatTimer(c, nowMs);
         int swing = c.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME);
         c.meleeCooldownMs = swing > 0 ? swing : 2000;
         if (c.combatStartMs == 0) {
             c.combatStartMs = nowMs;
+            c.combatStartX = c.x;
+            c.combatStartY = c.y;
         }
         if (c.combatMovement) {
             c.motion.moveChase(p);
@@ -201,7 +208,7 @@ public final class Combat {
             c.threat += r.threat();
             c.threatManager.add(p, r.threat());
             c.victim = c.threatManager.highestGuid();
-            c.lastHitMs = nowMs;
+            refreshCombatTimer(c, nowMs);
             if (c.taggedBy == 0) {
                 c.taggedBy = p.guid;
             }
@@ -240,7 +247,7 @@ public final class Combat {
         MeleeTable.Result r = table.rollOne(attacker, victim, meleeMin(attacker), meleeMax(attacker));
         if (r.damage() > 0) {
             victim.setHealth(victim.health() - r.damage());
-            attacker.lastHitMs = nowMs;
+            refreshCombatTimer(attacker, nowMs);
         }
         if (!victim.alive()) {
             attacker.inCombat = false;
@@ -282,10 +289,70 @@ public final class Combat {
         if (victim == null) {
             return true;
         }
-        if (c.spawnDistance2d(victim.x, victim.y) > LEASH_RADIUS) {
-            return true;
+        if (c.leashYards > 0) {
+            double fromStart = Math.hypot(c.x - c.combatStartX, c.y - c.combatStartY);
+            if (fromStart > c.leashYards) {
+                return true;
+            }
         }
-        return nowMs - c.lastHitMs >= PURSUIT_MS;
+        int pursuit = c.pursuitMs > 0 ? c.pursuitMs : PURSUIT_MS;
+        if (nowMs - c.lastHitMs < pursuit) {
+            return false;
+        }
+        return Math.hypot(victim.x - c.lastRefreshX, victim.y - c.lastRefreshY) > LEASH_RADIUS;
+    }
+
+    /** CMaNGOS CombatManager::IsInEvadeMode — timer or HOME. */
+    public static boolean inEvadeMode(Creature c) {
+        return c.evading || c.evadeTimerMs > 0;
+    }
+
+    /**
+     * CMaNGOS SelectHostileTarget + CombatManager evade timer: unreachable starts 10 s,
+     * reachable StopEvade, expiry EvadeTimerExpired.
+     */
+    public boolean tickUnreachableEvade(Creature c, Player victim, int diff) {
+        if (!c.inCombat || !c.alive()) {
+            c.evadeTimerMs = 0;
+            return false;
+        }
+        if (c.evadeTimerMs > 0) {
+            if (c.evadeTimerMs <= diff) {
+                c.evadeTimerMs = 0;
+                return true;
+            }
+            c.evadeTimerMs -= diff;
+        }
+        if (victim == null || !c.combatMovement) {
+            return false;
+        }
+        if (canReachVictim(c, victim)) {
+            c.evadeTimerMs = 0;
+            return false;
+        }
+        if (c.evadeTimerMs <= 0) {
+            c.evadeTimerMs = EVADE_TIMER_MS;
+        }
+        return false;
+    }
+
+    static boolean canReachVictim(Creature c, Player victim) {
+        if (c.chaseUnreachable) {
+            return false;
+        }
+        float z = Math.abs(c.z - victim.z)
+                - c.getFloat(UpdateFields.UNIT_FIELD_COMBATREACH)
+                - victim.getFloat(UpdateFields.UNIT_FIELD_COMBATREACH);
+        if (z < 0f) {
+            z = 0f;
+        }
+        return z <= CREATURE_Z_ATTACK_RANGE_MELEE;
+    }
+
+    private static void refreshCombatTimer(Creature c, long nowMs) {
+        c.lastHitMs = nowMs;
+        c.lastRefreshX = c.x;
+        c.lastRefreshY = c.y;
     }
 
     public void evade(Creature c) {
@@ -304,6 +371,7 @@ public final class Combat {
         c.lootGold = 0;
         c.lootItems.clear();
         c.combatStartMs = 0;
+        c.evadeTimerMs = 0;
         c.setHealth(c.maxHealth());
         double homeDist = Math.hypot(c.x - c.spawnX, c.y - c.spawnY);
         if (homeDist < 0.5) {
@@ -326,6 +394,7 @@ public final class Combat {
         c.motion.moveIdle();
         c.setInt(UpdateFields.UNIT_FIELD_FLAGS, c.getInt(UpdateFields.UNIT_FIELD_FLAGS) & ~Unit.UNIT_FLAG_EVADING_HOME);
         c.evading = false;
+        c.evadeTimerMs = 0;
         if (c.eventAi != null) {
             EventAi.SpellCast sink = cast == null ? EventAi.NOOP : cast;
             if (fireEvadeEvent) {
@@ -348,6 +417,7 @@ public final class Combat {
         c.inCombat = false;
         c.victim = 0;
         c.evading = false;
+        c.evadeTimerMs = 0;
         c.relocate(c.spawnX, c.spawnY, c.spawnZ, c.spawnO);
         c.motion.moveIdle();
         c.startOocMotion();

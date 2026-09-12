@@ -222,6 +222,7 @@ class Slice06P0Test {
         oy = p.y;
         p.relocate(c.spawnX + 35, c.spawnY, c.spawnZ, 0);
         world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        c.lastHitMs = world.nowMs() - org.tbc.world.combat.Combat.PURSUIT_MS - 1;
         client.clear();
         world.tick(50);
         assertFalse(c.inCombat);
@@ -243,6 +244,61 @@ class Slice06P0Test {
             }
         }
         assertTrue(sawStop);
+        assertTrue(client.saw(Opcodes.SMSG_UPDATE_OBJECT) || client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
+    /**
+     * TP-SL06-019 — SelectHostileTarget unreachable (Z above CREATURE_Z_ATTACK_RANGE_MELEE) starts
+     * CombatManager's 10 s evade timer (hits EVADES); expiry EnterEvadeMode / SendMeleeAttackStop.
+     */
+    @Test
+    void tpSl06UnreachableShouldEvadeHitsThenResetAfterTenSeconds() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Cliff", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.attackSwing(world, c.guid);
+        assertTrue(c.inCombat);
+        ox = p.x;
+        oy = p.y;
+        p.relocate(c.x, c.y, c.z + 20f, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        world.tick(50);
+        assertTrue(c.inCombat);
+        client.clear();
+        world.meleeHit(p, c);
+        boolean sawEvade = false;
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKERSTATEUPDATE) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            int hitInfo = WowClientDouble.u32le(payload, 0);
+            int off = WowClientDouble.skipPackedGuid(payload, 4);
+            off = WowClientDouble.skipPackedGuid(payload, off);
+            off += 4 + 1 + 4 + 4 + 4 + 4 + 4;
+            int victimState = WowClientDouble.u32le(payload, off);
+            if ((hitInfo & org.tbc.world.combat.Combat.HITINFO_MISS) != 0
+                    && (hitInfo & org.tbc.world.combat.Combat.HITINFO_SWINGNOHITSOUND) != 0
+                    && victimState == org.tbc.world.combat.Combat.VICTIM_EVADES) {
+                sawEvade = true;
+            }
+        }
+        assertTrue(sawEvade);
+        assertTrue(c.inCombat);
+        client.clear();
+        world.tick(org.tbc.world.combat.Combat.EVADE_TIMER_MS);
+        assertFalse(c.inCombat);
+        assertEquals(c.maxHealth(), c.health());
+        assertTrue(sawAttackStop(client, c.guid, p.guid, 0));
         assertTrue(client.saw(Opcodes.SMSG_UPDATE_OBJECT) || client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
     }
 

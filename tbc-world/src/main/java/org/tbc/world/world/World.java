@@ -493,7 +493,7 @@ public final class World implements Runnable {
         boolean spellSwing = !offhand && p.hasNextMeleeSwingQueued();
         MeleeTable.Result r = combat.swing(p, c, nowMs(),
                 (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell), offhand);
-        if (c.alive() && !c.inCombat) {
+        if (c.alive() && !c.inCombat && !c.evading && r.outcome() != MeleeTable.Outcome.EVADE) {
             engage(c, p);
         }
         if (r.damage() > 0) {
@@ -762,6 +762,8 @@ public final class World implements Runnable {
                 if (c.inCombat) {
                     Player leashVictim = m.players.get(c.victim);
                     if (combat.shouldEvade(c, leashVictim, nowMs())) {
+                        enterEvadeMode(m, c, sink);
+                    } else if (combat.tickUnreachableEvade(c, leashVictim, diff)) {
                         enterEvadeMode(m, c, sink);
                     }
                 }

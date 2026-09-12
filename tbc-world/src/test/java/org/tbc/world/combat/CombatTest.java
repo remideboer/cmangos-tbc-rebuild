@@ -278,21 +278,102 @@ class CombatTest {
     }
 
     @Test
-    void shouldEvadeLeashTimeoutAndNullVictim() {
+    void shouldEvadeWhenVictimMissingOrDeadShouldNot() {
         assertFalse(combat.shouldEvade(c, p, 0));
         c.inCombat = true;
         c.setHealth(0);
         assertFalse(combat.shouldEvade(c, p, 0));
         c.setHealth(42);
         assertTrue(combat.shouldEvade(c, null, 0));
+    }
+
+    /**
+     * CombatManager: LeashRadius is from last refresh (combat start / last direct damage),
+     * and only after the pursuit timer — not instant spawn distance.
+     */
+    @Test
+    void shouldEvadeWhenPursuitExpiredAndVictimPastLeashFromRefresh() {
+        combat.startAttack(p, c, 0);
         p.relocate(31, 0, 0, 0);
-        c.lastHitMs = 0;
-        assertTrue(combat.shouldEvade(c, p, 100));
-        p.relocate(0, 0, 0, 0);
-        c.lastHitMs = 0;
+        assertFalse(combat.shouldEvade(c, p, 0));
         assertTrue(combat.shouldEvade(c, p, Combat.PURSUIT_MS));
+    }
+
+    @Test
+    void shouldNotEvadeWhenPursuitExpiredIfVictimStillNearRefresh() {
+        combat.startAttack(p, c, 0);
+        p.relocate(10, 0, 0, 0);
+        assertFalse(combat.shouldEvade(c, p, Combat.PURSUIT_MS));
         c.lastHitMs = 50_000;
         assertFalse(combat.shouldEvade(c, p, 50_000));
+    }
+
+    @Test
+    void shouldEvadeWhenTemplateLeashExceededFromCombatStart() {
+        combat.startAttack(p, c, 0);
+        c.leashYards = 20f;
+        c.relocate(21, 0, 0, 0);
+        assertTrue(combat.shouldEvade(c, p, 0));
+        c.relocate(19, 0, 0, 0);
+        assertFalse(combat.shouldEvade(c, p, 0));
+    }
+
+    @Test
+    void tickUnreachableEvadeWhenVictimTooHighShouldEnterEvadeAfterTenSeconds() {
+        combat.startAttack(p, c, 0);
+        p.relocate(0, 0, 20, 0);
+        assertFalse(combat.tickUnreachableEvade(c, p, 50));
+        assertEquals(Combat.EVADE_TIMER_MS, c.evadeTimerMs);
+        assertTrue(Combat.inEvadeMode(c));
+        assertFalse(combat.tickUnreachableEvade(c, p, Combat.EVADE_TIMER_MS - 1));
+        assertTrue(combat.tickUnreachableEvade(c, p, 1));
+        assertEquals(0, c.evadeTimerMs);
+    }
+
+    @Test
+    void tickUnreachableEvadeWhenVictimReturnsShouldStopTimer() {
+        combat.startAttack(p, c, 0);
+        p.relocate(0, 0, 20, 0);
+        combat.tickUnreachableEvade(c, p, 50);
+        p.relocate(0, 0, 0, 0);
+        assertFalse(combat.tickUnreachableEvade(c, p, 50));
+        assertEquals(0, c.evadeTimerMs);
+        assertFalse(Combat.inEvadeMode(c));
+    }
+
+    @Test
+    void tickUnreachableEvadeWhenNoCombatOrNoMovementShouldNotStartTimer() {
+        assertFalse(combat.tickUnreachableEvade(c, p, 50));
+        assertEquals(0, c.evadeTimerMs);
+        c.setHealth(0);
+        c.inCombat = true;
+        assertFalse(combat.tickUnreachableEvade(c, p, 50));
+        c.setHealth(42);
+        combat.startAttack(p, c, 0);
+        c.combatMovement = false;
+        p.relocate(0, 0, 20, 0);
+        assertFalse(combat.tickUnreachableEvade(c, p, 50));
+        assertEquals(0, c.evadeTimerMs);
+        c.combatMovement = true;
+        c.chaseUnreachable = true;
+        p.relocate(0, 0, 0, 0);
+        assertFalse(combat.tickUnreachableEvade(c, p, 50));
+        assertEquals(Combat.EVADE_TIMER_MS, c.evadeTimerMs);
+        c.inCombat = false;
+        assertFalse(combat.tickUnreachableEvade(c, p, 50));
+        assertEquals(0, c.evadeTimerMs);
+        combat.startAttack(p, c, 1);
+        assertFalse(combat.tickUnreachableEvade(c, null, 50));
+        c.pursuitMs = 100;
+        p.relocate(31, 0, 0, 0);
+        c.lastHitMs = 0;
+        c.lastRefreshX = 0;
+        c.lastRefreshY = 0;
+        assertTrue(combat.shouldEvade(c, p, 100));
+        c.relocate(20, 0, 0, 0);
+        combat.evade(c);
+        assertTrue(c.evading);
+        assertTrue(Combat.inEvadeMode(c));
     }
 
     @Test

@@ -92,6 +92,18 @@ Feature: Slice 6 melee combat and loot
     Then SMSG_ATTACKSTOP is the kobold stopping attack on the player
     And the server has sent an update object for unit health
 
+  @tp-sl06-019
+  Scenario: Unreachable victim evades melee then resets after ten seconds
+    Given the player is in combat with the kobold
+    And the player is 20 yards above the kobold
+    When 50 ms elapse on the world
+    Then the kobold is in combat
+    When the player starts auto-attack
+    Then SMSG_ATTACKERSTATEUPDATE is an evade swing
+    When 10000 ms elapse on the world
+    Then SMSG_ATTACKSTOP is the kobold stopping attack on the player
+    And the kobold is at spawn with full health and an empty threat list
+
   @negative
   Scenario: Living creature has no loot window
     When the player loots the living kobold

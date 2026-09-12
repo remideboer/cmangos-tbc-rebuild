@@ -34,6 +34,18 @@ public final class Creature extends Unit {
     /** CMaNGOS Creature m_detectionRange default / GetDetectionRange. */
     public float detectionRange = 18f;
     public boolean evading;
+    /** CMaNGOS CombatManager m_evadeTimer — unreachable target, not HOME. */
+    public int evadeTimerMs;
+    /** Pathing failed (mmap); Z-gap is checked separately. */
+    public boolean chaseUnreachable;
+    /** creature_template.Leash yards from combat-start; 0 = off. */
+    public float leashYards;
+    /** creature_template.Pursuit ms; 0 = Combat.PURSUIT_MS. */
+    public int pursuitMs;
+    public float lastRefreshX;
+    public float lastRefreshY;
+    public float combatStartX;
+    public float combatStartY;
     public long evadeHomeAtMs;
     public long taggedBy;
     public boolean lootable;
