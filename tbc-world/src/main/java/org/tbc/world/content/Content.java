@@ -451,10 +451,14 @@ public final class Content {
         if (c == null) {
             return;
         }
-        int status = outOfRange(p, c) ? DIALOG_STATUS_NONE : dialogStatus(p, c);
+        sendQuestGiverStatus(p, c, send);
+    }
+
+    /** GossipDef.cpp SendQuestGiverStatus. Visible questgivers, not only those inside interact range. */
+    public void sendQuestGiverStatus(Player p, Creature c, BiConsumer<Integer, byte[]> send) {
         WowBuffer out = new WowBuffer(9);
-        out.putU64(guid);
-        out.putU8(status);
+        out.putU64(c.guid);
+        out.putU8(dialogStatus(p, c));
         send.accept(Opcodes.SMSG_QUESTGIVER_STATUS, out.array());
     }
 
@@ -595,7 +599,9 @@ public final class Content {
         clearQuestSlot(p, slot);
         p.questLogId[slot] = questId;
         writeLogField(p, slot);
+        sendLogUpdate(p, slot, send);
         send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
+        sendQuestGiverStatus(p, c, send);
     }
 
     /** HandleQuestLogRemoveQuest → SetQuestSlot(slot, 0). */
@@ -877,6 +883,12 @@ public final class Content {
         p.questLogItemCount[slot][3] = 0;
     }
 
+    private void sendLogUpdate(Player p, int slot, BiConsumer<Integer, byte[]> send) {
+        int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base, base + 1, base + 2));
+        send.accept(upd.opcode(), upd.payload());
+    }
+
     static void writeLogField(Player p, int slot) {
         int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
         p.setInt(base, p.questLogId[slot]);
@@ -953,8 +965,8 @@ public final class Content {
         for (int id : quests) {
             ObjectMgr.QuestTemplate q = mgr.quests.get(id);
             b.putU32(id);
-            b.putU32(0);
-            b.putU32(q == null ? 1 : q.minLevel());
+            b.putU32(questMenuIcon(p, id, q));
+            b.putU32(q == null ? 1 : shownQuestLevel(q));
             b.putCString(q == null ? "" : q.title());
         }
         return b.array();
@@ -1073,8 +1085,30 @@ public final class Content {
         return t == null ? 0 : t.displayId;
     }
 
-    static byte[] encodeDetails(long guid, ObjectMgr.QuestTemplate q) {
-        WowBuffer b = new WowBuffer(64);
+    private int questMenuIcon(Player p, int questId, ObjectMgr.QuestTemplate q) {
+        if (q == null) {
+            return DIALOG_STATUS_NONE;
+        }
+        int slot = slotOf(p, questId);
+        if (slot < 0) {
+            return DIALOG_STATUS_AVAILABLE;
+        }
+        if (objectivesMet(p, slot, q)) {
+            return DIALOG_STATUS_REWARD;
+        }
+        return DIALOG_STATUS_INCOMPLETE;
+    }
+
+    /** GossipDef.cpp writes GetQuestLevel. A stored 0 falls back to MinLevel. */
+    static int shownQuestLevel(ObjectMgr.QuestTemplate q) {
+        return q.questLevel() != 0 ? q.questLevel() : q.minLevel();
+    }
+
+    byte[] encodeDetails(long guid, ObjectMgr.QuestTemplate q) {
+        int choices = q.rewChoiceItemsCount();
+        int items = q.rewItemsCount();
+        WowBuffer b = new WowBuffer(96 + choices * 12 + items * 12
+                + q.title().length() + q.details().length() + q.objectives().length());
         b.putU64(guid);
         b.putU32(q.id());
         b.putCString(q.title());
@@ -1082,8 +1116,19 @@ public final class Content {
         b.putCString(q.objectives());
         b.putU32(1);
         b.putU32(0);
-        b.putU32(0);
-        b.putU32(0);
+        b.putU32(choices);
+        for (int i = 0; i < choices; i++) {
+            int id = q.rewChoiceItemId(i);
+            b.putU32(id);
+            b.putU32(q.rewChoiceItemCount(i));
+            b.putU32(displayId(id));
+        }
+        b.putU32(items);
+        for (int i = 0; i < items; i++) {
+            b.putU32(q.rewItemId1());
+            b.putU32(q.rewItemCount1());
+            b.putU32(displayId(q.rewItemId1()));
+        }
         b.putU32(q.rewMoney());
         b.putU32(0);
         b.putU32(0);

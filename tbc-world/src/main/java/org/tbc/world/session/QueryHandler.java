@@ -96,7 +96,7 @@ public final class QueryHandler {
         WowBuffer out = new WowBuffer(256);
         out.putU32(id);
         out.putU32(2);
-        out.putU32(t.minLevel());
+        out.putU32(t.questLevel() != 0 ? t.questLevel() : t.minLevel());
         out.putU32(0);
         out.putU32(t.type());
         out.putU32(0);
@@ -105,19 +105,25 @@ public final class QueryHandler {
         out.putU32(0);
         out.putU32(0);
         out.putU32(0);
+        out.putU32(t.rewMoney());
+        out.putU32(t.rewMoneyMaxLevel());
         out.putU32(0);
         out.putU32(0);
         out.putU32(0);
         out.putU32(0);
         out.putU32(0);
         out.putU32(0);
-        out.putU32(0);
-        out.putU32(0);
-        for (int i = 0; i < 4; i++) {
+        out.putU32(t.rewItemId1());
+        out.putU32(t.rewItemCount1());
+        for (int i = 0; i < 3; i++) {
             out.putU32(0);
             out.putU32(0);
         }
-        for (int i = 0; i < 6; i++) {
+        out.putU32(t.rewChoiceItemId1());
+        out.putU32(t.rewChoiceItemCount1());
+        out.putU32(t.rewChoiceItemId2());
+        out.putU32(t.rewChoiceItemCount2());
+        for (int i = 0; i < 4; i++) {
             out.putU32(0);
             out.putU32(0);
         }
@@ -126,14 +132,18 @@ public final class QueryHandler {
         out.putFloat(0);
         out.putU32(0);
         out.putCString(nz(t.title()));
-        out.putCString("");
-        out.putCString("");
+        out.putCString(nz(t.objectives()));
+        out.putCString(nz(t.details()));
         out.putCString("");
         for (int i = 0; i < 4; i++) {
-            out.putU32(0);
-            out.putU32(0);
-            out.putU32(0);
-            out.putU32(0);
+            int creature = t.reqCreatureOrGOId(i);
+            if (creature < 0) {
+                creature = (-creature) | 0x80000000;
+            }
+            out.putU32(creature);
+            out.putU32(t.reqCreatureOrGOCount(i));
+            out.putU32(t.reqItemId(i));
+            out.putU32(t.reqItemCount(i));
         }
         for (int i = 0; i < 4; i++) {
             out.putCString("");

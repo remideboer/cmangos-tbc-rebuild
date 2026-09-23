@@ -88,6 +88,31 @@ class Slice08P0Test {
     }
 
     /**
+     * A questgiver first seen beyond interact range still gets SMSG_QUESTGIVER_STATUS
+     * so the 8606 client draws the overhead mark. QuestHandler status is not distance-gated.
+     */
+    @Test
+    void tpSl08QuestgiverStatusWhenRevealedBeyondInteractRange() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Mark", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature willem = world.objectMgr.spawnCreature(
+                Content.NPC_DEPUTY_WILLEM, 0, p.x + 20f, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(willem);
+
+        client.clear();
+        client.session().revealNearby(world);
+
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_STATUS));
+        WowBuffer st = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_STATUS));
+        assertEquals(willem.guid, st.getU64());
+        assertEquals(DIALOG_STATUS_AVAILABLE, st.getU8());
+    }
+
+    /**
      * TP-SL08-020 — HandleQuestgiverStatusMultipleQuery / SendQuestGiverStatusMultiple:
      * empty C2S; SMSG_QUESTGIVER_STATUS_MULTIPLE count + raw guid + status for each visible
      * UNIT_NPC_FLAG_QUESTGIVER creature (kobold 6 has no flag).

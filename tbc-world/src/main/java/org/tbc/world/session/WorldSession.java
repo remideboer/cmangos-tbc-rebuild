@@ -1000,6 +1000,9 @@ public final class WorldSession {
             }
             var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(c, false, t));
             send(pkt.opcode(), pkt.payload());
+            if ((c.npcFlags & Content.UNIT_NPC_FLAG_QUESTGIVER) != 0) {
+                world.content.sendQuestGiverStatus(player, c, this::send);
+            }
         }
         for (Player o : map.nearbyPlayers(player, GameMap.VISIBILITY)) {
             if (!seen.add(o.guid)) {

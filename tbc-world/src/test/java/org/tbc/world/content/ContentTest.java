@@ -104,7 +104,7 @@ class ContentTest {
         content.questGiverStatusQuery(p, map, u64(giver.guid), this::capture);
         st = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS));
         st.getU64();
-        assertEquals(Content.DIALOG_STATUS_NONE, st.getU8());
+        assertEquals(Content.DIALOG_STATUS_AVAILABLE, st.getU8());
         p.relocate(0, 0, 0, 0);
         ops.clear();
         Creature kobold = spawn(6, 0, 0);

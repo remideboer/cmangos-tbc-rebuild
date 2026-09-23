@@ -225,6 +225,39 @@ class QueryHandlerTest {
     }
 
     @Test
+    void questQueryWhenKnownShouldSendTitleDetailsAndKillObjective() {
+        World w = World.inMemory();
+        Capture sink = new Capture();
+        WorldSession s = loggedIn(w, sink, "QuestQ", 0);
+        s.handle(w, Opcodes.CMSG_QUEST_QUERY, u32buf(Content.QUEST_KOBOLD_CAMP_CLEANUP));
+        WowBuffer b = new WowBuffer(sink.last.get(Opcodes.SMSG_QUEST_QUERY_RESPONSE));
+        assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, b.getU32());
+        assertEquals(2, b.getU32());
+        assertEquals(1, b.getU32());
+        for (int i = 0; i < 16; i++) {
+            b.getU32();
+        }
+        for (int i = 0; i < 4; i++) {
+            b.getU32();
+            b.getU32();
+        }
+        for (int i = 0; i < 6; i++) {
+            b.getU32();
+            b.getU32();
+        }
+        b.getU32();
+        b.getFloat();
+        b.getFloat();
+        b.getU32();
+        assertEquals("Kobold Camp Cleanup", b.getCString());
+        b.getCString();
+        b.getCString();
+        b.getCString();
+        assertEquals(Content.NPC_KOBOLD_VERMIN, b.getU32());
+        assertEquals(10, b.getU32());
+    }
+
+    @Test
     void questAndGameObjectUnknownFailBit() {
         World w = World.inMemory();
         Capture sink = new Capture();

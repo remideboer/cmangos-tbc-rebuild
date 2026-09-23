@@ -5,10 +5,13 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.zip.Inflater;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -194,6 +197,75 @@ class ContentQuestLoopTest {
     }
 
     @Test
+    void gossipQuestRowWhenAvailableShouldUseDialogStatusIcon() {
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
+        content.gossipHello(p, map, u64(willem.guid), this::capture);
+        assertEquals(Content.DIALOG_STATUS_AVAILABLE, gossipQuestIcon(Content.QUEST_A_THREAT_WITHIN));
+    }
+
+    @Test
+    void gossipQuestRowWhenTakenShouldUseIncompleteOrRewardIcon() {
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
+        content.acceptQuest(p, map, quest(mcbride.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), this::capture);
+        ops.clear();
+        last.clear();
+        content.gossipHello(p, map, u64(mcbride.guid), this::capture);
+        assertEquals(Content.DIALOG_STATUS_INCOMPLETE, gossipQuestIcon(Content.QUEST_KOBOLD_CAMP_CLEANUP));
+
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        ops.clear();
+        last.clear();
+        content.gossipHello(p, map, u64(mcbride.guid), this::capture);
+        assertEquals(Content.DIALOG_STATUS_REWARD, gossipQuestIcon(Content.QUEST_A_THREAT_WITHIN));
+    }
+
+    @Test
+    void queryQuestWhenRewardsExistShouldListChoiceAndRewardItems() {
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
+        content.queryQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        WowBuffer details = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_QUEST_DETAILS));
+        details.getU64();
+        assertEquals(Content.QUEST_BROTHERHOOD_OF_THIEVES, details.getU32());
+        details.getCString();
+        details.getCString();
+        details.getCString();
+        assertEquals(1, details.getU32());
+        assertEquals(0, details.getU32());
+        assertEquals(2, details.getU32());
+        assertEquals(Content.ITEM_MILITIA_DAGGER, details.getU32());
+        assertEquals(1, details.getU32());
+        details.getU32();
+        assertEquals(Content.ITEM_MILITIA_HAMMER, details.getU32());
+        assertEquals(1, details.getU32());
+
+        ops.clear();
+        last.clear();
+        mgr.questGivers.put(Content.NPC_INNKEEPER_FARLEY, new ArrayList<>(List.of(Content.QUEST_REST_AND_RELAXATION)));
+        Creature farley = spawn(Content.NPC_INNKEEPER_FARLEY);
+        content.queryQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
+        WowBuffer reward = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_QUEST_DETAILS));
+        reward.getU64();
+        reward.getU32();
+        reward.getCString();
+        reward.getCString();
+        reward.getCString();
+        reward.getU32();
+        reward.getU32();
+        assertEquals(0, reward.getU32());
+        assertEquals(1, reward.getU32());
+        assertEquals(Content.ITEM_REFRESHING_SPRING_WATER, reward.getU32());
+        assertEquals(5, reward.getU32());
+    }
+
+    @Test
+    void acceptQuestWhenTakenShouldSendQuestLogId() throws Exception {
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        assertEquals(Content.QUEST_A_THREAT_WITHIN, questLogIdOnWire());
+    }
+
+    @Test
     void objectivesMetWhenCountIsZeroOrAlreadyFilledShouldPassThatSlot() {
         ObjectMgr.QuestTemplate zeroNeed = questTemplate(Content.QUEST_KOBOLD_CAMP_CLEANUP,
                 Content.NPC_KOBOLD_VERMIN, 0, 0, 0, Content.ITEM_RED_BURLAP_BANDANA, 0, 0, 0, 1, 0, 0);
@@ -213,6 +285,79 @@ class ContentQuestLoopTest {
 
     private int statusByte() {
         return last.get(Opcodes.SMSG_QUESTGIVER_STATUS)[8] & 0xFF;
+    }
+
+    private int gossipQuestIcon(int questId) {
+        WowBuffer b = gossipMenu();
+        int n = b.getU32();
+        for (int i = 0; i < n; i++) {
+            int id = b.getU32();
+            int icon = b.getU32();
+            b.getU32();
+            b.getCString();
+            if (id == questId) {
+                return icon;
+            }
+        }
+        return -1;
+    }
+
+    private int questLogIdOnWire() throws Exception {
+        byte[] raw = last.get(Opcodes.SMSG_UPDATE_OBJECT);
+        if (raw == null) {
+            raw = inflate(last.get(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+        }
+        WowBuffer b = new WowBuffer(raw);
+        b.getU32();
+        b.getU8();
+        assertEquals(UpdateBuilder.UPDATETYPE_VALUES, b.getU8());
+        b.getPackedGuid();
+        int nblocks = b.getU8() & 0xFF;
+        int[] mask = new int[nblocks];
+        for (int i = 0; i < nblocks; i++) {
+            mask[i] = b.getU32();
+        }
+        int field = UpdateFields.PLAYER_QUEST_LOG_1_1;
+        for (int i = 0; i < nblocks * 32; i++) {
+            if ((mask[i / 32] & (1 << (i % 32))) == 0) {
+                continue;
+            }
+            int value = b.getU32();
+            if (i == field) {
+                return value;
+            }
+        }
+        return 0;
+    }
+
+    private static byte[] inflate(byte[] compressed) throws Exception {
+        int size = compressed[0] & 0xFF
+                | ((compressed[1] & 0xFF) << 8)
+                | ((compressed[2] & 0xFF) << 16)
+                | ((compressed[3] & 0xFF) << 24);
+        Inflater inf = new Inflater();
+        inf.setInput(compressed, 4, compressed.length - 4);
+        byte[] out = new byte[size];
+        inf.inflate(out);
+        inf.end();
+        return out;
+    }
+
+    private WowBuffer gossipMenu() {
+        WowBuffer b = new WowBuffer(last.get(Opcodes.SMSG_GOSSIP_MESSAGE));
+        b.getU64();
+        b.getU32();
+        b.getU32();
+        int items = b.getU32();
+        for (int i = 0; i < items; i++) {
+            b.getU32();
+            b.getU8();
+            b.getU8();
+            b.getU32();
+            b.getCString();
+            b.getCString();
+        }
+        return b;
     }
 
     private List<Integer> gossipQuestIds() {
