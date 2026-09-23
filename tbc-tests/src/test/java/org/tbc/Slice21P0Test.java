@@ -544,6 +544,32 @@ class Slice21P0Test {
         assertEquals("Raids on Friday", r.getCString());
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildBankQueryTab. After one purchased tab, querying tab 0
+     * sends SMSG_GUILD_BANK_LIST with 98 empty slots (guild.md).
+     */
+    @Test
+    void tpSl21GuildBankQueryTab() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_BUY_TAB, new byte[8]);
+        lead.clear();
+        WowBuffer q = new WowBuffer(10);
+        q.putU64(1);
+        q.putU8(0);
+        q.putU8(0);
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_QUERY_TAB, q.array());
+        WowBuffer list = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_BANK_LIST));
+        assertEquals(0L, list.getU64());
+        assertEquals(0, list.getU8());
+        assertEquals(0xFFFFFFFF, list.getU32());
+        assertEquals(0, list.getU8());
+        assertEquals(98, list.getU8());
+        assertEquals(0, list.getU8());
+        assertEquals(0, list.getU32());
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();

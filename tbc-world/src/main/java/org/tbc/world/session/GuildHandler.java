@@ -38,6 +38,9 @@ public final class GuildHandler {
     /** Guild.h GR_RIGHT_ALL (guild master). */
     public static final int GR_RIGHT_ALL = 0x000DF1FF;
     public static final int GUILD_BANK_MAX_TABS = 6;
+    public static final int GUILD_BANK_MAX_SLOTS = 98;
+    /** Guild.h WITHDRAW_SLOT_UNLIMITED — guild master slot withdraw remaining. */
+    public static final int WITHDRAW_SLOT_UNLIMITED = 0xFFFFFFFF;
     public static final int GUILD_CREATE_S = 0;
     public static final int GUILD_INVITE_S = 1;
     public static final int GUILD_QUIT_S = 3;
@@ -781,6 +784,34 @@ public final class GuildHandler {
         list.putCString("Tab");
         list.putCString("");
         list.putU8(0);
+        s.send(Opcodes.SMSG_GUILD_BANK_LIST, list.array());
+    }
+
+    /** HandleGuildBankQueryTab — content list, 98 slots, no tab names. */
+    public static void queryTab(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 9) {
+            return;
+        }
+        in.getU64();
+        int tabId = in.getU8() & 0xFF;
+        if (in.remaining() > 0) {
+            in.getU8();
+        }
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null || tabId >= g.purchasedTabs) {
+            return;
+        }
+        WowBuffer list = new WowBuffer(16 + GUILD_BANK_MAX_SLOTS * 5);
+        list.putU64(0);
+        list.putU8(tabId);
+        list.putU32(p.guildRank == 0 ? WITHDRAW_SLOT_UNLIMITED : 0);
+        list.putU8(0);
+        list.putU8(GUILD_BANK_MAX_SLOTS);
+        for (int slot = 0; slot < GUILD_BANK_MAX_SLOTS; slot++) {
+            list.putU8(slot);
+            list.putU32(0);
+        }
         s.send(Opcodes.SMSG_GUILD_BANK_LIST, list.array());
     }
 

@@ -199,6 +199,10 @@ public final class LaterOpcodes {
             GuildHandler.bankerActivate(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_GUILD_BANK_QUERY_TAB) {
+            GuildHandler.queryTab(s, world, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS) {
             GuildHandler.swapItems(s, in);
             return true;
