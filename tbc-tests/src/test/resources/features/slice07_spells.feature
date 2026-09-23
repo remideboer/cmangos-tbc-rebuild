@@ -22,9 +22,9 @@ Feature: Slice 7 starter spell cast
     And the spell session still answers CMSG_PING with SMSG_PONG
 
   @negative
-  Scenario: Unknown spell id is ignored
+  Scenario: Unknown spell id releases the action button
     When the player casts unknown spell 1 on the kobold
-    Then the server does not send SMSG_CAST_RESULT
+    Then the server sends SMSG_CAST_RESULT with result 0x1E
     And the server does not send SMSG_SPELL_GO
 
   @negative

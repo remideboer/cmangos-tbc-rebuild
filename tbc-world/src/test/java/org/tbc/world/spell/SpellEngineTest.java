@@ -262,8 +262,10 @@ class SpellEngineTest {
     @Test
     void castFailuresAndIgnores() {
         engine.cast(p, map, 0, 0, 1, empty(), this::capture);
-        engine.cast(p, map, 0, 9, 1, empty(), this::capture);
         assertTrue(ops.isEmpty());
+        engine.cast(p, map, 0, 9, 1, empty(), this::capture);
+        assertEquals(SpellEngine.SPELL_FAILED_ERROR, result());
+        ops.clear();
         engine.cast(p, map, 0, 36300, 3, empty(), this::capture);
         assertEquals(SpellEngine.SPELL_FAILED_NOT_KNOWN, result());
         ops.clear();
@@ -487,6 +489,104 @@ class SpellEngineTest {
         ops.clear();
         engine.cancelCast(p, 0);
         assertTrue(ops.contains(Opcodes.SMSG_SPELL_FAILURE));
+    }
+
+    @Test
+    void castHolyLightWhenKnownShouldStartThenHealAfterCastTime() {
+        p.spells.add(SpellEngine.HOLY_LIGHT);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 200);
+        p.setHealth(40);
+        assertTrue(engine.cast(p, map, 0, SpellEngine.HOLY_LIGHT, 4, empty(), this::capture));
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
+        WowBuffer start = new WowBuffer(last.get(Opcodes.SMSG_SPELL_START));
+        start.getPackedGuid();
+        start.getPackedGuid();
+        assertEquals(SpellEngine.HOLY_LIGHT, start.getU32());
+        assertEquals(4, start.getU8());
+        start.getU16();
+        assertEquals(2500, start.getU32());
+        assertEquals(100, p.power());
+
+        engine.update(2500, 2500);
+        assertEquals(65, p.power());
+        WowBuffer log = new WowBuffer(last.get(Opcodes.SMSG_SPELLHEALLOG));
+        assertEquals(p.guid, log.getPackedGuid());
+        assertEquals(p.guid, log.getPackedGuid());
+        assertEquals(SpellEngine.HOLY_LIGHT, log.getU32());
+        assertEquals(46, log.getU32());
+        assertEquals(0, log.getU8());
+        assertEquals(0, log.getU8());
+        assertEquals(86, p.health());
+        assertTrue(ops.contains(Opcodes.SMSG_UPDATE_OBJECT) || ops.contains(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+    }
+
+    @Test
+    void castHolyLightWhenSpellCritShouldMarkHealLogCritical() {
+        p.spells.add(SpellEngine.HOLY_LIGHT);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 200);
+        p.setHealth(40);
+        p.setFloat(UpdateFields.PLAYER_SPELL_CRIT_PERCENTAGE1, 100f);
+        SpellEngine crit = new SpellEngine(() -> 0.0);
+        crit.cast(p, map, 0, SpellEngine.HOLY_LIGHT, 1, empty(), this::capture);
+        crit.update(2500, 2500);
+        WowBuffer log = new WowBuffer(last.get(Opcodes.SMSG_SPELLHEALLOG));
+        log.getPackedGuid();
+        log.getPackedGuid();
+        log.getU32();
+        assertEquals(69, log.getU32());
+        assertEquals(1, log.getU8());
+    }
+
+    @Test
+    void castSealOfRighteousnessWhenKnownShouldApplyOneAura() {
+        p.spells.add(SpellEngine.SEAL_OF_RIGHTEOUSNESS);
+        assertTrue(engine.cast(p, map, 1000, SpellEngine.SEAL_OF_RIGHTEOUSNESS, 2, empty(), this::capture));
+        WowBuffer start = new WowBuffer(last.get(Opcodes.SMSG_SPELL_START));
+        start.getPackedGuid();
+        start.getPackedGuid();
+        assertEquals(SpellEngine.SEAL_OF_RIGHTEOUSNESS, start.getU32());
+        assertEquals(2, start.getU8());
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertEquals(80, p.power());
+        assertEquals(1, sealCount());
+        assertEquals(30_000, p.auras.get(p.auras.size() - 1).durationMs());
+        assertTrue(ops.contains(Opcodes.SMSG_UPDATE_AURA_DURATION));
+
+        engine.apply(p, p, engine.info(SpellEngine.FROST_ARMOR), 1000);
+        engine.cast(p, map, 3000, SpellEngine.SEAL_OF_RIGHTEOUSNESS, 3, empty(), this::capture);
+        assertEquals(1, sealCount());
+        assertTrue(p.hasAura(SpellEngine.FROST_ARMOR));
+    }
+
+    @Test
+    void castWhenSpellNotCataloguedShouldSendCastResultError() {
+        engine.cast(p, map, 0, 9, 7, empty(), this::capture);
+        assertEquals(SpellEngine.SPELL_FAILED_ERROR, result());
+        assertEquals(9, lastCastResult[0] & 0xFF | (lastCastResult[1] & 0xFF) << 8
+                | (lastCastResult[2] & 0xFF) << 16 | (lastCastResult[3] & 0xFF) << 24);
+        assertEquals(7, lastCastResult[5] & 0xFF);
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_START));
+    }
+
+    @Test
+    void createBarSpellsShouldBeInTheCatalog() {
+        int[] bar = {20154, 635, 1752, 2098, 2764, 585, 686, 687, 2973, 75, 403, 331,
+                20580, 5176, 5185, 20549, 28734, 28730, 25046, 28880};
+        for (int id : bar) {
+            assertTrue(engine.info(id) != null, "missing spell " + id);
+        }
+        assertTrue(engine.info(6603) == null);
+    }
+
+    private int sealCount() {
+        int n = 0;
+        for (var aura : p.auras) {
+            if (aura.spellId() == SpellEngine.SEAL_OF_RIGHTEOUSNESS) {
+                n++;
+            }
+        }
+        return n;
     }
 
     private void capture(int opcode, byte[] payload) {

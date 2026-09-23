@@ -41,6 +41,11 @@ public final class SpellEngine {
     public static final int SPELL_FAILED_NOT_READY = 0x3F;
     public static final int SPELL_FAILED_NO_POWER = 0x50;
     public static final int SPELL_FAILED_OUT_OF_RANGE = 0x5C;
+    public static final int SPELL_FAILED_ERROR = 0x1E;
+    /** Holy Light rank 1. TBC: 35 mana, 2.5 s, heal 42–51, 40 yd. */
+    public static final int HOLY_LIGHT = 635;
+    /** Seal of Righteousness rank 1. TBC: 20 mana, instant, 30 s dummy aura. */
+    public static final int SEAL_OF_RIGHTEOUSNESS = 20154;
     public static final int SPELL_CAST_OK = 0xFF;
     public static final int EFFECT_INSTAKILL = 1;
     public static final int EFFECT_SCHOOL_DAMAGE = 2;
@@ -179,6 +184,8 @@ public final class SpellEngine {
     public static final int FROST_ARMOR = 168;
     public static final int FROST_ARMOR_DURATION_MS = 1_800_000;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
+    /** SpellAuraNames SPELL_AURA_DUMMY — Seal of Righteousness rank 1. */
+    public static final int SPELL_AURA_DUMMY = 4;
     /** SharedDefines.h SPELL_ID_PASSIVE_BATTLE_STANCE. Effect APPLY_AURA, aura 36, misc FORM_BATTLESTANCE 17. */
     public static final int SPELL_BATTLE_STANCE = 2457;
     public static final int CLASS_WARRIOR = 1;
@@ -332,6 +339,51 @@ public final class SpellEngine {
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
         spells.put(SPELL_BATTLE_STANCE, new SpellInfo(SPELL_BATTLE_STANCE, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_SHAPESHIFT, 0, 0, 0, 0, 0f, Unit.FORM_BATTLESTANCE));
+        catalogCreateBar();
+    }
+
+    /** Rank-1 spells on playercreateinfo_action (type 0). Attack 6603 is CMSG_ATTACKSWING. */
+    private void catalogCreateBar() {
+        spells.put(HOLY_LIGHT, new SpellInfo(HOLY_LIGHT, EFFECT_HEAL, 0, 2, 35, 42, 51, 40f)
+                .withCastTime(2500).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(SEAL_OF_RIGHTEOUSNESS, new SpellInfo(SEAL_OF_RIGHTEOUSNESS, EFFECT_APPLY_AURA,
+                SPELL_AURA_DUMMY, 2, 20, 0, 0, 0f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(30_000));
+        spells.put(585, new SpellInfo(585, EFFECT_SCHOOL_DAMAGE, 0, 2, 20, 13, 17, 30f)
+                .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(1752, new SpellInfo(1752, EFFECT_WEAPON_DAMAGE, 0, 0, 45, 3, 3, 5f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(2098, new SpellInfo(2098, EFFECT_SCHOOL_DAMAGE, 0, 0, 35, 6, 10, 5f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(2764, new SpellInfo(2764, EFFECT_SCHOOL_DAMAGE, 0, 0, 0, 1, 3, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(686, new SpellInfo(686, EFFECT_SCHOOL_DAMAGE, 0, 5, 25, 12, 16, 30f)
+                .withCastTime(1700).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(687, new SpellInfo(687, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 5, 50, 0, 0, 0f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
+        spells.put(2973, new SpellInfo(2973, EFFECT_WEAPON_DAMAGE, 0, 0, 15, 5, 5, 5f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(75, new SpellInfo(75, EFFECT_SCHOOL_DAMAGE, 0, 0, 0, 1, 1, 30f));
+        spells.put(403, new SpellInfo(403, EFFECT_SCHOOL_DAMAGE, 0, 3, 15, 13, 15, 30f)
+                .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(331, new SpellInfo(331, EFFECT_HEAL, 0, 3, 25, 34, 44, 40f)
+                .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(5176, new SpellInfo(5176, EFFECT_SCHOOL_DAMAGE, 0, 3, 20, 13, 16, 30f)
+                .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(5185, new SpellInfo(5185, EFFECT_HEAL, 0, 3, 25, 37, 51, 40f)
+                .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(20580, new SpellInfo(20580, EFFECT_APPLY_AURA, SPELL_AURA_DUMMY, 0, 0, 0, 0, 0f)
+                .withDuration(10_000).withRecovery(10_000));
+        spells.put(20549, new SpellInfo(20549, EFFECT_APPLY_AURA, SPELL_AURA_DUMMY, 0, 0, 0, 0, 0f)
+                .withCastTime(500).withDuration(2000).withRecovery(120_000));
+        spells.put(28734, new SpellInfo(28734, EFFECT_POWER_DRAIN, 0, 6, 0, 50, 50, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(28730, new SpellInfo(28730, EFFECT_ENERGIZE, 0, 6, 0, 10, 10, 0f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withRecovery(120_000));
+        spells.put(25046, new SpellInfo(25046, EFFECT_ENERGIZE, 0, 0, 0, 15, 15, 0f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withRecovery(120_000));
+        spells.put(28880, new SpellInfo(28880, EFFECT_HEAL, 0, 2, 0, 50, 50, 40f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withRecovery(180_000));
     }
 
     public static SpellEngine alwaysHit() {
@@ -518,6 +570,7 @@ public final class SpellEngine {
         }
         SpellInfo sp = info(spellId);
         if (sp == null) {
+            sendFail(send, spellId, SPELL_FAILED_ERROR, castCount);
             return false;
         }
         if (!(fromItem || spellId == LOGINEFFECT || caster.spells.contains(spellId))) {
@@ -655,6 +708,7 @@ public final class SpellEngine {
                     UpdateBuilder.values(caster, UpdateFields.UNIT_FIELD_POWER1 + caster.powerType));
             send.accept(pwr.opcode(), pwr.payload());
         }
+        int hpBefore = target.health();
         int dmg = 0;
         if (sp.id == 78) {
             caster.queueNextMeleeSwing(Math.max(1, (sp.minDmg + sp.maxDmg) / 2));
@@ -669,6 +723,14 @@ public final class SpellEngine {
             send.accept(Opcodes.SMSG_SPELL_GO, encodeGo(caster.guid, target.guid, sp.id, nowMs, targets));
             if (dmg > 0) {
                 send.accept(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG, encodeDamageLog(target.guid, caster.guid, sp, dmg));
+                var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
+                send.accept(hp.opcode(), hp.payload());
+            }
+            if (sp.effect == EFFECT_HEAL) {
+                int healed = target.health() - hpBefore;
+                int base = (sp.minDmg + sp.maxDmg) / 2;
+                send.accept(Opcodes.SMSG_SPELLHEALLOG,
+                        encodeHealLog(target.guid, caster.guid, sp.id, healed, healed > base));
                 var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
                 send.accept(hp.opcode(), hp.payload());
             }
@@ -1102,6 +1164,9 @@ public final class SpellEngine {
             return 0;
         }
         if (sp.effect == EFFECT_APPLY_AURA) {
+            if (sp.id == SEAL_OF_RIGHTEOUSNESS) {
+                dropSeal(target);
+            }
             int duration = auraDurationMs(sp);
             // auraDurationMs is always > 0; expireAt 0 means permanent (apply without a world clock).
             long expireAt = nowMs > 0 ? nowMs + duration : 0;
@@ -2670,6 +2735,31 @@ public final class SpellEngine {
         b.putU64(target);
         b.putU8(SPELL_MISS_MISS);
         return b.array();
+    }
+
+    /** Unit::SendHealSpellLog — packed victim, packed caster, spellId, amount, critical, unused. */
+    byte[] encodeHealLog(long victim, long caster, int spellId, int amount, boolean critical) {
+        WowBuffer b = new WowBuffer(32);
+        b.putPackedGuid(victim);
+        b.putPackedGuid(caster);
+        b.putU32(spellId);
+        b.putU32(amount);
+        b.putU8(critical ? 1 : 0);
+        b.putU8(0);
+        return b.array();
+    }
+
+    /** One seal at a time: drop the previous Seal of Righteousness icon and holder. */
+    private static void dropSeal(Unit target) {
+        int slot = AuraSlots.slotOf(target, SEAL_OF_RIGHTEOUSNESS);
+        if (slot >= 0) {
+            AuraSlots.clearVisible(target, slot);
+        }
+        for (int i = target.auras.size() - 1; i >= 0; i--) {
+            if (target.auras.get(i).spellId() == SEAL_OF_RIGHTEOUSNESS) {
+                target.auras.remove(i);
+            }
+        }
     }
 
     public byte[] encodeDamageLog(long target, long attacker, SpellInfo sp, int damage) {
