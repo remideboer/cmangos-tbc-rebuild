@@ -358,6 +358,10 @@ public final class WorldSession {
             handleFallReset(world, in);
             return;
         }
+        if (opcode == Opcodes.CMSG_MOVE_SET_FLY) {
+            handleMove(world, opcode, in, false);
+            return;
+        }
         switch (opcode) {
             case Opcodes.CMSG_LOGOUT_REQUEST -> handleLogoutRequest(world);
             case Opcodes.CMSG_LOGOUT_CANCEL -> handleLogoutCancel();

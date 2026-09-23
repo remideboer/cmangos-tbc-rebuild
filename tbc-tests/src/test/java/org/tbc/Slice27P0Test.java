@@ -222,6 +222,44 @@ class Slice27P0Test {
         assertFalse(b.saw(Opcodes.CMSG_MOVE_FALL_RESET));
     }
 
+    /**
+     * TP-SL27-007 — HandleMovementOpcodes broadcasts CMSG_MOVE_SET_FLY
+     * (packed guid + MovementInfo) to nearby players. The sender is excluded.
+     */
+    @Test
+    void tpSl27SetFlyEchoesToNearby() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Flyer");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player p = a.session().player();
+        a.clear();
+        b.clear();
+        float x = p.x + 1f;
+        float y = p.y;
+        float z = p.z + 1f;
+        WowBuffer in = new WowBuffer(32);
+        in.putU32(0);
+        in.putU8(0);
+        in.putU32(0);
+        in.putFloat(x);
+        in.putFloat(y);
+        in.putFloat(z);
+        in.putFloat(0f);
+        in.putU32(0);
+        a.handle(world, Opcodes.CMSG_MOVE_SET_FLY, in.array());
+        assertFalse(a.saw(Opcodes.CMSG_MOVE_SET_FLY));
+        WowBuffer out = new WowBuffer(lastPayload(b, Opcodes.CMSG_MOVE_SET_FLY));
+        assertEquals(p.guid, out.getPackedGuid());
+        assertEquals(0, out.getU32());
+        assertEquals(0, out.getU8());
+        out.getU32();
+        assertEquals(x, out.getFloat(), 0.01f);
+        assertEquals(y, out.getFloat(), 0.01f);
+        assertEquals(z, out.getFloat(), 0.01f);
+        assertEquals(x, p.x, 0.01f);
+        assertEquals(z, p.z, 0.01f);
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
