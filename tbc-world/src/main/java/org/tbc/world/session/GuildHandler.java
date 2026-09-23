@@ -123,10 +123,29 @@ public final class GuildHandler {
             return;
         }
         t.guildIdInvited = g.id;
+        t.guildInviterGuid = p.guid;
         WowBuffer inv = new WowBuffer(32);
         inv.putCString(p.name);
         inv.putCString(g.name);
         t.session.send(Opcodes.SMSG_GUILD_INVITE, inv.array());
+    }
+
+    /** HandleGuildDeclineOpcode — empty C2S. SMSG_GUILD_DECLINE name to the online inviter. */
+    public static void decline(WorldSession s, World world) {
+        Player p = s.player();
+        if (p.guildId != 0) {
+            return;
+        }
+        if (p.guildIdInvited != 0 && p.guildInviterGuid != 0) {
+            Player inviter = world.playerByGuid(p.guildInviterGuid);
+            if (inviter != null && inviter.session != null) {
+                WowBuffer d = new WowBuffer(32);
+                d.putCString(p.name);
+                inviter.session.send(Opcodes.SMSG_GUILD_DECLINE, d.array());
+            }
+        }
+        p.guildIdInvited = 0;
+        p.guildInviterGuid = 0;
     }
 
     public static void accept(WorldSession s, World world) {
@@ -143,6 +162,7 @@ public final class GuildHandler {
             return;
         }
         p.guildIdInvited = 0;
+        p.guildInviterGuid = 0;
         p.guildId = g.id;
         p.guildName = g.name;
         p.guildLeader = false;

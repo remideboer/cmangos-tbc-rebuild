@@ -9,6 +9,7 @@ import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL21-* from guild.md / group.md */
@@ -158,6 +159,30 @@ class Slice21P0Test {
         assertEquals("Mate", b.getCString());
         assertEquals("Member", b.getCString());
         assertEquals(0, b.remaining());
+    }
+
+    /**
+     * TP-SL21-018 — HandleGuildDeclineOpcode. After SMSG_GUILD_INVITE, CMSG_GUILD_DECLINE
+     * sends SMSG_GUILD_DECLINE (decliner name) to the online inviter and clears the invite (guild.md).
+     */
+    @Test
+    void tpSl21GuildDecline() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.guildCreate(world, "Plates");
+        lead.guildInvite(world, "Mate");
+        assertTrue(mate.saw(Opcodes.SMSG_GUILD_INVITE));
+        assertEquals(lead.session().player().guildId, mate.session().player().guildIdInvited);
+        lead.clear();
+        mate.clear();
+        mate.handle(world, Opcodes.CMSG_GUILD_DECLINE, new byte[0]);
+        WowBuffer d = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_DECLINE));
+        assertEquals("Mate", d.getCString());
+        assertEquals(0, d.remaining());
+        assertFalse(mate.saw(Opcodes.SMSG_GUILD_DECLINE));
+        assertEquals(0, mate.session().player().guildIdInvited);
+        assertEquals(0, mate.session().player().guildId);
     }
 
     @Test

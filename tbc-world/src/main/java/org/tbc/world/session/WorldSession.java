@@ -451,6 +451,7 @@ public final class WorldSession {
             case Opcodes.CMSG_DEL_FRIEND -> SocialHandler.delFriend(this, world, in);
             case Opcodes.CMSG_GUILD_INVITE -> GuildHandler.invite(this, world, in);
             case Opcodes.CMSG_GUILD_ACCEPT -> GuildHandler.accept(this, world);
+            case Opcodes.CMSG_GUILD_DECLINE -> GuildHandler.decline(this, world);
             case Opcodes.CMSG_GUILD_PROMOTE -> GuildHandler.promote(this, world, in);
             case Opcodes.CMSG_GUILD_RANK -> GuildHandler.rank(this, world, in);
             case Opcodes.CMSG_GUILD_ADD_RANK -> GuildHandler.addRank(this, world, in);

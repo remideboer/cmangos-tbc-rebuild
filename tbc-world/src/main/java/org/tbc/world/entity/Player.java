@@ -145,6 +145,8 @@ public final class Player extends Unit {
     public static final int NEW_INSTANCE_LIMIT_PER_HOUR = 5;
     public final java.util.Map<Integer, Long> enteredInstances = new java.util.HashMap<>();
     public int guildIdInvited;
+    /** Guild::GetGuildInviter — who sent the pending invite. */
+    public long guildInviterGuid;
     public int guildRank;
     public int guildRankRights;
     public boolean guildLeader;
