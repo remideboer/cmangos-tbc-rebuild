@@ -207,6 +207,39 @@ class Slice21P0Test {
         assertEquals(0, g.remaining());
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildRosterOpcode. After the motd is set, CMSG_GUILD_ROSTER
+     * sends SMSG_GUILD_ROSTER with that motd and the member name (guild.md).
+     */
+    @Test
+    void tpSl21GuildRoster() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        WowBuffer motd = new WowBuffer(16);
+        motd.putCString("Stay grouped");
+        lead.handle(world, Opcodes.CMSG_GUILD_MOTD, motd.array());
+        lead.clear();
+        lead.handle(world, Opcodes.CMSG_GUILD_ROSTER, new byte[0]);
+        WowBuffer r = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_ROSTER));
+        assertEquals(1, r.getU32());
+        assertEquals("Stay grouped", r.getCString());
+        assertEquals("", r.getCString());
+        int ranks = r.getU32();
+        assertTrue(ranks >= 1);
+        for (int i = 0; i < ranks; i++) {
+            r.getU32();
+            r.getU32();
+            for (int t = 0; t < 6; t++) {
+                r.getU32();
+                r.getU32();
+            }
+        }
+        assertEquals(lead.session().player().guid, r.getU64());
+        assertEquals(1, r.getU8());
+        assertEquals("Lead", r.getCString());
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();

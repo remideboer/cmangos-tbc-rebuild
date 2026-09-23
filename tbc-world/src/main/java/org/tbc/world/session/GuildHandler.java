@@ -71,7 +71,7 @@ public final class GuildHandler {
         p.guildLeader = true;
         p.guildName = name;
         applyRank(p, g, 0);
-        roster(s, p);
+        roster(s, world, p);
     }
 
     static void seedDefaultRanks(Guild g) {
@@ -279,7 +279,7 @@ public final class GuildHandler {
         WowBuffer q = new WowBuffer(4);
         q.putU32(g.id);
         QueryHandler.guild(s, world, q);
-        roster(s, p);
+        roster(s, world, p);
     }
 
     public static final int GUILD_RANKS_MIN_COUNT = 5;
@@ -306,7 +306,7 @@ public final class GuildHandler {
         WowBuffer q = new WowBuffer(4);
         q.putU32(g.id);
         QueryHandler.guild(s, world, q);
-        roster(s, p);
+        roster(s, world, p);
     }
 
     /** HandleGuildDelRankOpcode — remove last rank if above min. */
@@ -328,7 +328,7 @@ public final class GuildHandler {
         WowBuffer q = new WowBuffer(4);
         q.putU32(g.id);
         QueryHandler.guild(s, world, q);
-        roster(s, p);
+        roster(s, world, p);
     }
 
     public static void motd(WorldSession s, World world, WowBuffer in) {
@@ -432,28 +432,52 @@ public final class GuildHandler {
         s.send(Opcodes.SMSG_GUILD_COMMAND_RESULT, b.array());
     }
 
-    public static void roster(WorldSession s, Player p) {
-        WowBuffer r = new WowBuffer(160);
-        r.putU32(1);
-        r.putCString("");
-        r.putCString("");
-        r.putU32(1);
-        r.putU32(GR_RIGHT_EMPTY);
-        r.putU32(0);
-        for (int t = 0; t < GUILD_BANK_MAX_TABS; t++) {
-            r.putU32(0);
-            r.putU32(0);
+    /** Guild::Roster — member count, motd, ginfo, ranks, then each member. */
+    public static void roster(WorldSession s, World world, Player p) {
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            return;
         }
-        r.putU64(p.guid);
-        r.putU8(p.session != null ? 1 : 0);
-        r.putCString(p.name);
-        r.putU32(0);
-        r.putU8(p.level);
-        r.putU8(p.clazz);
-        r.putU8(p.gender);
-        r.putU32(p.zoneId);
+        WowBuffer r = new WowBuffer(256);
+        r.putU32(g.members.size());
+        r.putCString(g.motd);
         r.putCString("");
-        r.putCString("");
+        r.putU32(g.ranks.size());
+        for (Guild.Rank rank : g.ranks) {
+            r.putU32(rank.rights);
+            r.putU32(0);
+            for (int t = 0; t < GUILD_BANK_MAX_TABS; t++) {
+                r.putU32(0);
+                r.putU32(0);
+            }
+        }
+        for (long guid : g.members) {
+            Player m = world.playerByGuid(guid);
+            if (m != null) {
+                r.putU64(m.guid);
+                r.putU8(1);
+                r.putCString(m.name);
+                r.putU32(m.guildRank);
+                r.putU8(m.level);
+                r.putU8(m.clazz);
+                r.putU8(m.gender);
+                r.putU32(m.zoneId);
+                r.putCString("");
+                r.putCString("");
+            } else {
+                r.putU64(guid);
+                r.putU8(0);
+                r.putCString("");
+                r.putU32(0);
+                r.putU8(0);
+                r.putU8(0);
+                r.putU8(0);
+                r.putU32(0);
+                r.putFloat(0f);
+                r.putCString("");
+                r.putCString("");
+            }
+        }
         s.send(Opcodes.SMSG_GUILD_ROSTER, r.array());
     }
 
