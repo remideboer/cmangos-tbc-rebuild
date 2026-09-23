@@ -276,6 +276,36 @@ class Slice21P0Test {
         assertEquals(0, b.remaining());
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildLeaveOpcode. A non-leader CMSG_GUILD_LEAVE gets
+     * GUILD_QUIT_S and the remaining members see GE_LEFT with the leaver guid (guild.md).
+     */
+    @Test
+    void tpSl21GuildLeave() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.guildCreate(world, "Plates");
+        lead.guildInvite(world, "Mate");
+        mate.guildAccept(world);
+        lead.clear();
+        mate.clear();
+        mate.handle(world, Opcodes.CMSG_GUILD_LEAVE, new byte[0]);
+        WowBuffer quit = new WowBuffer(lastPayload(mate, Opcodes.SMSG_GUILD_COMMAND_RESULT));
+        assertEquals(3, quit.getU32());
+        assertEquals("Plates", quit.getCString());
+        assertEquals(0, quit.getU32());
+        assertEquals(0, quit.remaining());
+        assertEquals(0, mate.session().player().guildId);
+        WowBuffer ev = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(4, ev.getU8());
+        assertEquals(1, ev.getU8());
+        assertEquals("Mate", ev.getCString());
+        assertEquals(mate.session().player().guid, ev.getU64());
+        assertEquals(0, ev.remaining());
+        assertFalse(mate.saw(Opcodes.SMSG_GUILD_EVENT));
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();

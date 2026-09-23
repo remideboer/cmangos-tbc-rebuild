@@ -10,6 +10,7 @@ import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /** Guild create, invite, promote, MOTD, roster. Layout: spec/03-protocol/packets/guild.md */
 public final class GuildHandler {
@@ -30,9 +31,12 @@ public final class GuildHandler {
     public static final int GUILD_BANK_MAX_TABS = 6;
     public static final int GUILD_CREATE_S = 0;
     public static final int GUILD_INVITE_S = 1;
+    public static final int GUILD_QUIT_S = 3;
+    public static final int ERR_PLAYER_NO_MORE_IN_GUILD = 0x00;
     public static final int ERR_ALREADY_IN_GUILD_S = 0x03;
     public static final int ERR_ALREADY_INVITED_TO_GUILD_S = 0x05;
     public static final int ERR_GUILD_PERMISSIONS = 0x08;
+    public static final int ERR_GUILD_LEADER_LEAVE = 0x08;
     public static final int ERR_GUILD_PLAYER_NOT_IN_GUILD = 0x09;
     public static final int ERR_GUILD_NAME_INVALID = 0x06;
     public static final int ERR_GUILD_PLAYER_NOT_FOUND_S = 0x0B;
@@ -44,6 +48,8 @@ public final class GuildHandler {
     public static final int GE_DEMOTION = 0x01;
     public static final int GE_MOTD = 0x02;
     public static final int GE_JOINED = 0x03;
+    public static final int GE_LEFT = 0x04;
+    public static final int GE_DISBANDED = 0x08;
     /** SharedDefines.h GOLD × 10. MSG_SAVE_GUILD_EMBLEM cost. */
     public static final int EMBLEM_COST = 100000;
     public static final int ERR_GUILDEMBLEM_SUCCESS = 0;
@@ -284,6 +290,52 @@ public final class GuildHandler {
         String rankName = newRankId >= 0 && newRankId < g.ranks.size()
                 ? g.ranks.get(newRankId).name : "<unknown>";
         broadcastEvent(world, g, GE_DEMOTION, 0, p.name, t.name, rankName);
+    }
+
+    /** HandleGuildLeaveOpcode — non-leader quits; remaining members see GE_LEFT. */
+    public static void leave(WorldSession s, World world) {
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (p.guid == g.leaderGuid && g.members.size() > 1) {
+            commandResult(s, GUILD_QUIT_S, "", ERR_GUILD_LEADER_LEAVE);
+            return;
+        }
+        if (p.guid == g.leaderGuid) {
+            disband(world, g);
+            return;
+        }
+        commandResult(s, GUILD_QUIT_S, g.name, ERR_PLAYER_NO_MORE_IN_GUILD);
+        g.members.remove(Long.valueOf(p.guid));
+        clearGuild(p);
+        if (g.members.isEmpty()) {
+            world.objectMgr.guilds.remove(g.id);
+            return;
+        }
+        broadcastEvent(world, g, GE_LEFT, p.guid, p.name);
+    }
+
+    static void disband(World world, Guild g) {
+        broadcastEvent(world, g, GE_DISBANDED, 0);
+        for (long guid : List.copyOf(g.members)) {
+            Player m = world.playerByGuid(guid);
+            if (m != null) {
+                clearGuild(m);
+            }
+        }
+        g.members.clear();
+        world.objectMgr.guilds.remove(g.id);
+    }
+
+    static void clearGuild(Player p) {
+        p.guildId = 0;
+        p.guildName = "";
+        p.guildLeader = false;
+        p.guildRank = 0;
+        p.guildRankRights = 0;
     }
 
     /** HandleGuildRankOpcode — GM renames/rights a rank; Query + Roster. */

@@ -456,6 +456,7 @@ public final class WorldSession {
             case Opcodes.CMSG_GUILD_ROSTER -> GuildHandler.roster(this, world, player);
             case Opcodes.CMSG_GUILD_PROMOTE -> GuildHandler.promote(this, world, in);
             case Opcodes.CMSG_GUILD_DEMOTE -> GuildHandler.demote(this, world, in);
+            case Opcodes.CMSG_GUILD_LEAVE -> GuildHandler.leave(this, world);
             case Opcodes.CMSG_GUILD_RANK -> GuildHandler.rank(this, world, in);
             case Opcodes.CMSG_GUILD_ADD_RANK -> GuildHandler.addRank(this, world, in);
             case Opcodes.CMSG_GUILD_DEL_RANK -> GuildHandler.delRank(this, world);
