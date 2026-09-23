@@ -52,6 +52,7 @@ public final class GuildHandler {
     public static final int GE_JOINED = 0x03;
     public static final int GE_LEFT = 0x04;
     public static final int GE_REMOVED = 0x05;
+    public static final int GE_LEADER_CHANGED = 0x07;
     public static final int GE_DISBANDED = 0x08;
     /** SharedDefines.h GOLD × 10. MSG_SAVE_GUILD_EMBLEM cost. */
     public static final int EMBLEM_COST = 100000;
@@ -372,6 +373,39 @@ public final class GuildHandler {
             return;
         }
         disband(world, g);
+    }
+
+    /** HandleGuildLeaderOpcode — new master is rank 0; old master becomes officer. */
+    public static void setLeader(WorldSession s, World world, WowBuffer in) {
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        if (name.isEmpty()) {
+            return;
+        }
+        Player oldLeader = s.player();
+        Guild g = world.objectMgr.guilds.get(oldLeader.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (oldLeader.guid != g.leaderGuid) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        if (memberByName(world, g, oldLeader.name) == null) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        Player next = memberByName(world, g, name);
+        if (next == null) {
+            commandResult(s, GUILD_INVITE_S, name, ERR_GUILD_PLAYER_NOT_IN_GUILD_S);
+            return;
+        }
+        g.leaderGuid = next.guid;
+        applyRank(next, g, 0);
+        next.guildLeader = true;
+        applyRank(oldLeader, g, 1);
+        oldLeader.guildLeader = false;
+        broadcastEvent(world, g, GE_LEADER_CHANGED, 0, oldLeader.name, next.name);
     }
 
     static void disband(World world, Guild g) {

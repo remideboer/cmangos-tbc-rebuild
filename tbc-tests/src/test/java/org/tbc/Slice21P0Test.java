@@ -360,6 +360,66 @@ class Slice21P0Test {
         assertEquals(0, mate.session().player().guildId);
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildLeaderOpcode. CMSG_GUILD_LEADER broadcasts
+     * GE_LEADER_CHANGED (old name, new name) and the roster ranks follow (guild.md).
+     */
+    @Test
+    void tpSl21GuildLeader() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.guildCreate(world, "Plates");
+        lead.guildInvite(world, "Mate");
+        mate.guildAccept(world);
+        lead.clear();
+        mate.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putCString("Mate");
+        lead.handle(world, Opcodes.CMSG_GUILD_LEADER, in.array());
+        WowBuffer ev = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(7, ev.getU8());
+        assertEquals(2, ev.getU8());
+        assertEquals("Lead", ev.getCString());
+        assertEquals("Mate", ev.getCString());
+        assertEquals(0, ev.remaining());
+        WowBuffer mateEv = new WowBuffer(lastPayload(mate, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(7, mateEv.getU8());
+        assertEquals(2, mateEv.getU8());
+        assertEquals("Lead", mateEv.getCString());
+        assertEquals("Mate", mateEv.getCString());
+        assertEquals(0, mateEv.remaining());
+        lead.clear();
+        lead.handle(world, Opcodes.CMSG_GUILD_ROSTER, new byte[0]);
+        WowBuffer r = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_ROSTER));
+        assertEquals(2, r.getU32());
+        r.getCString();
+        r.getCString();
+        int ranks = r.getU32();
+        for (int i = 0; i < ranks; i++) {
+            r.getU32();
+            r.getU32();
+            for (int t = 0; t < 6; t++) {
+                r.getU32();
+                r.getU32();
+            }
+        }
+        assertEquals(lead.session().player().guid, r.getU64());
+        r.getU8();
+        assertEquals("Lead", r.getCString());
+        assertEquals(1, r.getU32());
+        r.getU8();
+        r.getU8();
+        r.getU8();
+        r.getU32();
+        r.getCString();
+        r.getCString();
+        assertEquals(mate.session().player().guid, r.getU64());
+        r.getU8();
+        assertEquals("Mate", r.getCString());
+        assertEquals(0, r.getU32());
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();
