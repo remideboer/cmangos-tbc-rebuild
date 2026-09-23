@@ -30,6 +30,9 @@ public final class GuildHandler {
     public static final int GR_RIGHT_SETMOTD = 0x00001040;
     /** Guild.h GR_RIGHT_EPNOTE. */
     public static final int GR_RIGHT_EPNOTE = 0x00002040;
+    /** Guild.h GR_RIGHT_VIEWOFFNOTE / EOFFNOTE. */
+    public static final int GR_RIGHT_VIEWOFFNOTE = 0x00004040;
+    public static final int GR_RIGHT_EOFFNOTE = 0x00008040;
     /** Guild.h GR_RIGHT_ALL (guild master). */
     public static final int GR_RIGHT_ALL = 0x000DF1FF;
     public static final int GUILD_BANK_MAX_TABS = 6;
@@ -651,7 +654,7 @@ public final class GuildHandler {
                 r.putU8(m.gender);
                 r.putU32(m.zoneId);
                 r.putCString(publicNote(g, m.guid));
-                r.putCString("");
+                r.putCString(officerNote(g, p, m.guid));
             } else {
                 r.putU64(guid);
                 r.putU8(0);
@@ -663,7 +666,7 @@ public final class GuildHandler {
                 r.putU32(0);
                 r.putFloat(0f);
                 r.putCString(publicNote(g, guid));
-                r.putCString("");
+                r.putCString(officerNote(g, p, guid));
             }
         }
         s.send(Opcodes.SMSG_GUILD_ROSTER, r.array());
@@ -700,6 +703,43 @@ public final class GuildHandler {
         }
         String note = in.remaining() > 0 ? in.getCString() : "";
         g.publicNotes.put(t.guid, note == null ? "" : note);
+        roster(s, world, p);
+    }
+
+    static String officerNote(Guild g, Player viewer, long guid) {
+        if (!hasRankRight(g, viewer.guildRank, GR_RIGHT_VIEWOFFNOTE)) {
+            return "";
+        }
+        String note = g.officerNotes.get(guid);
+        return note == null ? "" : note;
+    }
+
+    /** HandleGuildSetOfficerNoteOpcode — store the note and resend the roster. */
+    public static void setOfficerNote(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() <= 0) {
+            return;
+        }
+        String name = in.getCString();
+        if (name.isEmpty()) {
+            return;
+        }
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (!hasRankRight(g, p.guildRank, GR_RIGHT_EOFFNOTE)) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        Player t = memberByName(world, g, name);
+        if (t == null) {
+            commandResult(s, GUILD_INVITE_S, name, ERR_GUILD_PLAYER_NOT_IN_GUILD_S);
+            return;
+        }
+        String note = in.remaining() > 0 ? in.getCString() : "";
+        g.officerNotes.put(t.guid, note == null ? "" : note);
         roster(s, world, p);
     }
 

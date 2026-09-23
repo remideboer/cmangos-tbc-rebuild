@@ -24,6 +24,7 @@ public final class Guild {
     public final String[] tabTexts = new String[6];
     public final List<Long> members = new ArrayList<>();
     public final Map<Long, String> publicNotes = new HashMap<>();
+    public final Map<Long, String> officerNotes = new HashMap<>();
     public final List<Rank> ranks = new ArrayList<>();
 
     public static final class Rank {

@@ -472,6 +472,58 @@ class Slice21P0Test {
         assertEquals("", r.getCString());
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildSetOfficerNoteOpcode. A viewer with VIEWOFFNOTE
+     * sees the officer note on the roster sent back (guild.md / Guild::Roster).
+     */
+    @Test
+    void tpSl21GuildOfficerNote() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.guildCreate(world, "Plates");
+        lead.guildInvite(world, "Mate");
+        mate.guildAccept(world);
+        lead.clear();
+        WowBuffer in = new WowBuffer(32);
+        in.putCString("Mate");
+        in.putCString("Raid lead");
+        lead.handle(world, Opcodes.CMSG_GUILD_SET_OFFICER_NOTE, in.array());
+        WowBuffer r = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_ROSTER));
+        assertEquals(2, r.getU32());
+        r.getCString();
+        r.getCString();
+        int ranks = r.getU32();
+        for (int i = 0; i < ranks; i++) {
+            r.getU32();
+            r.getU32();
+            for (int t = 0; t < 6; t++) {
+                r.getU32();
+                r.getU32();
+            }
+        }
+        r.getU64();
+        r.getU8();
+        r.getCString();
+        r.getU32();
+        r.getU8();
+        r.getU8();
+        r.getU8();
+        r.getU32();
+        r.getCString();
+        r.getCString();
+        assertEquals(mate.session().player().guid, r.getU64());
+        r.getU8();
+        assertEquals("Mate", r.getCString());
+        r.getU32();
+        r.getU8();
+        r.getU8();
+        r.getU8();
+        r.getU32();
+        assertEquals("", r.getCString());
+        assertEquals("Raid lead", r.getCString());
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();
