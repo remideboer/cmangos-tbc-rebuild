@@ -174,36 +174,49 @@ public final class World implements Runnable {
         }
     }
 
-    /** Instantiates map 0/1 spawn rows at boot. Lazy grid load/unload is FR-CNT-002 / maps-grids-visibility.md — not this increment. */
+    /** Every loaded map is placed. Grid unload stays later. */
+    public static boolean placesSpawnOnBoot(boolean databaseConnected, int mapId) {
+        return mapId >= 0 || databaseConnected;
+    }
+
+    /** Places every loaded creature and gameobject row for this map onto instance 0. */
     private void seedStarterMobs() {
         if (objectMgr.spawns.isEmpty()) {
             map(0, 0).add(objectMgr.spawnCreature(6, 0, -8900f, -120f, 80f, 0f, scripts));
-        } else {
-            int n = 0;
-            for (ObjectMgr.Spawn s : objectMgr.spawns) {
-                if (worldDb != null && s.map() != 0 && s.map() != 1) {
-                    continue;
-                }
-                map(s.map(), 0).add(objectMgr.spawnCreature(s, scripts));
-                n++;
+        }
+        java.util.Set<Integer> mapIds = new java.util.LinkedHashSet<>();
+        for (ObjectMgr.Spawn s : objectMgr.spawns) {
+            if (placesSpawnOnBoot(worldDb != null, s.map())) {
+                mapIds.add(s.map());
             }
-            log.info("instantiated {} creature spawns", n);
+        }
+        for (ObjectMgr.Spawn s : objectMgr.goSpawns) {
+            if (placesSpawnOnBoot(worldDb != null, s.map())) {
+                mapIds.add(s.map());
+            }
+        }
+        for (int mapId : mapIds) {
+            ensureMapSpawns(mapId, 0);
+        }
+        if (!objectMgr.spawns.isEmpty()) {
+            log.info("instantiated {} creature spawns", objectMgr.spawns.size());
         }
         if (!objectMgr.goSpawns.isEmpty()) {
-            int n = 0;
-            for (ObjectMgr.Spawn s : objectMgr.goSpawns) {
-                if (worldDb != null && s.map() != 0 && s.map() != 1) {
-                    continue;
-                }
-                map(s.map(), 0).add(objectMgr.spawnGameObject(s));
-                n++;
-            }
-            log.info("instantiated {} gameobject spawns", n);
+            log.info("instantiated {} gameobject spawns", objectMgr.goSpawns.size());
         }
-        Creature gruul = objectMgr.spawnCreature(19044, 565, 0, 0, 0, 0, scripts);
-        gruul.scriptName = "boss_gruul";
-        FactorySelector.selectAI(gruul, scripts);
-        map(565, 0).add(gruul);
+        boolean haveGruul = false;
+        for (ObjectMgr.Spawn s : objectMgr.spawns) {
+            if (s.entry() == 19044) {
+                haveGruul = true;
+                break;
+            }
+        }
+        if (!haveGruul) {
+            Creature gruul = objectMgr.spawnCreature(19044, 565, 0, 0, 0, 0, scripts);
+            gruul.scriptName = "boss_gruul";
+            FactorySelector.selectAI(gruul, scripts);
+            map(565, 0).add(gruul);
+        }
     }
 
     public long nowMs() {
@@ -240,6 +253,25 @@ public final class World implements Runnable {
         nowMs.addAndGet(deltaMs);
         clockOffsetMs.addAndGet(deltaMs);
         DeathHandler.tickDeathTimers(this);
+    }
+
+    /** Copy this map's loaded creature and gameobject rows onto an instance. Once per map. */
+    public void ensureMapSpawns(int mapId, int instanceId) {
+        GameMap dest = map(mapId, instanceId);
+        if (dest.spawnsPlaced) {
+            return;
+        }
+        dest.spawnsPlaced = true;
+        for (ObjectMgr.Spawn s : objectMgr.spawns) {
+            if (s.map() == mapId) {
+                dest.add(objectMgr.spawnCreature(s, scripts));
+            }
+        }
+        for (ObjectMgr.Spawn s : objectMgr.goSpawns) {
+            if (s.map() == mapId) {
+                dest.add(objectMgr.spawnGameObject(s));
+            }
+        }
     }
 
     public GameMap map(int mapId, int instanceId) {

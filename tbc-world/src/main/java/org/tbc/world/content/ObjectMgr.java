@@ -1456,7 +1456,7 @@ public final class ObjectMgr {
                         + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
                         + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName, "
                         + "AIName, ExtraFlags, MinMeleeDmg, MaxMeleeDmg, MeleeBaseAttackTime, LootId, MinLootGold, MaxLootGold "
-                        + "FROM creature_template LIMIT 50000",
+                        + "FROM creature_template",
                 true, true)) {
             log.info("loaded {} creature_template rows", creatures.size());
             return;
@@ -1466,7 +1466,7 @@ public final class ObjectMgr {
                         + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
                         + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName, "
                         + "AIName, ExtraFlags, MinMeleeDmg, MaxMeleeDmg, MeleeBaseAttackTime, LootId, MinLootGold, MaxLootGold "
-                        + "FROM creature_template LIMIT 50000",
+                        + "FROM creature_template",
                 true, true)) {
             log.info("loaded {} creature_template rows", creatures.size());
             return;
@@ -1475,7 +1475,7 @@ public final class ObjectMgr {
                 "SELECT Entry, Name, SubName, IconName, ModelId1, ModelId2, ModelId3, ModelId4, "
                         + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
                         + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName "
-                        + "FROM creature_template LIMIT 50000",
+                        + "FROM creature_template",
                 true, false)) {
             log.info("loaded {} creature_template rows", creatures.size());
             return;
@@ -1484,26 +1484,26 @@ public final class ObjectMgr {
                 "SELECT Entry, Name, SubName, IconName, DisplayId1, DisplayId2, DisplayId3, DisplayId4, "
                         + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
                         + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName "
-                        + "FROM creature_template LIMIT 50000",
+                        + "FROM creature_template",
                 true, false)) {
             log.info("loaded {} creature_template rows", creatures.size());
             return;
         }
         if (loadCreaturesSimple(c,
                 "SELECT Entry, Name, ModelId1, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName "
-                        + "FROM creature_template LIMIT 50000")) {
+                        + "FROM creature_template")) {
             log.info("loaded {} creature_template rows (simple)", creatures.size());
             return;
         }
         if (loadCreaturesSimple(c,
                 "SELECT Entry, Name, DisplayId1, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName "
-                        + "FROM creature_template LIMIT 50000")) {
+                        + "FROM creature_template")) {
             log.info("loaded {} creature_template rows (simple)", creatures.size());
             return;
         }
         if (loadCreaturesSimple(c,
                 "SELECT entry, name, modelid_1, faction_A, minhealth, minlevel, npcflag, ScriptName "
-                        + "FROM creature_template LIMIT 50000")) {
+                        + "FROM creature_template")) {
             log.info("loaded {} creature_template rows (trinity)", creatures.size());
             return;
         }
@@ -1622,22 +1622,30 @@ public final class ObjectMgr {
         }
     }
 
-    private void loadSpawns(Connection c) throws Exception {
+    /** Creature spawn SELECTs, first match wins. Event rows stay out via the join. */
+    public static java.util.List<String> creatureSpawnQueries() {
         String cols = "c.guid, c.id, c.map, c.position_x, c.position_y, c.position_z, c.orientation";
         String motionCols = cols + ", c.spawndist, c.MovementType";
         String respawnCols = motionCols + ", c.spawntimesecsmin, c.spawntimesecsmax";
         String join = " FROM creature c LEFT OUTER JOIN game_event_creature gec ON c.guid = gec.guid AND gec.`event` > 0";
-        String[] sqls = {
-                "SELECT " + respawnCols + join + " WHERE c.map IN (0, 1) AND gec.guid IS NULL LIMIT 80000",
-                "SELECT " + respawnCols + join + " WHERE gec.guid IS NULL LIMIT 80000",
-                "SELECT " + motionCols + join + " WHERE c.map IN (0, 1) AND gec.guid IS NULL LIMIT 80000",
-                "SELECT " + motionCols + join + " WHERE gec.guid IS NULL LIMIT 80000",
-                "SELECT " + cols + join + " WHERE c.map IN (0, 1) AND gec.guid IS NULL LIMIT 80000",
-                "SELECT " + cols + join + " WHERE gec.guid IS NULL LIMIT 80000",
-                "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM creature "
-                        + "WHERE map IN (0, 1) LIMIT 80000",
-                "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM creature LIMIT 80000"
-        };
+        return java.util.List.of(
+                "SELECT " + respawnCols + join + " WHERE gec.guid IS NULL",
+                "SELECT " + motionCols + join + " WHERE gec.guid IS NULL",
+                "SELECT " + cols + join + " WHERE gec.guid IS NULL",
+                "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM creature");
+    }
+
+    /** Gameobject spawn SELECTs, first match wins. Event rows stay out via the join. */
+    public static java.util.List<String> gameObjectSpawnQueries() {
+        String cols = "g.guid, g.id, g.map, g.position_x, g.position_y, g.position_z, g.orientation";
+        String join = " FROM gameobject g LEFT OUTER JOIN game_event_gameobject geg ON g.guid = geg.guid AND geg.`event` > 0";
+        return java.util.List.of(
+                "SELECT " + cols + join + " WHERE geg.guid IS NULL",
+                "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM gameobject");
+    }
+
+    private void loadSpawns(Connection c) throws Exception {
+        String[] sqls = creatureSpawnQueries().toArray(String[]::new);
         Exception last = null;
         for (String sql : sqls) {
             try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
@@ -1664,15 +1672,7 @@ public final class ObjectMgr {
     }
 
     private void loadGoSpawns(Connection c) throws Exception {
-        String cols = "g.guid, g.id, g.map, g.position_x, g.position_y, g.position_z, g.orientation";
-        String join = " FROM gameobject g LEFT OUTER JOIN game_event_gameobject geg ON g.guid = geg.guid AND geg.`event` > 0";
-        String[] sqls = {
-                "SELECT " + cols + join + " WHERE g.map IN (0, 1) AND geg.guid IS NULL LIMIT 80000",
-                "SELECT " + cols + join + " WHERE geg.guid IS NULL LIMIT 80000",
-                "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM gameobject "
-                        + "WHERE map IN (0, 1) LIMIT 80000",
-                "SELECT guid, id, map, position_x, position_y, position_z, orientation FROM gameobject LIMIT 80000"
-        };
+        String[] sqls = gameObjectSpawnQueries().toArray(String[]::new);
         Exception last = null;
         for (String sql : sqls) {
             try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {

@@ -16,6 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class GameMap {
     public final int mapId;
     public final int instanceId;
+    /** True after creature and gameobject rows for this instance have been copied in. */
+    public boolean spawnsPlaced;
     public final Map<Long, Player> players = new ConcurrentHashMap<>();
     public final Map<Long, Creature> creatures = new ConcurrentHashMap<>();
     public final Map<Long, GameObject> gameObjects = new ConcurrentHashMap<>();

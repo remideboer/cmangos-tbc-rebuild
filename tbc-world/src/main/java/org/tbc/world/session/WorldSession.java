@@ -614,6 +614,7 @@ public final class WorldSession {
                     }
                     player.instanceId = inst;
                     player.addNewInstanceId(inst);
+                    world.ensureMapSpawns(at.map(), inst);
                 } else {
                     player.instanceId = 0;
                 }
