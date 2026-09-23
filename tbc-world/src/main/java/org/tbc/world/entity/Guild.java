@@ -23,6 +23,8 @@ public final class Guild {
     public int createdMonth;
     public int createdYear;
     public final String[] tabTexts = new String[6];
+    public final String[] tabNames = new String[] {"", "", "", "", "", ""};
+    public final String[] tabIcons = new String[] {"", "", "", "", "", ""};
     public final List<Long> members = new ArrayList<>();
     public final Map<Long, String> publicNotes = new HashMap<>();
     public final Map<Long, String> officerNotes = new HashMap<>();

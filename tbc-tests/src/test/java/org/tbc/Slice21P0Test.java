@@ -570,6 +570,43 @@ class Slice21P0Test {
         assertEquals(0, list.getU32());
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildBankUpdateTab. The first SMSG_GUILD_BANK_LIST is tab info
+     * with the new name and icon (guild.md).
+     */
+    @Test
+    void tpSl21GuildBankUpdateTab() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_BUY_TAB, new byte[8]);
+        lead.clear();
+        WowBuffer in = new WowBuffer(32);
+        in.putU64(1);
+        in.putU8(0);
+        in.putCString("Vault");
+        in.putCString("INV_Misc_Coin_01");
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_UPDATE_TAB, in.array());
+        byte[] tabInfo = null;
+        for (int i = 0; i < lead.opcodes.size(); i++) {
+            if (lead.opcodes.get(i) == Opcodes.SMSG_GUILD_BANK_LIST) {
+                tabInfo = lead.payloads.get(i);
+                break;
+            }
+        }
+        assertTrue(tabInfo != null);
+        WowBuffer list = new WowBuffer(tabInfo);
+        assertEquals(0L, list.getU64());
+        assertEquals(0, list.getU8());
+        assertEquals(0xFFFFFFFF, list.getU32());
+        assertEquals(1, list.getU8());
+        assertEquals(1, list.getU8());
+        assertEquals("Vault", list.getCString());
+        assertEquals("INV_Misc_Coin_01", list.getCString());
+        assertEquals(0, list.getU8());
+        assertEquals(0, list.remaining());
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();

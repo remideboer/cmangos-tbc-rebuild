@@ -802,6 +802,48 @@ public final class GuildHandler {
         if (g == null || tabId >= g.purchasedTabs) {
             return;
         }
+        sendBankContent(s, p, tabId);
+    }
+
+    /** HandleGuildBankUpdateTab — tab info packet, then the tab's slots. */
+    public static void updateTab(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 9) {
+            return;
+        }
+        in.getU64();
+        int tabId = in.getU8() & 0xFF;
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        String icon = in.remaining() > 0 ? in.getCString() : "";
+        if (name.isEmpty() || icon.isEmpty()) {
+            return;
+        }
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null || tabId >= g.purchasedTabs || tabId >= g.tabNames.length) {
+            return;
+        }
+        g.tabNames[tabId] = name;
+        g.tabIcons[tabId] = icon;
+        sendTabInfo(s, g, p);
+        sendBankContent(s, p, tabId);
+    }
+
+    static void sendTabInfo(WorldSession s, Guild g, Player p) {
+        WowBuffer list = new WowBuffer(64);
+        list.putU64(0);
+        list.putU8(0);
+        list.putU32(p.guildRank == 0 ? WITHDRAW_SLOT_UNLIMITED : 0);
+        list.putU8(1);
+        list.putU8(g.purchasedTabs);
+        for (int i = 0; i < g.purchasedTabs && i < g.tabNames.length; i++) {
+            list.putCString(g.tabNames[i]);
+            list.putCString(g.tabIcons[i]);
+        }
+        list.putU8(0);
+        s.send(Opcodes.SMSG_GUILD_BANK_LIST, list.array());
+    }
+
+    static void sendBankContent(WorldSession s, Player p, int tabId) {
         WowBuffer list = new WowBuffer(16 + GUILD_BANK_MAX_SLOTS * 5);
         list.putU64(0);
         list.putU8(tabId);
