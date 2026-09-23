@@ -529,6 +529,7 @@ public final class WorldSession {
             case Opcodes.CMSG_ARENA_TEAM_DISBAND -> ArenaTeamHandler.disbandOpcode(this, world, in);
             case Opcodes.CMSG_ARENA_TEAM_LEADER -> ArenaTeamHandler.leader(this, world, in);
             case Opcodes.CMSG_DUEL_ACCEPTED -> handleDuel(world);
+            case Opcodes.CMSG_DUEL_CANCELLED -> cancelDuel(in);
             case Opcodes.CMSG_TOGGLE_PVP -> togglePvp(in);
             case Opcodes.CMSG_SET_TITLE -> {
                 int title = in.remaining() >= 4 ? in.getU32() : 0;
@@ -1810,6 +1811,26 @@ public final class WorldSession {
         if (player.duelOpponent != null && player.duelOpponent.session != null) {
             player.duelOpponent.session.send(Opcodes.SMSG_DUEL_COUNTDOWN, cd.array());
         }
+    }
+
+    /**
+     * HandleDuelCancelledOpcode when startTime is 0: DuelComplete(DUEL_INTERRUPTED).
+     * SMSG_DUEL_COMPLETE uint8 0 to both; no SMSG_DUEL_WINNER. Guid is read and unused.
+     */
+    private void cancelDuel(WowBuffer in) {
+        if (in.remaining() >= 8) {
+            in.getU64();
+        }
+        Player opponent = player.duelOpponent;
+        if (opponent == null) {
+            return;
+        }
+        byte[] complete = new byte[] {0};
+        send(Opcodes.SMSG_DUEL_COMPLETE, complete);
+        if (opponent.session != null) {
+            opponent.session.send(Opcodes.SMSG_DUEL_COMPLETE, complete);
+        }
+        player.completeDuel();
     }
 
     private void sendPvpLog() {

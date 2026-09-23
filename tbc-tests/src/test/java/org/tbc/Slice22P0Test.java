@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL22-* from honor.md / inspect-duel.md */
@@ -75,6 +76,36 @@ class Slice22P0Test {
         a.clear();
         a.heartbeat(world, 1000, 1000, 0, 0);
         assertTrue(a.saw(Opcodes.SMSG_DUEL_OUTOFBOUNDS));
+    }
+
+    /**
+     * TP-SL22-008 — HandleDuelCancelledOpcode when startTime is 0.
+     * After SMSG_DUEL_REQUESTED, the target CMSG_DUEL_CANCELLED sends SMSG_DUEL_COMPLETE
+     * uint8 0 to both and no SMSG_DUEL_WINNER (DuelComplete DUEL_INTERRUPTED).
+     */
+    @Test
+    void tpSl22DuelDeclined() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Killer");
+        WowClientDouble b = login(world, ACC_B, "Victim");
+        Player initiator = a.session().player();
+        Player target = b.session().player();
+        initiator.selection = target.guid;
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(7);
+        a.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        assertTrue(b.saw(Opcodes.SMSG_DUEL_REQUESTED));
+        a.clear();
+        b.clear();
+        WowBuffer cancel = new WowBuffer(8);
+        cancel.putU64(initiator.guid);
+        b.handle(world, Opcodes.CMSG_DUEL_CANCELLED, cancel.array());
+        assertEquals(0, lastPayload(a, Opcodes.SMSG_DUEL_COMPLETE)[0] & 0xFF);
+        assertEquals(0, lastPayload(b, Opcodes.SMSG_DUEL_COMPLETE)[0] & 0xFF);
+        assertFalse(a.saw(Opcodes.SMSG_DUEL_WINNER));
+        assertFalse(b.saw(Opcodes.SMSG_DUEL_WINNER));
+        assertNull(initiator.duelOpponent);
+        assertNull(target.duelOpponent);
     }
 
     @Test
