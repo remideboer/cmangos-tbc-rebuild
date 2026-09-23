@@ -350,6 +350,10 @@ public final class WorldSession {
             handleMoveSplineDone(in);
             return;
         }
+        if (opcode == Opcodes.CMSG_MOVE_TIME_SKIPPED) {
+            handleMoveTimeSkipped(world, in);
+            return;
+        }
         switch (opcode) {
             case Opcodes.CMSG_LOGOUT_REQUEST -> handleLogoutRequest(world);
             case Opcodes.CMSG_LOGOUT_CANCEL -> handleLogoutCancel();
@@ -1258,6 +1262,30 @@ public final class WorldSession {
                 player.lastSplineDoneCounter = in.getU32();
             }
         } catch (RuntimeException ignored) {
+        }
+    }
+
+    /**
+     * HandleMoveTimeSkippedOpcode — raw guid + uint32. Observers get MSG_MOVE_TIME_SKIPPED
+     * packed guid + skipped. Sender is excluded. Wrong guid is ignored.
+     */
+    private void handleMoveTimeSkipped(World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            return;
+        }
+        long guid = in.getU64();
+        int skipped = in.getU32();
+        if (guid != player.guid) {
+            return;
+        }
+        WowBuffer data = new WowBuffer(16);
+        data.putPackedGuid(player.guid);
+        data.putU32(skipped);
+        byte[] pkt = data.array();
+        for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
+            if (o != player && o.session != null) {
+                o.session.send(Opcodes.MSG_MOVE_TIME_SKIPPED, pkt);
+            }
         }
     }
 

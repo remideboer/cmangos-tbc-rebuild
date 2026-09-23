@@ -171,6 +171,28 @@ class Slice27P0Test {
         assertTrue(p.auras.stream().noneMatch(a -> a.spellId() == PvpObjectives.MOUNT_AURA));
     }
 
+    /**
+     * TP-SL27-007 — HandleMoveTimeSkippedOpcode. Nearby players get MSG_MOVE_TIME_SKIPPED
+     * packed guid + skipped ms. The sender does not.
+     */
+    @Test
+    void tpSl27MoveTimeSkippedReachesNearby() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Skipper");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player skipper = a.session().player();
+        a.clear();
+        b.clear();
+        WowBuffer in = new WowBuffer(12);
+        in.putU64(skipper.guid);
+        in.putU32(500);
+        a.handle(world, Opcodes.CMSG_MOVE_TIME_SKIPPED, in.array());
+        assertFalse(a.saw(Opcodes.MSG_MOVE_TIME_SKIPPED));
+        WowBuffer out = new WowBuffer(lastPayload(b, Opcodes.MSG_MOVE_TIME_SKIPPED));
+        assertEquals(skipper.guid, out.getPackedGuid());
+        assertEquals(500, out.getU32());
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
