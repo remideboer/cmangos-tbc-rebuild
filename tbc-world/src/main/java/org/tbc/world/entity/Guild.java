@@ -1,7 +1,9 @@
 package org.tbc.world.entity;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** In-memory guild. Slice 9 invite path; roster still encoded from the viewer. */
 public final class Guild {
@@ -21,6 +23,7 @@ public final class Guild {
     public int createdYear;
     public final String[] tabTexts = new String[6];
     public final List<Long> members = new ArrayList<>();
+    public final Map<Long, String> publicNotes = new HashMap<>();
     public final List<Rank> ranks = new ArrayList<>();
 
     public static final class Rank {

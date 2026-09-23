@@ -460,6 +460,7 @@ public final class WorldSession {
             case Opcodes.CMSG_GUILD_REMOVE -> GuildHandler.remove(this, world, in);
             case Opcodes.CMSG_GUILD_DISBAND -> GuildHandler.disbandGuild(this, world);
             case Opcodes.CMSG_GUILD_LEADER -> GuildHandler.setLeader(this, world, in);
+            case Opcodes.CMSG_GUILD_SET_PUBLIC_NOTE -> GuildHandler.setPublicNote(this, world, in);
             case Opcodes.CMSG_GUILD_RANK -> GuildHandler.rank(this, world, in);
             case Opcodes.CMSG_GUILD_ADD_RANK -> GuildHandler.addRank(this, world, in);
             case Opcodes.CMSG_GUILD_DEL_RANK -> GuildHandler.delRank(this, world);

@@ -28,6 +28,8 @@ public final class GuildHandler {
     public static final int GR_RIGHT_REMOVE = 0x00000060;
     /** Guild.h GR_RIGHT_SETMOTD. */
     public static final int GR_RIGHT_SETMOTD = 0x00001040;
+    /** Guild.h GR_RIGHT_EPNOTE. */
+    public static final int GR_RIGHT_EPNOTE = 0x00002040;
     /** Guild.h GR_RIGHT_ALL (guild master). */
     public static final int GR_RIGHT_ALL = 0x000DF1FF;
     public static final int GUILD_BANK_MAX_TABS = 6;
@@ -648,7 +650,7 @@ public final class GuildHandler {
                 r.putU8(m.clazz);
                 r.putU8(m.gender);
                 r.putU32(m.zoneId);
-                r.putCString("");
+                r.putCString(publicNote(g, m.guid));
                 r.putCString("");
             } else {
                 r.putU64(guid);
@@ -660,11 +662,45 @@ public final class GuildHandler {
                 r.putU8(0);
                 r.putU32(0);
                 r.putFloat(0f);
-                r.putCString("");
+                r.putCString(publicNote(g, guid));
                 r.putCString("");
             }
         }
         s.send(Opcodes.SMSG_GUILD_ROSTER, r.array());
+    }
+
+    static String publicNote(Guild g, long guid) {
+        String note = g.publicNotes.get(guid);
+        return note == null ? "" : note;
+    }
+
+    /** HandleGuildSetPublicNoteOpcode — store the note and resend the roster. */
+    public static void setPublicNote(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() <= 0) {
+            return;
+        }
+        String name = in.getCString();
+        if (name.isEmpty()) {
+            return;
+        }
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (!hasRankRight(g, p.guildRank, GR_RIGHT_EPNOTE)) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        Player t = memberByName(world, g, name);
+        if (t == null) {
+            commandResult(s, GUILD_INVITE_S, name, ERR_GUILD_PLAYER_NOT_IN_GUILD_S);
+            return;
+        }
+        String note = in.remaining() > 0 ? in.getCString() : "";
+        g.publicNotes.put(t.guid, note == null ? "" : note);
+        roster(s, world, p);
     }
 
     public static void bankerActivate(WorldSession s, WowBuffer in) {
