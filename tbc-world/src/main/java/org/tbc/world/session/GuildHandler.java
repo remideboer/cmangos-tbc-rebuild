@@ -7,6 +7,8 @@ import org.tbc.world.entity.Guild;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 
 import java.time.LocalDate;
@@ -802,7 +804,7 @@ public final class GuildHandler {
         if (g == null || tabId >= g.purchasedTabs) {
             return;
         }
-        sendBankContent(s, p, tabId);
+        sendBankContent(s, g, p, tabId);
     }
 
     /** HandleGuildBankUpdateTab — tab info packet, then the tab's slots. */
@@ -825,12 +827,55 @@ public final class GuildHandler {
         g.tabNames[tabId] = name;
         g.tabIcons[tabId] = icon;
         sendTabInfo(s, g, p);
-        sendBankContent(s, p, tabId);
+        sendBankContent(s, g, p, tabId);
+    }
+
+    /** HandleGuildBankDepositMoney — copper moves from the player into the bank. */
+    public static void depositMoney(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            return;
+        }
+        in.getU64();
+        int money = in.getU32();
+        if (money <= 0) {
+            return;
+        }
+        Player p = s.player();
+        if (p.money < money) {
+            return;
+        }
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null || g.purchasedTabs == 0) {
+            return;
+        }
+        g.bankMoney += money;
+        p.setMoney(p.money - money);
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+        s.send(pkt.opcode(), pkt.payload());
+        sendTabInfo(s, g, p);
+        sendBankContent(s, g, p, 0);
+        sendMoneyUpdate(world, g, p);
+    }
+
+    static void sendMoneyUpdate(World world, Guild g, Player actor) {
+        WowBuffer list = new WowBuffer(16);
+        list.putU64(g.bankMoney);
+        list.putU8(0);
+        list.putU32(actor.guildRank == 0 ? WITHDRAW_SLOT_UNLIMITED : 0);
+        list.putU8(0);
+        list.putU8(0);
+        byte[] payload = list.array();
+        for (long guid : g.members) {
+            Player m = world.playerByGuid(guid);
+            if (m != null && m.session != null) {
+                m.session.send(Opcodes.SMSG_GUILD_BANK_LIST, payload);
+            }
+        }
     }
 
     static void sendTabInfo(WorldSession s, Guild g, Player p) {
         WowBuffer list = new WowBuffer(64);
-        list.putU64(0);
+        list.putU64(g.bankMoney);
         list.putU8(0);
         list.putU32(p.guildRank == 0 ? WITHDRAW_SLOT_UNLIMITED : 0);
         list.putU8(1);
@@ -843,9 +888,9 @@ public final class GuildHandler {
         s.send(Opcodes.SMSG_GUILD_BANK_LIST, list.array());
     }
 
-    static void sendBankContent(WorldSession s, Player p, int tabId) {
+    static void sendBankContent(WorldSession s, Guild g, Player p, int tabId) {
         WowBuffer list = new WowBuffer(16 + GUILD_BANK_MAX_SLOTS * 5);
-        list.putU64(0);
+        list.putU64(g.bankMoney);
         list.putU8(tabId);
         list.putU32(p.guildRank == 0 ? WITHDRAW_SLOT_UNLIMITED : 0);
         list.putU8(0);

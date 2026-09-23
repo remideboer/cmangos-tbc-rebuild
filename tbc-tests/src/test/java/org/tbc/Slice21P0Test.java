@@ -607,6 +607,28 @@ class Slice21P0Test {
         assertEquals(0, list.remaining());
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildBankDepositMoney. Copper leaves the player and
+     * shows as guild-bank money on SMSG_GUILD_BANK_LIST (guild.md).
+     */
+    @Test
+    void tpSl21GuildBankDepositMoney() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_BUY_TAB, new byte[8]);
+        Player p = lead.session().player();
+        p.setMoney(500);
+        lead.clear();
+        WowBuffer in = new WowBuffer(12);
+        in.putU64(1);
+        in.putU32(40);
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_DEPOSIT_MONEY, in.array());
+        WowBuffer list = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_BANK_LIST));
+        assertEquals(40L, list.getU64());
+        assertEquals(460, lead.valuesField(p.guid, org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COINAGE));
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();

@@ -18,6 +18,7 @@ public final class Guild {
     public int borderColor;
     public int backgroundColor;
     public int purchasedTabs;
+    public long bankMoney;
     /** Guild::m_CreatedDay / Month / Year — local date at create. */
     public int createdDay;
     public int createdMonth;
