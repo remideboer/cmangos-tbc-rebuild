@@ -354,6 +354,10 @@ public final class WorldSession {
             handleMoveTimeSkipped(world, in);
             return;
         }
+        if (opcode == Opcodes.CMSG_MOVE_FALL_RESET) {
+            handleFallReset(world, in);
+            return;
+        }
         switch (opcode) {
             case Opcodes.CMSG_LOGOUT_REQUEST -> handleLogoutRequest(world);
             case Opcodes.CMSG_LOGOUT_CANCEL -> handleLogoutCancel();
@@ -1287,6 +1291,19 @@ public final class WorldSession {
                 o.session.send(Opcodes.MSG_MOVE_TIME_SKIPPED, pkt);
             }
         }
+    }
+
+    /**
+     * HandleMovementOpcodes for CMSG_MOVE_FALL_RESET — apply MovementInfo, do not echo.
+     * The 8606 client has no handler for this CMSG.
+     */
+    private void handleFallReset(World world, WowBuffer in) {
+        MovementInfo m = MovementInfo.readC2s(in);
+        float ox = player.x;
+        float oy = player.y;
+        player.relocate(m.x, m.y, m.z, m.o);
+        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
+        player.movement = m;
     }
 
     /** MiscHandler::HandlePlayedTime — SMSG_PLAYED_TIME total then level, seconds. */

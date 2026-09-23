@@ -193,6 +193,35 @@ class Slice27P0Test {
         assertEquals(500, out.getU32());
     }
 
+    /**
+     * TP-SL27-007 — HandleMovementOpcodes returns before the observer broadcast for
+     * CMSG_MOVE_FALL_RESET. Position follows MovementInfo. Nearby clients get no echo.
+     */
+    @Test
+    void tpSl27FallResetMovesWithoutEcho() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Faller");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player p = a.session().player();
+        a.clear();
+        b.clear();
+        WowBuffer in = new WowBuffer(32);
+        in.putU32(0);
+        in.putU8(0);
+        in.putU32(0);
+        in.putFloat(100f);
+        in.putFloat(200f);
+        in.putFloat(30f);
+        in.putFloat(0f);
+        in.putU32(0);
+        a.handle(world, Opcodes.CMSG_MOVE_FALL_RESET, in.array());
+        assertEquals(100f, p.x, 0.01f);
+        assertEquals(200f, p.y, 0.01f);
+        assertEquals(30f, p.z, 0.01f);
+        assertFalse(a.saw(Opcodes.CMSG_MOVE_FALL_RESET));
+        assertFalse(b.saw(Opcodes.CMSG_MOVE_FALL_RESET));
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
