@@ -21,11 +21,12 @@ import java.util.function.BiConsumer;
 public final class InventoryHandler {
     private InventoryHandler() {}
 
-    /** Slot 0 is Battle Stance on warriors; ON_EQUIP / unequip must push later slots too. */
+    /** Slot 0 is Battle Stance on warriors; ON_EQUIP / unequip must push later slots and attack-power mods. */
     private static int[] withAuras(Player p, int... fields) {
         int[] extra = AuraSlots.paperDollAuraFields(p);
-        int[] all = Arrays.copyOf(fields, fields.length + extra.length);
+        int[] all = Arrays.copyOf(fields, fields.length + extra.length + 1);
         System.arraycopy(extra, 0, all, fields.length, extra.length);
+        all[all.length - 1] = UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS;
         return all;
     }
 

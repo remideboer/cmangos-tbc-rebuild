@@ -187,6 +187,8 @@ public final class Content {
     public static final int ITEM_BAND_OF_THE_ETERNAL_CHAMPION = 29301;
     /** spell_template 14052; EFFECT_APPLY_AURA SPELL_AURA_MOD_ATTACK_POWER 99 / 59. */
     public static final int SPELL_ATTACK_POWER_60 = 14052;
+    /** Spell.dbc 14052 EffectBasePoints 59; Aura amount is base points + 1. */
+    public static final int SPELL_ATTACK_POWER_60_AMOUNT = 60;
     /** QuestDef.h QUEST_REWARD_CHOICES_COUNT. */
     public static final int QUEST_REWARD_CHOICES_COUNT = 6;
     /** locales_item 2224 Militia Dagger; quest 18 RewChoiceItemId1. */

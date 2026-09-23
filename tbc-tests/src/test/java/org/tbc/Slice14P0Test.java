@@ -2149,6 +2149,35 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Aura::HandleAuraModAttackPower (aura 99) on ON_EQUIP spell 14052.
+     * Autoequip Band of the Eternal Champion 29301 must write +60 on self VALUES
+     * UNIT_FIELD_ATTACK_POWER_MODS (positive int16; StatSystem.cpp SetInt16Value index 0).
+     * Spell.dbc 14052 EffectBasePoints 59 → amount 60.
+     */
+    @Test
+    void tpSl14EquipOnEquipAttackPowerAuraShouldWriteAttackPowerMods() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "ApMods", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item band = new Item(world.nextItemGuid(), Content.ITEM_BAND_OF_THE_ETERNAL_CHAMPION);
+        band.inventoryType = 11;
+        band.slot = src;
+        p.items.put((int) band.guid, band);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(band));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(60, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS));
+    }
+
+    /**
      * TP-SL14-013 — Player::ApplyItemEquipSpell(apply=false). CMSG_AUTOSTORE_BAG_ITEM of
      * Band of the Eternal Champion 29301 must clear the ON_EQUIP aura; Battle Stance stays in slot 0.
      */

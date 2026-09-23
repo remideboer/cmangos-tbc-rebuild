@@ -3448,7 +3448,26 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_SPELL, spellHasteRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + CR_EXPERTISE, expertiseRating);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_SHIELD_BLOCK, shieldBlock);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS, onEquipAttackPower(p));
         applyEquippedItemSpells(p);
+    }
+
+    /** Aura 99 on ON_EQUIP spell 14052 — positive half of UNIT_FIELD_ATTACK_POWER_MODS. */
+    private int onEquipAttackPower(Player p) {
+        int pos = 0;
+        for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
+            ItemTemplate t = equippedTemplate(p, slot);
+            if (t == null) {
+                continue;
+            }
+            for (int i = 0; i < t.spellId.length; i++) {
+                if (t.spellTrigger[i] == ITEM_SPELLTRIGGER_ON_EQUIP
+                        && t.spellId[i] == Content.SPELL_ATTACK_POWER_60) {
+                    pos += Content.SPELL_ATTACK_POWER_60_AMOUNT;
+                }
+            }
+        }
+        return pos;
     }
 
     /** Player::ApplyItemEquipSpell — ITEM_SPELLTRIGGER_ON_EQUIP writes UNIT_FIELD_AURA. */
