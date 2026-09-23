@@ -9,6 +9,8 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
 
+import java.time.LocalDate;
+
 /** Guild create, invite, promote, MOTD, roster. Layout: spec/03-protocol/packets/guild.md */
 public final class GuildHandler {
     public static final int GR_RIGHT_EMPTY = 0x40;
@@ -58,6 +60,10 @@ public final class GuildHandler {
         g.id = world.objectMgr.nextGuildId.getAndIncrement();
         g.name = name;
         g.leaderGuid = p.guid;
+        LocalDate today = LocalDate.now();
+        g.createdDay = today.getDayOfMonth();
+        g.createdMonth = today.getMonthValue();
+        g.createdYear = today.getYear();
         g.members.add(p.guid);
         seedDefaultRanks(g);
         world.objectMgr.guilds.put(g.id, g);
@@ -146,6 +152,25 @@ public final class GuildHandler {
         }
         p.guildIdInvited = 0;
         p.guildInviterGuid = 0;
+    }
+
+    /** HandleGuildInfoOpcode — SMSG_GUILD_INFO name, created date, members, accounts. */
+    public static void info(WorldSession s, World world) {
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        WowBuffer data = new WowBuffer(64);
+        data.putCString(g.name);
+        data.putU32(g.createdDay);
+        data.putU32(g.createdMonth);
+        data.putU32(g.createdYear);
+        int members = g.members.size();
+        data.putU32(members);
+        data.putU32(members);
+        s.send(Opcodes.SMSG_GUILD_INFO, data.array());
     }
 
     public static void accept(WorldSession s, World world) {

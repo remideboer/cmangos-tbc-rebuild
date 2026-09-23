@@ -185,6 +185,28 @@ class Slice21P0Test {
         assertEquals(0, mate.session().player().guildId);
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildInfoOpcode. CMSG_GUILD_INFO sends SMSG_GUILD_INFO:
+     * name, created day/month/year, member count, account count (guild.md).
+     */
+    @Test
+    void tpSl21GuildInfo() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        java.time.LocalDate today = java.time.LocalDate.now();
+        lead.clear();
+        lead.handle(world, Opcodes.CMSG_GUILD_INFO, new byte[0]);
+        WowBuffer g = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_INFO));
+        assertEquals("Plates", g.getCString());
+        assertEquals(today.getDayOfMonth(), g.getU32());
+        assertEquals(today.getMonthValue(), g.getU32());
+        assertEquals(today.getYear(), g.getU32());
+        assertEquals(1, g.getU32());
+        assertEquals(1, g.getU32());
+        assertEquals(0, g.remaining());
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();
