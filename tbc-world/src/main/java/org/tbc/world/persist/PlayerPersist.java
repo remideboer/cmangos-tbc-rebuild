@@ -47,6 +47,13 @@ public final class PlayerPersist {
         d.deleteDateMs = src.deleteDateMs;
         d.watchedFaction = src.watchedFaction;
         d.reputations.copyFrom(src.reputations);
+        System.arraycopy(src.questLogId, 0, d.questLogId, 0, src.questLogId.length);
+        System.arraycopy(src.questLogState, 0, d.questLogState, 0, src.questLogState.length);
+        for (int i = 0; i < src.questLogCounts.length; i++) {
+            System.arraycopy(src.questLogCounts[i], 0, d.questLogCounts[i], 0, src.questLogCounts[i].length);
+            System.arraycopy(src.questLogItemCount[i], 0, d.questLogItemCount[i], 0, src.questLogItemCount[i].length);
+        }
+        d.rewardedQuests.addAll(src.rewardedQuests);
         System.arraycopy(src.actionButtons, 0, d.actionButtons, 0, 132);
         System.arraycopy(src.tut, 0, d.tut, 0, 8);
         d.copyCreateStatsFrom(src);

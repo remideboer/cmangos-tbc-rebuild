@@ -96,9 +96,11 @@ public final class Content {
     public static final int QUEST_STATE_FAIL = 0x2;
     /** QuestDef.h MAX_QUEST_LOG_SIZE. */
     public static final int MAX_QUEST_LOG_SIZE = 25;
-    /** QuestDef.h DIALOG_STATUS_NONE / DIALOG_STATUS_AVAILABLE (yellow !). */
+    /** QuestDef.h dialog marks: none, grey ?, yellow !, yellow ? */
     public static final int DIALOG_STATUS_NONE = 0;
+    public static final int DIALOG_STATUS_INCOMPLETE = 3;
     public static final int DIALOG_STATUS_AVAILABLE = 6;
+    public static final int DIALOG_STATUS_REWARD = 8;
     public static final int QUEST_A_THREAT_WITHIN = 783;
     /** quest_template 2158 Rest and Relaxation; RewItemId1 159 × 5. */
     public static final int QUEST_REST_AND_RELAXATION = 2158;
@@ -425,11 +427,12 @@ public final class Content {
         if (c == null || outOfRange(p, c) || !involves(c.entry, questId)) {
             return;
         }
-        if (slotOf(p, questId) < 0) {
+        int slot = slotOf(p, questId);
+        if (slot < 0) {
             return;
         }
         ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
-        if (q == null) {
+        if (q == null || !objectivesMet(p, slot, q)) {
             return;
         }
         send.accept(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD, encodeOfferReward(c.guid, q));
@@ -477,18 +480,95 @@ public final class Content {
         send.accept(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE, out.array());
     }
 
-    /** Quest-giver markings only (QUEST_STATUS_NONE + CanSeeStartQuest stand-in: template exists, not in log). */
+    /**
+     * QuestHandler.cpp getDialogStatus. Higher QuestDef.h value wins
+     * (reward 8, available 6, incomplete 3).
+     */
     int dialogStatus(Player p, Creature c) {
-        List<Integer> offered = mgr.questGivers.getOrDefault(c.entry, List.of());
-        for (int questId : offered) {
-            if (mgr.quests.get(questId) == null) {
-                continue;
-            }
-            if (slotOf(p, questId) < 0) {
-                return DIALOG_STATUS_AVAILABLE;
+        int best = DIALOG_STATUS_NONE;
+        best = raiseStatus(p, c.entry, mgr.questInvolved.get(c.entry), true, best);
+        best = raiseStatus(p, c.entry, mgr.questGivers.get(c.entry), false, best);
+        return best;
+    }
+
+    private int raiseStatus(Player p, int entry, List<Integer> quests, boolean involved, int best) {
+        if (quests == null) {
+            return best;
+        }
+        for (int questId : quests) {
+            int status = relationStatus(p, entry, questId, involved);
+            if (status > best) {
+                best = status;
             }
         }
+        return best;
+    }
+
+    private int relationStatus(Player p, int entry, int questId, boolean involved) {
+        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        if (q == null) {
+            return DIALOG_STATUS_NONE;
+        }
+        int slot = slotOf(p, questId);
+        if (slot >= 0) {
+            if (objectivesMet(p, slot, q)) {
+                return involved ? DIALOG_STATUS_REWARD : DIALOG_STATUS_NONE;
+            }
+            return DIALOG_STATUS_INCOMPLETE;
+        }
+        if (!involved && canTake(p, q)) {
+            return DIALOG_STATUS_AVAILABLE;
+        }
         return DIALOG_STATUS_NONE;
+    }
+
+    /** Player::CanTakeQuest for level, race, previous quest, and already rewarded. */
+    boolean canTake(Player p, ObjectMgr.QuestTemplate q) {
+        if (p.rewardedQuests.contains(q.id())) {
+            return false;
+        }
+        if (p.level < q.minLevel()) {
+            return false;
+        }
+        if (!raceMatches(p, q.requiredRaces())) {
+            return false;
+        }
+        return prevSatisfied(p, q.prevQuestId());
+    }
+
+    static boolean raceMatches(Player p, int requiredRaces) {
+        if (requiredRaces == 0) {
+            return true;
+        }
+        int bit = p.race <= 0 ? 0 : 1 << (p.race - 1);
+        return (requiredRaces & bit) != 0;
+    }
+
+    static boolean prevSatisfied(Player p, int prevQuestId) {
+        if (prevQuestId == 0) {
+            return true;
+        }
+        if (prevQuestId > 0) {
+            return p.rewardedQuests.contains(prevQuestId);
+        }
+        return slotOf(p, -prevQuestId) >= 0;
+    }
+
+    /** Positive creature and item counts only. Game-object objectives are later. */
+    static boolean objectivesMet(Player p, int slot, ObjectMgr.QuestTemplate q) {
+        for (int i = 0; i < 4; i++) {
+            int creatureId = q.reqCreatureOrGOId(i);
+            int creatureNeed = q.reqCreatureOrGOCount(i);
+            if (creatureId > 0 && creatureNeed > 0 && p.questLogCounts[slot][i] < creatureNeed) {
+                return false;
+            }
+            int itemId = q.reqItemId(i);
+            int itemNeed = q.reqItemCount(i);
+            if (itemId > 0 && itemNeed > 0 && p.questLogItemCount[slot][i] < itemNeed) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public void acceptQuest(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {
@@ -512,13 +592,8 @@ public final class Content {
             send.accept(Opcodes.SMSG_QUESTLOG_FULL, new byte[0]);
             return;
         }
+        clearQuestSlot(p, slot);
         p.questLogId[slot] = questId;
-        p.questLogState[slot] = 0;
-        p.questLogCounts[slot][0] = 0;
-        p.questLogCounts[slot][1] = 0;
-        p.questLogCounts[slot][2] = 0;
-        p.questLogCounts[slot][3] = 0;
-        p.questLogItemCount[slot] = 0;
         writeLogField(p, slot);
         send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
     }
@@ -532,13 +607,7 @@ public final class Content {
         if (slot >= MAX_QUEST_LOG_SIZE) {
             return;
         }
-        p.questLogId[slot] = 0;
-        p.questLogState[slot] = 0;
-        p.questLogCounts[slot][0] = 0;
-        p.questLogCounts[slot][1] = 0;
-        p.questLogCounts[slot][2] = 0;
-        p.questLogCounts[slot][3] = 0;
-        p.questLogItemCount[slot] = 0;
+        clearQuestSlot(p, slot);
         writeLogField(p, slot);
         int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base, base + 1, base + 2));
@@ -568,7 +637,7 @@ public final class Content {
             return;
         }
         ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
-        if (q == null) {
+        if (q == null || !objectivesMet(p, slot, q)) {
             return;
         }
         p.questLogState[slot] = QUEST_STATE_COMPLETE;
@@ -589,13 +658,8 @@ public final class Content {
         p.setMoney(p.money + money);
         storeRewardItem(p, q.rewItemId1(), q.rewItemCount1(), nextItemGuid, send);
         storeRewardItem(p, q.rewChoiceItemId(reward), q.rewChoiceItemCount(reward), nextItemGuid, send);
-        p.questLogId[slot] = 0;
-        p.questLogState[slot] = 0;
-        p.questLogCounts[slot][0] = 0;
-        p.questLogCounts[slot][1] = 0;
-        p.questLogCounts[slot][2] = 0;
-        p.questLogCounts[slot][3] = 0;
-        p.questLogItemCount[slot] = 0;
+        p.rewardedQuests.add(questId);
+        clearQuestSlot(p, slot);
         writeLogField(p, slot);
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q, xp, money, 0));
     }
@@ -685,7 +749,7 @@ public final class Content {
 
     /**
      * Player.cpp KilledMonsterCredit / SendQuestUpdateAddCreatureOrGo.
-     * Creature req id 1 only (v1); GO objectives later.
+     * Creature objective slots 1–4. Game-object objectives (negative ids) are later.
      */
     public void killedMonsterCredit(Player p, Creature victim, BiConsumer<Integer, byte[]> send) {
         if (victim == null) {
@@ -700,27 +764,22 @@ public final class Content {
             if (q == null) {
                 continue;
             }
-            int reqId = q.reqCreatureOrGOId1();
-            int reqCount = q.reqCreatureOrGOCount1();
-            if (reqId <= 0 || reqId != victim.entry) {
+            int objective = creditCreature(p, slot, q, victim.entry);
+            if (objective < 0) {
                 continue;
             }
-            int cur = p.questLogCounts[slot][0];
-            if (cur >= reqCount) {
-                continue;
-            }
-            cur++;
-            p.questLogCounts[slot][0] = cur;
+            int cur = p.questLogCounts[slot][objective];
+            int reqCount = q.reqCreatureOrGOCount(objective);
             WowBuffer add = new WowBuffer(24);
             add.putU32(questId);
-            add.putU32(reqId);
+            add.putU32(q.reqCreatureOrGOId(objective));
             add.putU32(cur);
             add.putU32(reqCount);
             add.putU64(victim.guid);
             send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
             writeLogField(p, slot);
             int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
-            boolean done = cur >= reqCount;
+            boolean done = objectivesMet(p, slot, q);
             if (done) {
                 p.questLogState[slot] = QUEST_STATE_COMPLETE;
                 writeLogField(p, slot);
@@ -733,9 +792,27 @@ public final class Content {
         }
     }
 
+    /** First matching creature slot that still needs a kill, or -1. */
+    private static int creditCreature(Player p, int slot, ObjectMgr.QuestTemplate q, int entry) {
+        for (int i = 0; i < 4; i++) {
+            int reqId = q.reqCreatureOrGOId(i);
+            int reqCount = q.reqCreatureOrGOCount(i);
+            if (reqId <= 0 || reqId != entry) {
+                continue;
+            }
+            int cur = p.questLogCounts[slot][i];
+            if (cur >= reqCount) {
+                continue;
+            }
+            p.questLogCounts[slot][i] = cur + 1;
+            return i;
+        }
+        return -1;
+    }
+
     /**
      * Player.cpp ItemAddedQuestCheck / SendQuestUpdateAddItem.
-     * Item req id 1 only (v1). Packet is item u32 + added count u32 — not quest id.
+     * Item objective slots 1–4. Packet is item u32 + added count u32 — not quest id.
      */
     public void itemAddedQuestCheck(Player p, int entry, int count, BiConsumer<Integer, byte[]> send) {
         for (int slot = 0; slot < p.questLogId.length; slot++) {
@@ -747,22 +824,16 @@ public final class Content {
             if (q == null) {
                 continue;
             }
-            int reqId = q.reqItemId1();
-            int reqCount = q.reqItemCount1();
-            if (reqId <= 0 || reqId != entry) {
+            int[] added = new int[1];
+            int objective = creditItem(p, slot, q, entry, count, added);
+            if (objective < 0) {
                 continue;
             }
-            int cur = p.questLogItemCount[slot];
-            if (cur >= reqCount) {
-                continue;
-            }
-            int add = cur + count <= reqCount ? count : reqCount - cur;
-            p.questLogItemCount[slot] = cur + add;
             WowBuffer pkt = new WowBuffer(8);
-            pkt.putU32(reqId);
-            pkt.putU32(add);
+            pkt.putU32(q.reqItemId(objective));
+            pkt.putU32(added[0]);
             send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM, pkt.array());
-            if (p.questLogItemCount[slot] >= reqCount) {
+            if (objectivesMet(p, slot, q)) {
                 p.questLogState[slot] = QUEST_STATE_COMPLETE;
                 writeLogField(p, slot);
                 send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
@@ -771,6 +842,39 @@ public final class Content {
                 send.accept(upd.opcode(), upd.payload());
             }
         }
+    }
+
+    /** First matching item slot still short of its count, or -1. added[0] is the clamped amount. */
+    private static int creditItem(Player p, int slot, ObjectMgr.QuestTemplate q, int entry, int count, int[] added) {
+        for (int i = 0; i < 4; i++) {
+            int reqId = q.reqItemId(i);
+            int reqCount = q.reqItemCount(i);
+            if (reqId <= 0 || reqId != entry) {
+                continue;
+            }
+            int cur = p.questLogItemCount[slot][i];
+            if (cur >= reqCount) {
+                continue;
+            }
+            int add = cur + count <= reqCount ? count : reqCount - cur;
+            p.questLogItemCount[slot][i] = cur + add;
+            added[0] = add;
+            return i;
+        }
+        return -1;
+    }
+
+    static void clearQuestSlot(Player p, int slot) {
+        p.questLogId[slot] = 0;
+        p.questLogState[slot] = 0;
+        p.questLogCounts[slot][0] = 0;
+        p.questLogCounts[slot][1] = 0;
+        p.questLogCounts[slot][2] = 0;
+        p.questLogCounts[slot][3] = 0;
+        p.questLogItemCount[slot][0] = 0;
+        p.questLogItemCount[slot][1] = 0;
+        p.questLogItemCount[slot][2] = 0;
+        p.questLogItemCount[slot][3] = 0;
     }
 
     static void writeLogField(Player p, int slot) {
@@ -783,6 +887,36 @@ public final class Content {
                 | ((p.questLogCounts[slot][3] & 0xFF) << 24);
         p.setInt(base + 2, packed);
         p.setInt(base + 3, 0);
+    }
+
+    private List<Integer> gossipQuests(Player p, Creature c) {
+        List<Integer> out = new ArrayList<>();
+        for (int id : mgr.questGivers.getOrDefault(c.entry, List.of())) {
+            if (includeGossipQuest(p, c.entry, id, true)) {
+                out.add(id);
+            }
+        }
+        for (int id : mgr.questInvolved.getOrDefault(c.entry, List.of())) {
+            if (!out.contains(id) && includeGossipQuest(p, c.entry, id, false)) {
+                out.add(id);
+            }
+        }
+        return out;
+    }
+
+    private boolean includeGossipQuest(Player p, int entry, int questId, boolean fromGiver) {
+        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        if (q == null) {
+            return true;
+        }
+        int slot = slotOf(p, questId);
+        if (slot < 0) {
+            return fromGiver && canTake(p, q);
+        }
+        if (objectivesMet(p, slot, q)) {
+            return involves(entry, questId);
+        }
+        return true;
     }
 
     byte[] encodeGossip(Player p, Creature c) {
@@ -800,7 +934,7 @@ public final class Content {
             actionPois[i] = items.get(i).actionPoi();
         }
         p.prepareGossipMenu(menuId, optionIds, actionMenus, actionPois);
-        List<Integer> quests = mgr.questGivers.getOrDefault(c.entry, List.of());
+        List<Integer> quests = gossipQuests(p, c);
         WowBuffer b = new WowBuffer(64);
         b.putU64(c.guid);
         b.putU32(menuId);

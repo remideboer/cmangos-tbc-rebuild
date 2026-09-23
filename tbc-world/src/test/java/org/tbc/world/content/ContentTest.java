@@ -326,6 +326,7 @@ class ContentTest {
         Creature willem = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
         mgr.questInvolved.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_BROTHERHOOD_OF_THIEVES)));
         content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        p.questLogItemCount[0][0] = 12;
         ops.clear();
         last.clear();
         content.completeQuest(p, map, chooseReward(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES, 1),
@@ -336,6 +337,7 @@ class ContentTest {
         ops.clear();
         last.clear();
         content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        p.questLogItemCount[0][0] = 12;
         content.completeQuest(p, map, chooseReward(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES, 6),
                 nextItem++, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
@@ -376,6 +378,7 @@ class ContentTest {
                 "Speak with Marshal McBride.", 0, 0, 0, 0, 1, 24, 0, 0));
 
         content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        p.questLogItemCount[1][0] = 12;
         ops.clear();
         last.clear();
         content.requestReward(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
@@ -902,7 +905,7 @@ class ContentTest {
         assertEquals(Content.QUEST_BROTHERHOOD_OF_THIEVES, p.questLogId[1]);
         ops.clear();
         content.questGiverStatusQuery(p, map, u64(giver.guid), this::capture);
-        assertEquals(Content.DIALOG_STATUS_NONE, last.get(Opcodes.SMSG_QUESTGIVER_STATUS)[8] & 0xFF);
+        assertEquals(Content.DIALOG_STATUS_INCOMPLETE, last.get(Opcodes.SMSG_QUESTGIVER_STATUS)[8] & 0xFF);
         ops.clear();
         content.acceptQuest(p, map, quest(giver.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_GOSSIP_COMPLETE));

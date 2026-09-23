@@ -303,6 +303,7 @@ class Slice08P0Test {
         accept.putU64(willem.guid);
         accept.putU32(Content.QUEST_BROTHERHOOD_OF_THIEVES);
         client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        p.questLogItemCount[0][0] = 12;
         client.clear();
         WowBuffer choose = new WowBuffer(16);
         choose.putU64(willem.guid);
@@ -494,6 +495,51 @@ class Slice08P0Test {
         assertEquals(15, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COINAGE));
         assertEquals(15, p.money);
         assertTrue(client.saw(Opcodes.SMSG_ITEM_PUSH_RESULT));
+    }
+
+    /**
+     * QuestDef.h marks: grey ? while Kobold Camp Cleanup is unfinished, yellow ? once
+     * A Threat Within (no objectives) is in the log at McBride.
+     */
+    @Test
+    void tpSl08QuestStatusIncompleteThenReward() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "QStatus", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature mcbride = world.objectMgr.spawnCreature(Content.NPC_MARSHAL_MCBRIDE, 0, p.x, p.y, p.z, p.o, world.scripts);
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(mcbride);
+        world.map(p.mapId, p.instanceId).add(willem);
+        WowBuffer acceptKill = new WowBuffer(12);
+        acceptKill.putU64(mcbride.guid);
+        acceptKill.putU32(Content.QUEST_KOBOLD_CAMP_CLEANUP);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, acceptKill.array());
+        client.clear();
+        WowBuffer query = new WowBuffer(8);
+        query.putU64(mcbride.guid);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_STATUS_QUERY, query.array());
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_STATUS));
+        WowBuffer incomplete = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_STATUS));
+        assertEquals(mcbride.guid, incomplete.getU64());
+        assertEquals(Content.DIALOG_STATUS_INCOMPLETE, incomplete.getU8());
+
+        WowBuffer drop = new WowBuffer(1);
+        drop.putU8(0);
+        client.handle(world, Opcodes.CMSG_QUESTLOG_REMOVE_QUEST, drop.array());
+        WowBuffer acceptTalk = new WowBuffer(12);
+        acceptTalk.putU64(willem.guid);
+        acceptTalk.putU32(Content.QUEST_A_THREAT_WITHIN);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, acceptTalk.array());
+        client.clear();
+        WowBuffer queryReward = new WowBuffer(8);
+        queryReward.putU64(mcbride.guid);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_STATUS_QUERY, queryReward.array());
+        WowBuffer reward = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_STATUS));
+        assertEquals(mcbride.guid, reward.getU64());
+        assertEquals(Content.DIALOG_STATUS_REWARD, reward.getU8());
     }
 
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
