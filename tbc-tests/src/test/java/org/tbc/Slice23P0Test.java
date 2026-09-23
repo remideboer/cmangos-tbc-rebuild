@@ -324,6 +324,27 @@ class Slice23P0Test {
         assertEquals(0, out.getU32());
     }
 
+    /**
+     * TP-SL23-014 — HandleBattlefieldStatusOpcode. Empty C2S resends the occupied
+     * queue slot (battleground.md SMSG_BATTLEFIELD_STATUS).
+     */
+    @Test
+    void tpSl23BattlefieldStatusResendsQueue() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "Queued");
+        client.battlemasterJoin(world);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_BATTLEFIELD_STATUS, new byte[0]);
+        WowBuffer out = new WowBuffer(lastPayload(client, Opcodes.SMSG_BATTLEFIELD_STATUS));
+        assertEquals(0, out.getU32());
+        assertEquals((0x0DL << 8) | (2L << 16) | (0x1F90L << 48), out.getU64());
+        assertEquals(0, out.getU32());
+        assertEquals(0, out.getU8());
+        assertEquals(2, out.getU32());
+        assertEquals(489, out.getU32());
+        assertEquals(80_000, out.getU32());
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);

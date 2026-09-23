@@ -500,6 +500,7 @@ public final class WorldSession {
             case Opcodes.CMSG_AUCTION_REMOVE_ITEM -> AuctionHandler.removeItem(this, world, in);
             case Opcodes.CMSG_BATTLEMASTER_JOIN -> handleBgJoin(world, 489);
             case Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA -> handleBgJoin(world, 562);
+            case Opcodes.CMSG_BATTLEFIELD_STATUS -> sendBattlefieldStatus();
             case Opcodes.CMSG_REPOP_REQUEST -> DeathHandler.repop(this, world);
             case Opcodes.MSG_CORPSE_QUERY -> DeathHandler.query(this);
             case Opcodes.CMSG_RECLAIM_CORPSE -> DeathHandler.reclaim(this, world, in);
@@ -1613,6 +1614,19 @@ public final class WorldSession {
 
     private void handleBgJoin(World world, int map) {
         bgQueue = map;
+        send(Opcodes.SMSG_BATTLEFIELD_STATUS, battlefieldStatus(map));
+    }
+
+    /** HandleBattlefieldStatusOpcode — resend each occupied queue slot. Empty when none. */
+    private void sendBattlefieldStatus() {
+        if (bgQueue == 0) {
+            return;
+        }
+        send(Opcodes.SMSG_BATTLEFIELD_STATUS, battlefieldStatus(bgQueue));
+    }
+
+    /** BuildBattleGroundStatusPacket for the Java join path: WAIT_JOIN, map, 80000 ms. */
+    private static byte[] battlefieldStatus(int map) {
         WowBuffer st = new WowBuffer(32);
         st.putU32(0);
         st.putU64((0x0DL << 8) | (2L << 16) | (0x1F90L << 48));
@@ -1621,7 +1635,7 @@ public final class WorldSession {
         st.putU32(2);
         st.putU32(map);
         st.putU32(80_000);
-        send(Opcodes.SMSG_BATTLEFIELD_STATUS, st.array());
+        return st.array();
     }
 
     private void handleBuy(World world, WowBuffer in) {
