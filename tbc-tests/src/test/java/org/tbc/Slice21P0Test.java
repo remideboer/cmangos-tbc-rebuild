@@ -333,6 +333,33 @@ class Slice21P0Test {
         assertFalse(mate.saw(Opcodes.SMSG_GUILD_EVENT));
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildDisbandOpcode. The leader's CMSG_GUILD_DISBAND
+     * broadcasts GE_DISBANDED and clears every member (guild.md).
+     */
+    @Test
+    void tpSl21GuildDisband() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.guildCreate(world, "Plates");
+        lead.guildInvite(world, "Mate");
+        mate.guildAccept(world);
+        lead.clear();
+        mate.clear();
+        lead.handle(world, Opcodes.CMSG_GUILD_DISBAND, new byte[0]);
+        WowBuffer ev = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(8, ev.getU8());
+        assertEquals(0, ev.getU8());
+        assertEquals(0, ev.remaining());
+        WowBuffer mateEv = new WowBuffer(lastPayload(mate, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(8, mateEv.getU8());
+        assertEquals(0, mateEv.getU8());
+        assertEquals(0, mateEv.remaining());
+        assertEquals(0, lead.session().player().guildId);
+        assertEquals(0, mate.session().player().guildId);
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();

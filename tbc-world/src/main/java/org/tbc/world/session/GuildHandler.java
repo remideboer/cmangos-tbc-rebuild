@@ -359,6 +359,21 @@ public final class GuildHandler {
         broadcastEvent(world, g, GE_REMOVED, 0, t.name, p.name);
     }
 
+    /** HandleGuildDisbandOpcode — leader only; GE_DISBANDED then the guild is gone. */
+    public static void disbandGuild(WorldSession s, World world) {
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (p.guid != g.leaderGuid) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        disband(world, g);
+    }
+
     static void disband(World world, Guild g) {
         broadcastEvent(world, g, GE_DISBANDED, 0);
         for (long guid : List.copyOf(g.members)) {
