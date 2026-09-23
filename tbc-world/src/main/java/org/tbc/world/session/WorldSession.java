@@ -1661,6 +1661,8 @@ public final class WorldSession {
                 other.session.send(Opcodes.SMSG_DUEL_REQUESTED, d.array());
                 player.duelOpponent = other;
                 other.duelOpponent = player;
+                player.duelArbiterGuid = guid;
+                other.duelArbiterGuid = guid;
             }
         }
         if (player.mapId == 489) {

@@ -292,6 +292,8 @@ public final class Player extends Unit {
     /** Sanctuary zone — HandleTogglePvP ignores (AREA_FLAG_SANCTUARY stand-in until AreaTable). */
     public boolean pvpSanctuary;
     public Player duelOpponent;
+    /** Raw GO guid from SMSG_DUEL_REQUESTED. 0 when no arbiter is up. */
+    public long duelArbiterGuid;
     private GameObject duelFlag;
     public int duelPhase;
     /** DuelHandler startTimer — milliseconds when the countdown began. 0 if not counting. */
@@ -1171,24 +1173,38 @@ public final class Player extends Unit {
         }
     }
 
-    /** Player::DuelComplete — clear arbiter pairing on both sides. */
+    /** Player::DuelComplete — clear arbiter pairing on both sides and destroy the flag GO. */
     public void completeDuel() {
+        long arbiter = duelArbiterGuid;
         Player other = duelOpponent;
         duelOpponent = null;
         duelPhase = 0;
         duelCountdownStartMs = 0;
         duelStartedAtMs = 0;
+        duelArbiterGuid = 0;
         setDuelFlag(null);
         victim = 0;
-        if (other == null) {
+        if (other != null) {
+            other.duelOpponent = null;
+            other.duelPhase = 0;
+            other.duelCountdownStartMs = 0;
+            other.duelStartedAtMs = 0;
+            other.duelArbiterGuid = 0;
+            other.setDuelFlag(null);
+            other.victim = 0;
+        }
+        if (arbiter == 0) {
             return;
         }
-        other.duelOpponent = null;
-        other.duelPhase = 0;
-        other.duelCountdownStartMs = 0;
-        other.duelStartedAtMs = 0;
-        other.setDuelFlag(null);
-        other.victim = 0;
+        WowBuffer d = new WowBuffer(8);
+        d.putU64(arbiter);
+        byte[] pkt = d.array();
+        if (session != null) {
+            session.send(Opcodes.SMSG_DESTROY_OBJECT, pkt);
+        }
+        if (other != null && other.session != null && other.session != session) {
+            other.session.send(Opcodes.SMSG_DESTROY_OBJECT, pkt);
+        }
     }
 
     public GameObject duelFlag() {

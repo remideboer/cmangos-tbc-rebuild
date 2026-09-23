@@ -2108,6 +2108,8 @@ public final class SpellEngine {
         flag.guid = Guid.HIGH_GAMEOBJECT | (a.guid & 0xFFFFFFFFL);
         flag.relocate((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f, a.z, a.o);
         a.setDuelFlag(flag);
+        a.duelArbiterGuid = flag.guid;
+        b.duelArbiterGuid = flag.guid;
         a.duelOpponent = b;
         b.duelOpponent = a;
     }
