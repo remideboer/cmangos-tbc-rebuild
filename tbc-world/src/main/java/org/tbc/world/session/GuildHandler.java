@@ -24,6 +24,8 @@ public final class GuildHandler {
     public static final int GR_RIGHT_PROMOTE = 0x000000C0;
     /** Guild.h GR_RIGHT_DEMOTE. */
     public static final int GR_RIGHT_DEMOTE = 0x00000140;
+    /** Guild.h GR_RIGHT_REMOVE. */
+    public static final int GR_RIGHT_REMOVE = 0x00000060;
     /** Guild.h GR_RIGHT_SETMOTD. */
     public static final int GR_RIGHT_SETMOTD = 0x00001040;
     /** Guild.h GR_RIGHT_ALL (guild master). */
@@ -49,6 +51,7 @@ public final class GuildHandler {
     public static final int GE_MOTD = 0x02;
     public static final int GE_JOINED = 0x03;
     public static final int GE_LEFT = 0x04;
+    public static final int GE_REMOVED = 0x05;
     public static final int GE_DISBANDED = 0x08;
     /** SharedDefines.h GOLD × 10. MSG_SAVE_GUILD_EMBLEM cost. */
     public static final int EMBLEM_COST = 100000;
@@ -316,6 +319,44 @@ public final class GuildHandler {
             return;
         }
         broadcastEvent(world, g, GE_LEFT, p.guid, p.name);
+    }
+
+    /** HandleGuildRemoveOpcode — kick a lower rank; remaining members see GE_REMOVED. */
+    public static void remove(WorldSession s, World world, WowBuffer in) {
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        if (name.isEmpty()) {
+            return;
+        }
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (!hasRankRight(g, p.guildRank, GR_RIGHT_REMOVE)) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        Player t = memberByName(world, g, name);
+        if (t == null) {
+            commandResult(s, GUILD_INVITE_S, name, ERR_GUILD_PLAYER_NOT_IN_GUILD_S);
+            return;
+        }
+        if (t.guildRank == 0) {
+            commandResult(s, GUILD_QUIT_S, "", ERR_GUILD_LEADER_LEAVE);
+            return;
+        }
+        if (p.guildRank >= t.guildRank) {
+            commandResult(s, GUILD_QUIT_S, name, ERR_GUILD_RANK_TOO_HIGH_S);
+            return;
+        }
+        g.members.remove(Long.valueOf(t.guid));
+        clearGuild(t);
+        if (g.members.isEmpty()) {
+            disband(world, g);
+            return;
+        }
+        broadcastEvent(world, g, GE_REMOVED, 0, t.name, p.name);
     }
 
     static void disband(World world, Guild g) {

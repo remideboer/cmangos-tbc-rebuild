@@ -306,6 +306,33 @@ class Slice21P0Test {
         assertFalse(mate.saw(Opcodes.SMSG_GUILD_EVENT));
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildRemoveOpcode. Kicking a lower rank broadcasts
+     * GE_REMOVED (kicked name, kicker name) to members who remain (guild.md).
+     */
+    @Test
+    void tpSl21GuildRemove() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.guildCreate(world, "Plates");
+        lead.guildInvite(world, "Mate");
+        mate.guildAccept(world);
+        lead.clear();
+        mate.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putCString("Mate");
+        lead.handle(world, Opcodes.CMSG_GUILD_REMOVE, in.array());
+        WowBuffer ev = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(5, ev.getU8());
+        assertEquals(2, ev.getU8());
+        assertEquals("Mate", ev.getCString());
+        assertEquals("Lead", ev.getCString());
+        assertEquals(0, ev.remaining());
+        assertEquals(0, mate.session().player().guildId);
+        assertFalse(mate.saw(Opcodes.SMSG_GUILD_EVENT));
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();
