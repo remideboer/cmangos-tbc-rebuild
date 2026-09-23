@@ -10,6 +10,7 @@ public final class Guild {
     public int id;
     public String name = "";
     public String motd = "";
+    public String info = "";
     public long leaderGuid;
     public int emblemStyle;
     public int emblemColor;

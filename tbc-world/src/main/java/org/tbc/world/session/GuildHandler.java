@@ -33,6 +33,8 @@ public final class GuildHandler {
     /** Guild.h GR_RIGHT_VIEWOFFNOTE / EOFFNOTE. */
     public static final int GR_RIGHT_VIEWOFFNOTE = 0x00004040;
     public static final int GR_RIGHT_EOFFNOTE = 0x00008040;
+    /** Guild.h GR_RIGHT_MODIFY_GUILD_INFO. */
+    public static final int GR_RIGHT_MODIFY_GUILD_INFO = 0x00010040;
     /** Guild.h GR_RIGHT_ALL (guild master). */
     public static final int GR_RIGHT_ALL = 0x000DF1FF;
     public static final int GUILD_BANK_MAX_TABS = 6;
@@ -632,7 +634,7 @@ public final class GuildHandler {
         WowBuffer r = new WowBuffer(256);
         r.putU32(g.members.size());
         r.putCString(g.motd);
-        r.putCString("");
+        r.putCString(g.info);
         r.putU32(g.ranks.size());
         for (Guild.Rank rank : g.ranks) {
             r.putU32(rank.rights);
@@ -741,6 +743,22 @@ public final class GuildHandler {
         String note = in.remaining() > 0 ? in.getCString() : "";
         g.officerNotes.put(t.guid, note == null ? "" : note);
         roster(s, world, p);
+    }
+
+    /** HandleGuildChangeInfoTextOpcode — ginfo is the roster's info string. */
+    public static void infoText(WorldSession s, World world, WowBuffer in) {
+        String text = in.remaining() > 0 ? in.getCString() : "";
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (!hasRankRight(g, p.guildRank, GR_RIGHT_MODIFY_GUILD_INFO)) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        g.info = text == null ? "" : text;
     }
 
     public static void bankerActivate(WorldSession s, WowBuffer in) {

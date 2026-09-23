@@ -524,6 +524,26 @@ class Slice21P0Test {
         assertEquals("Raid lead", r.getCString());
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildChangeInfoTextOpcode. CMSG_GUILD_INFO_TEXT is the
+     * ginfo string on the next SMSG_GUILD_ROSTER (guild.md).
+     */
+    @Test
+    void tpSl21GuildInfoText() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        lead.clear();
+        WowBuffer in = new WowBuffer(32);
+        in.putCString("Raids on Friday");
+        lead.handle(world, Opcodes.CMSG_GUILD_INFO_TEXT, in.array());
+        lead.handle(world, Opcodes.CMSG_GUILD_ROSTER, new byte[0]);
+        WowBuffer r = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_ROSTER));
+        assertEquals(1, r.getU32());
+        assertEquals("", r.getCString());
+        assertEquals("Raids on Friday", r.getCString());
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();
