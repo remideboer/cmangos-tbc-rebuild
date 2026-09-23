@@ -21,6 +21,8 @@ public final class GuildHandler {
     public static final int GR_RIGHT_INVITE = 0x00000050;
     /** Guild.h GR_RIGHT_PROMOTE. */
     public static final int GR_RIGHT_PROMOTE = 0x000000C0;
+    /** Guild.h GR_RIGHT_DEMOTE. */
+    public static final int GR_RIGHT_DEMOTE = 0x00000140;
     /** Guild.h GR_RIGHT_SETMOTD. */
     public static final int GR_RIGHT_SETMOTD = 0x00001040;
     /** Guild.h GR_RIGHT_ALL (guild master). */
@@ -37,7 +39,9 @@ public final class GuildHandler {
     public static final int ERR_GUILD_PLAYER_NOT_IN_GUILD_S = 0x0A;
     public static final int ERR_GUILD_NOT_ALLIED = 0x0C;
     public static final int ERR_GUILD_RANK_TOO_HIGH_S = 0x0D;
+    public static final int ERR_GUILD_RANK_TOO_LOW_S = 0x0E;
     public static final int GE_PROMOTION = 0x00;
+    public static final int GE_DEMOTION = 0x01;
     public static final int GE_MOTD = 0x02;
     public static final int GE_JOINED = 0x03;
     /** SharedDefines.h GOLD × 10. MSG_SAVE_GUILD_EMBLEM cost. */
@@ -240,6 +244,46 @@ public final class GuildHandler {
         String rankName = newRankId >= 0 && newRankId < g.ranks.size()
                 ? g.ranks.get(newRankId).name : "<unknown>";
         broadcastEvent(world, g, GE_PROMOTION, 0, p.name, t.name, rankName);
+    }
+
+    /** HandleGuildDemoteOpcode — rank id increases; broadcast GE_DEMOTION. */
+    public static void demote(WorldSession s, World world, WowBuffer in) {
+        String name = in.remaining() > 0 ? in.getCString() : "";
+        if (name.isEmpty()) {
+            return;
+        }
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null) {
+            commandResult(s, GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
+            return;
+        }
+        if (!hasRankRight(g, p.guildRank, GR_RIGHT_DEMOTE)) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_PERMISSIONS);
+            return;
+        }
+        Player t = memberByName(world, g, name);
+        if (t == null) {
+            commandResult(s, GUILD_INVITE_S, name, ERR_GUILD_PLAYER_NOT_IN_GUILD_S);
+            return;
+        }
+        if (t.guid == p.guid) {
+            commandResult(s, GUILD_INVITE_S, "", ERR_GUILD_NAME_INVALID);
+            return;
+        }
+        if (p.guildRank >= t.guildRank) {
+            commandResult(s, GUILD_INVITE_S, name, ERR_GUILD_RANK_TOO_HIGH_S);
+            return;
+        }
+        if (t.guildRank >= g.ranks.size() - 1) {
+            commandResult(s, GUILD_INVITE_S, name, ERR_GUILD_RANK_TOO_LOW_S);
+            return;
+        }
+        int newRankId = t.guildRank + 1;
+        applyRank(t, g, newRankId);
+        String rankName = newRankId >= 0 && newRankId < g.ranks.size()
+                ? g.ranks.get(newRankId).name : "<unknown>";
+        broadcastEvent(world, g, GE_DEMOTION, 0, p.name, t.name, rankName);
     }
 
     /** HandleGuildRankOpcode — GM renames/rights a rank; Query + Roster. */

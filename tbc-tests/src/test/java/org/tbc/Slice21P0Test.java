@@ -240,6 +240,42 @@ class Slice21P0Test {
         assertEquals("Lead", r.getCString());
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildDemoteOpcode. After a promote off the lowest rank,
+     * CMSG_GUILD_DEMOTE broadcasts GE_DEMOTION with the new rank name (guild.md).
+     */
+    @Test
+    void tpSl21GuildDemote() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        WowClientDouble mate = loginOther(world, "Mate");
+        lead.guildCreate(world, "Plates");
+        lead.guildInvite(world, "Mate");
+        mate.guildAccept(world);
+        WowBuffer up = new WowBuffer(16);
+        up.putCString("Mate");
+        lead.handle(world, Opcodes.CMSG_GUILD_PROMOTE, up.array());
+        lead.clear();
+        mate.clear();
+        WowBuffer in = new WowBuffer(16);
+        in.putCString("Mate");
+        lead.handle(world, Opcodes.CMSG_GUILD_DEMOTE, in.array());
+        WowBuffer g = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(1, g.getU8());
+        assertEquals(3, g.getU8());
+        assertEquals("Lead", g.getCString());
+        assertEquals("Mate", g.getCString());
+        assertEquals("Initiate", g.getCString());
+        assertEquals(0, g.remaining());
+        WowBuffer b = new WowBuffer(lastPayload(mate, Opcodes.SMSG_GUILD_EVENT));
+        assertEquals(1, b.getU8());
+        assertEquals(3, b.getU8());
+        assertEquals("Lead", b.getCString());
+        assertEquals("Mate", b.getCString());
+        assertEquals("Initiate", b.getCString());
+        assertEquals(0, b.remaining());
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();
