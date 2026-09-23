@@ -629,6 +629,32 @@ class Slice21P0Test {
         assertEquals(460, lead.valuesField(p.guid, org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COINAGE));
     }
 
+    /**
+     * TP-SL21-018 — HandleGuildBankWithdrawMoney. The guild master takes copper back
+     * and the bank list shows the remainder (guild.md).
+     */
+    @Test
+    void tpSl21GuildBankWithdrawMoney() {
+        World world = World.inMemory();
+        WowClientDouble lead = login(world, "Lead");
+        lead.guildCreate(world, "Plates");
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_BUY_TAB, new byte[8]);
+        Player p = lead.session().player();
+        p.setMoney(500);
+        WowBuffer deposit = new WowBuffer(12);
+        deposit.putU64(1);
+        deposit.putU32(40);
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_DEPOSIT_MONEY, deposit.array());
+        lead.clear();
+        WowBuffer withdraw = new WowBuffer(12);
+        withdraw.putU64(1);
+        withdraw.putU32(15);
+        lead.handle(world, Opcodes.CMSG_GUILD_BANK_WITHDRAW_MONEY, withdraw.array());
+        WowBuffer list = new WowBuffer(lastPayload(lead, Opcodes.SMSG_GUILD_BANK_LIST));
+        assertEquals(25L, list.getU64());
+        assertEquals(475, lead.valuesField(p.guid, org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_COINAGE));
+    }
+
     @Test
     void tpSl21GuildMotd() {
         World world = World.inMemory();

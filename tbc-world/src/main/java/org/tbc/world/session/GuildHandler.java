@@ -37,6 +37,8 @@ public final class GuildHandler {
     public static final int GR_RIGHT_EOFFNOTE = 0x00008040;
     /** Guild.h GR_RIGHT_MODIFY_GUILD_INFO. */
     public static final int GR_RIGHT_MODIFY_GUILD_INFO = 0x00010040;
+    /** Guild.h GR_RIGHT_WITHDRAW_GOLD. */
+    public static final int GR_RIGHT_WITHDRAW_GOLD = 0x00080000;
     /** Guild.h GR_RIGHT_ALL (guild master). */
     public static final int GR_RIGHT_ALL = 0x000DF1FF;
     public static final int GUILD_BANK_MAX_TABS = 6;
@@ -850,6 +852,36 @@ public final class GuildHandler {
         }
         g.bankMoney += money;
         p.setMoney(p.money - money);
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+        s.send(pkt.opcode(), pkt.payload());
+        sendTabInfo(s, g, p);
+        sendBankContent(s, g, p, 0);
+        sendMoneyUpdate(world, g, p);
+    }
+
+    /** HandleGuildBankWithdrawMoney — guild master takes copper back out. */
+    public static void withdrawMoney(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() < 12) {
+            return;
+        }
+        in.getU64();
+        int money = in.getU32();
+        if (money <= 0) {
+            return;
+        }
+        Player p = s.player();
+        Guild g = world.objectMgr.guilds.get(p.guildId);
+        if (g == null || g.purchasedTabs == 0) {
+            return;
+        }
+        if (g.bankMoney < money) {
+            return;
+        }
+        if (!hasRankRight(g, p.guildRank, GR_RIGHT_WITHDRAW_GOLD)) {
+            return;
+        }
+        g.bankMoney -= money;
+        p.setMoney(p.money + money);
         var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
         s.send(pkt.opcode(), pkt.payload());
         sendTabInfo(s, g, p);

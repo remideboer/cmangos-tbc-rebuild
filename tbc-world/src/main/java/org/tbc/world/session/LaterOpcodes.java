@@ -211,6 +211,10 @@ public final class LaterOpcodes {
             GuildHandler.depositMoney(s, world, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_GUILD_BANK_WITHDRAW_MONEY) {
+            GuildHandler.withdrawMoney(s, world, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS) {
             GuildHandler.swapItems(s, in);
             return true;
