@@ -448,6 +448,11 @@ public final class World implements Runnable {
         }
     }
 
+    /** HandleDuelCancelledOpcode after startTime: the canceller forfeits, opponent wins. */
+    public void forfeitDuel(Player forfeiter) {
+        completeDuelWon(forfeiter);
+    }
+
     /** Player::DuelComplete(DUEL_WON) — inspect-duel.md COMPLETE 1, WINNER 0 + names. */
     private void completeDuelWon(Player loser) {
         Player winner = loser.duelOpponent;

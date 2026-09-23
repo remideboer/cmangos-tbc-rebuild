@@ -108,6 +108,41 @@ class Slice22P0Test {
         assertNull(target.duelOpponent);
     }
 
+    /**
+     * TP-SL22-008 — HandleDuelCancelledOpcode after startTime. Accept, wait 3 seconds,
+     * then cancel: SMSG_DUEL_COMPLETE 1 and SMSG_DUEL_WINNER (inspect-duel.md).
+     */
+    @Test
+    void tpSl22DuelForfeit() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Killer");
+        WowClientDouble b = login(world, ACC_B, "Victim");
+        Player initiator = a.session().player();
+        Player target = b.session().player();
+        initiator.selection = target.guid;
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(7);
+        a.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        WowBuffer accept = new WowBuffer(8);
+        accept.putU64(initiator.guid);
+        b.handle(world, Opcodes.CMSG_DUEL_ACCEPTED, accept.array());
+        world.advanceMs(3000);
+        world.tick(3000);
+        a.clear();
+        b.clear();
+        WowBuffer cancel = new WowBuffer(8);
+        cancel.putU64(initiator.guid);
+        b.handle(world, Opcodes.CMSG_DUEL_CANCELLED, cancel.array());
+        assertEquals(1, lastPayload(a, Opcodes.SMSG_DUEL_COMPLETE)[0] & 0xFF);
+        assertEquals(1, lastPayload(b, Opcodes.SMSG_DUEL_COMPLETE)[0] & 0xFF);
+        WowBuffer win = new WowBuffer(lastPayload(a, Opcodes.SMSG_DUEL_WINNER));
+        assertEquals(0, win.getU8());
+        assertEquals("Killer", win.getCString());
+        assertEquals("Victim", win.getCString());
+        assertNull(initiator.duelOpponent);
+        assertNull(target.duelOpponent);
+    }
+
     @Test
     void tpSl22SetTitleWhenKnownShouldSetChosenTitle() {
         World world = World.inMemory();

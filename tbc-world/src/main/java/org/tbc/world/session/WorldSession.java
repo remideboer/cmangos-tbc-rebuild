@@ -165,6 +165,9 @@ public final class WorldSession {
                 send(v.opcode(), v.payload());
             }
         }
+        if (player.duelCountdownStartMs != 0 && world.nowMs() >= player.duelCountdownStartMs + 3000) {
+            player.promoteDuel(world.nowMs());
+        }
         if (player.victim != 0 && player.lastMeleeMs + swingDelayMs(false) <= world.nowMs()) {
             Creature c = meleeTarget(world);
             if (c != null) {
@@ -540,7 +543,7 @@ public final class WorldSession {
             case Opcodes.CMSG_ARENA_TEAM_DISBAND -> ArenaTeamHandler.disbandOpcode(this, world, in);
             case Opcodes.CMSG_ARENA_TEAM_LEADER -> ArenaTeamHandler.leader(this, world, in);
             case Opcodes.CMSG_DUEL_ACCEPTED -> handleDuel(world);
-            case Opcodes.CMSG_DUEL_CANCELLED -> cancelDuel(in);
+            case Opcodes.CMSG_DUEL_CANCELLED -> cancelDuel(world, in);
             case Opcodes.CMSG_TOGGLE_PVP -> togglePvp(in);
             case Opcodes.CMSG_SET_TITLE -> {
                 int title = in.remaining() >= 4 ? in.getU32() : 0;
@@ -1819,8 +1822,13 @@ public final class WorldSession {
         WowBuffer cd = new WowBuffer(8);
         cd.putU32(3000);
         send(Opcodes.SMSG_DUEL_COUNTDOWN, cd.array());
-        if (player.duelOpponent != null && player.duelOpponent.session != null) {
-            player.duelOpponent.session.send(Opcodes.SMSG_DUEL_COUNTDOWN, cd.array());
+        long started = world.nowMs();
+        player.duelCountdownStartMs = started;
+        if (player.duelOpponent != null) {
+            player.duelOpponent.duelCountdownStartMs = started;
+            if (player.duelOpponent.session != null) {
+                player.duelOpponent.session.send(Opcodes.SMSG_DUEL_COUNTDOWN, cd.array());
+            }
         }
     }
 
@@ -1828,12 +1836,17 @@ public final class WorldSession {
      * HandleDuelCancelledOpcode when startTime is 0: DuelComplete(DUEL_INTERRUPTED).
      * SMSG_DUEL_COMPLETE uint8 0 to both; no SMSG_DUEL_WINNER. Guid is read and unused.
      */
-    private void cancelDuel(WowBuffer in) {
+    private void cancelDuel(World world, WowBuffer in) {
         if (in.remaining() >= 8) {
             in.getU64();
         }
         Player opponent = player.duelOpponent;
         if (opponent == null) {
+            return;
+        }
+        player.promoteDuel(world.nowMs());
+        if (player.duelStartedAtMs != 0) {
+            world.forfeitDuel(player);
             return;
         }
         byte[] complete = new byte[] {0};

@@ -294,6 +294,10 @@ public final class Player extends Unit {
     public Player duelOpponent;
     private GameObject duelFlag;
     public int duelPhase;
+    /** DuelHandler startTimer — milliseconds when the countdown began. 0 if not counting. */
+    public long duelCountdownStartMs;
+    /** Player::UpdateDuelFlag startTime — milliseconds when the duel became active. 0 before that. */
+    public long duelStartedAtMs;
     public Corpse corpse;
     public long deleteDateMs;
     /** Pending resurrect from SMSG_RESURRECT_REQUEST (Player.cpp m_resurrect*). */
@@ -1154,11 +1158,26 @@ public final class Player extends Unit {
         other.duelPhase = 1;
     }
 
+    /** Player::UpdateDuelFlag — countdown of 3 seconds, then startTime is set. */
+    public void promoteDuel(long nowMs) {
+        if (duelCountdownStartMs == 0 || nowMs < duelCountdownStartMs + 3000) {
+            return;
+        }
+        duelCountdownStartMs = 0;
+        duelStartedAtMs = nowMs;
+        if (duelOpponent != null) {
+            duelOpponent.duelCountdownStartMs = 0;
+            duelOpponent.duelStartedAtMs = nowMs;
+        }
+    }
+
     /** Player::DuelComplete — clear arbiter pairing on both sides. */
     public void completeDuel() {
         Player other = duelOpponent;
         duelOpponent = null;
         duelPhase = 0;
+        duelCountdownStartMs = 0;
+        duelStartedAtMs = 0;
         setDuelFlag(null);
         victim = 0;
         if (other == null) {
@@ -1166,6 +1185,8 @@ public final class Player extends Unit {
         }
         other.duelOpponent = null;
         other.duelPhase = 0;
+        other.duelCountdownStartMs = 0;
+        other.duelStartedAtMs = 0;
         other.setDuelFlag(null);
         other.victim = 0;
     }
