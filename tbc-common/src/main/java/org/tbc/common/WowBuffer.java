@@ -38,6 +38,11 @@ public final class WowBuffer {
         rpos = p;
     }
 
+    /** Peek without advancing — for optional MovementInfo transport length checks. */
+    public int peekU8() {
+        return data[rpos] & 0xFF;
+    }
+
     public byte[] array() {
         return Arrays.copyOf(data, wpos);
     }

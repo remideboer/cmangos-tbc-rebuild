@@ -361,7 +361,7 @@ public final class WorldSession {
             }
             return;
         }
-        if (opcode >= Opcodes.MSG_MOVE_START_FORWARD && opcode <= Opcodes.MSG_MOVE_HEARTBEAT) {
+        if (isLivingMoveOpcode(opcode)) {
             handleMove(world, opcode, in, false);
             return;
         }
@@ -381,7 +381,7 @@ public final class WorldSession {
             handleFallReset(world, in);
             return;
         }
-        if (opcode == Opcodes.CMSG_MOVE_SET_FLY) {
+        if (opcode == Opcodes.CMSG_MOVE_SET_FLY || opcode == Opcodes.CMSG_MOVE_CHNG_TRANSPORT) {
             handleMove(world, opcode, in, false);
             return;
         }
@@ -1475,6 +1475,40 @@ public final class WorldSession {
                 || opcode == Opcodes.CMSG_FORCE_TURN_RATE_CHANGE_ACK
                 || opcode == Opcodes.CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK
                 || opcode == Opcodes.CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK;
+    }
+
+    /**
+     * CMaNGOS Opcodes.cpp handlers that call HandleMovementOpcodes with a bare MovementInfo
+     * (no GUID/counter prefix). Do not use a numeric range — it includes SMSG and cheat opcodes.
+     */
+    static boolean isLivingMoveOpcode(int opcode) {
+        return switch (opcode) {
+            case Opcodes.MSG_MOVE_START_FORWARD,
+                    Opcodes.MSG_MOVE_START_BACKWARD,
+                    Opcodes.MSG_MOVE_STOP,
+                    Opcodes.MSG_MOVE_START_STRAFE_LEFT,
+                    Opcodes.MSG_MOVE_START_STRAFE_RIGHT,
+                    Opcodes.MSG_MOVE_STOP_STRAFE,
+                    Opcodes.MSG_MOVE_JUMP,
+                    Opcodes.MSG_MOVE_START_TURN_LEFT,
+                    Opcodes.MSG_MOVE_START_TURN_RIGHT,
+                    Opcodes.MSG_MOVE_STOP_TURN,
+                    Opcodes.MSG_MOVE_START_PITCH_UP,
+                    Opcodes.MSG_MOVE_START_PITCH_DOWN,
+                    Opcodes.MSG_MOVE_STOP_PITCH,
+                    Opcodes.MSG_MOVE_SET_RUN_MODE,
+                    Opcodes.MSG_MOVE_SET_WALK_MODE,
+                    Opcodes.MSG_MOVE_FALL_LAND,
+                    Opcodes.MSG_MOVE_START_SWIM,
+                    Opcodes.MSG_MOVE_STOP_SWIM,
+                    Opcodes.MSG_MOVE_SET_FACING,
+                    Opcodes.MSG_MOVE_SET_PITCH,
+                    Opcodes.MSG_MOVE_HEARTBEAT,
+                    Opcodes.MSG_MOVE_START_ASCEND,
+                    Opcodes.MSG_MOVE_STOP_ASCEND,
+                    Opcodes.MSG_MOVE_START_DESCEND -> true;
+            default -> false;
+        };
     }
 
     /** spell.md CMSG_STANDSTATECHANGE — stand/sit/sleep/kneel only (CMaNGOS HandleStandStateChangeOpcode). */

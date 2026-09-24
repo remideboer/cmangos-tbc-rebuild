@@ -31,6 +31,9 @@ public final class MovementInfo {
 
     public static MovementInfo readC2s(WowBuffer in) {
         MovementInfo m = new MovementInfo();
+        if (in.remaining() < 29) {
+            return m;
+        }
         m.moveFlags = in.getU32();
         m.moveFlags2 = in.getU8();
         m.ctime = in.getU32();
@@ -39,27 +42,56 @@ public final class MovementInfo {
         m.z = in.getFloat();
         m.o = in.getFloat();
         if ((m.moveFlags & MOVEFLAG_ONTRANSPORT) != 0) {
-            m.transportGuid = in.getPackedGuid();
-            m.tx = in.getFloat();
-            m.ty = in.getFloat();
-            m.tz = in.getFloat();
-            m.to = in.getFloat();
-            m.tTime = in.getU32();
+            if (!hasTransportBlock(in)) {
+                m.moveFlags &= ~MOVEFLAG_ONTRANSPORT;
+            } else {
+                m.transportGuid = in.getPackedGuid();
+                m.tx = in.getFloat();
+                m.ty = in.getFloat();
+                m.tz = in.getFloat();
+                m.to = in.getFloat();
+                m.tTime = in.getU32();
+            }
         }
         if ((m.moveFlags & (MOVEFLAG_SWIMMING | MOVEFLAG_FLYING2)) != 0) {
-            m.pitch = in.getFloat();
+            if (in.remaining() < 4) {
+                m.moveFlags &= ~(MOVEFLAG_SWIMMING | MOVEFLAG_FLYING2);
+            } else {
+                m.pitch = in.getFloat();
+            }
+        }
+        if (in.remaining() < 4) {
+            return m;
         }
         m.fallTime = in.getU32();
         if ((m.moveFlags & MOVEFLAG_FALLING) != 0) {
-            m.jumpZ = in.getFloat();
-            m.jumpCos = in.getFloat();
-            m.jumpSin = in.getFloat();
-            m.jumpXy = in.getFloat();
+            if (in.remaining() < 16) {
+                m.moveFlags &= ~MOVEFLAG_FALLING;
+            } else {
+                m.jumpZ = in.getFloat();
+                m.jumpCos = in.getFloat();
+                m.jumpSin = in.getFloat();
+                m.jumpXy = in.getFloat();
+            }
         }
         if ((m.moveFlags & MOVEFLAG_SPLINE_ELEVATION) != 0) {
-            m.splineElevation = in.getFloat();
+            if (in.remaining() < 4) {
+                m.moveFlags &= ~MOVEFLAG_SPLINE_ELEVATION;
+            } else {
+                m.splineElevation = in.getFloat();
+            }
         }
         return m;
+    }
+
+    /** Packed transport GUID (1+0..8) + xyz o + tTime — stop if the client truncated mid-block. */
+    private static boolean hasTransportBlock(WowBuffer in) {
+        if (in.remaining() < 1) {
+            return false;
+        }
+        int mask = in.peekU8();
+        int guidBytes = Integer.bitCount(mask & 0xFF);
+        return in.remaining() >= 1 + guidBytes + 20;
     }
 
     public void write(WowBuffer out, boolean packedGuidPrefix, long guid, int serverTime) {
