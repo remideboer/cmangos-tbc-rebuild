@@ -47,6 +47,7 @@ import org.tbc.world.session.WorldSession;
 import org.tbc.world.spell.AuraSlots;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.spell.SpellEngine;
+import org.tbc.world.spell.SpellTemplateLoader;
 import org.tbc.world.events.GameEventMgr;
 
 import java.nio.charset.StandardCharsets;
@@ -139,6 +140,7 @@ public final class World implements Runnable {
         this.areas.loadFromDataDir(dataDir);
         this.graveyards = GraveyardManager.seeded();
         this.objectMgr.load(worldDb, scripts, dataDir);
+        SpellTemplateLoader.load(worldDb, dataDir, spells);
         this.factions = Factions.seeded();
         this.factions.loadFromDataDir(dataDir);
         this.objectMgr.factions = this.factions;
@@ -539,6 +541,9 @@ public final class World implements Runnable {
         }
         if (r.damage() > 0) {
             p.rewardRageFromHit(r.damage(), r.outcome() == MeleeTable.Outcome.CRIT);
+            if (p.session != null) {
+                spells.procMelee(p, c, false, p.session::send);
+            }
         }
         if (p.session != null) {
             p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(p, c, r, spellSwing, offhand));

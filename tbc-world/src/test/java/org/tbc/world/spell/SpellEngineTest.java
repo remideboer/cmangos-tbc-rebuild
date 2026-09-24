@@ -570,6 +570,94 @@ class SpellEngineTest {
     }
 
     @Test
+    void putTemplateWhenSpellMissingFromHandCatalogShouldCastThatRow() {
+        assertTrue(engine.info(19750) == null);
+        engine.putTemplate(19750, SpellEngine.EFFECT_HEAL, 0, 2, 35, 62, 72, 40f, 1500, 1500, 0, 0,
+                SpellEngine.EFFECT_ENERGIZE, 0, 1, 1, 0, 0, 0, 0, 0, 0);
+        p.spells.add(19750);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 200);
+        p.setHealth(40);
+        assertTrue(engine.cast(p, map, 0, 19750, 5, empty(), this::capture));
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
+        engine.update(1500, 1500);
+        assertEquals(66, p.power());
+        assertEquals(107, p.health());
+        WowBuffer log = new WowBuffer(last.get(Opcodes.SMSG_SPELLHEALLOG));
+        log.getPackedGuid();
+        log.getPackedGuid();
+        assertEquals(19750, log.getU32());
+        assertEquals(67, log.getU32());
+    }
+
+    @Test
+    void procMeleeWhenSealOfRighteousnessShouldSendHolyDamageLog() {
+        p.spells.add(SpellEngine.SEAL_OF_RIGHTEOUSNESS);
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2000);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 10f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 10f);
+        c.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 200);
+        c.setHealth(100);
+        engine.apply(p, p, engine.info(SpellEngine.FROST_ARMOR), 0);
+        engine.cast(p, map, 0, SpellEngine.SEAL_OF_RIGHTEOUSNESS, 1, empty(), this::capture);
+        ops.clear();
+        engine.procMelee(p, c, false, this::capture);
+        WowBuffer log = new WowBuffer(last.get(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertEquals(c.guid, log.getPackedGuid());
+        assertEquals(p.guid, log.getPackedGuid());
+        assertEquals(25742, log.getU32());
+        int dmg = log.getU32();
+        assertEquals(2, dmg);
+        assertEquals(2, log.getU8());
+        assertEquals(100 - dmg, c.health());
+    }
+
+    @Test
+    void procMeleeWhenMissShouldNotProcSeal() {
+        p.spells.add(SpellEngine.SEAL_OF_RIGHTEOUSNESS);
+        engine.cast(p, map, 0, SpellEngine.SEAL_OF_RIGHTEOUSNESS, 1, empty(), this::capture);
+        ops.clear();
+        engine.procMelee(p, c, true, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+    }
+
+    @Test
+    void procMeleeWhenProcTriggerSpellShouldCastTrigger() {
+        engine.putTemplate(324, SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_PROC_TRIGGER_SPELL, 0, 0, 0, 0, 0f,
+                0, 0, 0, 30_000, 0, 0, 0, 0, SpellEngine.EFFECT_ENERGIZE, 0, 1, 1,
+                SpellEngine.PROC_FLAG_DEAL_MELEE_SWING, 13897);
+        engine.putTemplate(13897, SpellEngine.EFFECT_SCHOOL_DAMAGE, 0, 4, 0, 40, 40, 0f,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        p.spells.add(324);
+        c.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 200);
+        c.setHealth(80);
+        engine.cast(p, map, 0, 324, 1, empty(), this::capture);
+        ops.clear();
+        engine.procMelee(p, c, false, this::capture);
+        WowBuffer log = new WowBuffer(last.get(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        log.getPackedGuid();
+        log.getPackedGuid();
+        assertEquals(13897, log.getU32());
+        assertEquals(40, log.getU32());
+        assertEquals(40, c.health());
+    }
+
+    @Test
+    void procMeleeWhenAuraProcFlagMissesMeleeShouldNotFire() {
+        engine.putTemplate(20549, SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_PROC_TRIGGER_SPELL, 0, 0, 0, 0, 0f,
+                0, 0, 0, 30_000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13897);
+        p.spells.add(20549);
+        engine.cast(p, map, 0, 20549, 1, empty(), this::capture);
+        engine.putTemplate(20580, SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_PROC_TRIGGER_SPELL, 0, 0, 0, 0, 0f,
+                0, 0, 0, 30_000, 0, 0, 0, 0, 0, 0, 0, 0, SpellEngine.PROC_FLAG_DEAL_MELEE_SWING, 1);
+        p.spells.add(20580);
+        engine.cast(p, map, 0, 20580, 1, empty(), this::capture);
+        p.auras.add(new org.tbc.world.entity.Unit.Aura(9, 1000, 1));
+        ops.clear();
+        engine.procMelee(p, c, false, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+    }
+
+    @Test
     void createBarSpellsShouldBeInTheCatalog() {
         int[] bar = {20154, 635, 1752, 2098, 2764, 585, 686, 687, 2973, 75, 403, 331,
                 20580, 5176, 5185, 20549, 28734, 28730, 25046, 28880};

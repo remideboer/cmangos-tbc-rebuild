@@ -186,6 +186,10 @@ public final class SpellEngine {
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     /** SpellAuraNames SPELL_AURA_DUMMY — Seal of Righteousness rank 1. */
     public static final int SPELL_AURA_DUMMY = 4;
+    /** SpellAuraDefines.h SPELL_AURA_PROC_TRIGGER_SPELL. */
+    public static final int SPELL_AURA_PROC_TRIGGER_SPELL = 42;
+    /** SpellMgr.h PROC_FLAG_DEAL_MELEE_SWING — successful melee auto attack. */
+    public static final int PROC_FLAG_DEAL_MELEE_SWING = 0x4;
     /** SharedDefines.h SPELL_ID_PASSIVE_BATTLE_STANCE. Effect APPLY_AURA, aura 36, misc FORM_BATTLESTANCE 17. */
     public static final int SPELL_BATTLE_STANCE = 2457;
     public static final int CLASS_WARRIOR = 1;
@@ -347,7 +351,7 @@ public final class SpellEngine {
         spells.put(HOLY_LIGHT, new SpellInfo(HOLY_LIGHT, EFFECT_HEAL, 0, 2, 35, 42, 51, 40f)
                 .withCastTime(2500).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(SEAL_OF_RIGHTEOUSNESS, new SpellInfo(SEAL_OF_RIGHTEOUSNESS, EFFECT_APPLY_AURA,
-                SPELL_AURA_DUMMY, 2, 20, 0, 0, 0f)
+                SPELL_AURA_DUMMY, 2, 20, 108, 108, 0f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(30_000));
         spells.put(585, new SpellInfo(585, EFFECT_SCHOOL_DAMAGE, 0, 2, 20, 13, 17, 30f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
@@ -392,6 +396,45 @@ public final class SpellEngine {
 
     public SpellInfo info(int id) {
         return spells.get(id);
+    }
+
+    private final Map<Integer, List<SpellInfo>> extraEffects = new HashMap<>();
+    private final Map<Integer, Integer> procFlags = new HashMap<>();
+    private final Map<Integer, Integer> triggerSpells = new HashMap<>();
+
+    /**
+     * One spell_template row. Replaces a hand-seeded id. Effects 2 and 3 apply after effect 1
+     * when their effect id is not 0.
+     */
+    public void putTemplate(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float range,
+                            int castMs, int gcdMs, int recoveryMs, int durationMs,
+                            int effect2, int aura2, int min2, int max2,
+                            int effect3, int aura3, int min3, int max3,
+                            int procFlag, int triggerSpell) {
+        spells.put(id, new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, range)
+                .withCastTime(castMs).withGcd(gcdMs).withRecovery(recoveryMs).withDuration(durationMs));
+        List<SpellInfo> extra = new ArrayList<>();
+        if (effect2 != 0) {
+            extra.add(new SpellInfo(id, effect2, aura2, school, 0, min2, max2, range));
+        }
+        if (effect3 != 0) {
+            extra.add(new SpellInfo(id, effect3, aura3, school, 0, min3, max3, range));
+        }
+        if (extra.isEmpty()) {
+            extraEffects.remove(id);
+        } else {
+            extraEffects.put(id, extra);
+        }
+        if (procFlag != 0) {
+            procFlags.put(id, procFlag);
+        } else {
+            procFlags.remove(id);
+        }
+        if (triggerSpell != 0) {
+            triggerSpells.put(id, triggerSpell);
+        } else {
+            triggerSpells.remove(id);
+        }
     }
 
     /** SPELL_AURA_* modifier catalog applied by EFFECT_APPLY_AURA. */
@@ -714,6 +757,12 @@ public final class SpellEngine {
             caster.queueNextMeleeSwing(Math.max(1, (sp.minDmg + sp.maxDmg) / 2));
         } else {
             dmg = apply(caster, target, sp, nowMs);
+            List<SpellInfo> extra = extraEffects.get(sp.id);
+            if (extra != null) {
+                for (SpellInfo e : extra) {
+                    apply(caster, target, e, nowMs);
+                }
+            }
         }
         boolean schoolMiss = sp.effect == EFFECT_SCHOOL_DAMAGE && dmg == 0;
         if (schoolMiss) {
@@ -2735,6 +2784,73 @@ public final class SpellEngine {
         b.putU64(target);
         b.putU8(SPELL_MISS_MISS);
         return b.array();
+    }
+
+    /**
+     * Landing melee swing. Seal of Righteousness casts its rank trigger as holy damage.
+     * An aura 42 with {@link #PROC_FLAG_DEAL_MELEE_SWING} casts EffectTriggerSpell1.
+     * {@code missed} suppresses both.
+     */
+    public void procMelee(Player attacker, Unit victim, boolean missed, BiConsumer<Integer, byte[]> send) {
+        if (missed) {
+            return;
+        }
+        List<Unit.Aura> held = new ArrayList<>(attacker.auras);
+        for (Unit.Aura aura : held) {
+            int sealTrigger = sealOfRighteousnessTrigger(aura.spellId());
+            if (sealTrigger != 0) {
+                int dmg = sealOfRighteousnessDamage(attacker, info(aura.spellId()));
+                landProcDamage(attacker, victim, sealTrigger, 2, dmg, send);
+                continue;
+            }
+            SpellInfo sp = info(aura.spellId());
+            int flags = procFlags.getOrDefault(aura.spellId(), 0);
+            int trigger = triggerSpells.getOrDefault(aura.spellId(), 0);
+            if (sp != null && sp.aura == SPELL_AURA_PROC_TRIGGER_SPELL
+                    && (flags & PROC_FLAG_DEAL_MELEE_SWING) != 0) {
+                SpellInfo hit = info(trigger);
+                if (hit != null) {
+                    int dmg = (hit.minDmg + hit.maxDmg) / 2;
+                    landProcDamage(attacker, victim, trigger, hit.school, dmg, send);
+                }
+            }
+        }
+    }
+
+    /** UnitAuraProcHandler.cpp Seal of Righteousness rank → triggered spell. */
+    private static final Map<Integer, Integer> SEAL_OF_RIGHTEOUSNESS_TRIGGERS = Map.of(
+            20154, 25742,
+            21084, 25741,
+            20287, 25740,
+            20288, 25739,
+            20289, 25738,
+            20290, 25737,
+            20291, 25736,
+            20292, 25735,
+            20293, 25713,
+            27155, 27156);
+
+    static int sealOfRighteousnessTrigger(int auraId) {
+        return SEAL_OF_RIGHTEOUSNESS_TRIGGERS.getOrDefault(auraId, 0);
+    }
+
+    /** One-hand / no-weapon formula from HandleDummyAuraProc. Amount is the seal's base points + 1. */
+    static int sealOfRighteousnessDamage(Player attacker, SpellInfo seal) {
+        int amount = (seal.minDmg + seal.maxDmg) / 2;
+        float speed = attacker.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME) / 1000f;
+        double damageBasePoints = 0.85 * Math.ceil(amount * 1.2 * 1.03 * speed / 100.0) - 1;
+        float weapon = (attacker.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE)
+                + attacker.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE)) / 2f;
+        return (int) (damageBasePoints + 0.03 * weapon) + 1;
+    }
+
+    private void landProcDamage(Player attacker, Unit victim, int spellId, int school, int dmg,
+                                BiConsumer<Integer, byte[]> send) {
+        victim.setHealth(victim.health() - dmg);
+        SpellInfo sp = new SpellInfo(spellId, EFFECT_SCHOOL_DAMAGE, 0, school, 0, dmg, dmg, 0f);
+        send.accept(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG, encodeDamageLog(victim.guid, attacker.guid, sp, dmg));
+        var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(victim, UpdateFields.UNIT_FIELD_HEALTH));
+        send.accept(hp.opcode(), hp.payload());
     }
 
     /** Unit::SendHealSpellLog — packed victim, packed caster, spellId, amount, critical, unused. */
