@@ -574,9 +574,9 @@ public final class World implements Runnable {
         }
         rewardKill(p, c);
         if (tapper.session != null) {
-            content.killedMonsterCredit(tapper, c, tapper.session::send);
+            content.killedMonsterCredit(tapper, m, c, tapper.session::send);
         } else {
-            content.killedMonsterCredit(tapper, c, (op, b) -> { });
+            content.killedMonsterCredit(tapper, m, c, (op, b) -> { });
         }
         objectMgr.fillCorpseLoot(c);
         byte[] stop = c.motion.stop(c);

@@ -398,7 +398,7 @@ public final class Content {
         var coin = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
         send.accept(coin.opcode(), coin.payload());
         send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, count));
-        itemAddedQuestCheck(p, itemId, count, send);
+        itemAddedQuestCheck(p, map, itemId, count, send);
     }
 
     public void queryQuest(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {
@@ -743,7 +743,9 @@ public final class Content {
         }
         clearQuestSlot(p, slot);
         writeLogField(p, slot);
+        sendLogUpdate(p, slot, send);
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q, xp, money, 0));
+        questGiverStatusMultiple(p, map, send);
     }
 
     private void storeRewardItem(Player p, int itemId, int count, long nextItemGuid,
@@ -824,7 +826,7 @@ public final class Content {
         if (go == null || p.distance2d(go) > INTERACT_RANGE) {
             return false;
         }
-        boolean credited = creditGameObject(p, go, send);
+        boolean credited = creditGameObject(p, map, go, send);
         List<Integer> offered = mgr.goQuestGivers.get(go.entry);
         if (offered == null) {
             return credited;
@@ -839,7 +841,7 @@ public final class Content {
         return credited;
     }
 
-    public void exploreAreaTrigger(Player p, int triggerId, BiConsumer<Integer, byte[]> send) {
+    public void exploreAreaTrigger(Player p, GameMap map, int triggerId, BiConsumer<Integer, byte[]> send) {
         Integer questId = mgr.areaTriggerQuests.get(triggerId);
         if (questId == null) {
             return;
@@ -860,10 +862,10 @@ public final class Content {
             return;
         }
         p.questLogCounts[slot][0] = 1;
-        finishObjective(p, slot, q, q.id(), send);
+        finishObjective(p, map, slot, q, q.id(), send);
     }
 
-    public void spellCastCredit(Player p, int spellId, BiConsumer<Integer, byte[]> send) {
+    public void spellCastCredit(Player p, GameMap map, int spellId, BiConsumer<Integer, byte[]> send) {
         for (int slot = 0; slot < p.questLogId.length; slot++) {
             int questId = p.questLogId[slot];
             if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
@@ -878,7 +880,7 @@ public final class Content {
                 continue;
             }
             p.questLogCounts[slot][0] = 1;
-            finishObjective(p, slot, q, spellId, send);
+            finishObjective(p, map, slot, q, spellId, send);
         }
     }
 
@@ -899,7 +901,7 @@ public final class Content {
                 continue;
             }
             p.questLogCounts[slot][0] = 1;
-            finishObjective(p, slot, q, questId, send);
+            finishObjective(p, map, slot, q, questId, send);
         }
     }
 
@@ -926,7 +928,7 @@ public final class Content {
         p.dailyQuestDone.clear();
     }
 
-    private boolean creditGameObject(Player p, GameObject go, BiConsumer<Integer, byte[]> send) {
+    private boolean creditGameObject(Player p, GameMap map, GameObject go, BiConsumer<Integer, byte[]> send) {
         boolean credited = false;
         for (int slot = 0; slot < p.questLogId.length; slot++) {
             int questId = p.questLogId[slot];
@@ -948,14 +950,14 @@ public final class Content {
                     continue;
                 }
                 p.questLogCounts[slot][i] = have + 1;
-                finishObjective(p, slot, q, req, send);
+                finishObjective(p, map, slot, q, req, send);
                 credited = true;
             }
         }
         return credited;
     }
 
-    private void finishObjective(Player p, int slot, ObjectMgr.QuestTemplate q, int objectiveId,
+    private void finishObjective(Player p, GameMap map, int slot, ObjectMgr.QuestTemplate q, int objectiveId,
                                  BiConsumer<Integer, byte[]> send) {
         WowBuffer add = new WowBuffer(24);
         add.putU32(q.id());
@@ -964,10 +966,14 @@ public final class Content {
         add.putU32(1);
         add.putU64(0);
         send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
+        writeLogField(p, slot);
+        sendLogUpdate(p, slot, send);
         if (objectivesMet(p, slot, q)) {
             p.questLogState[slot] = QUEST_STATE_COMPLETE;
             writeLogField(p, slot);
+            sendLogUpdate(p, slot, send);
             send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(q.id()));
+            questGiverStatusMultiple(p, map, send);
         }
     }
 
@@ -1025,7 +1031,7 @@ public final class Content {
      * Player.cpp KilledMonsterCredit / SendQuestUpdateAddCreatureOrGo.
      * Creature objective slots 1–4. Game-object objectives (negative ids) are later.
      */
-    public void killedMonsterCredit(Player p, Creature victim, BiConsumer<Integer, byte[]> send) {
+    public void killedMonsterCredit(Player p, GameMap map, Creature victim, BiConsumer<Integer, byte[]> send) {
         if (victim == null) {
             return;
         }
@@ -1052,17 +1058,16 @@ public final class Content {
             add.putU64(victim.guid);
             send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
             writeLogField(p, slot);
-            int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
             boolean done = objectivesMet(p, slot, q);
             if (done) {
                 p.questLogState[slot] = QUEST_STATE_COMPLETE;
                 writeLogField(p, slot);
                 send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
             }
-            var upd = done
-                    ? UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base + 1, base + 2))
-                    : UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base + 2));
-            send.accept(upd.opcode(), upd.payload());
+            sendLogUpdate(p, slot, send);
+            if (done) {
+                questGiverStatusMultiple(p, map, send);
+            }
         }
     }
 
@@ -1088,7 +1093,7 @@ public final class Content {
      * Player.cpp ItemAddedQuestCheck / SendQuestUpdateAddItem.
      * Item objective slots 1–4. Packet is item u32 + added count u32 — not quest id.
      */
-    public void itemAddedQuestCheck(Player p, int entry, int count, BiConsumer<Integer, byte[]> send) {
+    public void itemAddedQuestCheck(Player p, GameMap map, int entry, int count, BiConsumer<Integer, byte[]> send) {
         for (int slot = 0; slot < p.questLogId.length; slot++) {
             int questId = p.questLogId[slot];
             if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
@@ -1111,9 +1116,8 @@ public final class Content {
                 p.questLogState[slot] = QUEST_STATE_COMPLETE;
                 writeLogField(p, slot);
                 send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
-                int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
-                var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base + 1));
-                send.accept(upd.opcode(), upd.payload());
+                sendLogUpdate(p, slot, send);
+                questGiverStatusMultiple(p, map, send);
             }
         }
     }
@@ -1156,6 +1160,13 @@ public final class Content {
         int base = UpdateFields.PLAYER_QUEST_LOG_1_1 + slot * 4;
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, base, base + 1, base + 2));
         send.accept(upd.opcode(), upd.payload());
+    }
+
+    /** Mirror questLog* arrays into PLAYER_QUEST_LOG_* before create-self / VALUES. */
+    public static void syncQuestLogFields(Player p) {
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            writeLogField(p, slot);
+        }
     }
 
     static void writeLogField(Player p, int slot) {

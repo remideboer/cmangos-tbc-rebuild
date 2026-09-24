@@ -121,13 +121,13 @@ class ContentQuestLoopTest {
                 0, 0, 0, 0, 1, 0, 0));
         Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
         content.acceptQuest(p, map, quest(mcbride.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), this::capture);
-        content.killedMonsterCredit(p, spawn(Content.NPC_KOBOLD_VERMIN), this::capture);
+        content.killedMonsterCredit(p, map, spawn(Content.NPC_KOBOLD_VERMIN), this::capture);
         assertEquals(0, p.questLogState[0]);
         assertTrue(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
         ops.clear();
-        content.killedMonsterCredit(p, spawn(Content.NPC_CORINA_STEELE), this::capture);
+        content.killedMonsterCredit(p, map, spawn(Content.NPC_CORINA_STEELE), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
-        content.killedMonsterCredit(p, spawn(Content.NPC_MARSHAL_DUGHAN), this::capture);
+        content.killedMonsterCredit(p, map, spawn(Content.NPC_MARSHAL_DUGHAN), this::capture);
         assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
         WowBuffer add = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
         assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, add.getU32());
@@ -143,9 +143,9 @@ class ContentQuestLoopTest {
                 Content.ITEM_RED_BURLAP_BANDANA, 1, Content.ITEM_WORN_SHORTSWORD, 1, 1, 0, 0));
         Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
         content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
-        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
         assertEquals(0, p.questLogState[0]);
-        content.itemAddedQuestCheck(p, Content.ITEM_WORN_SHORTSWORD, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_WORN_SHORTSWORD, 1, this::capture);
         assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
         assertEquals(1, p.questLogItemCount[0][1]);
     }
@@ -420,6 +420,64 @@ class ContentQuestLoopTest {
     }
 
     @Test
+    void completeQuestWhenRewardedShouldClearLogValuesAndPushStatusMultiple() {
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        p.questLogState[0] = Content.QUEST_STATE_COMPLETE;
+        Content.writeLogField(p, 0);
+        ops.clear();
+        last.clear();
+        content.completeQuest(p, map, quest(mcbride.guid, Content.QUEST_A_THREAT_WITHIN), 1, this::capture);
+        assertEquals(0, p.questLogId[0]);
+        assertEquals(0, p.getInt(UpdateFields.PLAYER_QUEST_LOG_1_1));
+        assertTrue(ops.contains(Opcodes.SMSG_UPDATE_OBJECT) || ops.contains(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        WowBuffer multi = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        assertTrue(multi.getU32() >= 1);
+    }
+
+    @Test
+    void killedMonsterCreditWhenObjectivesMetShouldPushRewardStatusAndCompleteLog() throws Exception {
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
+        mgr.quests.put(Content.QUEST_KOBOLD_CAMP_CLEANUP, questTemplate(
+                Content.QUEST_KOBOLD_CAMP_CLEANUP, Content.NPC_KOBOLD_VERMIN, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0));
+        mgr.questGivers.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));
+        mgr.questInvolved.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));
+        content.acceptQuest(p, map, quest(mcbride.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), this::capture);
+        ops.clear();
+        last.clear();
+        content.killedMonsterCredit(p, map, spawn(Content.NPC_KOBOLD_VERMIN), this::capture);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.getInt(UpdateFields.PLAYER_QUEST_LOG_1_1 + 1));
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        WowBuffer multi = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        assertEquals(1, multi.getU32());
+        assertEquals(mcbride.guid, multi.getU64());
+        assertEquals(Content.DIALOG_STATUS_REWARD, multi.getU8());
+    }
+
+    @Test
+    void useGameObjectWhenObjectiveDoneShouldSendCompleteLogValuesAndStatus() throws Exception {
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
+        mgr.questInvolved.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));
+        mgr.quests.put(Content.QUEST_KOBOLD_CAMP_CLEANUP, questTemplate(
+                Content.QUEST_KOBOLD_CAMP_CLEANUP, -Content.GO_ICE_BLOCK, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0));
+        p.questLogId[0] = Content.QUEST_KOBOLD_CAMP_CLEANUP;
+        Content.writeLogField(p, 0);
+        ops.clear();
+        last.clear();
+        content.useGameObject(p, map, go(Content.GO_ICE_BLOCK), this::capture);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        assertTrue(ops.contains(Opcodes.SMSG_UPDATE_OBJECT) || ops.contains(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        WowBuffer multi = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        assertEquals(1, multi.getU32());
+        assertEquals(mcbride.guid, multi.getU64());
+        assertEquals(Content.DIALOG_STATUS_REWARD, multi.getU8());
+    }
+
+    @Test
     void gameObjectQuestgiverWhenUsedShouldOfferAndAccept() {
         GameObject poster = go(Content.GO_ICE_STONE);
         mgr.goQuestGivers.put(Content.GO_ICE_STONE, new ArrayList<>(List.of(Content.QUEST_REST_AND_RELAXATION)));
@@ -452,7 +510,7 @@ class ContentQuestLoopTest {
         mgr.questExtras.put(Content.QUEST_A_THREAT_WITHIN, ObjectMgr.QuestExtras.explore());
         mgr.areaTriggerQuests.put(45, Content.QUEST_A_THREAT_WITHIN);
         p.questLogId[0] = Content.QUEST_A_THREAT_WITHIN;
-        content.exploreAreaTrigger(p, 45, this::capture);
+        content.exploreAreaTrigger(p, map, 45, this::capture);
         assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
     }
 
@@ -462,7 +520,7 @@ class ContentQuestLoopTest {
                 Content.QUEST_BROTHERHOOD_OF_THIEVES, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0));
         mgr.questExtras.put(Content.QUEST_BROTHERHOOD_OF_THIEVES, ObjectMgr.QuestExtras.spell(635));
         p.questLogId[0] = Content.QUEST_BROTHERHOOD_OF_THIEVES;
-        content.spellCastCredit(p, 635, this::capture);
+        content.spellCastCredit(p, map, 635, this::capture);
         assertEquals(1, p.questLogCounts[0][0]);
         assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
     }
@@ -557,16 +615,16 @@ class ContentQuestLoopTest {
         assertFalse(content.useGameObject(p, map, plain, this::capture));
         content.acceptQuest(p, map, quest(plain.guid, 7), this::capture);
 
-        content.exploreAreaTrigger(p, 99, this::capture);
+        content.exploreAreaTrigger(p, map, 99, this::capture);
         mgr.areaTriggerQuests.put(45, Content.QUEST_A_THREAT_WITHIN);
-        content.exploreAreaTrigger(p, 45, this::capture);
+        content.exploreAreaTrigger(p, map, 45, this::capture);
         p.questLogId[0] = Content.QUEST_A_THREAT_WITHIN;
-        content.exploreAreaTrigger(p, 45, this::capture);
+        content.exploreAreaTrigger(p, map, 45, this::capture);
         mgr.questExtras.put(Content.QUEST_A_THREAT_WITHIN, ObjectMgr.QuestExtras.spell(1));
-        content.exploreAreaTrigger(p, 45, this::capture);
+        content.exploreAreaTrigger(p, map, 45, this::capture);
         mgr.questExtras.put(Content.QUEST_A_THREAT_WITHIN, ObjectMgr.QuestExtras.explore());
         p.questLogCounts[0][0] = 1;
-        content.exploreAreaTrigger(p, 45, this::capture);
+        content.exploreAreaTrigger(p, map, 45, this::capture);
         p.questLogCounts[0][0] = 0;
         assertFalse(content.objectivesMet(p, 0, questTemplate(
                 Content.QUEST_KOBOLD_CAMP_CLEANUP, -Content.GO_ICE_BLOCK, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0)));
@@ -574,13 +632,13 @@ class ContentQuestLoopTest {
         mgr.quests.put(Content.QUEST_BROTHERHOOD_OF_THIEVES, questTemplate(
                 Content.QUEST_BROTHERHOOD_OF_THIEVES, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0));
         p.questLogId[1] = Content.QUEST_BROTHERHOOD_OF_THIEVES;
-        content.spellCastCredit(p, 635, this::capture);
+        content.spellCastCredit(p, map, 635, this::capture);
         mgr.questExtras.put(Content.QUEST_BROTHERHOOD_OF_THIEVES, ObjectMgr.QuestExtras.spell(635));
         p.questLogState[1] = Content.QUEST_STATE_COMPLETE;
-        content.spellCastCredit(p, 635, this::capture);
+        content.spellCastCredit(p, map, 635, this::capture);
         p.questLogState[1] = 0;
         p.questLogCounts[1][0] = 1;
-        content.spellCastCredit(p, 635, this::capture);
+        content.spellCastCredit(p, map, 635, this::capture);
         assertTrue(content.objectivesMet(p, 1, mgr.quests.get(Content.QUEST_BROTHERHOOD_OF_THIEVES)));
 
         Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
@@ -601,7 +659,7 @@ class ContentQuestLoopTest {
         mgr.quests.put(99, null);
         mgr.questExtras.put(99, ObjectMgr.QuestExtras.spell(635));
         p.questLogId[4] = 99;
-        content.spellCastCredit(p, 635, this::capture);
+        content.spellCastCredit(p, map, 635, this::capture);
         content.tickEscort(p, map, this::capture);
 
         mgr.quests.put(Content.QUEST_KOBOLD_CAMP_CLEANUP, questTemplate(
@@ -632,7 +690,7 @@ class ContentQuestLoopTest {
         assertFalse(content.objectivesMet(p, 1, mgr.quests.get(Content.QUEST_A_THREAT_WITHIN)));
 
         mgr.areaTriggerQuests.put(77, Content.QUEST_REST_AND_RELAXATION);
-        content.exploreAreaTrigger(p, 77, this::capture);
+        content.exploreAreaTrigger(p, map, 77, this::capture);
 
         p.questLogId[2] = Content.QUEST_REST_AND_RELAXATION;
         p.questLogState[2] = Content.QUEST_STATE_COMPLETE;
@@ -692,7 +750,7 @@ class ContentQuestLoopTest {
 
         mgr.areaTriggerQuests.put(88, 8888);
         p.questLogId[5] = 8888;
-        content.exploreAreaTrigger(p, 88, this::capture);
+        content.exploreAreaTrigger(p, map, 88, this::capture);
         mgr.goQuestGivers.put(Content.GO_ICE_STONE, new ArrayList<>(List.of(Content.QUEST_REST_AND_RELAXATION)));
         mgr.goQuestInvolved.remove(Content.GO_ICE_STONE);
         content.queryQuest(p, map, quest(stone.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);

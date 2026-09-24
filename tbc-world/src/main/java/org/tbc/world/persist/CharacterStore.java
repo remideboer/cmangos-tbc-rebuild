@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tbc.common.DbPool;
 import org.tbc.world.content.ChrStatic;
+import org.tbc.world.content.Content;
 import org.tbc.world.content.LevelStats;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Guid;
@@ -845,6 +846,7 @@ public final class CharacterStore {
             p.questLogItemCount[slot][2] = rs.getInt("itemcount3");
             p.questLogItemCount[slot][3] = rs.getInt("itemcount4");
         }
+        Content.syncQuestLogFields(p);
     }
 
     /** QuestDef.h QUEST_STATUS_COMPLETE 1 / INCOMPLETE 3 / FAILED 5. */

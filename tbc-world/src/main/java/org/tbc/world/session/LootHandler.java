@@ -63,7 +63,7 @@ public final class LootHandler {
         s.send(inv.opcode(), inv.payload());
         s.send(Opcodes.SMSG_LOOT_REMOVED, world.combat.encodeLootRemoved(slot));
         s.send(Opcodes.SMSG_ITEM_PUSH_RESULT, Content.encodeLootPush(p, it, total));
-        world.content.itemAddedQuestCheck(p, it.entry, it.count, s::send);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId), it.entry, it.count, s::send);
         maybeReleaseEmptyCorpse(s, world, p, c);
     }
 

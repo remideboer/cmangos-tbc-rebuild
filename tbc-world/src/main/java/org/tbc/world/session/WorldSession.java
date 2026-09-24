@@ -591,7 +591,7 @@ public final class WorldSession {
         }
         if (opcode == Opcodes.CMSG_AREATRIGGER) {
             int trigger = in.getU32();
-            world.content.exploreAreaTrigger(player, trigger, this::send);
+            world.content.exploreAreaTrigger(player, world.map(player.mapId, player.instanceId), trigger, this::send);
             if (tryWsgFlagCapture(world, trigger)) {
                 return;
             }
@@ -1598,7 +1598,7 @@ public final class WorldSession {
     /** Runs when the effects land (instant now, timed casts from Spell::update): kill path, EventAI spell hit. */
     private void afterSpellLanded(World world, int spellId, org.tbc.world.entity.Unit unit, int hpBefore,
                                   boolean wasAlive) {
-        world.content.spellCastCredit(player, spellId, this::send);
+        world.content.spellCastCredit(player, world.map(player.mapId, player.instanceId), spellId, this::send);
         if (unit instanceof Creature dead && wasAlive && !dead.alive()) {
             world.onCreatureKilledBySpell(player, dead);
         }

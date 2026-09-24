@@ -1,5 +1,6 @@
 package org.tbc.world.persist;
 
+import org.tbc.world.content.Content;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -66,6 +67,7 @@ public final class PlayerPersist {
             }
         }
         d.applyCreateFields();
+        Content.syncQuestLogFields(d);
         d.setInt(UpdateFields.PLAYER_FLAGS, src.getInt(UpdateFields.PLAYER_FLAGS));
         if (src.ghost) {
             d.setGhost(true);

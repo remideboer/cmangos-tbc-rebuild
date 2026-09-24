@@ -37,6 +37,10 @@ class CharacterStoreQuestStatusTest {
         assertEquals(1, loaded.questLogItemCount[0][1]);
         assertTrue(loaded.rewardedQuests.contains(Content.QUEST_A_THREAT_WITHIN));
         assertFalse(loaded.rewardedQuests.contains(Content.QUEST_KOBOLD_CAMP_CLEANUP));
+        assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP,
+                loaded.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_QUEST_LOG_1_1));
+        assertEquals(4 | (2 << 8),
+                loaded.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_QUEST_LOG_1_1 + 2));
     }
 
     @Test
@@ -87,6 +91,10 @@ class CharacterStoreQuestStatusTest {
             assertEquals(Content.QUEST_BROTHERHOOD_OF_THIEVES, loaded.questLogId[1]);
             assertEquals(Content.QUEST_STATE_FAIL, loaded.questLogState[1]);
             assertTrue(loaded.rewardedQuests.contains(Content.QUEST_A_THREAT_WITHIN));
+            assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP,
+                    loaded.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_QUEST_LOG_1_1));
+            assertEquals(Content.QUEST_STATE_COMPLETE,
+                    loaded.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_QUEST_LOG_1_1 + 1));
         }
     }
 }

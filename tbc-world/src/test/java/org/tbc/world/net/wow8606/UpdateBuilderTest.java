@@ -78,6 +78,49 @@ class UpdateBuilderTest {
     }
 
     @Test
+    void createSelfWhenQuestLogIdSetShouldIncludeGroupOnlyQuestId() {
+        org.tbc.world.entity.Player p = new org.tbc.world.entity.Player();
+        p.guid = Guid.player(7);
+        p.race = 1;
+        p.clazz = 1;
+        p.level = 1;
+        p.applyCreateFields();
+        p.setInt(UpdateFields.PLAYER_QUEST_LOG_1_1, 783);
+        byte[] raw = UpdateBuilder.createUnit(p, true, 0);
+        WowBuffer b = new WowBuffer(raw);
+        b.getU32();
+        b.getU8();
+        b.getU8();
+        b.getPackedGuid();
+        b.getU8();
+        b.getU8();
+        b.getU32();
+        b.getU8();
+        b.getU32();
+        b.getFloat();
+        b.getFloat();
+        b.getFloat();
+        b.getFloat();
+        b.getU32();
+        for (int i = 0; i < 8; i++) {
+            b.getFloat();
+        }
+        b.getU32();
+        int nblocks = b.getU8();
+        int[] mask = new int[nblocks];
+        for (int i = 0; i < nblocks; i++) {
+            mask[i] = b.getU32();
+        }
+        int[] values = new int[nblocks * 32];
+        for (int i = 0; i < nblocks * 32; i++) {
+            if ((mask[i / 32] & (1 << (i % 32))) != 0) {
+                values[i] = b.getU32();
+            }
+        }
+        assertEquals(783, values[UpdateFields.PLAYER_QUEST_LOG_1_1]);
+    }
+
+    @Test
     void createSelfIncludesLanguageSkillFields() {
         org.tbc.world.entity.Player p = new org.tbc.world.entity.Player();
         p.guid = Guid.player(7);

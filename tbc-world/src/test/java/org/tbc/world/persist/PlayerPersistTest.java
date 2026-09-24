@@ -118,4 +118,17 @@ class PlayerPersistTest {
         assertFalse(d.ghost);
         assertEquals(40, d.health());
     }
+
+    @Test
+    void copyWhenQuestLogFilledShouldMirrorUpdateFields() {
+        Player src = new Player();
+        src.guid = 14;
+        src.questLogId[0] = 783;
+        src.questLogState[0] = 1;
+        src.questLogCounts[0][0] = 2;
+        Player d = PlayerPersist.copy(src);
+        assertEquals(783, d.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_QUEST_LOG_1_1));
+        assertEquals(1, d.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_QUEST_LOG_1_1 + 1));
+        assertEquals(2, d.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_QUEST_LOG_1_1 + 2) & 0xFF);
+    }
 }

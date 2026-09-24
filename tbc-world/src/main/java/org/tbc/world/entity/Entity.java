@@ -60,7 +60,8 @@ public class Entity {
         if ((vis & UpdateFields.PUBLIC) != 0 || (vis & UpdateFields.DYNAMIC) != 0) {
             return true;
         }
-        if (owner && ((vis & UpdateFields.PRIVATE) != 0 || (vis & UpdateFields.OWNER_ONLY) != 0)) {
+        if (owner && ((vis & UpdateFields.PRIVATE) != 0 || (vis & UpdateFields.OWNER_ONLY) != 0
+                || (vis & UpdateFields.GROUP_ONLY) != 0)) {
             return true;
         }
         return false;

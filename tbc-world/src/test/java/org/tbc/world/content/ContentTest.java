@@ -152,16 +152,16 @@ class ContentTest {
 
     @Test
     void killedMonsterCreditWhenKillQuestShouldCountAndComplete() {
-        content.killedMonsterCredit(p, null, this::capture);
+        content.killedMonsterCredit(p, map, null, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
         Creature garrick = spawn(103, 0, 0);
-        content.killedMonsterCredit(p, garrick, this::capture);
+        content.killedMonsterCredit(p, map, garrick, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
         p.questLogId[0] = 404;
-        content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+        content.killedMonsterCredit(p, map, spawn(6, 0, 0), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
         p.questLogId[0] = Content.QUEST_A_THREAT_WITHIN;
-        content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+        content.killedMonsterCredit(p, map, spawn(6, 0, 0), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
         p.questLogId[0] = 0;
         Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE, 0, 0);
@@ -169,14 +169,14 @@ class ContentTest {
         ops.clear();
         last.clear();
         Creature kobold = spawn(6, 0, 0);
-        content.killedMonsterCredit(p, kobold, this::capture);
+        content.killedMonsterCredit(p, map, kobold, this::capture);
         WowBuffer add = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
         assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, add.getU32());
         assertEquals(6, add.getU32());
         assertEquals(1, add.getU32());
         assertEquals(10, add.getU32());
         assertEquals(kobold.guid, add.getU64());
-        content.killedMonsterCredit(p, garrick, this::capture);
+        content.killedMonsterCredit(p, map, garrick, this::capture);
         WowBuffer still = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
         still.getU32();
         still.getU32();
@@ -184,48 +184,48 @@ class ContentTest {
         ops.clear();
         last.clear();
         for (int i = 2; i <= 10; i++) {
-            content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+            content.killedMonsterCredit(p, map, spawn(6, 0, 0), this::capture);
         }
         assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
         WowBuffer done = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
         assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, done.getU32());
         ops.clear();
         last.clear();
-        content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+        content.killedMonsterCredit(p, map, spawn(6, 0, 0), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
         p.questLogId[1] = 8;
         mgr.quests.put(8, new ObjectMgr.QuestTemplate(8, "Zero", 1, 0, 0, "", "", 6, 0));
         ops.clear();
-        content.killedMonsterCredit(p, spawn(6, 0, 0), this::capture);
+        content.killedMonsterCredit(p, map, spawn(6, 0, 0), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
     }
 
     @Test
     void itemAddedQuestCheckWhenCollectQuestShouldCountAndComplete() {
-        content.itemAddedQuestCheck(p, 0, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, 0, 1, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
-        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
         p.questLogId[0] = 404;
-        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
         p.questLogId[0] = Content.QUEST_A_THREAT_WITHIN;
-        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
         p.questLogId[0] = 0;
         Creature willem = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
         content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
         ops.clear();
         last.clear();
-        content.itemAddedQuestCheck(p, Content.ITEM_WORN_SHORTSWORD, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_WORN_SHORTSWORD, 1, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
-        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
         WowBuffer add = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
         assertEquals(Content.ITEM_RED_BURLAP_BANDANA, add.getU32());
         assertEquals(1, add.getU32());
         ops.clear();
         last.clear();
-        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 20, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_RED_BURLAP_BANDANA, 20, this::capture);
         add = new WowBuffer(last.get(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
         assertEquals(Content.ITEM_RED_BURLAP_BANDANA, add.getU32());
         assertEquals(11, add.getU32());
@@ -234,12 +234,12 @@ class ContentTest {
         assertEquals(Content.QUEST_BROTHERHOOD_OF_THIEVES, done.getU32());
         ops.clear();
         last.clear();
-        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
         p.questLogId[1] = 9;
         mgr.quests.put(9, new ObjectMgr.QuestTemplate(9, "NoItems", 1, 0, 0, "", "", 0, 0, Content.ITEM_RED_BURLAP_BANDANA, 0));
         ops.clear();
-        content.itemAddedQuestCheck(p, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
+        content.itemAddedQuestCheck(p, map, Content.ITEM_RED_BURLAP_BANDANA, 1, this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_ITEM));
     }
 
