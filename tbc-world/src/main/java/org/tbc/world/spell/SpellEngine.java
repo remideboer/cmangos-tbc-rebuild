@@ -411,8 +411,15 @@ public final class SpellEngine {
                             int effect2, int aura2, int min2, int max2,
                             int effect3, int aura3, int min3, int max3,
                             int procFlag, int triggerSpell) {
+        int dur = durationMs;
+        if (dur <= 0) {
+            SpellInfo prev = spells.get(id);
+            if (prev != null && prev.durationMs() > 0) {
+                dur = prev.durationMs();
+            }
+        }
         spells.put(id, new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, range)
-                .withCastTime(castMs).withGcd(gcdMs).withRecovery(recoveryMs).withDuration(durationMs));
+                .withCastTime(castMs).withGcd(gcdMs).withRecovery(recoveryMs).withDuration(dur));
         List<SpellInfo> extra = new ArrayList<>();
         if (effect2 != 0) {
             extra.add(new SpellInfo(id, effect2, aura2, school, 0, min2, max2, range));

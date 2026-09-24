@@ -441,6 +441,41 @@ class SpellEngineTest {
         assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, remain);
     }
 
+    /**
+     * spell_template load without SpellDuration.dbc yields DurationIndex→0 ms and must not wipe the
+     * hand-seeded 30-minute Frost Armor (client was seeing the 30 s auraDurationMs fallback).
+     */
+    @Test
+    void putTemplateWhenDurationZeroShouldKeepSeededFrostArmorThirtyMinutes() {
+        engine.putTemplate(SpellEngine.FROST_ARMOR, SpellEngine.EFFECT_APPLY_AURA,
+                SpellEngine.SPELL_AURA_MOD_RESISTANCE, 16, 60, 0, 0, 0f,
+                0, SpellCooldowns.GCD_NORMAL_MS, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, engine.info(SpellEngine.FROST_ARMOR).durationMs());
+        engine.apply(p, p, engine.info(SpellEngine.FROST_ARMOR), 1_000);
+        assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, p.auras.get(p.auras.size() - 1).durationMs());
+        assertEquals(1_000 + SpellEngine.FROST_ARMOR_DURATION_MS, p.auras.get(p.auras.size() - 1).expireAtMs());
+    }
+
+    @Test
+    void putTemplateWhenDurationPositiveShouldReplaceSeed() {
+        engine.putTemplate(SpellEngine.FROST_ARMOR, SpellEngine.EFFECT_APPLY_AURA,
+                SpellEngine.SPELL_AURA_MOD_RESISTANCE, 16, 60, 0, 0, 0f,
+                0, SpellCooldowns.GCD_NORMAL_MS, 0, 60_000,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assertEquals(60_000, engine.info(SpellEngine.FROST_ARMOR).durationMs());
+    }
+
+    @Test
+    void putTemplateWhenDurationZeroAndUnknownIdShouldStayZero() {
+        engine.putTemplate(999_001, SpellEngine.EFFECT_SCHOOL_DAMAGE, 0, 0, 0, 1, 1, 0f,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assertEquals(0, engine.info(999_001).durationMs());
+        engine.putTemplate(999_001, SpellEngine.EFFECT_SCHOOL_DAMAGE, 0, 0, 0, 1, 1, 0f,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assertEquals(0, engine.info(999_001).durationMs());
+    }
+
     @Test
     void castDrainLifeWhenChanneledShouldSendChannelStart() {
         p.spells.add(SpellEngine.DRAIN_LIFE);

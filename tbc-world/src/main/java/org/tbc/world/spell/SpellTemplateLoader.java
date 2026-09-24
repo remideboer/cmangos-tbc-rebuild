@@ -82,8 +82,30 @@ public final class SpellTemplateLoader {
 
     private static Map<Integer, Integer> durations(Path dataDir) {
         Map<Integer, Integer> m = new HashMap<>();
-        loadIntDbc(dataDir, "SpellDuration.dbc", 1, m);
+        // SpellDuration.dbc Duration[0] (ms). Seeds when DataDir / DBC is absent.
+        m.put(21, 15_000);
+        m.put(28, SpellEngine.DRAIN_LIFE_DURATION_MS);
+        m.put(30, SpellEngine.FROST_ARMOR_DURATION_MS);
+        loadDurationDbc(dataDir, m);
         return m;
+    }
+
+    /** SpellDuration.dbc: col0 id, col1 Duration[0]; −1 = permanent → 0 ms in our model. */
+    private static void loadDurationDbc(Path dataDir, Map<Integer, Integer> into) {
+        if (dataDir == null) {
+            return;
+        }
+        try {
+            DbcFile f = DbcFile.load(dataDir.resolve("dbc").resolve("SpellDuration.dbc"));
+            for (int[] row : f.records) {
+                if (row.length > 1) {
+                    int v = row[1];
+                    into.put(row[0], v == -1 ? 0 : Math.abs(v));
+                }
+            }
+        } catch (Exception ignored) {
+            // DataDir without this file keeps the seed.
+        }
     }
 
     private static void loadIntDbc(Path dataDir, String name, int column, Map<Integer, Integer> into) {
