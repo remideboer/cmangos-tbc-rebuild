@@ -1295,6 +1295,50 @@ public final class ObjectMgr {
     public final Map<Integer, PointOfInterest> pointsOfInterest = new HashMap<>();
     public final Map<Integer, List<Integer>> questGivers = new HashMap<>();
     public final Map<Integer, List<Integer>> questInvolved = new HashMap<>();
+    public final Map<Integer, List<Integer>> goQuestGivers = new HashMap<>();
+    public final Map<Integer, List<Integer>> goQuestInvolved = new HashMap<>();
+    public final Map<Integer, QuestExtras> questExtras = new HashMap<>();
+    public final Map<Integer, Integer> areaTriggerQuests = new HashMap<>();
+
+    /** Columns beyond the kill/item row: spell, explore, reputation, timer, daily, escort point. */
+    public record QuestExtras(int reqSpell1, int specialFlags, int questFlags, int limitSeconds,
+                              int pointMapId, float pointX, float pointY,
+                              int reqRepFaction, int reqRepValue, int rewRepFaction, int rewRepValue) {
+        public static final int EXPLORE = 0x002;
+        public static final int DAILY = 0x1000;
+
+        public static QuestExtras explore() {
+            return new QuestExtras(0, EXPLORE, 0, 0, 0, 0f, 0f, 0, 0, 0, 0);
+        }
+
+        public static QuestExtras spell(int spellId) {
+            return new QuestExtras(spellId, 0, 0, 0, 0, 0f, 0f, 0, 0, 0, 0);
+        }
+
+        public static QuestExtras reputation(int rewFaction, int rewValue, int reqFaction, int reqValue) {
+            return new QuestExtras(0, 0, 0, 0, 0, 0f, 0f, reqFaction, reqValue, rewFaction, rewValue);
+        }
+
+        public static QuestExtras point(int mapId, float x, float y) {
+            return new QuestExtras(0, 0, 0, 0, mapId, x, y, 0, 0, 0, 0);
+        }
+
+        public static QuestExtras limit(int seconds) {
+            return new QuestExtras(0, 0, 0, seconds, 0, 0f, 0f, 0, 0, 0, 0);
+        }
+
+        public static QuestExtras daily() {
+            return new QuestExtras(0, 0, DAILY, 0, 0, 0f, 0f, 0, 0, 0, 0);
+        }
+
+        public boolean exploreOrEvent() {
+            return (specialFlags & EXPLORE) != 0;
+        }
+
+        public boolean isDaily() {
+            return (questFlags & DAILY) != 0;
+        }
+    }
     public record TrainerSpell(int spell, int cost, int reqLevel) {}
     public record TaxiHop(int from, int to, int cost, float x, float y, float z) {}
     /** TaxiNodes.dbc row used by GetNearestTaxiNode. Mount flags = MountCreatureID != 0. */
@@ -1418,6 +1462,7 @@ public final class ObjectMgr {
             }
             loadQuests(c);
             loadQuestRelations(c);
+            loadQuestExtras(c);
             loadAreaTriggers(c);
             loadItems(c);
             loadNpcVendors(c);
@@ -1873,6 +1918,32 @@ public final class ObjectMgr {
         java.util.List<String> sqls = questRelationQueries();
         loadOneRelation(c, sqls.get(0), questGivers);
         loadOneRelation(c, sqls.get(1), questInvolved);
+        loadOneRelation(c, "SELECT id, quest FROM gameobject_questrelation", goQuestGivers);
+        loadOneRelation(c, "SELECT id, quest FROM gameobject_involvedrelation", goQuestInvolved);
+        loadAreaTriggerQuests(c);
+    }
+
+    private void loadAreaTriggerQuests(Connection c) {
+        try (PreparedStatement ps = c.prepareStatement("SELECT id, quest FROM areatrigger_involvedrelation");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                areaTriggerQuests.put(rs.getInt(1), rs.getInt(2));
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void loadQuestExtras(Connection c) {
+        String sql = "SELECT entry, ReqSpellCast1, SpecialFlags, QuestFlags, LimitTime, PointMapId, PointX, PointY, "
+                + "RequiredMinRepFaction, RequiredMinRepValue, RewRepFaction1, RewRepValue1 FROM quest_template";
+        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                questExtras.put(rs.getInt(1), new QuestExtras(
+                        rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6),
+                        rs.getFloat(7), rs.getFloat(8), rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12)));
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private static void loadOneRelation(Connection c, String sql, Map<Integer, List<Integer>> dest) {

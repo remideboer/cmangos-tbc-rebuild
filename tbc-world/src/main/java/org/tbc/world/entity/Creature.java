@@ -8,6 +8,7 @@ import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.script.BossScript;
 
 public final class Creature extends Unit {
+    public long followTarget;
     public static final int TYPEMASK_UNIT = 0x0009;
     /** C++ CREATURE_EXTRA_FLAG_GUARD */
     public static final int CREATURE_EXTRA_FLAG_GUARD = 0x00000400;

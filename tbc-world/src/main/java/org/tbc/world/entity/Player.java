@@ -217,6 +217,8 @@ public final class Player extends Unit {
     public final int[][] questLogItemCount = new int[25][4];
     /** character_queststatus.rewarded — quests turned in, no longer in the log. */
     public final Set<Integer> rewardedQuests = new HashSet<>();
+    public final Set<Integer> dailyQuestDone = new HashSet<>();
+    public final long[] questExpiry = new long[25];
     private final Map<Integer, Integer> killCredits = new HashMap<>();
 
     /**

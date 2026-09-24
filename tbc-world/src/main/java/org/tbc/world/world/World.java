@@ -896,6 +896,32 @@ public final class World implements Runnable {
             timers.setInterval(WorldTimers.EVENTS, next);
             timers.reset(WorldTimers.EVENTS);
         }
+        tickQuests();
+    }
+
+    private long nextDailyResetMs;
+
+    private void tickQuests() {
+        long now = nowMs();
+        if (nextDailyResetMs == 0) {
+            nextDailyResetMs = now + 86_400_000L;
+        } else if (now >= nextDailyResetMs) {
+            nextDailyResetMs = now + 86_400_000L;
+            for (GameMap m : maps.values()) {
+                for (Player p : m.players()) {
+                    content.resetDailies(p);
+                }
+            }
+        }
+        for (GameMap m : maps.values()) {
+            for (Player p : m.players()) {
+                if (p.session == null) {
+                    continue;
+                }
+                content.failExpired(p, now, p.session::send);
+                content.tickEscort(p, m, p.session::send);
+            }
+        }
     }
 
     /**

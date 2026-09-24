@@ -2,6 +2,7 @@ package org.tbc.world.content;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -94,6 +95,7 @@ public final class Content {
     public static final int EQUIP_ERR_NOT_ENOUGH_MONEY = 29;
     public static final int QUEST_STATE_COMPLETE = 0x1;
     public static final int QUEST_STATE_FAIL = 0x2;
+    public static final int QUEST_TYPE_ESCORT = 84;
     /** QuestDef.h MAX_QUEST_LOG_SIZE. */
     public static final int MAX_QUEST_LOG_SIZE = 25;
     /** QuestDef.h dialog marks: none, grey ?, yellow !, yellow ? */
@@ -405,15 +407,15 @@ public final class Content {
         }
         long guid = in.getU64();
         int questId = in.getU32();
-        Creature c = creature(map, guid);
-        if (c == null || outOfRange(p, c) || !offersOrInvolves(c.entry, questId)) {
+        long giverGuid = resolveQuestGiverGuid(p, map, guid, questId, true);
+        if (giverGuid == 0) {
             return;
         }
         ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
         if (q == null) {
             return;
         }
-        send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_DETAILS, encodeDetails(c.guid, q));
+        send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_DETAILS, encodeDetails(giverGuid, q));
     }
 
     /** HandleQuestgiverRequestRewardOpcode → PlayerMenu::SendQuestGiverOfferReward. */
@@ -423,8 +425,8 @@ public final class Content {
         }
         long guid = in.getU64();
         int questId = in.getU32();
-        Creature c = creature(map, guid);
-        if (c == null || outOfRange(p, c) || !involves(c.entry, questId)) {
+        long giverGuid = resolveQuestGiverGuid(p, map, guid, questId, false);
+        if (giverGuid == 0) {
             return;
         }
         int slot = slotOf(p, questId);
@@ -435,7 +437,7 @@ public final class Content {
         if (q == null || !objectivesMet(p, slot, q)) {
             return;
         }
-        send.accept(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD, encodeOfferReward(c.guid, q));
+        send.accept(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD, encodeOfferReward(giverGuid, q));
     }
 
     /**
@@ -449,6 +451,11 @@ public final class Content {
         long guid = in.getU64();
         Creature c = creature(map, guid);
         if (c == null) {
+            GameObject go = map.gameObjects.get(guid);
+            if (go == null) {
+                return;
+            }
+            sendQuestGiverStatus(p, go.guid, goDialogStatus(p, go.entry), send);
             return;
         }
         sendQuestGiverStatus(p, c, send);
@@ -462,10 +469,17 @@ public final class Content {
         send.accept(Opcodes.SMSG_QUESTGIVER_STATUS, out.array());
     }
 
+    private void sendQuestGiverStatus(Player p, long guid, int status, BiConsumer<Integer, byte[]> send) {
+        WowBuffer out = new WowBuffer(9);
+        out.putU64(guid);
+        out.putU8(status);
+        send.accept(Opcodes.SMSG_QUESTGIVER_STATUS, out.array());
+    }
+
     /**
      * CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY. Player.cpp SendQuestGiverStatusMultiple:
      * visible creatures with UNIT_NPC_FLAG_QUESTGIVER; raw guid + uint8 status; count prefix.
-     * Recv ignored. Game-object questgivers are later.
+     * Recv ignored. A game-object questgiver answers CMSG_QUESTGIVER_STATUS_QUERY.
      */
     public void questGiverStatusMultiple(Player p, GameMap map, BiConsumer<Integer, byte[]> send) {
         List<Creature> found = new ArrayList<>();
@@ -492,6 +506,13 @@ public final class Content {
         int best = DIALOG_STATUS_NONE;
         best = raiseStatus(p, c.entry, mgr.questInvolved.get(c.entry), true, best);
         best = raiseStatus(p, c.entry, mgr.questGivers.get(c.entry), false, best);
+        return best;
+    }
+
+    private int goDialogStatus(Player p, int entry) {
+        int best = DIALOG_STATUS_NONE;
+        best = raiseStatus(p, entry, mgr.goQuestInvolved.get(entry), true, best);
+        best = raiseStatus(p, entry, mgr.goQuestGivers.get(entry), false, best);
         return best;
     }
 
@@ -537,7 +558,21 @@ public final class Content {
         if (!raceMatches(p, q.requiredRaces())) {
             return false;
         }
+        if (!repAndDailyAllow(p, q)) {
+            return false;
+        }
         return prevSatisfied(p, q.prevQuestId());
+    }
+
+    private boolean repAndDailyAllow(Player p, ObjectMgr.QuestTemplate q) {
+        ObjectMgr.QuestExtras extra = mgr.questExtras.get(q.id());
+        if (extra != null && extra.isDaily() && p.dailyQuestDone.contains(q.id())) {
+            return false;
+        }
+        if (extra != null && extra.reqRepFaction() > 0 && p.reputationStanding(extra.reqRepFaction()) < extra.reqRepValue()) {
+            return false;
+        }
+        return true;
     }
 
     static boolean raceMatches(Player p, int requiredRaces) {
@@ -558,21 +593,33 @@ public final class Content {
         return slotOf(p, -prevQuestId) >= 0;
     }
 
-    /** Positive creature and item counts only. Game-object objectives are later. */
-    static boolean objectivesMet(Player p, int slot, ObjectMgr.QuestTemplate q) {
+    /** Creature, item, game-object, spell, and explore objectives. */
+    boolean objectivesMet(Player p, int slot, ObjectMgr.QuestTemplate q) {
         for (int i = 0; i < 4; i++) {
-            int creatureId = q.reqCreatureOrGOId(i);
-            int creatureNeed = q.reqCreatureOrGOCount(i);
-            if (creatureId > 0 && creatureNeed > 0 && p.questLogCounts[slot][i] < creatureNeed) {
-                return false;
+            if (q.reqCreatureOrGOCount(i) > 0) {
+                if (q.reqCreatureOrGOId(i) != 0) {
+                    if (p.questLogCounts[slot][i] < q.reqCreatureOrGOCount(i)) {
+                        return false;
+                    }
+                }
             }
-            int itemId = q.reqItemId(i);
-            int itemNeed = q.reqItemCount(i);
-            if (itemId > 0 && itemNeed > 0 && p.questLogItemCount[slot][i] < itemNeed) {
-                return false;
+            if (q.reqItemCount(i) > 0) {
+                if (q.reqItemId(i) > 0) {
+                    if (p.questLogItemCount[slot][i] < q.reqItemCount(i)) {
+                        return false;
+                    }
+                }
             }
         }
-        return true;
+        ObjectMgr.QuestExtras extra = mgr.questExtras.get(q.id());
+        if (extra == null) {
+            return true;
+        }
+        boolean event = extra.reqSpell1() > 0 || extra.exploreOrEvent() || q.type() == QUEST_TYPE_ESCORT;
+        if (!event) {
+            return true;
+        }
+        return p.questLogCounts[slot][0] >= 1;
     }
 
     public void acceptQuest(Player p, GameMap map, WowBuffer in, BiConsumer<Integer, byte[]> send) {
@@ -582,10 +629,22 @@ public final class Content {
         long guid = in.getU64();
         int questId = in.getU32();
         Creature c = creature(map, guid);
-        if (c == null || outOfRange(p, c) || !gives(c.entry, questId)) {
-            return;
+        GameObject go = null;
+        int giverEntry;
+        if (c != null) {
+            if (outOfRange(p, c) || !gives(c.entry, questId)) {
+                return;
+            }
+            giverEntry = c.entry;
+        } else {
+            go = map.gameObjects.get(guid);
+            if (go == null || p.distance2d(go) > INTERACT_RANGE || !goGives(go.entry, questId)) {
+                return;
+            }
+            giverEntry = go.entry;
         }
-        if (mgr.quests.get(questId) == null) {
+        ObjectMgr.QuestTemplate taken = mgr.quests.get(questId);
+        if (taken == null || !repAndDailyAllow(p, taken)) {
             return;
         }
         if (slotOf(p, questId) >= 0) {
@@ -598,10 +657,21 @@ public final class Content {
         }
         clearQuestSlot(p, slot);
         p.questLogId[slot] = questId;
+        ObjectMgr.QuestExtras extra = mgr.questExtras.get(questId);
+        if (extra != null && extra.limitSeconds() > 0) {
+            p.questExpiry[slot] = System.currentTimeMillis() + extra.limitSeconds() * 1000L;
+        }
+        if (c != null && taken.type() == QUEST_TYPE_ESCORT) {
+            c.followTarget = p.guid;
+        }
         writeLogField(p, slot);
         sendLogUpdate(p, slot, send);
         send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
-        sendQuestGiverStatus(p, c, send);
+        if (c != null) {
+            sendQuestGiverStatus(p, c, send);
+        } else {
+            sendQuestGiverStatus(p, go.guid, goDialogStatus(p, giverEntry), send);
+        }
     }
 
     /** HandleQuestLogRemoveQuest → SetQuestSlot(slot, 0). */
@@ -634,8 +704,7 @@ public final class Content {
         if (reward >= QUEST_REWARD_CHOICES_COUNT) {
             return;
         }
-        Creature c = creature(map, guid);
-        if (c == null || outOfRange(p, c) || !involves(c.entry, questId)) {
+        if (resolveQuestGiverGuid(p, map, guid, questId, false) == 0) {
             return;
         }
         int slot = slotOf(p, questId);
@@ -665,6 +734,13 @@ public final class Content {
         storeRewardItem(p, q.rewItemId1(), q.rewItemCount1(), nextItemGuid, send);
         storeRewardItem(p, q.rewChoiceItemId(reward), q.rewChoiceItemCount(reward), nextItemGuid, send);
         p.rewardedQuests.add(questId);
+        ObjectMgr.QuestExtras extra = mgr.questExtras.get(questId);
+        if (extra != null && extra.rewRepFaction() > 0) {
+            p.modifyReputation(extra.rewRepFaction(), extra.rewRepValue());
+        }
+        if (extra != null && extra.isDaily()) {
+            p.dailyQuestDone.add(questId);
+        }
         clearQuestSlot(p, slot);
         writeLogField(p, slot);
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q, xp, money, 0));
@@ -701,6 +777,198 @@ public final class Content {
 
     public static Creature creature(GameMap map, long guid) {
         return guid == 0 ? null : map.creatures.get(guid);
+    }
+
+    boolean goGives(int entry, int questId) {
+        List<Integer> list = mgr.goQuestGivers.get(entry);
+        return list != null && list.contains(questId);
+    }
+
+    boolean goInvolves(int entry, int questId) {
+        List<Integer> list = mgr.goQuestInvolved.get(entry);
+        return list != null && list.contains(questId);
+    }
+
+    /** Creature or game-object questgiver in range; {@code offer} allows giver or involved. */
+    private long resolveQuestGiverGuid(Player p, GameMap map, long guid, int questId, boolean offer) {
+        Creature c = creature(map, guid);
+        if (c != null) {
+            if (outOfRange(p, c) || !questNpcRelated(c.entry, questId, offer, false)) {
+                return 0;
+            }
+            return c.guid;
+        }
+        GameObject go = map.gameObjects.get(guid);
+        if (go == null || p.distance2d(go) > INTERACT_RANGE
+                || !questNpcRelated(go.entry, questId, offer, true)) {
+            return 0;
+        }
+        return go.guid;
+    }
+
+    private boolean questNpcRelated(int entry, int questId, boolean offer, boolean gameObject) {
+        if (gameObject) {
+            if (offer && goGives(entry, questId)) {
+                return true;
+            }
+            return goInvolves(entry, questId);
+        }
+        if (offer) {
+            return offersOrInvolves(entry, questId);
+        }
+        return involves(entry, questId);
+    }
+
+    /** Using a questgiver object opens its quest. Using an objective object credits the negative id. */
+    public boolean useGameObject(Player p, GameMap map, GameObject go, BiConsumer<Integer, byte[]> send) {
+        if (go == null || p.distance2d(go) > INTERACT_RANGE) {
+            return false;
+        }
+        boolean credited = creditGameObject(p, go, send);
+        List<Integer> offered = mgr.goQuestGivers.get(go.entry);
+        if (offered == null) {
+            return credited;
+        }
+        for (int questId : offered) {
+            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            if (q != null && canTake(p, q)) {
+                send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_DETAILS, encodeDetails(go.guid, q));
+                return true;
+            }
+        }
+        return credited;
+    }
+
+    public void exploreAreaTrigger(Player p, int triggerId, BiConsumer<Integer, byte[]> send) {
+        Integer questId = mgr.areaTriggerQuests.get(triggerId);
+        if (questId == null) {
+            return;
+        }
+        int slot = slotOf(p, questId);
+        if (slot < 0) {
+            return;
+        }
+        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        if (q == null) {
+            return;
+        }
+        ObjectMgr.QuestExtras extra = mgr.questExtras.get(questId);
+        if (extra == null || !extra.exploreOrEvent()) {
+            return;
+        }
+        if (p.questLogCounts[slot][0] > 0) {
+            return;
+        }
+        p.questLogCounts[slot][0] = 1;
+        finishObjective(p, slot, q, q.id(), send);
+    }
+
+    public void spellCastCredit(Player p, int spellId, BiConsumer<Integer, byte[]> send) {
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            int questId = p.questLogId[slot];
+            if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
+                continue;
+            }
+            ObjectMgr.QuestExtras extra = mgr.questExtras.get(questId);
+            if (extra == null || extra.reqSpell1() != spellId || p.questLogCounts[slot][0] > 0) {
+                continue;
+            }
+            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            if (q == null) {
+                continue;
+            }
+            p.questLogCounts[slot][0] = 1;
+            finishObjective(p, slot, q, spellId, send);
+        }
+    }
+
+    public void tickEscort(Player p, GameMap map, BiConsumer<Integer, byte[]> send) {
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            int questId = p.questLogId[slot];
+            if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
+                continue;
+            }
+            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            ObjectMgr.QuestExtras extra = mgr.questExtras.get(questId);
+            if (q == null || q.type() != QUEST_TYPE_ESCORT || extra == null || p.questLogCounts[slot][0] > 0) {
+                continue;
+            }
+            double dx = p.x - extra.pointX();
+            double dy = p.y - extra.pointY();
+            if (dx * dx + dy * dy > 25) {
+                continue;
+            }
+            p.questLogCounts[slot][0] = 1;
+            finishObjective(p, slot, q, questId, send);
+        }
+    }
+
+    public void failExpired(Player p, long nowMs, BiConsumer<Integer, byte[]> send) {
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            int questId = p.questLogId[slot];
+            if (questId == 0 || p.questExpiry[slot] == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
+                continue;
+            }
+            if (nowMs < p.questExpiry[slot]) {
+                continue;
+            }
+            p.questLogState[slot] = QUEST_STATE_FAIL;
+            WowBuffer fail = new WowBuffer(4);
+            fail.putU32(questId);
+            send.accept(Opcodes.SMSG_QUESTUPDATE_FAILEDTIMER, fail.array());
+        }
+    }
+
+    public void resetDailies(Player p) {
+        for (int questId : p.dailyQuestDone) {
+            p.rewardedQuests.remove(questId);
+        }
+        p.dailyQuestDone.clear();
+    }
+
+    private boolean creditGameObject(Player p, GameObject go, BiConsumer<Integer, byte[]> send) {
+        boolean credited = false;
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            int questId = p.questLogId[slot];
+            if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
+                continue;
+            }
+            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            if (q == null) {
+                continue;
+            }
+            for (int i = 0; i < 4; i++) {
+                int req = q.reqCreatureOrGOId(i);
+                if (req >= 0 || req != -go.entry) {
+                    continue;
+                }
+                int have = p.questLogCounts[slot][i];
+                int need = q.reqCreatureOrGOCount(i);
+                if (have >= need) {
+                    continue;
+                }
+                p.questLogCounts[slot][i] = have + 1;
+                finishObjective(p, slot, q, req, send);
+                credited = true;
+            }
+        }
+        return credited;
+    }
+
+    private void finishObjective(Player p, int slot, ObjectMgr.QuestTemplate q, int objectiveId,
+                                 BiConsumer<Integer, byte[]> send) {
+        WowBuffer add = new WowBuffer(24);
+        add.putU32(q.id());
+        add.putU32(objectiveId);
+        add.putU32(p.questLogCounts[slot][0]);
+        add.putU32(1);
+        add.putU64(0);
+        send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
+        if (objectivesMet(p, slot, q)) {
+            p.questLogState[slot] = QUEST_STATE_COMPLETE;
+            writeLogField(p, slot);
+            send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(q.id()));
+        }
     }
 
     boolean gives(int entry, int questId) {
@@ -879,6 +1147,7 @@ public final class Content {
         p.questLogCounts[slot][3] = 0;
         p.questLogItemCount[slot][0] = 0;
         p.questLogItemCount[slot][1] = 0;
+        p.questExpiry[slot] = 0;
         p.questLogItemCount[slot][2] = 0;
         p.questLogItemCount[slot][3] = 0;
     }
