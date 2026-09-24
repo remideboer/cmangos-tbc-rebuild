@@ -171,7 +171,10 @@ public final class WorldSession {
         if (player.victim != 0 && player.lastMeleeMs + swingDelayMs(false) <= world.nowMs()) {
             Creature c = meleeTarget(world);
             if (c != null) {
-                if (!Combat.hasMeleeFacing(player, c)) {
+                if (!Combat.canReachWithMeleeAttack(player, c)) {
+                    sendSwingError(Combat.SWING_ERROR_NOT_IN_RANGE);
+                    retrySwingIn(world, Combat.SWING_ERROR_RETRY_MS);
+                } else if (!Combat.hasMeleeFacing(player, c)) {
                     sendSwingError(Combat.SWING_ERROR_BAD_FACING);
                     retrySwingIn(world, Combat.SWING_ERROR_RETRY_MS);
                 } else {
@@ -182,7 +185,10 @@ public final class WorldSession {
             } else {
                 Player opp = world.playerByGuid(player.victim);
                 if (opp != null && opp == player.duelOpponent && opp.alive()) {
-                    if (!Combat.hasMeleeFacing(player, opp)) {
+                    if (!Combat.canReachWithMeleeAttack(player, opp)) {
+                        sendSwingError(Combat.SWING_ERROR_NOT_IN_RANGE);
+                        retrySwingIn(world, Combat.SWING_ERROR_RETRY_MS);
+                    } else if (!Combat.hasMeleeFacing(player, opp)) {
                         sendSwingError(Combat.SWING_ERROR_BAD_FACING);
                         retrySwingIn(world, Combat.SWING_ERROR_RETRY_MS);
                     } else {
@@ -240,9 +246,13 @@ public final class WorldSession {
 
     private Creature meleeTarget(World world) {
         GameMap map = world.map(player.mapId, player.instanceId);
-        for (Creature c : map.nearbyCreatures(player, Combat.meleeRange(player) + Combat.MELEE_LEEWAY)) {
-            if (c.victim == player.guid || player.victim == c.guid) {
-                return c;
+        Creature c = map.creatures.get(player.victim);
+        if (c != null && c.alive()) {
+            return c;
+        }
+        for (Creature near : map.nearbyCreatures(player, Combat.meleeRange(player) + Combat.MELEE_LEEWAY)) {
+            if (near.victim == player.guid || player.victim == near.guid) {
+                return near;
             }
         }
         return null;
@@ -1209,10 +1219,10 @@ public final class WorldSession {
             world.engage(c, player);
         } else {
             world.combat.startAttack(player, c, world.nowMs());
+            beginPlayerAutoAttack(world, c);
         }
-        world.meleeHit(player, c);
-        player.lastMeleeMs = world.nowMs();
-        player.lastOffhandMeleeMs = world.nowMs();
+        // Unit::Attack only — AttackerStateUpdate runs from UpdateMeleeAttackingState (session tick).
+        armMeleeSwingReady(world);
         player.lastSwingError = Combat.SWING_ERROR_NONE;
     }
 
@@ -1228,6 +1238,13 @@ public final class WorldSession {
                 pl.session.send(Opcodes.SMSG_ATTACKSTART, start);
             }
         }
+    }
+
+    /** CMaNGOS m_attackTimer[BASE]=0 ready; offhand starts at half speed. */
+    private void armMeleeSwingReady(World world) {
+        player.lastMeleeMs = world.nowMs() - swingDelayMs(false);
+        int off = swingDelayMs(true);
+        player.lastOffhandMeleeMs = world.nowMs() - off / 2;
     }
 
     private void handlePlayerAttack(World world, Player target) {
@@ -1260,10 +1277,11 @@ public final class WorldSession {
             if (target.session != null) {
                 target.session.send(Opcodes.SMSG_ATTACKSTART, start);
             }
+        } else {
+            player.victim = target.guid;
+            player.setGuid(UpdateFields.UNIT_FIELD_TARGET, target.guid);
         }
-        world.playerMeleeHit(player, target);
-        player.lastMeleeMs = world.nowMs();
-        player.lastOffhandMeleeMs = world.nowMs();
+        armMeleeSwingReady(world);
         player.lastSwingError = Combat.SWING_ERROR_NONE;
     }
 

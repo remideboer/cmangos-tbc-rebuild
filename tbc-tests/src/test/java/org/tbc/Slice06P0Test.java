@@ -1,6 +1,7 @@
 package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
+import org.tbc.common.WowBuffer;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
@@ -47,6 +48,35 @@ class Slice06P0Test {
             }
         }
         assertTrue(sawCreatureStart);
+    }
+
+    /**
+     * TP-SL06-025 — CMSG_ATTACKSWING only starts auto-attack (Unit::Attack / MeleeAttackStart).
+     * Damage and SMSG_ATTACKERSTATEUPDATE land on the swing timer (UpdateMeleeAttackingState),
+     * not in the Attack opcode — otherwise the hit appears before the swing impact.
+     */
+    @Test
+    void tpSl06AttackSwingShouldLandDamageOnSwingTimerNotOnOpcode() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Swinger", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x, c.y, c.z, c.o);
+        int hp = c.health();
+        client.clear();
+        WowBuffer atk = new WowBuffer(8);
+        atk.putU64(c.guid);
+        client.handle(world, Opcodes.CMSG_ATTACKSWING, atk.array());
+        assertEquals(hp, c.health());
+        assertFalse(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        assertEquals(c.guid, p.victim);
+        client.session().tick(world, 0);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        assertTrue(c.health() < hp || !c.alive());
     }
 
     /**

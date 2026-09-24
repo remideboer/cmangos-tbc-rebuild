@@ -326,6 +326,8 @@ public final class WowClientDouble implements PacketSink {
         WowBuffer g = new WowBuffer(8);
         g.putU64(guid);
         handle(world, Opcodes.CMSG_ATTACKSWING, g.array());
+        // Unit::Update after Attack — first ready swing (m_attackTimer BASE was 0).
+        session.tick(world, 0);
     }
 
     public void loot(World world, long guid) {
