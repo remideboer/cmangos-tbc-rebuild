@@ -1,6 +1,7 @@
 @slice12
 Feature: Slice 12 offhand auto-attack timer
   Dual-wield white swings use a separate offhand timer and HITINFO_LEFTSWING.
+  CMaNGOS Unit::Attack arms OFF_ATTACK at half weapon speed (first left swing at T/2).
   In-process mock 8606 client. Do not mark p0_client.
 
   Background:
@@ -10,7 +11,7 @@ Feature: Slice 12 offhand auto-attack timer
   Scenario: Offhand swing after the offhand timer
     When the player starts auto-attack
     Then no SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
-    When 1999 ms elapse on the combat session
+    When 999 ms elapse on the combat session
     Then no SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
     When 1 ms elapse on the combat session
     Then a SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
@@ -19,7 +20,7 @@ Feature: Slice 12 offhand auto-attack timer
     And the player's offhand attack time is 500 ms
     When the player starts auto-attack
     Then no SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
-    When 499 ms elapse on the combat session
+    When 249 ms elapse on the combat session
     Then no SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING
     When 1 ms elapse on the combat session
     Then a SMSG_ATTACKERSTATEUPDATE has HITINFO_LEFTSWING

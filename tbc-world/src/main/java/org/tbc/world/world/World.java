@@ -81,7 +81,7 @@ public final class World implements Runnable {
     public final Content content = new Content(objectMgr);
     public final ScriptRegistry scripts = new ScriptRegistry();
     public final SpellEngine spells;
-    public final Combat combat = new Combat();
+    public final Combat combat;
     public final Factions factions;
     public final GmCommands gm;
     public final AbBattlefield ab = new AbBattlefield();
@@ -128,6 +128,7 @@ public final class World implements Runnable {
 
     public World(Conf conf, DbPool login, DbPool worldDb, DbPool charsDb) {
         this.conf = conf;
+        this.combat = conf == null ? new Combat(MeleeTable.alwaysHit()) : new Combat();
         this.spells = conf == null ? SpellEngine.alwaysHit() : new SpellEngine();
         this.login = login;
         this.worldDb = worldDb;

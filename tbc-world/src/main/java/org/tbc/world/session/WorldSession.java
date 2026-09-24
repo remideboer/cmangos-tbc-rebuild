@@ -168,7 +168,7 @@ public final class WorldSession {
         if (player.duelCountdownStartMs != 0 && world.nowMs() >= player.duelCountdownStartMs + 3000) {
             player.promoteDuel(world.nowMs());
         }
-        if (player.victim != 0 && player.lastMeleeMs + swingDelayMs(false) <= world.nowMs()) {
+        if (player.victim != 0 && isMainhandSwingDue(world.nowMs())) {
             Creature c = meleeTarget(world);
             if (c != null) {
                 if (!Combat.canReachWithMeleeAttack(player, c)) {
@@ -226,9 +226,22 @@ public final class WorldSession {
         return delay > 0 ? delay : 2000;
     }
 
+    /**
+     * CMaNGOS isAttackReady(BASE): timer 0 means ready. We use {@code lastMeleeMs == 0} for the
+     * armed-ready state from {@link #armMeleeSwingReady}; after a hit {@code lastMeleeMs} is the
+     * swing timestamp and the full weapon delay must elapse.
+     */
+    private boolean isMainhandSwingDue(long nowMs) {
+        if (player.lastMeleeMs == 0L) {
+            return true;
+        }
+        return player.lastMeleeMs + swingDelayMs(false) <= nowMs;
+    }
+
     private void retrySwingIn(World world, int ms) {
-        player.lastMeleeMs = world.nowMs() - swingDelayMs(false) + ms;
-        player.lastOffhandMeleeMs = world.nowMs() - swingDelayMs(true) + ms;
+        long now = world.nowMs();
+        player.lastMeleeMs = now - swingDelayMs(false) + ms;
+        player.lastOffhandMeleeMs = now - swingDelayMs(true) + ms;
     }
 
     /** CMaNGOS Player::SendAttackSwingBadFacingAttack — only when the error changes. */
@@ -1242,7 +1255,7 @@ public final class WorldSession {
 
     /** CMaNGOS m_attackTimer[BASE]=0 ready; offhand starts at half speed. */
     private void armMeleeSwingReady(World world) {
-        player.lastMeleeMs = world.nowMs() - swingDelayMs(false);
+        player.lastMeleeMs = 0L;
         int off = swingDelayMs(true);
         player.lastOffhandMeleeMs = world.nowMs() - off / 2;
     }

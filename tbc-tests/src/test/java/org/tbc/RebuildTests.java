@@ -614,6 +614,8 @@ class SliceTests {
         p.relocate(kobold.x, kobold.y, kobold.z, kobold.o);
         clear(sink);
         s.handle(w, Opcodes.CMSG_ATTACKSWING, atk.array());
+        assertFalse(sink.opcodes.contains(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        s.tick(w, 0);
         assertTrue(sink.opcodes.contains(Opcodes.SMSG_ATTACKERSTATEUPDATE));
         assertTrue(sink.opcodes.contains(Opcodes.SMSG_UPDATE_OBJECT)
                 || sink.opcodes.contains(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
