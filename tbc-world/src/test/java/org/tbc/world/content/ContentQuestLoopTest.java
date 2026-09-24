@@ -154,13 +154,13 @@ class ContentQuestLoopTest {
     void completeQuestWhenObjectivesShortShouldNotReward() {
         Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
         content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
-        content.completeQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), 1, this::capture);
+        content.completeQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), () -> 1L, this::capture);
         content.requestReward(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
         assertFalse(ops.contains(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
         assertFalse(p.rewardedQuests.contains(Content.QUEST_BROTHERHOOD_OF_THIEVES));
         p.questLogItemCount[0][0] = 12;
-        content.completeQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), 1, this::capture);
+        content.completeQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), () -> 1L, this::capture);
         assertTrue(p.rewardedQuests.contains(Content.QUEST_BROTHERHOOD_OF_THIEVES));
         assertEquals(0, p.questLogId[0]);
     }
@@ -445,7 +445,7 @@ class ContentQuestLoopTest {
         Content.writeLogField(p, 0);
         ops.clear();
         last.clear();
-        content.completeQuest(p, map, quest(mcbride.guid, Content.QUEST_A_THREAT_WITHIN), 1, this::capture);
+        content.completeQuest(p, map, quest(mcbride.guid, Content.QUEST_A_THREAT_WITHIN), () -> 1L, this::capture);
         assertEquals(0, p.questLogId[0]);
         assertEquals(0, p.getInt(UpdateFields.PLAYER_QUEST_LOG_1_1));
         assertTrue(ops.contains(Opcodes.SMSG_UPDATE_OBJECT) || ops.contains(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
@@ -558,7 +558,7 @@ class ContentQuestLoopTest {
         content.acceptQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
         assertEquals(Content.QUEST_REST_AND_RELAXATION, p.questLogId[0]);
         p.questLogState[0] = Content.QUEST_STATE_COMPLETE;
-        content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), 1, this::capture);
+        content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), () -> 1L, this::capture);
         assertEquals(150, p.reputationStanding(72));
     }
 
@@ -605,7 +605,7 @@ class ContentQuestLoopTest {
         mgr.questExtras.put(Content.QUEST_REST_AND_RELAXATION, ObjectMgr.QuestExtras.daily());
         content.acceptQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
         p.questLogState[0] = Content.QUEST_STATE_COMPLETE;
-        content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), 1, this::capture);
+        content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), () -> 1L, this::capture);
         content.acceptQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
         assertFalse(containsQuest(Content.QUEST_REST_AND_RELAXATION));
         content.resetDailies(p);
@@ -672,7 +672,7 @@ class ContentQuestLoopTest {
         content.tickEscort(p, map, this::capture);
 
         p.questLogId[3] = Content.QUEST_REST_AND_RELAXATION;
-        content.failExpired(p, 1, this::capture);
+        content.failExpired(p, 1L, this::capture);
         mgr.quests.put(99, null);
         mgr.questExtras.put(99, ObjectMgr.QuestExtras.spell(635));
         p.questLogId[4] = 99;
@@ -742,7 +742,7 @@ class ContentQuestLoopTest {
         p.questLogState[3] = Content.QUEST_STATE_COMPLETE;
         content.requestReward(p, map, quest(stone.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), this::capture);
         assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
-        content.completeQuest(p, map, quest(stone.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), 1, this::capture);
+        content.completeQuest(p, map, quest(stone.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), () -> 1L, this::capture);
         assertTrue(p.rewardedQuests.contains(Content.QUEST_KOBOLD_CAMP_CLEANUP));
         content.queryQuest(p, map, quest(stone.guid, Content.QUEST_REST_AND_RELAXATION), this::capture);
 
@@ -762,7 +762,7 @@ class ContentQuestLoopTest {
         GameObject farStone = go(Content.GO_ICE_STONE);
         farStone.relocate(200, 0, 0, 0);
         content.requestReward(p, map, quest(farStone.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), this::capture);
-        content.completeQuest(p, map, quest(farStone.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), 1, this::capture);
+        content.completeQuest(p, map, quest(farStone.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), () -> 1L, this::capture);
         content.queryQuest(p, map, quest(9999, Content.QUEST_REST_AND_RELAXATION), this::capture);
 
         mgr.areaTriggerQuests.put(88, 8888);

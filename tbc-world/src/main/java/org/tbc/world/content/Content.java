@@ -18,6 +18,7 @@ import org.tbc.world.session.TrainerHandler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.LongSupplier;
 
 /** Gossip, vendor buy, starter quest. Packets: gossip.md, quest.md, inventory-gossip-quest.md. */
 public final class Content {
@@ -698,7 +699,7 @@ public final class Content {
         send.accept(upd.opcode(), upd.payload());
     }
 
-    public void completeQuest(Player p, GameMap map, WowBuffer in, long nextItemGuid,
+    public void completeQuest(Player p, GameMap map, WowBuffer in, LongSupplier nextItemGuid,
                               BiConsumer<Integer, byte[]> send) {
         if (in.remaining() < 12) {
             return;
@@ -756,16 +757,20 @@ public final class Content {
         questGiverStatusMultiple(p, map, send);
     }
 
-    private void storeRewardItem(Player p, int itemId, int count, long nextItemGuid,
+    private void storeRewardItem(Player p, int itemId, int count, LongSupplier nextItemGuid,
                                  BiConsumer<Integer, byte[]> send) {
-        if (itemId <= 0 || count <= 0 || nextItemGuid == 0) {
+        if (itemId <= 0 || count <= 0) {
             return;
         }
         int bagSlot = nextBackpackSlot(p);
         if (bagSlot < 0) {
             return;
         }
-        Item it = new Item(nextItemGuid, itemId);
+        long itemGuid = nextItemGuid.getAsLong();
+        if (itemGuid == 0) {
+            return;
+        }
+        Item it = new Item(itemGuid, itemId);
         it.ownerGuid = Guid.low(p.guid);
         it.bag = 0;
         it.slot = bagSlot;
@@ -777,7 +782,13 @@ public final class Content {
             it.quality = t.quality;
         }
         p.items.put(Guid.low(it.guid), it);
+        p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bagSlot * 2, UpdateBuilder.itemGuid(it));
         p.dirty = true;
+        var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(it, p.guid));
+        send.accept(created.opcode(), created.payload());
+        int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
+        var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+        send.accept(inv.opcode(), inv.payload());
         send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, it.count));
     }
 
