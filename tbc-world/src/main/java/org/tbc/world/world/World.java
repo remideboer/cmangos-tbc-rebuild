@@ -685,6 +685,29 @@ public final class World implements Runnable {
         }
     }
 
+    /**
+     * Unit::AttackedBy + HandleDamageDealt threat after a hostile spell lands.
+     * Misses (no HP lost while still alive) do not pull; a killing blow still tags via onCreatureKilledBySpell.
+     */
+    public void onCreatureAttackedBySpell(Player p, Creature c, int damage) {
+        if (p == null || c == null || !c.alive() || damage <= 0) {
+            return;
+        }
+        c.threatManager.add(p, damage);
+        c.threat += damage;
+        if (c.taggedBy == 0) {
+            c.taggedBy = p.guid;
+        }
+        if (!c.inCombat && !c.evading) {
+            engage(c, p);
+            return;
+        }
+        c.victim = c.threatManager.highestGuid();
+        c.lastHitMs = nowMs();
+        c.lastRefreshX = c.x;
+        c.lastRefreshY = c.y;
+    }
+
     /** CMaNGOS UnitAI::EnterEvadeMode → CombatStop / SendMeleeAttackStop + full health VALUES. */
     private void enterEvadeMode(GameMap m, Creature c, EventAi.SpellCast sink) {
         long victimGuid = c.victim;

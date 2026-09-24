@@ -56,6 +56,41 @@ class Slice07P0Test {
         assertEquals(manaBefore - 30, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER1));
     }
 
+    /**
+     * TP-SL07-013 — Unit::DealDamage / AttackedBy: a harmful spell hit puts the creature in combat
+     * (SMSG_ATTACKSTART creature→player) and switches AI from wander to chase.
+     */
+    @Test
+    void tpSl07SpellHitShouldEngageCreature() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        Creature c = kobold(world, p);
+        assertFalse(c.inCombat);
+        client.clear();
+        client.castSpell(world, FIREBALL, 1, c.guid);
+        world.tick(FIREBALL_CAST_MS);
+        assertTrue(c.alive());
+        assertTrue(c.health() < c.maxHealth());
+        assertTrue(c.inCombat);
+        assertEquals(p.guid, c.victim);
+        assertTrue(c.threatManager.threatOf(p) > 0f);
+        boolean sawCreatureStart = false;
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKSTART) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            if (payload.length >= 16
+                    && WowClientDouble.u64le(payload, 0) == c.guid
+                    && WowClientDouble.u64le(payload, 8) == p.guid) {
+                sawCreatureStart = true;
+            }
+        }
+        assertTrue(sawCreatureStart);
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, c.motion.type());
+    }
+
     /** TP-SL07-011 — Unit::DealDamage → Unit::Kill for spell damage too: XP log, PLAYER_XP, lootable corpse. */
     @Test
     void tpSl07SpellKillRewardsAndLoots() {
