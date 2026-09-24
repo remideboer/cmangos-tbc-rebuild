@@ -484,9 +484,17 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_GMTICKET_GETTICKET) {
+            // GMTICKET_STATUS_HASTEXT 0x06 only with an open ticket; else DEFAULT 0x0A (GMTicketHandler.cpp).
+            String text = s.lastTicket;
+            if (text == null || text.isEmpty()) {
+                WowBuffer none = new WowBuffer(4);
+                none.putU32(0x0A);
+                s.send(Opcodes.SMSG_GMTICKET_GETTICKET, none.array());
+                return true;
+            }
             WowBuffer t = new WowBuffer(32);
             t.putU32(0x06);
-            t.putCString(s.lastTicket == null ? "" : s.lastTicket);
+            t.putCString(text);
             t.putU8(0);
             t.putFloat(0);
             t.putFloat(0);

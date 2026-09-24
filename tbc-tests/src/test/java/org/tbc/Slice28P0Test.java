@@ -67,6 +67,21 @@ class Slice28P0Test {
         assertEquals(0x06, WowClientDouble.u32le(t, 0));
     }
 
+    /**
+     * TP-SL28-006 — CMSG_GMTICKET_GETTICKET with no open ticket is GMTICKET_STATUS_DEFAULT 0x0A
+     * (not HASTEXT 0x06), so the client does not show “you have an open ticket”.
+     */
+    @Test
+    void tpSl28GmTicketGetWhenNoneShouldReturnDefaultStatus() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "NoTicket");
+        a.clear();
+        a.handle(world, Opcodes.CMSG_GMTICKET_GETTICKET, new byte[0]);
+        byte[] t = lastPayload(a, Opcodes.SMSG_GMTICKET_GETTICKET);
+        assertEquals(0x0A, WowClientDouble.u32le(t, 0));
+        assertEquals(4, t.length);
+    }
+
     @Test
     void tpSl28LfgAccept() {
         World world = World.inMemory();
