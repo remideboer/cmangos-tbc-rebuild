@@ -2,6 +2,7 @@ package org.tbc.world.spell;
 
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.Set;
 
@@ -12,10 +13,14 @@ import java.util.Set;
  */
 public final class AuraEngine {
     public static final int SPELL_AURA_MOD_STUN = 12;
+    public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     public static final int SPELL_AURA_MOD_ROOT = 26;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
+    /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
+    public static final int MAX_SPELL_SCHOOL = 7;
 
-    private static final Set<Integer> KNOWN_AURAS = Set.of(SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SHAPESHIFT);
+    private static final Set<Integer> KNOWN_AURAS = Set.of(
+            SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SHAPESHIFT);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -34,6 +39,47 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_SHAPESHIFT) {
             target.setShapeshiftForm(sp.misc());
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RESISTANCE) {
+            modResistance(target, sp, true);
+        }
+    }
+
+    /** Reverse {@link #apply} for auras that mutate stats (CMaNGOS Aura::ApplyModifier(false)). */
+    public void unapply(Unit target, SpellEngine.SpellInfo sp) {
+        if (target == null || sp == null) {
+            return;
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RESISTANCE) {
+            modResistance(target, sp, false);
+        }
+    }
+
+    /**
+     * Aura 22 — CMaNGOS HandleAuraModResistance: school bits in EffectMiscValue, TOTAL_VALUE amount,
+     * then ApplyResistanceBuffModsMod for the character sheet bonus/malus columns.
+     */
+    private static void modResistance(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int mask = sp.misc();
+        if (mask == 0) {
+            return;
+        }
+        for (int i = 0; i < MAX_SPELL_SCHOOL; i++) {
+            if ((mask & (1 << i)) == 0) {
+                continue;
+            }
+            int delta = apply ? amount : -amount;
+            int resistField = UpdateFields.UNIT_FIELD_RESISTANCES + i;
+            target.setInt(resistField, target.getInt(resistField) + delta);
+            int buffBase = amount > 0
+                    ? UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE
+                    : UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE;
+            int buffField = buffBase + i;
+            target.setInt(buffField, target.getInt(buffField) + delta);
         }
     }
 

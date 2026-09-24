@@ -327,7 +327,8 @@ public final class SpellEngine {
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(FROST_NOVA, new SpellInfo(FROST_NOVA, EFFECT_APPLY_AURA, 0, 4, 55, 0, 0, 0f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withRecovery(FROST_NOVA_RECOVERY_MS));
-        spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 0, 0, 0f)
+        // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
+        spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
         spells.put(2050, new SpellInfo(2050, EFFECT_HEAL, 0, 1, 20, 10, 14, 0f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
@@ -363,7 +364,8 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(686, new SpellInfo(686, EFFECT_SCHOOL_DAMAGE, 0, 5, 25, 12, 16, 30f)
                 .withCastTime(1700).withGcd(SpellCooldowns.GCD_NORMAL_MS));
-        spells.put(687, new SpellInfo(687, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 5, 50, 0, 0, 0f)
+        // Demon Armor rank 1 — +40 armor (school mask physical).
+        spells.put(687, new SpellInfo(687, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 5, 50, 40, 40, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
         spells.put(2973, new SpellInfo(2973, EFFECT_WEAPON_DAMAGE, 0, 0, 15, 5, 5, 5f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
@@ -411,6 +413,15 @@ public final class SpellEngine {
                             int effect2, int aura2, int min2, int max2,
                             int effect3, int aura3, int min3, int max3,
                             int procFlag, int triggerSpell) {
+        putTemplate(id, effect, aura, school, mana, minDmg, maxDmg, range, castMs, gcdMs, recoveryMs, durationMs,
+                effect2, aura2, min2, max2, effect3, aura3, min3, max3, procFlag, triggerSpell, 0, 0, 0);
+    }
+
+    public void putTemplate(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float range,
+                            int castMs, int gcdMs, int recoveryMs, int durationMs,
+                            int effect2, int aura2, int min2, int max2,
+                            int effect3, int aura3, int min3, int max3,
+                            int procFlag, int triggerSpell, int misc1, int misc2, int misc3) {
         int dur = durationMs;
         if (dur <= 0) {
             SpellInfo prev = spells.get(id);
@@ -418,14 +429,21 @@ public final class SpellEngine {
                 dur = prev.durationMs();
             }
         }
-        spells.put(id, new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, range)
+        int misc = misc1;
+        if (misc == 0) {
+            SpellInfo prev = spells.get(id);
+            if (prev != null && prev.misc() != 0) {
+                misc = prev.misc();
+            }
+        }
+        spells.put(id, new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, range, misc)
                 .withCastTime(castMs).withGcd(gcdMs).withRecovery(recoveryMs).withDuration(dur));
         List<SpellInfo> extra = new ArrayList<>();
         if (effect2 != 0) {
-            extra.add(new SpellInfo(id, effect2, aura2, school, 0, min2, max2, range));
+            extra.add(new SpellInfo(id, effect2, aura2, school, 0, min2, max2, range, misc2));
         }
         if (effect3 != 0) {
-            extra.add(new SpellInfo(id, effect3, aura3, school, 0, min3, max3, range));
+            extra.add(new SpellInfo(id, effect3, aura3, school, 0, min3, max3, range, misc3));
         }
         if (extra.isEmpty()) {
             extraEffects.remove(id);
@@ -792,6 +810,13 @@ public final class SpellEngine {
             }
             if (sp.effect == EFFECT_APPLY_AURA) {
                 AuraSlots.sendApply(target, sp.id, auraDurationMs(sp), send);
+                sendResistanceStatValues(target, sp, send);
+                List<SpellInfo> extras = extraEffects.get(sp.id);
+                if (extras != null) {
+                    for (SpellInfo e : extras) {
+                        sendResistanceStatValues(target, e, send);
+                    }
+                }
             }
         }
         if (isChanneled(sp)) {
@@ -832,6 +857,84 @@ public final class SpellEngine {
     /** SpellDuration.dbc when DurationIndex is seeded; otherwise the v1 30 s holder default. */
     static int auraDurationMs(SpellInfo sp) {
         return sp.durationMs() > 0 ? sp.durationMs() : 30_000;
+    }
+
+    /**
+     * SpellAuraHolder: one timed entry per spell id. Extra effects from {@link #putTemplate}
+     * (durationMs 0) only attach modifiers. Re-cast of the primary refreshes expire/nextTick.
+     */
+    private void addOrRefreshAuraHolder(Unit target, Unit caster, SpellInfo sp, long nowMs) {
+        int duration = auraDurationMs(sp);
+        long expireAt = nowMs > 0 ? nowMs + duration : 0;
+        int amp = sp.amplitudeMs();
+        long nextTick = amp > 0 && nowMs > 0 ? nowMs + amp : 0;
+        long casterGuid = caster == null ? 0 : caster.guid;
+        for (int i = 0; i < target.auras.size(); i++) {
+            Unit.Aura a = target.auras.get(i);
+            if (a.spellId() != sp.id) {
+                continue;
+            }
+            // Extra APPLY_AURA rows are SpellInfo without duration/amplitude — do not clobber.
+            if (sp.durationMs() > 0 || sp.amplitudeMs() > 0) {
+                target.auras.set(i, new Unit.Aura(sp.id, duration, a.stacks(), a.mechanic(),
+                        expireAt, amp > 0 ? amp : a.amplitudeMs(), nextTick, casterGuid));
+            }
+            return;
+        }
+        target.auras.add(new Unit.Aura(sp.id, duration, 1, 0, expireAt, amp, nextTick, casterGuid));
+        int level = caster == null ? target.level : caster.level;
+        AuraSlots.applyVisible(target, sp.id, level, 1);
+    }
+
+    /**
+     * After EFFECT_APPLY_AURA MOD_RESISTANCE — push UNIT_FIELD_RESISTANCES (+ buff-mod columns)
+     * so the character sheet updates (CMaNGOS HandleStatModifier / ApplyResistanceBuffModsMod).
+     */
+    public static void sendResistanceStatValues(Unit target, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
+        if (target == null || sp == null || send == null || sp.aura() != SPELL_AURA_MOD_RESISTANCE) {
+            return;
+        }
+        int mask = sp.misc();
+        if (mask == 0) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        ArrayList<Integer> fields = new ArrayList<>();
+        for (int i = 0; i < AuraEngine.MAX_SPELL_SCHOOL; i++) {
+            if ((mask & (1 << i)) == 0) {
+                continue;
+            }
+            fields.add(UpdateFields.UNIT_FIELD_RESISTANCES + i);
+            fields.add(amount >= 0
+                    ? UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE + i
+                    : UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE + i);
+        }
+        if (fields.isEmpty()) {
+            return;
+        }
+        int[] arr = new int[fields.size()];
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = fields.get(i);
+        }
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, arr));
+        send.accept(upd.opcode(), upd.payload());
+    }
+
+    /** Reverse MOD_RESISTANCE (and extras) when a timed holder expires. */
+    public void unapplyAura(Unit target, int spellId) {
+        if (target == null) {
+            return;
+        }
+        SpellInfo sp = info(spellId);
+        if (sp != null) {
+            auras.unapply(target, sp);
+        }
+        List<SpellInfo> extras = extraEffects.get(spellId);
+        if (extras != null) {
+            for (SpellInfo e : extras) {
+                auras.unapply(target, e);
+            }
+        }
     }
 
     public int apply(Unit caster, Unit target, SpellInfo sp) {
@@ -1223,15 +1326,9 @@ public final class SpellEngine {
             if (sp.id == SEAL_OF_RIGHTEOUSNESS) {
                 dropSeal(target);
             }
-            int duration = auraDurationMs(sp);
-            // auraDurationMs is always > 0; expireAt 0 means permanent (apply without a world clock).
-            long expireAt = nowMs > 0 ? nowMs + duration : 0;
-            int amp = sp.amplitudeMs();
-            long nextTick = amp > 0 && nowMs > 0 ? nowMs + amp : 0;
-            long casterGuid = caster == null ? 0 : caster.guid;
-            target.auras.add(new Unit.Aura(sp.id, duration, 1, 0, expireAt, amp, nextTick, casterGuid));
-            int level = caster == null ? target.level : caster.level;
-            AuraSlots.applyVisible(target, sp.id, level, 1);
+            // One SpellAuraHolder per spell id (CMaNGOS). Extra APPLY_AURA effects share it —
+            // a second holder would get auraDurationMs's 30s fallback and expire the whole buff.
+            addOrRefreshAuraHolder(target, caster, sp, nowMs);
             auras.apply(target, sp);
             return 0;
         }

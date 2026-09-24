@@ -118,6 +118,11 @@ public final class AuraSlots {
      * (not permanent: duration 0 / expireAt 0) are removed AURA_REMOVE_BY_EXPIRE.
      */
     public static void expireTimed(Unit target, long nowMs, BiConsumer<Integer, byte[]> send) {
+        expireTimed(target, nowMs, send, null);
+    }
+
+    public static void expireTimed(Unit target, long nowMs, BiConsumer<Integer, byte[]> send,
+                                   Consumer<Integer> onExpireSpell) {
         if (target == null) {
             return;
         }
@@ -128,6 +133,9 @@ public final class AuraSlots {
             }
         }
         for (int spellId : expired) {
+            if (onExpireSpell != null) {
+                onExpireSpell.accept(spellId);
+            }
             int slot = slotOf(target, spellId);
             target.auras.removeIf(a -> a.spellId() == spellId);
             if (slot >= 0) {

@@ -33,6 +33,7 @@ public final class SpellTemplateLoader {
                              + "Effect1, Effect2, Effect3, EffectDieSides1, EffectDieSides2, EffectDieSides3, "
                              + "EffectBasePoints1, EffectBasePoints2, EffectBasePoints3, "
                              + "EffectApplyAuraName1, EffectApplyAuraName2, EffectApplyAuraName3, "
+                             + "EffectMiscValue1, EffectMiscValue2, EffectMiscValue3, "
                              + "ProcFlags, EffectTriggerSpell1, SchoolMask FROM spell_template")) {
             int n = 0;
             while (rs.next()) {
@@ -53,7 +54,8 @@ public final class SpellTemplateLoader {
                         rs.getInt("Effect3"), rs.getInt("EffectApplyAuraName3"),
                         points(rs.getInt("EffectBasePoints3"), rs.getInt("EffectDieSides3"), true),
                         points(rs.getInt("EffectBasePoints3"), rs.getInt("EffectDieSides3"), false),
-                        rs.getInt("ProcFlags"), rs.getInt("EffectTriggerSpell1"));
+                        rs.getInt("ProcFlags"), rs.getInt("EffectTriggerSpell1"),
+                        rs.getInt("EffectMiscValue1"), rs.getInt("EffectMiscValue2"), rs.getInt("EffectMiscValue3"));
                 n++;
             }
             log.info("loaded {} spell_template rows", n);

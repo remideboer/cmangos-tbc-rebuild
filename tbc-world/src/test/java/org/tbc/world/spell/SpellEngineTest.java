@@ -408,6 +408,8 @@ class SpellEngineTest {
         assertEquals(3, p.getInt(UpdateFields.UNIT_FIELD_AURALEVELS) & 0xFF);
         assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, p.auras.get(p.auras.size() - 1).durationMs());
         assertEquals(0, p.auras.get(p.auras.size() - 1).expireAtMs());
+        assertEquals(30, p.getInt(UpdateFields.UNIT_FIELD_RESISTANCES));
+        assertEquals(30, p.getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE));
     }
 
     @Test
@@ -448,10 +450,11 @@ class SpellEngineTest {
     @Test
     void putTemplateWhenDurationZeroShouldKeepSeededFrostArmorThirtyMinutes() {
         engine.putTemplate(SpellEngine.FROST_ARMOR, SpellEngine.EFFECT_APPLY_AURA,
-                SpellEngine.SPELL_AURA_MOD_RESISTANCE, 16, 60, 0, 0, 0f,
+                SpellEngine.SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f,
                 0, SpellCooldowns.GCD_NORMAL_MS, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, engine.info(SpellEngine.FROST_ARMOR).durationMs());
+        assertEquals(1, engine.info(SpellEngine.FROST_ARMOR).misc());
         engine.apply(p, p, engine.info(SpellEngine.FROST_ARMOR), 1_000);
         assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, p.auras.get(p.auras.size() - 1).durationMs());
         assertEquals(1_000 + SpellEngine.FROST_ARMOR_DURATION_MS, p.auras.get(p.auras.size() - 1).expireAtMs());
@@ -460,7 +463,7 @@ class SpellEngineTest {
     @Test
     void putTemplateWhenDurationPositiveShouldReplaceSeed() {
         engine.putTemplate(SpellEngine.FROST_ARMOR, SpellEngine.EFFECT_APPLY_AURA,
-                SpellEngine.SPELL_AURA_MOD_RESISTANCE, 16, 60, 0, 0, 0f,
+                SpellEngine.SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f,
                 0, SpellCooldowns.GCD_NORMAL_MS, 0, 60_000,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         assertEquals(60_000, engine.info(SpellEngine.FROST_ARMOR).durationMs());

@@ -1025,7 +1025,13 @@ public final class World implements Runnable {
         long now = nowMs();
         for (GameMap m : maps.values()) {
             for (Player p : m.players()) {
-                AuraSlots.expireTimed(p, now, p.session != null ? p.session::send : null);
+                AuraSlots.expireTimed(p, now, p.session != null ? p.session::send : null, spellId -> {
+                    spells.unapplyAura(p, spellId);
+                    SpellEngine.SpellInfo sp = spells.info(spellId);
+                    if (sp != null && p.session != null) {
+                        SpellEngine.sendResistanceStatValues(p, sp, p.session::send);
+                    }
+                });
             }
         }
     }
