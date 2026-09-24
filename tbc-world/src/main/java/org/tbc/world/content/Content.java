@@ -98,9 +98,10 @@ public final class Content {
     public static final int QUEST_TYPE_ESCORT = 84;
     /** QuestDef.h MAX_QUEST_LOG_SIZE. */
     public static final int MAX_QUEST_LOG_SIZE = 25;
-    /** QuestDef.h dialog marks: none, grey ?, yellow !, yellow ? */
+    /** QuestDef.h dialog marks: floating ? uses REWARD; gossip turn-in row uses REWARD_REP. */
     public static final int DIALOG_STATUS_NONE = 0;
     public static final int DIALOG_STATUS_INCOMPLETE = 3;
+    public static final int DIALOG_STATUS_REWARD_REP = 4;
     public static final int DIALOG_STATUS_AVAILABLE = 6;
     public static final int DIALOG_STATUS_REWARD = 8;
     public static final int QUEST_A_THREAT_WITHIN = 783;
@@ -1205,10 +1206,8 @@ public final class Content {
         if (slot < 0) {
             return fromGiver && canTake(p, q);
         }
-        if (objectivesMet(p, slot, q)) {
-            return involves(entry, questId);
-        }
-        return true;
+        // Incomplete / complete rows come from involved relation (Player::PrepareQuestMenu).
+        return involves(entry, questId);
     }
 
     byte[] encodeGossip(Player p, Creature c) {
@@ -1374,7 +1373,7 @@ public final class Content {
             return DIALOG_STATUS_AVAILABLE;
         }
         if (objectivesMet(p, slot, q)) {
-            return DIALOG_STATUS_REWARD;
+            return DIALOG_STATUS_REWARD_REP;
         }
         return DIALOG_STATUS_INCOMPLETE;
     }

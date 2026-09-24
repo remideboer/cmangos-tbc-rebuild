@@ -218,7 +218,24 @@ class ContentQuestLoopTest {
         ops.clear();
         last.clear();
         content.gossipHello(p, map, u64(mcbride.guid), this::capture);
-        assertEquals(Content.DIALOG_STATUS_REWARD, gossipQuestIcon(Content.QUEST_A_THREAT_WITHIN));
+        assertEquals(Content.DIALOG_STATUS_REWARD_REP, gossipQuestIcon(Content.QUEST_A_THREAT_WITHIN));
+    }
+
+    @Test
+    void completeQuestgiverWhenObjectivesMetShouldOfferRewardNotAcceptDetails() {
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        ops.clear();
+        last.clear();
+        content.gossipHello(p, map, u64(mcbride.guid), this::capture);
+        assertEquals(Content.DIALOG_STATUS_REWARD_REP, gossipQuestIcon(Content.QUEST_A_THREAT_WITHIN));
+        ops.clear();
+        last.clear();
+        content.requestReward(p, map, quest(mcbride.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTGIVER_QUEST_DETAILS));
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
     }
 
     @Test

@@ -2554,7 +2554,8 @@ public final class ObjectMgr {
         questGivers.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(
                 Content.QUEST_A_THREAT_WITHIN, Content.QUEST_BROTHERHOOD_OF_THIEVES)));
         questGivers.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));
-        questInvolved.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
+        questInvolved.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(
+                Content.QUEST_A_THREAT_WITHIN, Content.QUEST_KOBOLD_CAMP_CLEANUP)));
         questInvolved.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_BROTHERHOOD_OF_THIEVES)));
         if (spawns.isEmpty()) {
             spawns.add(new Spawn(1, 6, 0, -8900f, -120f, 80f, 0f));
@@ -2646,7 +2647,8 @@ public final class ObjectMgr {
             willemQuests.add(Content.QUEST_BROTHERHOOD_OF_THIEVES);
         }
         questGivers.putIfAbsent(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));
-        questInvolved.putIfAbsent(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_A_THREAT_WITHIN)));
+        questInvolved.putIfAbsent(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(
+                Content.QUEST_A_THREAT_WITHIN, Content.QUEST_KOBOLD_CAMP_CLEANUP)));
         questInvolved.putIfAbsent(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_BROTHERHOOD_OF_THIEVES)));
         List<Integer> willemInvolved = questInvolved.get(Content.NPC_DEPUTY_WILLEM);
         if (willemInvolved != null && !willemInvolved.contains(Content.QUEST_BROTHERHOOD_OF_THIEVES)) {

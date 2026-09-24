@@ -441,8 +441,8 @@ public final class WorldSession {
             case Opcodes.CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY -> handleQuestgiverStatusMultiple(world);
             case Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST -> handleQuestAccept(world, in);
             case Opcodes.CMSG_QUESTGIVER_REQUEST_REWARD -> handleQuestRequestReward(world, in);
-            case Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD ->
-                    handleQuestComplete(world, in);
+            case Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST -> handleQuestRequestReward(world, in);
+            case Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD -> handleQuestComplete(world, in);
             case Opcodes.CMSG_QUESTLOG_REMOVE_QUEST -> handleQuestLogRemove(world, in);
             case Opcodes.CMSG_GROUP_INVITE -> SocialHandler.groupInvite(this, world, in);
             case Opcodes.CMSG_GROUP_ACCEPT -> SocialHandler.groupAccept(this, world);

@@ -134,11 +134,17 @@ public final class WowClientDouble implements PacketSink {
         handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, b.array());
     }
 
+    /** Gossip active-quest click: complete → offer, then choose reward index 0. */
     public void completeQuest(World world, long guid, int questId) {
         WowBuffer b = new WowBuffer(12);
         b.putU64(guid);
         b.putU32(questId);
         handle(world, Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST, b.array());
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(guid);
+        choose.putU32(questId);
+        choose.putU32(0);
+        handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
     }
 
     public void setActionButton(World world, int button, int packed) {
