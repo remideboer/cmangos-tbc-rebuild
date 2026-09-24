@@ -597,6 +597,10 @@ public final class InventoryHandler {
     }
 
     public static final int BUYBACK_SLOT_START = 74;
+    public static final int BUYBACK_SLOT_END = 86;
+    public static final int SELL_ERR_CANT_FIND_ITEM = 1;
+    public static final int SELL_ERR_CANT_SELL_ITEM = 2;
+    public static final int SELL_ERR_CANT_FIND_VENDOR = 3;
     public static final int TEMP_ENCHANTMENT_SLOT = 1;
     public static final int BONUS_ENCHANTMENT_SLOT = 5;
     public static final int ENCHANT_SLOT_FIELDS = 3;
@@ -668,25 +672,83 @@ public final class InventoryHandler {
         }
     }
 
-    public static void sellItem(WorldSession s, WowBuffer in) {
+    public static void sellItem(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
-        if (in.remaining() >= 8) {
-            in.getU64();
+        if (p == null || in.remaining() < 16) {
+            return;
         }
-        long item = in.remaining() >= 8 ? in.getU64() : 0;
-        Item it = p.items.remove((int) item);
+        long vendorGuid = in.getU64();
+        long itemGuid = in.getU64();
+        int count = in.remaining() > 0 ? in.getU8() & 0xFF : 0;
+        if (itemGuid == 0) {
+            return;
+        }
+        Creature vendor = Content.creature(world.map(p.mapId, p.instanceId), vendorGuid);
+        if (vendor == null || Content.outOfRange(p, vendor)
+                || (vendor.npcFlags & Content.UNIT_NPC_FLAG_VENDOR) == 0) {
+            sendSellError(s, 0, itemGuid, SELL_ERR_CANT_FIND_VENDOR);
+            return;
+        }
+        Item it = p.items.get(Guid.low(itemGuid));
         if (it == null) {
             return;
         }
-        it.slot = BUYBACK_SLOT_START;
-        p.buyback.put(BUYBACK_SLOT_START, it);
-        p.setInt(UpdateFields.PLAYER_FIELD_BUYBACK_PRICE_1, 1);
-        p.setGuid(UpdateFields.PLAYER_FIELD_VENDORBUYBACK_SLOT_1, UpdateBuilder.itemGuid(it));
+        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(it.entry);
+        if (t == null) {
+            sendSellError(s, vendor.guid, itemGuid, SELL_ERR_CANT_FIND_ITEM);
+            return;
+        }
+        if (t.sellPrice <= 0) {
+            sendSellError(s, vendor.guid, itemGuid, SELL_ERR_CANT_SELL_ITEM);
+            return;
+        }
+        int sellCount = count == 0 ? Math.max(1, it.count) : count;
+        if (sellCount > it.count) {
+            sendSellError(s, vendor.guid, itemGuid, SELL_ERR_CANT_SELL_ITEM);
+            return;
+        }
+        int money = t.sellPrice * sellCount;
+        int invSlot = it.slot;
+        int invField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + invSlot * 2;
+        if (sellCount < it.count) {
+            it.count -= sellCount;
+            Item sold = new Item(world.nextItemGuid(), it.entry);
+            sold.ownerGuid = it.ownerGuid;
+            sold.count = sellCount;
+            sold.displayId = it.displayId;
+            sold.inventoryType = it.inventoryType;
+            sold.quality = it.quality;
+            addToBuyback(p, sold, money);
+            var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(sold, p.guid));
+            s.send(created.opcode(), created.payload());
+        } else {
+            p.items.remove(Guid.low(it.guid));
+            p.setGuid(invField, 0);
+            addToBuyback(p, it, money);
+        }
+        p.setMoney(p.money + money);
+        p.dirty = true;
+        int priceField = UpdateFields.PLAYER_FIELD_BUYBACK_PRICE_1;
+        int backField = UpdateFields.PLAYER_FIELD_VENDORBUYBACK_SLOT_1;
         var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(
-                p, UpdateFields.PLAYER_FIELD_BUYBACK_PRICE_1,
-                UpdateFields.PLAYER_FIELD_VENDORBUYBACK_SLOT_1,
-                UpdateFields.PLAYER_FIELD_VENDORBUYBACK_SLOT_1 + 1));
+                p, invField, invField + 1, UpdateFields.PLAYER_FIELD_COINAGE, priceField, backField, backField + 1));
         s.send(pkt.opcode(), pkt.payload());
+    }
+
+    private static void addToBuyback(Player p, Item it, int money) {
+        it.slot = BUYBACK_SLOT_START;
+        it.bag = 0;
+        p.buyback.put(BUYBACK_SLOT_START, it);
+        p.setInt(UpdateFields.PLAYER_FIELD_BUYBACK_PRICE_1, money);
+        p.setGuid(UpdateFields.PLAYER_FIELD_VENDORBUYBACK_SLOT_1, UpdateBuilder.itemGuid(it));
+    }
+
+    private static void sendSellError(WorldSession s, long vendorGuid, long itemGuid, int result) {
+        WowBuffer err = new WowBuffer(17);
+        err.putU64(vendorGuid);
+        err.putU64(itemGuid);
+        err.putU8(result);
+        s.send(Opcodes.SMSG_SELL_ITEM, err.array());
     }
 
     public static void buybackItem(WorldSession s, WowBuffer in) {

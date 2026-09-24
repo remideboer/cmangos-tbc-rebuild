@@ -304,7 +304,7 @@ public final class LaterOpcodes {
             return true;
         }
         if (opcode == Opcodes.CMSG_SELL_ITEM) {
-            InventoryHandler.sellItem(s, in);
+            InventoryHandler.sellItem(s, world, in);
             return true;
         }
         if (opcode == Opcodes.CMSG_BUYBACK_ITEM) {

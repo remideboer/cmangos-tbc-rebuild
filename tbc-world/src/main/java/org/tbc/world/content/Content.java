@@ -398,6 +398,13 @@ public final class Content {
         send.accept(inv.opcode(), inv.payload());
         var coin = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
         send.accept(coin.opcode(), coin.payload());
+        int vendorSlot = stock.indexOf(itemId) + 1;
+        WowBuffer bought = new WowBuffer(20);
+        bought.putU64(c.guid);
+        bought.putU32(vendorSlot);
+        bought.putU32(0xFFFFFFFF);
+        bought.putU32(count);
+        send.accept(Opcodes.SMSG_BUY_ITEM, bought.array());
         send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, count));
         itemAddedQuestCheck(p, map, itemId, count, send);
     }

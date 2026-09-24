@@ -864,10 +864,17 @@ class ContentTest {
         assertEquals(35, p.money);
         assertEquals(1, p.items.size());
         assertTrue(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        assertTrue(ops.contains(Opcodes.SMSG_BUY_ITEM));
+        WowBuffer bought = new WowBuffer(last.get(Opcodes.SMSG_BUY_ITEM));
+        assertEquals(vendor.guid, bought.getU64());
+        assertEquals(1, bought.getU32());
+        assertEquals(0xFFFFFFFFL, bought.getU32() & 0xFFFFFFFFL);
+        assertEquals(1, bought.getU32());
         ops.clear();
         content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_WORN_SHORTSWORD, p.guid, 23, 1), true, nextItem++, this::capture);
         assertEquals(0, p.money);
         assertEquals(2, p.items.size());
+        assertTrue(ops.contains(Opcodes.SMSG_BUY_ITEM));
     }
 
     @Test

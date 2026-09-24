@@ -185,19 +185,24 @@ class LaterP0Test {
         Ctx c = loginOne("Vendor");
         Player p = c.client.session().player();
         p.money = 10;
+        Creature vendor = c.world.objectMgr.spawnCreature(Content.NPC_CORINA_STEELE,
+                0, p.x, p.y, p.z, p.o, c.world.scripts);
+        vendor.npcFlags |= Content.UNIT_NPC_FLAG_VENDOR;
+        c.world.map(p.mapId, p.instanceId).add(vendor);
         Item it = new Item(c.world.nextItemGuid(), 25);
         it.slot = 32;
         it.durability = 10;
         p.items.put((int) it.guid, it);
+        int sellPrice = c.world.objectMgr.items.get(25).sellPrice;
         WowBuffer sell = new WowBuffer(17);
-        sell.putU64(0);
+        sell.putU64(vendor.guid);
         sell.putU64(it.guid);
         sell.putU8(0);
         c.client.handle(c.world, Opcodes.CMSG_SELL_ITEM, sell.array());
         assertEquals(it, p.buyback.get(74));
-        assertEquals(1, p.getInt(UpdateFields.PLAYER_FIELD_BUYBACK_PRICE_1));
+        assertEquals(sellPrice, p.getInt(UpdateFields.PLAYER_FIELD_BUYBACK_PRICE_1));
         WowBuffer back = new WowBuffer(12);
-        back.putU64(0);
+        back.putU64(vendor.guid);
         back.putU32(74);
         c.client.handle(c.world, Opcodes.CMSG_BUYBACK_ITEM, back.array());
         assertTrue(p.items.containsKey((int) it.guid));
