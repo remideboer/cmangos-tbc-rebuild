@@ -99,6 +99,20 @@ public class Unit extends Entity {
     }
 
     /**
+     * CMaNGOS Unit::SetWaterWalk when not client-controlled: SMSG_SPLINE_MOVE_WATER_WALK / LAND_WALK
+     * packed guid via {@link #messageToSet}. Players override with SMSG_MOVE_WATER_WALK / LAND_WALK.
+     */
+    public void sendWaterWalk(boolean enable) {
+        if (messageToSet == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(9);
+        b.putPackedGuid(guid);
+        messageToSet.accept(enable ? Opcodes.SMSG_SPLINE_MOVE_WATER_WALK : Opcodes.SMSG_SPLINE_MOVE_LAND_WALK,
+                b.array());
+    }
+
+    /**
      * CMaNGOS UpdateSpeed(MOVE_RUN) after MOD_DECREASE_SPEED — rate *= (100+slow)/100,
      * then SetSpeedRate → SMSG_SPLINE_SET_RUN_SPEED (non-player) / FORCE (Player override).
      */

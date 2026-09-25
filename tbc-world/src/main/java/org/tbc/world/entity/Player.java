@@ -1084,6 +1084,21 @@ public final class Player extends Unit {
     }
 
     /**
+     * CMaNGOS Unit::SetWaterWalk for client-controlled: SMSG_MOVE_WATER_WALK / LAND_WALK
+     * = packed guid + uint32 order counter (Unit.cpp).
+     */
+    @Override
+    public void sendWaterWalk(boolean enable) {
+        if (session == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(12);
+        b.putPackedGuid(guid);
+        b.putU32(moveOrderCounter++);
+        session.send(enable ? Opcodes.SMSG_MOVE_WATER_WALK : Opcodes.SMSG_MOVE_LAND_WALK, b.array());
+    }
+
+    /**
      * CMaNGOS SetSpeedRate MOVE_RUN for client-controlled: SMSG_FORCE_RUN_SPEED_CHANGE
      * = packed guid + order counter + u8(0) + float GetSpeed (Unit.cpp).
      */

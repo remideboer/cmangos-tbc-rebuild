@@ -206,6 +206,8 @@ public final class SpellEngine {
     public static final int SPELL_INVISIBILITY = 11392;
     /** Spirit of Runn Tum — Spell.dbc 22735; APPLY_AURA MOD_SCALE +300%. */
     public static final int SPIRIT_OF_RUNN_TUM = 22735;
+    /** Water Walking — Spell.dbc 546; APPLY_AURA WATER_WALK. */
+    public static final int WATER_WALKING = 546;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -387,6 +389,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_INVISIBILITY, 0, 0, 199, 199, 0f));
         spells.put(SPIRIT_OF_RUNN_TUM, new SpellInfo(SPIRIT_OF_RUNN_TUM, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_SCALE, 0, 0, 300, 300, 0f));
+        spells.put(WATER_WALKING, new SpellInfo(WATER_WALKING, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_WATER_WALK, 0, 0, 0, 0, 0f));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

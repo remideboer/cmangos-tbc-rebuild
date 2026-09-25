@@ -30,6 +30,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_PACIFY_SILENCE = 60;
     public static final int SPELL_AURA_MOD_SCALE = 61;
     public static final int SPELL_AURA_MOD_DISARM = 67;
+    public static final int SPELL_AURA_WATER_WALK = 104;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
     /** SharedDefines.h MAX_STATS — strength through spirit. */
@@ -44,7 +45,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_DECREASE_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
-            SPELL_AURA_MOD_DISARM);
+            SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_WALK);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -77,6 +78,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_SCALE) {
             modScale(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_WATER_WALK) {
+            target.sendWaterWalk(true);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             immobilize(target);
@@ -158,6 +162,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_SCALE) {
             modScale(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_WATER_WALK) {
+            target.sendWaterWalk(false);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.
