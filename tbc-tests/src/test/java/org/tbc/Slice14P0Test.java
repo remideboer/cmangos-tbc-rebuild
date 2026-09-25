@@ -1362,6 +1362,34 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — Player::_ApplyItemBonuses HolyRes → UNIT_MOD_RESISTANCE_HOLY.
+     * Autoequip Test Holy Resist Vest 6675 (+10 Holy Resistance) must write that on
+     * self VALUES UNIT_FIELD_RESISTANCES+1 (SPELL_SCHOOL_HOLY).
+     */
+    @Test
+    void tpSl14EquipAppliesHolyResistance() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "HolyRes", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_TEST_HOLY_RESIST_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        assertEquals(10, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES + 1));
+    }
+
+    /**
      * TP-SL14-013 — Player::_ApplyItemBonuses NatureRes → UNIT_MOD_RESISTANCE_NATURE.
      * Autoequip Living Breastplate 15059 (+5 Nature Resistance) must write that on
      * self VALUES UNIT_FIELD_RESISTANCES+3 (school nature).

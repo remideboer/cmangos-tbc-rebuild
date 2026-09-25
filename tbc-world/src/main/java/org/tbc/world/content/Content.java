@@ -187,6 +187,9 @@ public final class Content {
     /** tbc-db item_template 32954; STR 30 / STA 43 / CRIT 23 / HIT_MELEE 15 / HIT_RANGED 15, armor 997. */
     public static final int ITEM_TOMS_BOOTS_1 = 32954;
     /** tbc-db item_template 6673; ITEM_MOD_HEALTH 1 / −60, finger. */
+    /** Test seed — HolyRes 10 for UNIT_FIELD_RESISTANCES+1 (SPELL_SCHOOL_HOLY). */
+    public static final int ITEM_TEST_HOLY_RESIST_VEST = 6675;
+    /** tbc-db item_template 6673; ITEM_MOD_HEALTH 10 for +HP. */
     public static final int ITEM_TEST_HP_RING = 6673;
     /** tbc-db item_template 6674; ITEM_MOD_MANA 0 / −60, finger. */
     public static final int ITEM_TEST_MP_RING = 6674;

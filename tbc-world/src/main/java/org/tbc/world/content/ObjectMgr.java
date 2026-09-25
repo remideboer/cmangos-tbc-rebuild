@@ -1145,6 +1145,27 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Test Holy Resist Vest — HolyRes 10, chest (SPELL_SCHOOL_HOLY → RESISTANCES+1). */
+        public static ItemTemplate testHolyResistVest() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_TEST_HOLY_RESIST_VEST;
+            t.itemClass = 4;
+            t.subClass = 1;
+            t.name = "Test Holy Resist Vest";
+            t.quality = 2;
+            t.inventoryType = 5;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 1;
+            t.requiredLevel = 1;
+            t.stackable = 1;
+            t.armor = 10;
+            t.holyRes = 10;
+            t.bonding = 2;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /**
          * Test MP Ring — tbc-db 6674 (ITEM_MOD_MANA −60, finger).
          */
@@ -2621,6 +2642,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_TWIN_BLADES_OF_AZZINOTH, ItemTemplate.twinBladesOfAzzinoth());
         items.putIfAbsent(Content.ITEM_TOMS_BOOTS_1, ItemTemplate.tomsBoots1());
         items.putIfAbsent(Content.ITEM_TEST_HP_RING, ItemTemplate.testHpRing());
+        items.putIfAbsent(Content.ITEM_TEST_HOLY_RESIST_VEST, ItemTemplate.testHolyResistVest());
         items.putIfAbsent(Content.ITEM_TEST_MP_RING, ItemTemplate.testMpRing());
         items.putIfAbsent(Content.ITEM_BAND_OF_THE_ETERNAL_CHAMPION, ItemTemplate.bandOfTheEternalChampion());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
@@ -3534,6 +3556,7 @@ public final class ObjectMgr {
         int intellect = 0;
         int spirit = 0;
         int armor = 0;
+        int holy = 0;
         int fire = 0;
         int nature = 0;
         int frost = 0;
@@ -3563,6 +3586,7 @@ public final class ObjectMgr {
             }
             armor += t.armor;
             shieldBlock += t.block;
+            holy += t.holyRes;
             fire += t.fireRes;
             nature += t.natureRes;
             frost += t.frostRes;
@@ -3619,6 +3643,7 @@ public final class ObjectMgr {
             }
         }
         p.applyGearBonuses(stamina, armor, agility, strength, intellect, spirit, itemHealth, itemMana);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 1, holy);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 2, fire);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 3, nature);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 4, frost);
