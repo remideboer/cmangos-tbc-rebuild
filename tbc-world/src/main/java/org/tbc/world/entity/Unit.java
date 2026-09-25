@@ -1,10 +1,13 @@
 package org.tbc.world.entity;
 
+import org.tbc.common.WowBuffer;
 import org.tbc.world.net.wow8606.MovementInfo;
+import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 public class Unit extends Entity {
     public static final int TYPEID_UNIT = 3;
@@ -58,6 +61,22 @@ public class Unit extends Entity {
 
     public void setRooted(boolean rooted) {
         this.rooted = rooted;
+    }
+
+    /**
+     * CMaNGOS Unit::SendMoveRoot when not client-controlled: SMSG_SPLINE_MOVE_ROOT / UNROOT
+     * packed guid via SendMessageToSet ({@link #messageToSet}). Players override with FORCE_*.
+     */
+    public BiConsumer<Integer, byte[]> messageToSet;
+
+    public void sendMoveRoot(boolean root) {
+        setRooted(root);
+        if (messageToSet == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(9);
+        b.putPackedGuid(guid);
+        messageToSet.accept(root ? Opcodes.SMSG_SPLINE_MOVE_ROOT : Opcodes.SMSG_SPLINE_MOVE_UNROOT, b.array());
     }
 
     /**

@@ -1,6 +1,5 @@
 package org.tbc.world.spell;
 
-import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateFields;
 
@@ -91,11 +90,9 @@ public final class AuraEngine {
 
     /**
      * CMaNGOS Unit::SetImmobilizedState → SendMoveRoot(true). Root itself has no UNIT_FIELD_FLAGS
-     * bit; the controlling player is told via SMSG_FORCE_MOVE_ROOT (aura 26 HandleAuraModRoot).
+     * bit; players get SMSG_FORCE_MOVE_ROOT, other units SMSG_SPLINE_MOVE_ROOT (Unit.cpp).
      */
     private static void immobilize(Unit target) {
-        if (target instanceof Player p) {
-            p.sendMoveRoot(true);
-        }
+        target.sendMoveRoot(true);
     }
 }

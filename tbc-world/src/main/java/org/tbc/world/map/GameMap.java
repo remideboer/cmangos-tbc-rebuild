@@ -48,6 +48,14 @@ public final class GameMap {
     public void add(Creature c) {
         creatures.put(c.guid, c);
         cells.computeIfAbsent(cellKey(c.x, c.y), k -> new ConcurrentHashMap<>()).put(c.guid, c);
+        // Unit::SendMessageToSet for spline root/unroot when not player-controlled.
+        c.messageToSet = (opcode, payload) -> {
+            for (Player pl : nearbyPlayers(c, VISIBILITY)) {
+                if (pl.session != null) {
+                    pl.session.send(opcode, payload);
+                }
+            }
+        };
     }
 
     public void add(GameObject go) {

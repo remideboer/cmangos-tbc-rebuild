@@ -1048,7 +1048,9 @@ public final class Player extends Unit {
      * CMaNGOS Unit::SendMoveRoot for a client-controlled unit: SMSG_FORCE_MOVE_ROOT / UNROOT
      * = packed guid + uint32 order counter, sent only to the controlling session (movement.md).
      */
+    @Override
     public void sendMoveRoot(boolean root) {
+        setRooted(root);
         if (session == null) {
             return;
         }

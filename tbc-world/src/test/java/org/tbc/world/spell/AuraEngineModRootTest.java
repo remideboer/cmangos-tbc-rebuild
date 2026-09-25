@@ -72,6 +72,28 @@ class AuraEngineModRootTest {
         assertTrue(mob.hasAura(122));
     }
 
+    /**
+     * TP-SL26-121 — Unit::SendMoveRoot when not client-controlled: SMSG_SPLINE_MOVE_ROOT
+     * packed guid to the set (Unit.cpp; movement.md Pre-Wrath spline root).
+     */
+    @Test
+    void applyAuraWhenModRootOnCreatureShouldSendSplineMoveRoot() {
+        Creature mob = new Creature();
+        mob.guid = 0xF130000000000006L;
+        List<Integer> ops = new ArrayList<>();
+        Map<Integer, byte[]> last = new HashMap<>();
+        mob.messageToSet = (opcode, payload) -> {
+            ops.add(opcode);
+            last.put(opcode, payload);
+        };
+        new SpellEngine().apply(new Player(), mob, FROST_NOVA);
+        assertTrue(ops.contains(Opcodes.SMSG_SPLINE_MOVE_ROOT));
+        WowBuffer root = new WowBuffer(last.get(Opcodes.SMSG_SPLINE_MOVE_ROOT));
+        assertEquals(mob.guid, root.getPackedGuid());
+        assertEquals(0, root.remaining());
+        assertTrue(mob.rooted());
+    }
+
     @Test
     void sendMoveRootWhenReleasedShouldSendForceMoveUnroot() {
         World world = World.inMemory();
