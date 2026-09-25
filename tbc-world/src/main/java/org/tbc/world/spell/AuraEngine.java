@@ -24,6 +24,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_INVISIBILITY = 18;
     public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
+    public static final int SPELL_AURA_MOD_INCREASE_SWIM_SPEED = 58;
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH = 34;
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
@@ -44,7 +45,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE,
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY, SPELL_AURA_MOD_INCREASE_SPEED,
-            SPELL_AURA_MOD_DECREASE_SPEED,
+            SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER);
@@ -109,6 +110,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SPEED) {
             modIncreaseSpeed(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_SWIM_SPEED) {
+            modIncreaseSwimSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_SHAPESHIFT) {
             target.setShapeshiftForm(sp.misc());
@@ -201,6 +205,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SPEED) {
             modIncreaseSpeed(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_SWIM_SPEED) {
+            modIncreaseSwimSpeed(target, sp, false);
         }
     }
 
@@ -328,6 +335,18 @@ public final class AuraEngine {
             return;
         }
         target.setIncreaseSpeedPct(apply ? amount : 0);
+    }
+
+    /**
+     * Aura 58 — CMaNGOS HandleAuraModIncreaseSwimSpeed → UpdateSpeed(MOVE_SWIM);
+     * amount EffectBasePoints+1 %.
+     */
+    private static void modIncreaseSwimSpeed(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        target.setIncreaseSwimSpeedPct(apply ? amount : 0);
     }
 
     /**

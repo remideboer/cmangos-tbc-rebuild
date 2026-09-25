@@ -55,6 +55,8 @@ public class Unit extends Entity {
 
     /** Unit.cpp baseMoveSpeed[MOVE_RUN]. */
     public static final float BASE_RUN_SPEED = 7.0f;
+    /** Unit.cpp baseMoveSpeed[MOVE_SWIM]. */
+    public static final float BASE_SWIM_SPEED = 4.722222f;
 
     public MovementInfo movement = new MovementInfo();
     public long victim;
@@ -65,8 +67,12 @@ public class Unit extends Entity {
     private int decreaseSpeedPct;
     /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SPEED); 0 = none. */
     private int increaseSpeedPct;
+    /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SWIM_SPEED); 0 = none. */
+    private int increaseSwimSpeedPct;
     /** CMaNGOS m_speed_rate[MOVE_RUN]; default 1.0. */
     private float runSpeedRate = 1.0f;
+    /** CMaNGOS m_speed_rate[MOVE_SWIM]; default 1.0. */
+    private float swimSpeedRate = 1.0f;
     private boolean knockBackPending;
     private float knockBackVcos;
     private float knockBackVsin;
@@ -154,8 +160,17 @@ public class Unit extends Entity {
         updateRunSpeed();
     }
 
+    public void setIncreaseSwimSpeedPct(int pct) {
+        increaseSwimSpeedPct = pct;
+        updateSwimSpeed();
+    }
+
     public float runSpeed() {
         return runSpeedRate * BASE_RUN_SPEED;
+    }
+
+    public float swimSpeed() {
+        return swimSpeedRate * BASE_SWIM_SPEED;
     }
 
     private void updateRunSpeed() {
@@ -174,6 +189,19 @@ public class Unit extends Entity {
         sendRunSpeedChange();
     }
 
+    private void updateSwimSpeed() {
+        // Unit::UpdateSpeed MOVE_SWIM: main_speed_mod = MOD_INCREASE_SWIM_SPEED.
+        float rate = increaseSwimSpeedPct != 0 ? (100.0f + increaseSwimSpeedPct) / 100.0f : 1.0f;
+        if (rate < 0.01f) {
+            rate = 0.01f;
+        }
+        if (rate == swimSpeedRate) {
+            return;
+        }
+        swimSpeedRate = rate;
+        sendSwimSpeedChange();
+    }
+
     /** Non-player: SMSG_SPLINE_SET_RUN_SPEED packed guid + float speed. */
     protected void sendRunSpeedChange() {
         if (messageToSet == null) {
@@ -183,6 +211,17 @@ public class Unit extends Entity {
         b.putPackedGuid(guid);
         b.putFloat(runSpeed());
         messageToSet.accept(Opcodes.SMSG_SPLINE_SET_RUN_SPEED, b.array());
+    }
+
+    /** Non-player: SMSG_SPLINE_SET_SWIM_SPEED packed guid + float speed. */
+    protected void sendSwimSpeedChange() {
+        if (messageToSet == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(13);
+        b.putPackedGuid(guid);
+        b.putFloat(swimSpeed());
+        messageToSet.accept(Opcodes.SMSG_SPLINE_SET_SWIM_SPEED, b.array());
     }
 
     /**

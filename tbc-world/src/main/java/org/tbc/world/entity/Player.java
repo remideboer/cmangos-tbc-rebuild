@@ -1145,6 +1145,22 @@ public final class Player extends Unit {
         session.send(Opcodes.SMSG_FORCE_RUN_SPEED_CHANGE, b.array());
     }
 
+    /**
+     * CMaNGOS SetSpeedRate MOVE_SWIM for client-controlled: SMSG_FORCE_SWIM_SPEED_CHANGE
+     * = packed guid + order counter + float GetSpeed (no u8 tracking byte; Unit.cpp).
+     */
+    @Override
+    protected void sendSwimSpeedChange() {
+        if (session == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(17);
+        b.putPackedGuid(guid);
+        b.putU32(moveOrderCounter++);
+        b.putFloat(swimSpeed());
+        session.send(Opcodes.SMSG_FORCE_SWIM_SPEED_CHANGE, b.array());
+    }
+
     /** CMaNGOS PLAYER_SKILL_INDEX / MAKE_PAIR32(id, step) / MAKE_SKILL_VALUE. */
     public void setSkill(int slot, int skillId, int value, int max) {
         setSkill(slot, skillId, value, max, 0);
