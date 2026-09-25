@@ -27,6 +27,8 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_STUNNED = 0x00040000;
     public static final int UNIT_FLAG_IN_COMBAT = 0x00080000;
     public static final int UNIT_FLAG_TAXI_FLIGHT = 0x00100000;
+    /** Unit.h UNIT_FLAG_CONFUSED — subject to confused movement. */
+    public static final int UNIT_FLAG_CONFUSED = 0x00400000;
     /** Unit.h UNIT_FLAG_FLEEING — subject to fleeing movement. */
     public static final int UNIT_FLAG_FLEEING = 0x00800000;
     public static final int UNIT_FLAG_UNINTERACTIBLE = 0x02000000;
@@ -325,6 +327,13 @@ public class Unit extends Entity {
         int flags = getInt(UpdateFields.UNIT_FIELD_FLAGS);
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
                 apply ? flags | UNIT_FLAG_FLEEING : flags & ~UNIT_FLAG_FLEEING);
+    }
+
+    /** CMaNGOS Unit::SetConfused — SetFlag/RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_CONFUSED). */
+    public void setConfused(boolean apply) {
+        int flags = getInt(UpdateFields.UNIT_FIELD_FLAGS);
+        setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                apply ? flags | UNIT_FLAG_CONFUSED : flags & ~UNIT_FLAG_CONFUSED);
     }
 
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
