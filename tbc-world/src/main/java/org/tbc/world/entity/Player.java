@@ -1036,6 +1036,18 @@ public final class Player extends Unit {
         setInt(UpdateFields.PLAYER_BYTES_2, pb2);
     }
 
+    /**
+     * CMaNGOS HandleModStealth → SetByteFlag/RemoveByteFlag(PLAYER_FIELD_BYTES2, 1, PLAYER_FIELD_BYTE2_STEALTH).
+     * Player.h PLAYER_FIELD_BYTE2_STEALTH = 0x20.
+     */
+    public void setStealthByte(boolean apply) {
+        int bytes = getInt(UpdateFields.PLAYER_FIELD_BYTES2);
+        int mask = PLAYER_FIELD_BYTE2_STEALTH << 8;
+        setInt(UpdateFields.PLAYER_FIELD_BYTES2, apply ? bytes | mask : bytes & ~mask);
+    }
+
+    public static final int PLAYER_FIELD_BYTE2_STEALTH = 0x20;
+
     public int createSelfFlags() {
         return PLAYER_CREATE_FLAGS;
     }

@@ -200,6 +200,8 @@ public final class SpellEngine {
     public static final int SPELL_POLYMORPH = 118;
     /** Disarm — Spell.dbc 676; APPLY_AURA MOD_DISARM. */
     public static final int SPELL_DISARM = 676;
+    /** Stealth — Spell.dbc 1784 effect1 MOD_STEALTH (effect0 is shapeshift FORM_STEALTH). */
+    public static final int SPELL_STEALTH = 1784;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -375,6 +377,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_CONFUSE, 0, 0, 0, 0, 0f));
         spells.put(SPELL_DISARM, new SpellInfo(SPELL_DISARM, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_DISARM, 0, 0, 0, 0, 0f));
+        spells.put(SPELL_STEALTH, new SpellInfo(SPELL_STEALTH, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_STEALTH, 0, 0, 0, 0, 0f, 30));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

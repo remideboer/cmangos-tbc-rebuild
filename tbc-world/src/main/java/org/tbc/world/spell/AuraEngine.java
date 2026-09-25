@@ -1,5 +1,6 @@
 package org.tbc.world.spell;
 
+import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateFields;
 
@@ -19,6 +20,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_ROOT = 26;
     public static final int SPELL_AURA_MOD_SILENCE = 27;
     public static final int SPELL_AURA_MOD_STAT = 29;
+    public static final int SPELL_AURA_MOD_STEALTH = 16;
     public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH = 34;
@@ -36,7 +38,7 @@ public final class AuraEngine {
     private static final Set<Integer> KNOWN_AURAS = Set.of(
             SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE,
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
-            SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_DECREASE_SPEED,
+            SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_DECREASE_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_DISARM);
 
@@ -62,6 +64,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_DISARM) {
             target.setDisarmed(true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_STEALTH) {
+            modStealth(target, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             immobilize(target);
@@ -134,6 +139,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_DISARM) {
             // HandleAuraModDisarm(false); stacking other MOD_DISARM later.
             target.setDisarmed(false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_STEALTH) {
+            modStealth(target, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.
@@ -283,6 +291,16 @@ public final class AuraEngine {
             return;
         }
         target.setIncreaseSpeedPct(apply ? amount : 0);
+    }
+
+    /**
+     * Aura 16 — CMaNGOS HandleModStealth → player PLAYER_FIELD_BYTES2 stealth byte.
+     * Visibility group / UNIT_VIS_FLAG_CREEP later.
+     */
+    private static void modStealth(Unit target, boolean apply) {
+        if (target instanceof Player player) {
+            player.setStealthByte(apply);
+        }
     }
 
     /** Aura 12 — CMaNGOS SetStunned: SetImmobilizedState(stun=true) then UNIT_FLAG_STUNNED. */
