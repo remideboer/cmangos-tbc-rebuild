@@ -39,6 +39,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_FEATHER_FALL = 105;
     public static final int SPELL_AURA_HOVER = 106;
     public static final int SPELL_AURA_MOD_MELEE_HASTE = 138;
+    public static final int SPELL_AURA_MOD_RANGED_HASTE = 140;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
     /** SharedDefines.h MAX_STATS — strength through spirit. */
@@ -56,7 +57,8 @@ public final class AuraEngine {
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_BREATHING,
-            SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER, SPELL_AURA_MOD_MELEE_HASTE);
+            SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
+            SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -104,6 +106,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE) {
+            modRangedHaste(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(true);
@@ -212,6 +217,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE) {
+            modRangedHaste(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(false);
@@ -450,6 +458,17 @@ public final class AuraEngine {
         }
         applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_BASEATTACKTIME, amount, apply);
         applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, amount, apply);
+    }
+
+    /**
+     * Aura 140 — CMaNGOS HandleAuraModRangedHaste → ApplyAttackTimePercentMod(RANGED_ATTACK).
+     */
+    private static void modRangedHaste(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_RANGEDATTACKTIME, amount, apply);
     }
 
     /** CMaNGOS Unit::ApplyAttackTimePercentMod without attack-timer / m_modAttackSpeedPct side effects. */

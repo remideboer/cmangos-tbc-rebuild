@@ -224,6 +224,8 @@ public final class SpellEngine {
     public static final int UNENDING_BREATH = 5697;
     /** Blade Flurry — Spell.dbc 13877; APPLY_AURA MOD_MELEE_HASTE +20%. */
     public static final int BLADE_FLURRY = 13877;
+    /** Rapid Fire — Spell.dbc 3045; APPLY_AURA MOD_RANGED_HASTE +40%. */
+    public static final int RAPID_FIRE = 3045;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -423,6 +425,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_WATER_BREATHING, 0, 50, 0, 0, 0f));
         spells.put(BLADE_FLURRY, new SpellInfo(BLADE_FLURRY, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_MELEE_HASTE, 0, 0, 20, 20, 0f));
+        spells.put(RAPID_FIRE, new SpellInfo(RAPID_FIRE, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_RANGED_HASTE, 0, 0, 40, 40, 0f));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
