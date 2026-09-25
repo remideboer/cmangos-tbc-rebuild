@@ -190,6 +190,8 @@ public final class SpellEngine {
     public static final int SPRINT = 2983;
     /** Pet Hardiness — Spell.dbc 6280; APPLY_AURA MOD_INCREASE_HEALTH +20. */
     public static final int PET_HARDINESS = 6280;
+    /** Vigor — Spell.dbc 14983; APPLY_AURA MOD_INCREASE_ENERGY +10 (POWER_ENERGY). */
+    public static final int VIGOR = 14983;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -355,6 +357,8 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(PET_HARDINESS, new SpellInfo(PET_HARDINESS, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_INCREASE_HEALTH, 0, 0, 20, 20, 0f));
+        spells.put(VIGOR, new SpellInfo(VIGOR, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_INCREASE_ENERGY, 0, 0, 10, 10, 0f, 3));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

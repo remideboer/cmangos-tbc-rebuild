@@ -20,17 +20,21 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH = 34;
+    public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
     /** SharedDefines.h MAX_STATS — strength through spirit. */
     public static final int MAX_STATS = 5;
+    /** SharedDefines.h MAX_POWERS — mana through runic (TBC: 5). */
+    public static final int MAX_POWERS = 5;
 
     private static final Set<Integer> KNOWN_AURAS = Set.of(
             SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_PACIFY,
             SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_DECREASE_SPEED,
-            SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_SHAPESHIFT);
+            SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
+            SPELL_AURA_MOD_SHAPESHIFT);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -71,6 +75,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY) {
+            modIncreaseEnergy(target, sp, true);
+        }
     }
 
     /** Reverse {@link #apply} for auras that mutate stats (CMaNGOS Aura::ApplyModifier(false)). */
@@ -86,6 +93,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY) {
+            modIncreaseEnergy(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_STUN) {
             // HandleAuraModStun(false) → SetStunned(false) → clear flag + SetImmobilizedState(false).
@@ -186,6 +196,32 @@ public final class AuraEngine {
         target.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, max);
         if (target.health() > max) {
             target.setHealth(max);
+        }
+    }
+
+    /**
+     * Aura 35 — CMaNGOS HandleAuraModIncreaseEnergy: misc = Powers, TOTAL_VALUE on that max power.
+     * Clamp current power when max drops on unapply.
+     */
+    private static void modIncreaseEnergy(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int power = sp.misc();
+        if (power < 0 || power >= MAX_POWERS) {
+            return;
+        }
+        int delta = apply ? amount : -amount;
+        int maxField = UpdateFields.UNIT_FIELD_MAXPOWER1 + power;
+        int curField = UpdateFields.UNIT_FIELD_POWER1 + power;
+        int max = target.getInt(maxField) + delta;
+        if (max < 0) {
+            max = 0;
+        }
+        target.setInt(maxField, max);
+        if (target.getInt(curField) > max) {
+            target.setInt(curField, max);
         }
     }
 
