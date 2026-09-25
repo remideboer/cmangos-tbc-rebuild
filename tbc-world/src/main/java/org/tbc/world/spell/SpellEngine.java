@@ -218,6 +218,8 @@ public final class SpellEngine {
     public static final int FIND_MINERALS = 2580;
     /** Track Beasts — Spell.dbc 1494; APPLY_AURA TRACK_CREATURES misc 1. */
     public static final int TRACK_BEASTS = 1494;
+    /** Icy Veins — Spell.dbc 12472; APPLY_AURA MOD_CASTING_SPEED_NOT_STACK +20%. */
+    public static final int ICY_VEINS = 12472;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -411,6 +413,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_TRACK_RESOURCES, 0, 0, 0, 0, 0f, 3));
         spells.put(TRACK_BEASTS, new SpellInfo(TRACK_BEASTS, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_TRACK_CREATURES, 0, 0, 0, 0, 0f, 1));
+        spells.put(ICY_VEINS, new SpellInfo(ICY_VEINS, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, 0, 0, 20, 20, 0f));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

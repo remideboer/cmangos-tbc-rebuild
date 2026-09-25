@@ -32,6 +32,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     public static final int SPELL_AURA_MOD_PACIFY_SILENCE = 60;
     public static final int SPELL_AURA_MOD_SCALE = 61;
+    public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_MOD_DISARM = 67;
     public static final int SPELL_AURA_WATER_WALK = 104;
     public static final int SPELL_AURA_FEATHER_FALL = 105;
@@ -52,7 +53,8 @@ public final class AuraEngine {
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
-            SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER);
+            SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_MOD_DISARM,
+            SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -91,6 +93,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_SCALE) {
             modScale(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK) {
+            modCastingSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(true);
@@ -190,6 +195,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_SCALE) {
             modScale(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK) {
+            modCastingSpeed(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(false);
@@ -415,6 +423,24 @@ public final class AuraEngine {
         int bit = 1 << (misc - 1);
         int flags = player.getInt(UpdateFields.PLAYER_TRACK_CREATURES);
         player.setInt(UpdateFields.PLAYER_TRACK_CREATURES, apply ? flags | bit : flags & ~bit);
+    }
+
+    /**
+     * Aura 65 — CMaNGOS HandleModCastingSpeed → ApplyCastTimePercentMod(amount, apply).
+     * Positive amount: ApplyPercentModFloatValue(UNIT_MOD_CAST_SPEED, amount, !apply).
+     * Bloodlust/Heroism exclusive max later.
+     */
+    private static void modCastingSpeed(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        float val = amount;
+        if (val > 0) {
+            target.applyPercentModFloatValue(UpdateFields.UNIT_MOD_CAST_SPEED, val, !apply);
+        } else {
+            target.applyPercentModFloatValue(UpdateFields.UNIT_MOD_CAST_SPEED, -val, apply);
+        }
     }
 
     /**

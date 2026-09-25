@@ -42,6 +42,16 @@ public class Entity {
         return Float.intBitsToFloat(values[field]);
     }
 
+    /**
+     * CMaNGOS Object::ApplyPercentModFloatValue — multiply by (100+val)/100 on apply,
+     * by 100/(100+val) on remove. val == -100 clamped to -99.9.
+     */
+    public void applyPercentModFloatValue(int field, float val, boolean apply) {
+        float v = val == -100.0f ? -99.9f : val;
+        float cur = getFloat(field);
+        setFloat(field, cur * (apply ? (100.0f + v) / 100.0f : 100.0f / (100.0f + v)));
+    }
+
     public void relocate(float x, float y, float z, float o) {
         this.x = x;
         this.y = y;
