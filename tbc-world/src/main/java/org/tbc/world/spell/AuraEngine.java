@@ -35,6 +35,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_FEIGN_DEATH = 66;
     public static final int SPELL_AURA_MOD_DISARM = 67;
+    public static final int SPELL_AURA_MOD_PERCENT_STAT = 80;
     public static final int SPELL_AURA_WATER_BREATHING = 82;
     public static final int SPELL_AURA_GHOST = 95;
     public static final int SPELL_AURA_MOD_ATTACK_POWER = 99;
@@ -62,7 +63,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
-            SPELL_AURA_WATER_BREATHING,
+            SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_WATER_BREATHING,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
             SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_SAFE_FALL);
@@ -173,6 +174,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_STAT) {
             modStat(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_PERCENT_STAT) {
+            modPercentStat(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, true);
         }
@@ -191,6 +195,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_STAT) {
             modStat(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_PERCENT_STAT) {
+            modPercentStat(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, false);
@@ -347,6 +354,33 @@ public final class AuraEngine {
                     : UpdateFields.UNIT_FIELD_NEGSTAT0;
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
+        }
+    }
+
+    /**
+     * Aura 80 — CMaNGOS HandleModPercentStat → HandleStatModifier(BASE_PCT) for matching stats.
+     * Players only; misc −1 = all, 0–4 = one stat. Sheet uses UNIT_FIELD_STAT0+i percent math.
+     */
+    private static void modPercentStat(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player)) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int misc = sp.misc();
+        if (misc < -1 || misc > 4) {
+            return;
+        }
+        for (int i = 0; i < MAX_STATS; i++) {
+            if (misc != -1 && misc != i) {
+                continue;
+            }
+            int field = UpdateFields.UNIT_FIELD_STAT0 + i;
+            int cur = target.getInt(field);
+            float factor = apply ? (100.0f + amount) / 100.0f : 100.0f / (100.0f + amount);
+            target.setInt(field, Math.max(0, Math.round(cur * factor)));
         }
     }
 
