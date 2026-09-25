@@ -47,11 +47,18 @@ public class Unit extends Entity {
     public static final int FORM_NONE = 0;
     public static final int FORM_BATTLESTANCE = 0x11;
 
+    /** Unit.cpp baseMoveSpeed[MOVE_RUN]. */
+    public static final float BASE_RUN_SPEED = 7.0f;
+
     public MovementInfo movement = new MovementInfo();
     public long victim;
     public boolean inCombat;
     private int extraAttacks;
     private boolean rooted;
+    /** CMaNGOS GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED); 0 = none. */
+    private int decreaseSpeedPct;
+    /** CMaNGOS m_speed_rate[MOVE_RUN]; default 1.0. */
+    private float runSpeedRate = 1.0f;
     private boolean knockBackPending;
     private float knockBackVcos;
     private float knockBackVsin;
@@ -81,6 +88,45 @@ public class Unit extends Entity {
         WowBuffer b = new WowBuffer(9);
         b.putPackedGuid(guid);
         messageToSet.accept(root ? Opcodes.SMSG_SPLINE_MOVE_ROOT : Opcodes.SMSG_SPLINE_MOVE_UNROOT, b.array());
+    }
+
+    /**
+     * CMaNGOS UpdateSpeed(MOVE_RUN) after MOD_DECREASE_SPEED — rate *= (100+slow)/100,
+     * then SetSpeedRate → SMSG_SPLINE_SET_RUN_SPEED (non-player) / FORCE (Player override).
+     */
+    public void setDecreaseSpeedPct(int pct) {
+        decreaseSpeedPct = pct;
+        updateRunSpeed();
+    }
+
+    public float runSpeed() {
+        return runSpeedRate * BASE_RUN_SPEED;
+    }
+
+    private void updateRunSpeed() {
+        float rate = 1.0f;
+        if (decreaseSpeedPct != 0) {
+            rate *= (100.0f + decreaseSpeedPct) / 100.0f;
+        }
+        if (rate < 0.01f) {
+            rate = 0.01f;
+        }
+        if (rate == runSpeedRate) {
+            return;
+        }
+        runSpeedRate = rate;
+        sendRunSpeedChange();
+    }
+
+    /** Non-player: SMSG_SPLINE_SET_RUN_SPEED packed guid + float speed. */
+    protected void sendRunSpeedChange() {
+        if (messageToSet == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(13);
+        b.putPackedGuid(guid);
+        b.putFloat(runSpeed());
+        messageToSet.accept(Opcodes.SMSG_SPLINE_SET_RUN_SPEED, b.array());
     }
 
     /**

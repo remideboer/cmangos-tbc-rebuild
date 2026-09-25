@@ -1060,6 +1060,23 @@ public final class Player extends Unit {
         session.send(root ? Opcodes.SMSG_FORCE_MOVE_ROOT : Opcodes.SMSG_FORCE_MOVE_UNROOT, b.array());
     }
 
+    /**
+     * CMaNGOS SetSpeedRate MOVE_RUN for client-controlled: SMSG_FORCE_RUN_SPEED_CHANGE
+     * = packed guid + order counter + u8(0) + float GetSpeed (Unit.cpp).
+     */
+    @Override
+    protected void sendRunSpeedChange() {
+        if (session == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(18);
+        b.putPackedGuid(guid);
+        b.putU32(moveOrderCounter++);
+        b.putU8(0);
+        b.putFloat(runSpeed());
+        session.send(Opcodes.SMSG_FORCE_RUN_SPEED_CHANGE, b.array());
+    }
+
     /** CMaNGOS PLAYER_SKILL_INDEX / MAKE_PAIR32(id, step) / MAKE_SKILL_VALUE. */
     public void setSkill(int slot, int skillId, int value, int max) {
         setSkill(slot, skillId, value, max, 0);
