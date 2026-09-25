@@ -1046,7 +1046,18 @@ public final class Player extends Unit {
         setInt(UpdateFields.PLAYER_FIELD_BYTES2, apply ? bytes | mask : bytes & ~mask);
     }
 
+    /**
+     * CMaNGOS HandleInvisibility → SetByteFlag/RemoveByteFlag(PLAYER_FIELD_BYTES2, 1, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW).
+     * Player.h PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW = 0x40.
+     */
+    public void setInvisibilityGlow(boolean apply) {
+        int bytes = getInt(UpdateFields.PLAYER_FIELD_BYTES2);
+        int mask = PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW << 8;
+        setInt(UpdateFields.PLAYER_FIELD_BYTES2, apply ? bytes | mask : bytes & ~mask);
+    }
+
     public static final int PLAYER_FIELD_BYTE2_STEALTH = 0x20;
+    public static final int PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW = 0x40;
 
     public int createSelfFlags() {
         return PLAYER_CREATE_FLAGS;
