@@ -68,6 +68,34 @@ class Slice28P0Test {
     }
 
     /**
+     * TP-SL28-005 — HandleGMTicketUpdateTextOpcode.
+     * Open ticket then CMSG_GMTICKET_UPDATETEXT → SMSG_GMTICKET_UPDATETEXT
+     * GMTICKET_RESPONSE_UPDATE_SUCCESS 4; GETTICKET text is the new message.
+     */
+    @Test
+    void tpSl28GmTicketUpdateTextSuccess() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "TicketUp");
+        a.clear();
+        WowBuffer create = new WowBuffer(16);
+        create.putCString("stuck");
+        a.handle(world, Opcodes.CMSG_GMTICKET_CREATE, create.array());
+        a.clear();
+        WowBuffer update = new WowBuffer(24);
+        update.putCString("still stuck in northshire");
+        a.handle(world, Opcodes.CMSG_GMTICKET_UPDATETEXT, update.array());
+        byte[] res = lastPayload(a, Opcodes.SMSG_GMTICKET_UPDATETEXT);
+        assertEquals(4, WowClientDouble.u32le(res, 0));
+        a.clear();
+        a.handle(world, Opcodes.CMSG_GMTICKET_GETTICKET, new byte[0]);
+        byte[] t = lastPayload(a, Opcodes.SMSG_GMTICKET_GETTICKET);
+        assertEquals(0x06, WowClientDouble.u32le(t, 0));
+        WowBuffer body = new WowBuffer(t);
+        body.getU32();
+        assertEquals("still stuck in northshire", body.getCString());
+    }
+
+    /**
      * TP-SL28-006 — CMSG_GMTICKET_GETTICKET with no open ticket is GMTICKET_STATUS_DEFAULT 0x0A
      * (not HASTEXT 0x06), so the client does not show “you have an open ticket”.
      */

@@ -504,6 +504,21 @@ public final class LaterOpcodes {
             s.send(Opcodes.SMSG_GMTICKET_GETTICKET, t.array());
             return true;
         }
+        if (opcode == Opcodes.CMSG_GMTICKET_UPDATETEXT) {
+            // GMTicketHandler::HandleGMTicketUpdateTextOpcode — UPDATE_SUCCESS 4 / UPDATE_ERROR 5.
+            String message = in.remaining() > 0 ? in.getCString() : "";
+            if (s.lastTicket == null || s.lastTicket.isEmpty() || message.isEmpty()) {
+                WowBuffer err = new WowBuffer(4);
+                err.putU32(5);
+                s.send(Opcodes.SMSG_GMTICKET_UPDATETEXT, err.array());
+                return true;
+            }
+            s.lastTicket = message;
+            WowBuffer ok = new WowBuffer(4);
+            ok.putU32(4);
+            s.send(Opcodes.SMSG_GMTICKET_UPDATETEXT, ok.array());
+            return true;
+        }
         if (opcode == Opcodes.CMSG_ACCEPT_LFG_MATCH) {
             LfgHandler.acceptMatch(s);
             return true;
