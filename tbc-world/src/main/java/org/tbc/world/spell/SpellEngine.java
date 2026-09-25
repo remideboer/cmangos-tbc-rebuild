@@ -230,6 +230,8 @@ public final class SpellEngine {
     public static final int BATTLE_SHOUT = 2048;
     /** Attack Power Ranged 60 — Spell.dbc 21013; APPLY_AURA MOD_RANGED_ATTACK_POWER +60. */
     public static final int ATTACK_POWER_RANGED_60 = 21013;
+    /** Ghost — Spell.dbc 9036; APPLY_AURA GHOST (pure; death path uses 8326 multi-effect). */
+    public static final int SPELL_GHOST = 9036;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -435,6 +437,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_ATTACK_POWER, 0, 0, 305, 305, 0f));
         spells.put(ATTACK_POWER_RANGED_60, new SpellInfo(ATTACK_POWER_RANGED_60, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_RANGED_ATTACK_POWER, 0, 0, 60, 60, 0f));
+        spells.put(SPELL_GHOST, new SpellInfo(SPELL_GHOST, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_GHOST, 0, 0, 0, 0, 0f));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

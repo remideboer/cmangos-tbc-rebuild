@@ -35,6 +35,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_MOD_DISARM = 67;
     public static final int SPELL_AURA_WATER_BREATHING = 82;
+    public static final int SPELL_AURA_GHOST = 95;
     public static final int SPELL_AURA_MOD_ATTACK_POWER = 99;
     public static final int SPELL_AURA_WATER_WALK = 104;
     public static final int SPELL_AURA_FEATHER_FALL = 105;
@@ -59,7 +60,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_BREATHING,
-            SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER,
+            SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
             SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE);
 
@@ -106,6 +107,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
             modWaterBreathing(target, true);
+        }
+        if (sp.aura() == SPELL_AURA_GHOST) {
+            modGhost(target, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_ATTACK_POWER) {
             modAttackPower(target, sp, true);
@@ -223,6 +227,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
             modWaterBreathing(target, false);
+        }
+        if (sp.aura() == SPELL_AURA_GHOST) {
+            modGhost(target, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_ATTACK_POWER) {
             modAttackPower(target, sp, false);
@@ -460,6 +467,18 @@ public final class AuraEngine {
         int bit = 1 << (misc - 1);
         int flags = player.getInt(UpdateFields.PLAYER_TRACK_CREATURES);
         player.setInt(UpdateFields.PLAYER_TRACK_CREATURES, apply ? flags | bit : flags & ~bit);
+    }
+
+    /**
+     * Aura 95 — CMaNGOS HandleAuraGhost → PLAYER_FLAGS_GHOST + water walk (vis flags later).
+     * Keep water walk on unapply when WATER_WALK aura still present — later.
+     */
+    private static void modGhost(Unit target, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        player.setGhost(apply);
+        player.sendWaterWalk(apply);
     }
 
     /**
