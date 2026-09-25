@@ -28,6 +28,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     public static final int SPELL_AURA_MOD_PACIFY_SILENCE = 60;
+    public static final int SPELL_AURA_MOD_SCALE = 61;
     public static final int SPELL_AURA_MOD_DISARM = 67;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
@@ -42,7 +43,8 @@ public final class AuraEngine {
             SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY, SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
-            SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_DISARM);
+            SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
+            SPELL_AURA_MOD_DISARM);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -72,6 +74,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_INVISIBILITY) {
             modInvisibility(target, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SCALE) {
+            modScale(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             immobilize(target);
@@ -150,6 +155,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_INVISIBILITY) {
             modInvisibility(target, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SCALE) {
+            modScale(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.
@@ -319,6 +327,23 @@ public final class AuraEngine {
         if (target instanceof Player player) {
             player.setInvisibilityGlow(apply);
         }
+    }
+
+    /**
+     * Aura 61 — CMaNGOS HandleAuraModScale: scale = max(0.1, (100+MOD_SCALE)/100 * (100+MOD_SCALE_2)/100).
+     * MOD_SCALE_2 stacking later; unapply restores 1.0 when no other scale auras.
+     */
+    private static void modScale(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (!apply) {
+            target.setFloat(UpdateFields.OBJECT_FIELD_SCALE_X, 1.0f);
+            return;
+        }
+        if (amount == 0) {
+            return;
+        }
+        float scale = Math.max(0.1f, (100f + amount) / 100f);
+        target.setFloat(UpdateFields.OBJECT_FIELD_SCALE_X, scale);
     }
 
     /** Aura 12 — CMaNGOS SetStunned: SetImmobilizedState(stun=true) then UNIT_FLAG_STUNNED. */
