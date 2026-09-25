@@ -431,6 +431,40 @@ class Slice27P0Test {
         assertEquals(z, p.z, 0.01f);
     }
 
+    /**
+     * TP-SL27-007 — HandleMoveNotActiveMoverOpcode. Packed guid + MovementInfo applies
+     * position with no observer echo.
+     */
+    @Test
+    void tpSl27NotActiveMoverAppliesWithoutEcho() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Mover");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player p = a.session().player();
+        a.clear();
+        b.clear();
+        float x = p.x + 7f;
+        float y = p.y - 2f;
+        float z = p.z + 1f;
+        WowBuffer in = new WowBuffer(48);
+        in.putPackedGuid(p.guid);
+        in.putU32(0);
+        in.putU8(0);
+        in.putU32(80);
+        in.putFloat(x);
+        in.putFloat(y);
+        in.putFloat(z);
+        in.putFloat(0.5f);
+        in.putU32(0);
+        a.handle(world, Opcodes.CMSG_MOVE_NOT_ACTIVE_MOVER, in.array());
+        assertEquals(x, p.x, 0.01f);
+        assertEquals(y, p.y, 0.01f);
+        assertEquals(z, p.z, 0.01f);
+        assertFalse(a.saw(Opcodes.CMSG_MOVE_NOT_ACTIVE_MOVER));
+        assertFalse(b.saw(Opcodes.CMSG_MOVE_NOT_ACTIVE_MOVER));
+        assertFalse(b.saw(Opcodes.MSG_MOVE_HEARTBEAT));
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);

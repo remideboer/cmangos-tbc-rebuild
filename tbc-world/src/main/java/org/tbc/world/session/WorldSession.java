@@ -401,6 +401,10 @@ public final class WorldSession {
             handleMoveFlagChangeAck(world, in, Opcodes.MSG_MOVE_FEATHER_FALL);
             return;
         }
+        if (opcode == Opcodes.CMSG_MOVE_NOT_ACTIVE_MOVER) {
+            handleNotActiveMover(world, in);
+            return;
+        }
         switch (opcode) {
             case Opcodes.CMSG_LOGOUT_REQUEST -> handleLogoutRequest(world);
             case Opcodes.CMSG_LOGOUT_CANCEL -> handleLogoutCancel();
@@ -1428,6 +1432,22 @@ public final class WorldSession {
                 o.session.send(responseOpcode, pkt);
             }
         }
+    }
+
+    /**
+     * HandleMoveNotActiveMoverOpcode — packed guid + MovementInfo. Apply only; no echo.
+     */
+    private void handleNotActiveMover(World world, WowBuffer in) {
+        if (in.remaining() < 1) {
+            return;
+        }
+        in.getPackedGuid();
+        MovementInfo m = MovementInfo.readC2s(in);
+        float ox = player.x;
+        float oy = player.y;
+        player.relocate(m.x, m.y, m.z, m.o);
+        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
+        player.movement = m;
     }
 
     /** MiscHandler::HandlePlayedTime — SMSG_PLAYED_TIME total then level, seconds. */
