@@ -1908,6 +1908,35 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — HandleSwapInvItem → EquipItem → _ApplyItemMods ITEM_MOD_HIT_SPELL_RATING.
+     * CMSG_SWAP_INV_ITEM of Auchenai Anchorite's Robe 29341 onto the chest slot must write
+     * spell hit 23 on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_SPELL (Unit.h 7).
+     */
+    @Test
+    void tpSl14SwapInvItemAppliesSpellHitRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "SpellHitSwap", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item robe = new Item(world.nextItemGuid(), Content.ITEM_AUCHENAI_ANCHORITES_ROBE);
+        robe.inventoryType = 20;
+        robe.slot = src;
+        p.items.put((int) robe.guid, robe);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(robe));
+        int dest = world.objectMgr.destEquipSlot(p, 20);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(2);
+        swap.putU8(src);
+        swap.putU8(dest);
+        client.handle(world, Opcodes.CMSG_SWAP_INV_ITEM, swap.array());
+        assertEquals(23, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 7));
+    }
+
+    /**
      * TP-SL14-013 — Player::_ApplyItemBonuses proto-&gt;Block → HandleBaseModValue(SHIELD_BLOCK_VALUE).
      * Autoequip Worn Wooden Shield 2362 must write block 1 on self VALUES PLAYER_SHIELD_BLOCK
      * (update-fields.yaml 1331).
