@@ -259,6 +259,18 @@ public final class LaterOpcodes {
             LfgHandler.setComment(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_CLEAR_LOOKING_FOR_GROUP) {
+            LfgHandler.clearLookingForGroup(s);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_CLEAR_LOOKING_FOR_MORE) {
+            LfgHandler.clearLookingForMore(s);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_SET_LOOKING_FOR_MORE) {
+            LfgHandler.setLookingForMore(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_PET_ACTION) {
             PetHandler.action(s, world, in);
             return true;

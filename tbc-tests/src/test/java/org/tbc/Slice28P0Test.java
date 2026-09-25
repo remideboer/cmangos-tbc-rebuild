@@ -187,6 +187,41 @@ class Slice28P0Test {
     }
 
     /**
+     * TP-SL28-005 — CLEAR_LOOKING_FOR_GROUP / MORE and SET_LOOKING_FOR_MORE.
+     * Clear → SMSG_LFG_UPDATE queued 0; set-more → queued+lfm with packed dungeon word.
+     */
+    @Test
+    void tpSl28LfgClearAndSetLookingForMore() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Lfm");
+        Player p = a.session().player();
+        a.handle(world, Opcodes.CMSG_SET_LOOKING_FOR_GROUP, new byte[0]);
+        assertTrue(p.looking);
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CLEAR_LOOKING_FOR_GROUP, new byte[0]);
+        byte[] cleared = lastPayload(a, Opcodes.SMSG_LFG_UPDATE);
+        assertEquals(0, cleared[0] & 0xFF);
+        assertEquals(0, cleared[1] & 0xFF);
+        assertEquals(0, cleared[2] & 0xFF);
+        assertFalse(p.looking);
+        a.clear();
+        int packed = 36 | (1 << 24);
+        WowBuffer more = new WowBuffer(4);
+        more.putU32(packed);
+        a.handle(world, Opcodes.CMSG_SET_LOOKING_FOR_MORE, more.array());
+        assertTrue(p.looking);
+        WowBuffer upd = new WowBuffer(lastPayload(a, Opcodes.SMSG_LFG_UPDATE));
+        assertEquals(1, upd.getU8());
+        assertEquals(0, upd.getU8());
+        assertEquals(1, upd.getU8());
+        assertEquals(packed, upd.getU32());
+        a.clear();
+        a.handle(world, Opcodes.CMSG_CLEAR_LOOKING_FOR_MORE, new byte[0]);
+        assertEquals(0, lastPayload(a, Opcodes.SMSG_LFG_UPDATE)[0] & 0xFF);
+        assertFalse(p.looking);
+    }
+
+    /**
      * TP-SL28-006 — CMSG_GMTICKET_GETTICKET with no open ticket is GMTICKET_STATUS_DEFAULT 0x0A
      * (not HASTEXT 0x06), so the client does not show “you have an open ticket”.
      */
