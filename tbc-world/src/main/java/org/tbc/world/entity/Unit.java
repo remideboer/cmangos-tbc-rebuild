@@ -22,6 +22,8 @@ public class Unit extends Entity {
     /** Unit.h UNIT_FLAG_SILENCED — silenced, 2.1.1. */
     public static final int UNIT_FLAG_SILENCED = 0x00002000;
     public static final int UNIT_FLAG_UNTARGETABLE = 0x00010000;
+    /** Unit.h UNIT_FLAG_PACIFIED. */
+    public static final int UNIT_FLAG_PACIFIED = 0x00020000;
     public static final int UNIT_FLAG_STUNNED = 0x00040000;
     public static final int UNIT_FLAG_IN_COMBAT = 0x00080000;
     public static final int UNIT_FLAG_TAXI_FLIGHT = 0x00100000;
@@ -253,6 +255,13 @@ public class Unit extends Entity {
         int flags = getInt(UpdateFields.UNIT_FIELD_FLAGS);
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
                 apply ? flags | UNIT_FLAG_SILENCED : flags & ~UNIT_FLAG_SILENCED);
+    }
+
+    /** CMaNGOS HandleAuraModPacify — SetFlag/RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED). */
+    public void setPacified(boolean apply) {
+        int flags = getInt(UpdateFields.UNIT_FIELD_FLAGS);
+        setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                apply ? flags | UNIT_FLAG_PACIFIED : flags & ~UNIT_FLAG_PACIFIED);
     }
 
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
