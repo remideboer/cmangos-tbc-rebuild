@@ -38,6 +38,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_WATER_WALK = 104;
     public static final int SPELL_AURA_FEATHER_FALL = 105;
     public static final int SPELL_AURA_HOVER = 106;
+    public static final int SPELL_AURA_MOD_MELEE_HASTE = 138;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
     /** SharedDefines.h MAX_STATS — strength through spirit. */
@@ -55,7 +56,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_BREATHING,
-            SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER);
+            SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER, SPELL_AURA_MOD_MELEE_HASTE);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -100,6 +101,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
             modWaterBreathing(target, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
+            modMeleeHaste(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(true);
@@ -205,6 +209,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
             modWaterBreathing(target, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
+            modMeleeHaste(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(false);
@@ -430,6 +437,39 @@ public final class AuraEngine {
         int bit = 1 << (misc - 1);
         int flags = player.getInt(UpdateFields.PLAYER_TRACK_CREATURES);
         player.setInt(UpdateFields.PLAYER_TRACK_CREATURES, apply ? flags | bit : flags & ~bit);
+    }
+
+    /**
+     * Aura 138 — CMaNGOS HandleModMeleeSpeedPct → ApplyAttackTimePercentMod(BASE+OFF).
+     * Attack times stay int ms (Combat); percent math mirrors ApplyPercentModFloatValue.
+     */
+    private static void modMeleeHaste(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_BASEATTACKTIME, amount, apply);
+        applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, amount, apply);
+    }
+
+    /** CMaNGOS Unit::ApplyAttackTimePercentMod without attack-timer / m_modAttackSpeedPct side effects. */
+    private static void applyAttackTimePercentMod(Unit target, int field, int amount, boolean apply) {
+        int cur = target.getInt(field);
+        if (cur <= 0) {
+            return;
+        }
+        float val = amount;
+        float factor;
+        if (val > 0) {
+            float v = val;
+            boolean pctApply = !apply;
+            factor = pctApply ? (100.0f + v) / 100.0f : 100.0f / (100.0f + v);
+        } else {
+            float v = -val;
+            factor = apply ? (100.0f + v) / 100.0f : 100.0f / (100.0f + v);
+        }
+        int next = Math.round(cur * factor);
+        target.setInt(field, Math.max(1, next));
     }
 
     /**
