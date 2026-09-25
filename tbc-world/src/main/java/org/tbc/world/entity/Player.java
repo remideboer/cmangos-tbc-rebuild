@@ -1114,6 +1114,21 @@ public final class Player extends Unit {
     }
 
     /**
+     * CMaNGOS Unit::SetHover for client-controlled: SMSG_MOVE_SET_HOVER / UNSET_HOVER
+     * = packed guid + uint32 order counter (Unit.cpp).
+     */
+    @Override
+    public void sendHover(boolean enable) {
+        if (session == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(12);
+        b.putPackedGuid(guid);
+        b.putU32(moveOrderCounter++);
+        session.send(enable ? Opcodes.SMSG_MOVE_SET_HOVER : Opcodes.SMSG_MOVE_UNSET_HOVER, b.array());
+    }
+
+    /**
      * CMaNGOS SetSpeedRate MOVE_RUN for client-controlled: SMSG_FORCE_RUN_SPEED_CHANGE
      * = packed guid + order counter + u8(0) + float GetSpeed (Unit.cpp).
      */

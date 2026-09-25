@@ -32,6 +32,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_DISARM = 67;
     public static final int SPELL_AURA_WATER_WALK = 104;
     public static final int SPELL_AURA_FEATHER_FALL = 105;
+    public static final int SPELL_AURA_HOVER = 106;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
     /** SharedDefines.h MAX_STATS — strength through spirit. */
@@ -46,7 +47,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_DECREASE_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
-            SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL);
+            SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -85,6 +86,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_FEATHER_FALL) {
             target.sendFeatherFall(true);
+        }
+        if (sp.aura() == SPELL_AURA_HOVER) {
+            target.sendHover(true);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             immobilize(target);
@@ -172,6 +176,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_FEATHER_FALL) {
             target.sendFeatherFall(false);
+        }
+        if (sp.aura() == SPELL_AURA_HOVER) {
+            target.sendHover(false);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.

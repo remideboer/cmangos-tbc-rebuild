@@ -210,6 +210,8 @@ public final class SpellEngine {
     public static final int WATER_WALKING = 546;
     /** Slow Fall — Spell.dbc 130; APPLY_AURA FEATHER_FALL. */
     public static final int SLOW_FALL = 130;
+    /** Hover — Spell.dbc 11010; APPLY_AURA HOVER. */
+    public static final int SPELL_HOVER = 11010;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -395,6 +397,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_WATER_WALK, 0, 0, 0, 0, 0f));
         spells.put(SLOW_FALL, new SpellInfo(SLOW_FALL, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_FEATHER_FALL, 0, 0, 0, 0, 0f));
+        spells.put(SPELL_HOVER, new SpellInfo(SPELL_HOVER, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_HOVER, 0, 0, 0, 0, 0f));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
