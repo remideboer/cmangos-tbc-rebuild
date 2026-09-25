@@ -57,6 +57,8 @@ public class Unit extends Entity {
     private boolean rooted;
     /** CMaNGOS GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED); 0 = none. */
     private int decreaseSpeedPct;
+    /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SPEED); 0 = none. */
+    private int increaseSpeedPct;
     /** CMaNGOS m_speed_rate[MOVE_RUN]; default 1.0. */
     private float runSpeedRate = 1.0f;
     private boolean knockBackPending;
@@ -99,12 +101,18 @@ public class Unit extends Entity {
         updateRunSpeed();
     }
 
+    public void setIncreaseSpeedPct(int pct) {
+        increaseSpeedPct = pct;
+        updateRunSpeed();
+    }
+
     public float runSpeed() {
         return runSpeedRate * BASE_RUN_SPEED;
     }
 
     private void updateRunSpeed() {
-        float rate = 1.0f;
+        // Unit::UpdateSpeed MOVE_RUN: positive main_speed_mod then strongest slow.
+        float rate = increaseSpeedPct != 0 ? (100.0f + increaseSpeedPct) / 100.0f : 1.0f;
         if (decreaseSpeedPct != 0) {
             rate *= (100.0f + decreaseSpeedPct) / 100.0f;
         }

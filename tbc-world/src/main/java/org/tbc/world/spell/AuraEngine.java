@@ -17,6 +17,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_ROOT = 26;
     public static final int SPELL_AURA_MOD_SILENCE = 27;
     public static final int SPELL_AURA_MOD_STAT = 29;
+    public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
@@ -27,7 +28,8 @@ public final class AuraEngine {
     private static final Set<Integer> KNOWN_AURAS = Set.of(
             SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_PACIFY,
             SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
-            SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_SHAPESHIFT);
+            SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_DECREASE_SPEED,
+            SPELL_AURA_MOD_SHAPESHIFT);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -52,6 +54,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_DECREASE_SPEED) {
             modDecreaseSpeed(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_SPEED) {
+            modIncreaseSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_SHAPESHIFT) {
             target.setShapeshiftForm(sp.misc());
@@ -95,6 +100,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_DECREASE_SPEED) {
             modDecreaseSpeed(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_SPEED) {
+            modIncreaseSpeed(target, sp, false);
         }
     }
 
@@ -164,6 +172,18 @@ public final class AuraEngine {
             return;
         }
         target.setDecreaseSpeedPct(apply ? amount : 0);
+    }
+
+    /**
+     * Aura 31 — CMaNGOS HandleAuraModIncreaseSpeed → UpdateSpeed; amount EffectBasePoints+1 %.
+     * Stacking max-positive later (GetMaxPositiveAuraModifier).
+     */
+    private static void modIncreaseSpeed(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        target.setIncreaseSpeedPct(apply ? amount : 0);
     }
 
     /** Aura 12 — CMaNGOS SetStunned: SetImmobilizedState(stun=true) then UNIT_FLAG_STUNNED. */

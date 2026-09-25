@@ -186,6 +186,8 @@ public final class SpellEngine {
     public static final int SPELL_PACIFY = 10730;
     /** Frostbolt rank 1 — Spell.dbc 116; effect0 APPLY_AURA MOD_DECREASE_SPEED −40%. */
     public static final int FROSTBOLT = 116;
+    /** Sprint — Spell.dbc 2983; APPLY_AURA MOD_INCREASE_SPEED +50%. */
+    public static final int SPRINT = 2983;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -345,6 +347,9 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_PACIFY, 0, 0, 0, 0, 0f));
         spells.put(FROSTBOLT, new SpellInfo(FROSTBOLT, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_DECREASE_SPEED, 4, 25, -40, -40, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(SPRINT, new SpellInfo(SPRINT, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_INCREASE_SPEED, 0, 0, 50, 50, 0f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
