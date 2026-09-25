@@ -22,6 +22,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_STAT = 29;
     public static final int SPELL_AURA_MOD_STEALTH = 16;
     public static final int SPELL_AURA_MOD_INVISIBILITY = 18;
+    public static final int SPELL_AURA_TRACK_CREATURES = 44;
     public static final int SPELL_AURA_TRACK_RESOURCES = 45;
     public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
@@ -45,7 +46,8 @@ public final class AuraEngine {
     private static final Set<Integer> KNOWN_AURAS = Set.of(
             SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE,
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
-            SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY, SPELL_AURA_TRACK_RESOURCES,
+            SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY,
+            SPELL_AURA_TRACK_CREATURES, SPELL_AURA_TRACK_RESOURCES,
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
@@ -83,6 +85,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_TRACK_RESOURCES) {
             modTrackResources(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_TRACK_CREATURES) {
+            modTrackCreatures(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_SCALE) {
             modScale(target, sp, true);
@@ -179,6 +184,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_TRACK_RESOURCES) {
             modTrackResources(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_TRACK_CREATURES) {
+            modTrackCreatures(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_SCALE) {
             modScale(target, sp, false);
@@ -391,6 +399,22 @@ public final class AuraEngine {
         int bit = 1 << (misc - 1);
         int flags = player.getInt(UpdateFields.PLAYER_TRACK_RESOURCES);
         player.setInt(UpdateFields.PLAYER_TRACK_RESOURCES, apply ? flags | bit : flags & ~bit);
+    }
+
+    /**
+     * Aura 44 — CMaNGOS HandleAuraTrackCreatures → SetFlag/RemoveFlag(PLAYER_TRACK_CREATURES, 1 &lt;&lt; (misc-1)).
+     */
+    private static void modTrackCreatures(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        int misc = sp.misc();
+        if (misc < 1 || misc > 32) {
+            return;
+        }
+        int bit = 1 << (misc - 1);
+        int flags = player.getInt(UpdateFields.PLAYER_TRACK_CREATURES);
+        player.setInt(UpdateFields.PLAYER_TRACK_CREATURES, apply ? flags | bit : flags & ~bit);
     }
 
     /**
