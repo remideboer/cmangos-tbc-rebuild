@@ -2003,6 +2003,266 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — RemoveItem → _ApplyItemMods(false) ITEM_MOD_CRIT_SPELL_RATING.
+     * CMSG_AUTOSTORE_BAG_ITEM of equipped Garments of Serene Shores 34229 must put
+     * spell crit 0 back on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_CRIT_SPELL.
+     */
+    @Test
+    void tpSl14UnequipReversesSpellCritRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "UnequipSpellCrit", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_GARMENTS_OF_SERENE_SHORES);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int dest = chest.slot;
+
+        client.clear();
+        WowBuffer store = new WowBuffer(3);
+        store.putU8(0);
+        store.putU8(dest);
+        store.putU8(0);
+        client.handle(world, Opcodes.CMSG_AUTOSTORE_BAG_ITEM, store.array());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 10));
+    }
+
+    /**
+     * TP-SL14-013 — HandleSwapInvItem → ITEM_MOD_CRIT_SPELL_RATING.
+     * CMSG_SWAP_INV_ITEM of Garments of Serene Shores 34229 must write spell crit 25
+     * on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_CRIT_SPELL (Unit.h 10).
+     */
+    @Test
+    void tpSl14SwapInvItemAppliesSpellCritRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "SpellCritSwap", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_GARMENTS_OF_SERENE_SHORES);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+        int dest = world.objectMgr.destEquipSlot(p, 5);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(2);
+        swap.putU8(src);
+        swap.putU8(dest);
+        client.handle(world, Opcodes.CMSG_SWAP_INV_ITEM, swap.array());
+        assertEquals(25, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 10));
+    }
+
+    /**
+     * TP-SL14-013 — HandleSwapItem → ITEM_MOD_CRIT_SPELL_RATING.
+     * CMSG_SWAP_ITEM of Garments of Serene Shores 34229 must write spell crit 25
+     * on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_CRIT_SPELL.
+     */
+    @Test
+    void tpSl14SwapItemAppliesSpellCritRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "SpellCritBag", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_GARMENTS_OF_SERENE_SHORES);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+        int dest = world.objectMgr.destEquipSlot(p, 5);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(4);
+        swap.putU8(0);
+        swap.putU8(dest);
+        swap.putU8(0);
+        swap.putU8(src);
+        client.handle(world, Opcodes.CMSG_SWAP_ITEM, swap.array());
+        assertEquals(25, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 10));
+    }
+
+    /**
+     * TP-SL14-013 — DestroyItem → ITEM_MOD_CRIT_SPELL_RATING reverse.
+     * CMSG_DESTROYITEM of equipped Garments of Serene Shores 34229 must put spell crit 0
+     * on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_CRIT_SPELL.
+     */
+    @Test
+    void tpSl14DestroyEquippedItemReversesSpellCritRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "DestroySpellCrit", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item chest = new Item(world.nextItemGuid(), Content.ITEM_GARMENTS_OF_SERENE_SHORES);
+        chest.inventoryType = 5;
+        chest.slot = src;
+        p.items.put((int) chest.guid, chest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(chest));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int dest = chest.slot;
+
+        client.clear();
+        WowBuffer destroy = new WowBuffer(3);
+        destroy.putU8(0);
+        destroy.putU8(dest);
+        destroy.putU8(0);
+        client.handle(world, Opcodes.CMSG_DESTROYITEM, destroy.array());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 10));
+    }
+
+    /**
+     * TP-SL14-013 — RemoveItem → ITEM_MOD_HASTE_SPELL_RATING reverse.
+     * CMSG_AUTOSTORE_BAG_ITEM of equipped Sunglow Vest 34212 must put spell haste 0
+     * on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_SPELL.
+     */
+    @Test
+    void tpSl14UnequipReversesSpellHasteRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "UnequipSpellHaste", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_SUNGLOW_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int dest = vest.slot;
+
+        client.clear();
+        WowBuffer store = new WowBuffer(3);
+        store.putU8(0);
+        store.putU8(dest);
+        store.putU8(0);
+        client.handle(world, Opcodes.CMSG_AUTOSTORE_BAG_ITEM, store.array());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19));
+    }
+
+    /**
+     * TP-SL14-013 — HandleSwapInvItem → ITEM_MOD_HASTE_SPELL_RATING.
+     * CMSG_SWAP_INV_ITEM of Sunglow Vest 34212 must write spell haste 33
+     * on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_SPELL (Unit.h 19).
+     */
+    @Test
+    void tpSl14SwapInvItemAppliesSpellHasteRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "SpellHasteSwap", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_SUNGLOW_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+        int dest = world.objectMgr.destEquipSlot(p, 5);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(2);
+        swap.putU8(src);
+        swap.putU8(dest);
+        client.handle(world, Opcodes.CMSG_SWAP_INV_ITEM, swap.array());
+        assertEquals(33, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19));
+    }
+
+    /**
+     * TP-SL14-013 — HandleSwapItem → ITEM_MOD_HASTE_SPELL_RATING.
+     * CMSG_SWAP_ITEM of Sunglow Vest 34212 must write spell haste 33
+     * on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_SPELL.
+     */
+    @Test
+    void tpSl14SwapItemAppliesSpellHasteRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "SpellHasteBag", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_SUNGLOW_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+        int dest = world.objectMgr.destEquipSlot(p, 5);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(4);
+        swap.putU8(0);
+        swap.putU8(dest);
+        swap.putU8(0);
+        swap.putU8(src);
+        client.handle(world, Opcodes.CMSG_SWAP_ITEM, swap.array());
+        assertEquals(33, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19));
+    }
+
+    /**
+     * TP-SL14-013 — DestroyItem → ITEM_MOD_HASTE_SPELL_RATING reverse.
+     * CMSG_DESTROYITEM of equipped Sunglow Vest 34212 must put spell haste 0
+     * on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_HASTE_SPELL.
+     */
+    @Test
+    void tpSl14DestroyEquippedItemReversesSpellHasteRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "DestroySpellHaste", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item vest = new Item(world.nextItemGuid(), Content.ITEM_SUNGLOW_VEST);
+        vest.inventoryType = 5;
+        vest.slot = src;
+        p.items.put((int) vest.guid, vest);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(vest));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int dest = vest.slot;
+
+        client.clear();
+        WowBuffer destroy = new WowBuffer(3);
+        destroy.putU8(0);
+        destroy.putU8(dest);
+        destroy.putU8(0);
+        client.handle(world, Opcodes.CMSG_DESTROYITEM, destroy.array());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19));
+    }
+
+    /**
      * TP-SL14-013 — Player::_ApplyItemBonuses proto-&gt;Block → HandleBaseModValue(SHIELD_BLOCK_VALUE).
      * Autoequip Worn Wooden Shield 2362 must write block 1 on self VALUES PLAYER_SHIELD_BLOCK
      * (update-fields.yaml 1331).
