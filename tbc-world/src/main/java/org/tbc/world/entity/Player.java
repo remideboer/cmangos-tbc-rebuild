@@ -1059,6 +1059,20 @@ public final class Player extends Unit {
     public static final int PLAYER_FIELD_BYTE2_STEALTH = 0x20;
     public static final int PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW = 0x40;
 
+    /**
+     * CMaNGOS Player::m_environmentBreathingMultiplier — 0 = infinite breath (WATER_BREATHING),
+     * 1 = normal; MOD_WATER_BREATHING scales later.
+     */
+    private float waterBreathingIntervalMultiplier = 1.0f;
+
+    public void setWaterBreathingIntervalMultiplier(float multiplier) {
+        this.waterBreathingIntervalMultiplier = multiplier;
+    }
+
+    public float waterBreathingIntervalMultiplier() {
+        return waterBreathingIntervalMultiplier;
+    }
+
     public int createSelfFlags() {
         return PLAYER_CREATE_FLAGS;
     }

@@ -34,6 +34,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_SCALE = 61;
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_MOD_DISARM = 67;
+    public static final int SPELL_AURA_WATER_BREATHING = 82;
     public static final int SPELL_AURA_WATER_WALK = 104;
     public static final int SPELL_AURA_FEATHER_FALL = 105;
     public static final int SPELL_AURA_HOVER = 106;
@@ -53,7 +54,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
-            SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_MOD_DISARM,
+            SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_BREATHING,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER);
 
     public boolean knownAura(int aura) {
@@ -96,6 +97,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK) {
             modCastingSpeed(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
+            modWaterBreathing(target, true);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(true);
@@ -198,6 +202,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK) {
             modCastingSpeed(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
+            modWaterBreathing(target, false);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(false);
@@ -423,6 +430,17 @@ public final class AuraEngine {
         int bit = 1 << (misc - 1);
         int flags = player.getInt(UpdateFields.PLAYER_TRACK_CREATURES);
         player.setInt(UpdateFields.PLAYER_TRACK_CREATURES, apply ? flags | bit : flags & ~bit);
+    }
+
+    /**
+     * Aura 82 — CMaNGOS HandleWaterBreathing → SetWaterBreathingIntervalMultiplier(0) on apply;
+     * restore 1.0 on unapply when no other WATER_BREATHING (HasAuraType / MOD_WATER_BREATHING later).
+     */
+    private static void modWaterBreathing(Unit target, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        player.setWaterBreathingIntervalMultiplier(apply ? 0f : 1.0f);
     }
 
     /**
