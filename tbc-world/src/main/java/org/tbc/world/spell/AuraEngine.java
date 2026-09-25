@@ -25,6 +25,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     public static final int SPELL_AURA_MOD_PACIFY_SILENCE = 60;
+    public static final int SPELL_AURA_MOD_DISARM = 67;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
     /** SharedDefines.h MAX_STATS — strength through spirit. */
@@ -37,7 +38,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_DECREASE_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
-            SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE);
+            SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_DISARM);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -58,6 +59,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_CONFUSE) {
             // HandleModConfuse(true) → SetConfused(true).
             target.setConfused(true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_DISARM) {
+            target.setDisarmed(true);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             immobilize(target);
@@ -126,6 +130,10 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_CONFUSE) {
             // HandleModConfuse(false) → SetConfused(false); stacking other MOD_CONFUSE later.
             target.setConfused(false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_DISARM) {
+            // HandleAuraModDisarm(false); stacking other MOD_DISARM later.
+            target.setDisarmed(false);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.
