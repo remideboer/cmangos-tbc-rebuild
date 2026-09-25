@@ -52,6 +52,12 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_RESISTANCE) {
             modResistance(target, sp, false);
         }
+        if (sp.aura() == SPELL_AURA_MOD_STUN) {
+            // HandleAuraModStun(false) → SetStunned(false) → clear flag + SetImmobilizedState(false).
+            // Stacking other MOD_STUN auras later (HasAuraType check).
+            target.setStunned(false);
+            target.sendMoveRoot(false);
+        }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.
             target.sendMoveRoot(false);

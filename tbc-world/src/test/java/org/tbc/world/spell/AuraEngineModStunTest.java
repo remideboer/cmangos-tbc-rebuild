@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -67,6 +68,56 @@ class AuraEngineModStunTest {
         WowBuffer root = new WowBuffer(victim.last.get(Opcodes.SMSG_FORCE_MOVE_ROOT));
         assertEquals(target.guid, root.getPackedGuid());
         assertEquals(0, root.getU32());
+    }
+
+    /**
+     * TP-SL26-123 — HandleAuraModStun(false) → SetStunned(false) → clear UNIT_FLAG_STUNNED
+     * and SetImmobilizedState(false) → SendMoveRoot(false).
+     */
+    @Test
+    void unapplyWhenModStunShouldClearStunnedFlag() {
+        SpellEngine eng = new SpellEngine();
+        Creature mob = new Creature();
+        eng.apply(new Player(), mob, HAMMER_OF_JUSTICE);
+        eng.unapplyAura(mob, SpellEngine.HAMMER_OF_JUSTICE);
+        assertEquals(0, mob.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_STUNNED);
+    }
+
+    @Test
+    void unapplyWhenModStunOnPlayerShouldSendForceMoveUnroot() {
+        World world = World.inMemory();
+        Sink victim = login(world, "Victim");
+        Player target = victim.session.player();
+        SpellEngine eng = new SpellEngine();
+        eng.apply(new Player(), target, HAMMER_OF_JUSTICE);
+        victim.last.clear();
+        eng.unapplyAura(target, SpellEngine.HAMMER_OF_JUSTICE);
+        assertEquals(0, target.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_STUNNED);
+        WowBuffer unroot = new WowBuffer(victim.last.get(Opcodes.SMSG_FORCE_MOVE_UNROOT));
+        assertEquals(target.guid, unroot.getPackedGuid());
+        assertEquals(1, unroot.getU32());
+        assertFalse(target.rooted());
+    }
+
+    @Test
+    void unapplyWhenModStunOnCreatureShouldSendSplineMoveUnroot() {
+        Creature mob = new Creature();
+        mob.guid = 0xF130000000000008L;
+        Map<Integer, byte[]> last = new HashMap<>();
+        mob.messageToSet = (opcode, payload) -> last.put(opcode, payload);
+        SpellEngine eng = new SpellEngine();
+        eng.apply(new Player(), mob, HAMMER_OF_JUSTICE);
+        last.clear();
+        eng.unapplyAura(mob, SpellEngine.HAMMER_OF_JUSTICE);
+        assertEquals(0, mob.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_STUNNED);
+        WowBuffer unroot = new WowBuffer(last.get(Opcodes.SMSG_SPLINE_MOVE_UNROOT));
+        assertEquals(mob.guid, unroot.getPackedGuid());
+        assertFalse(mob.rooted());
+    }
+
+    @Test
+    void unapplyWhenTargetMissingShouldNoOp() {
+        new AuraEngine().unapply(null, HAMMER_OF_JUSTICE);
     }
 
     private static Sink login(World world, String name) {
