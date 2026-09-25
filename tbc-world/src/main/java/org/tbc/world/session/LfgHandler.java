@@ -28,9 +28,27 @@ public final class LfgHandler {
         list.putU32(0);
         list.putU32(0);
         list.putU32(0);
-        list.putCString("");
+        list.putCString(p.lfgComment != null ? p.lfgComment : "");
         list.putU32(0);
         s.send(Opcodes.MSG_LOOKING_FOR_GROUP, list.array());
+    }
+
+    /** LFGHandler::HandleLfgSetAutoJoinOpcode — SMSG_MEETINGSTONE_JOINFAILED FAIL_NONE 0. */
+    public static void setAutoJoin(WorldSession s) {
+        s.player().lfgAutoJoin = true;
+        WowBuffer fail = new WowBuffer(1);
+        fail.putU8(0);
+        s.send(Opcodes.SMSG_MEETINGSTONE_JOINFAILED, fail.array());
+    }
+
+    /** LFGHandler::HandleLfgClearAutoJoinOpcode — no SMSG. */
+    public static void clearAutoJoin(WorldSession s) {
+        s.player().lfgAutoJoin = false;
+    }
+
+    /** LFGHandler::HandleSetLfgCommentOpcode — string stored for list rows. */
+    public static void setComment(WorldSession s, WowBuffer in) {
+        s.player().lfgComment = in.remaining() > 0 ? in.getCString() : "";
     }
 
     public static void acceptMatch(WorldSession s) {

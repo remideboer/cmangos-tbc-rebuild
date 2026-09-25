@@ -352,6 +352,8 @@ public final class Player extends Unit {
     public Item guildBankItem;
     public int guildBankTabs;
     public boolean looking;
+    /** CMaNGOS LfgInfo.autojoin — CMSG_LFG_SET_AUTOJOIN / CLEAR_AUTOJOIN. */
+    public boolean lfgAutoJoin;
     public boolean channeling;
 
     /** CMaNGOS Unit::InterruptSpell — stop current channeled/generic cast. */

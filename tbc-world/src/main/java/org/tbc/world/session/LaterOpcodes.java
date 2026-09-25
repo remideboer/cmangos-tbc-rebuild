@@ -247,6 +247,18 @@ public final class LaterOpcodes {
             LfgHandler.list(s, in);
             return true;
         }
+        if (opcode == Opcodes.CMSG_LFG_SET_AUTOJOIN) {
+            LfgHandler.setAutoJoin(s);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_LFG_CLEAR_AUTOJOIN) {
+            LfgHandler.clearAutoJoin(s);
+            return true;
+        }
+        if (opcode == Opcodes.CMSG_SET_LFG_COMMENT) {
+            LfgHandler.setComment(s, in);
+            return true;
+        }
         if (opcode == Opcodes.CMSG_PET_ACTION) {
             PetHandler.action(s, world, in);
             return true;

@@ -8,6 +8,7 @@ import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** TP-SL28-* from quest.md / loot.md / misc-player.md / lfg.md */
@@ -131,6 +132,58 @@ class Slice28P0Test {
         a.handle(world, Opcodes.CMSG_GMTICKET_SYSTEMSTATUS, new byte[0]);
         byte[] st = lastPayload(a, Opcodes.SMSG_GMTICKET_SYSTEMSTATUS);
         assertEquals(1, WowClientDouble.u32le(st, 0));
+    }
+
+    /**
+     * TP-SL28-005 — HandleLfgSetAutoJoinOpcode / ClearAutoJoin.
+     * SET → SMSG_MEETINGSTONE_JOINFAILED FAIL_NONE 0 and autojoin true; CLEAR clears the flag.
+     */
+    @Test
+    void tpSl28LfgAutoJoinToggles() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "AutoJoin");
+        Player p = a.session().player();
+        a.clear();
+        a.handle(world, Opcodes.CMSG_LFG_SET_AUTOJOIN, new byte[0]);
+        byte[] fail = lastPayload(a, Opcodes.SMSG_MEETINGSTONE_JOINFAILED);
+        assertEquals(0, fail[0] & 0xFF);
+        assertTrue(p.lfgAutoJoin);
+        a.clear();
+        a.handle(world, Opcodes.CMSG_LFG_CLEAR_AUTOJOIN, new byte[0]);
+        assertFalse(p.lfgAutoJoin);
+        assertFalse(a.saw(Opcodes.SMSG_MEETINGSTONE_JOINFAILED));
+    }
+
+    /**
+     * TP-SL28-005 — HandleSetLfgCommentOpcode. Comment is echoed in MSG_LOOKING_FOR_GROUP list row.
+     */
+    @Test
+    void tpSl28LfgCommentEchoesInList() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Commenter");
+        a.clear();
+        WowBuffer comment = new WowBuffer(32);
+        comment.putCString("need tank for RFC");
+        a.handle(world, Opcodes.CMSG_SET_LFG_COMMENT, comment.array());
+        a.handle(world, Opcodes.CMSG_SET_LOOKING_FOR_GROUP, new byte[0]);
+        a.clear();
+        WowBuffer query = new WowBuffer(8);
+        query.putU32(1);
+        query.putU32(0);
+        a.handle(world, Opcodes.MSG_LOOKING_FOR_GROUP, query.array());
+        WowBuffer list = new WowBuffer(lastPayload(a, Opcodes.MSG_LOOKING_FOR_GROUP));
+        list.getU32();
+        list.getU32();
+        list.getU32();
+        list.getU32();
+        list.getPackedGuid();
+        list.getU32();
+        list.getU32();
+        list.getU8();
+        list.getU32();
+        list.getU32();
+        list.getU32();
+        assertEquals("need tank for RFC", list.getCString());
     }
 
     /**
