@@ -12,6 +12,7 @@ import java.util.Set;
  */
 public final class AuraEngine {
     public static final int SPELL_AURA_MOD_STUN = 12;
+    public static final int SPELL_AURA_MOD_FEAR = 7;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     public static final int SPELL_AURA_MOD_PACIFY = 25;
     public static final int SPELL_AURA_MOD_ROOT = 26;
@@ -31,7 +32,7 @@ public final class AuraEngine {
     public static final int MAX_POWERS = 5;
 
     private static final Set<Integer> KNOWN_AURAS = Set.of(
-            SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_PACIFY,
+            SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_PACIFY,
             SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_DECREASE_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
@@ -48,6 +49,10 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_STUN) {
             modStun(target);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_FEAR) {
+            // HandleModFear(true) → SetFleeing(true).
+            target.setFleeing(true);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             immobilize(target);
@@ -108,6 +113,10 @@ public final class AuraEngine {
             // Stacking other MOD_STUN auras later (HasAuraType check).
             target.setStunned(false);
             target.sendMoveRoot(false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_FEAR) {
+            // HandleModFear(false) → SetFleeing(false); stacking other MOD_FEAR later.
+            target.setFleeing(false);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.
