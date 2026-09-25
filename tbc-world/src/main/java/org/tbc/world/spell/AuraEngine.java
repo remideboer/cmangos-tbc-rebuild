@@ -22,6 +22,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH = 34;
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
+    public static final int SPELL_AURA_MOD_PACIFY_SILENCE = 60;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
     /** SharedDefines.h MAX_STATS — strength through spirit. */
@@ -34,7 +35,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_DECREASE_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
-            SPELL_AURA_MOD_SHAPESHIFT);
+            SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -56,6 +57,11 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_PACIFY) {
             target.setPacified(true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_PACIFY_SILENCE) {
+            // HandleAuraModPacifyAndSilence → pacify + silence.
+            target.setPacified(true);
+            target.setSilenced(true);
         }
         if (sp.aura() == SPELL_AURA_MOD_DECREASE_SPEED) {
             modDecreaseSpeed(target, sp, true);
@@ -114,6 +120,10 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_PACIFY) {
             // HandleAuraModPacify(false); stacking other MOD_PACIFY later.
             target.setPacified(false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_PACIFY_SILENCE) {
+            target.setPacified(false);
+            target.setSilenced(false);
         }
         if (sp.aura() == SPELL_AURA_MOD_DECREASE_SPEED) {
             modDecreaseSpeed(target, sp, false);
