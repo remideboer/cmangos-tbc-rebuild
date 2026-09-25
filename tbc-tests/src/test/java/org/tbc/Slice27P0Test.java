@@ -260,6 +260,65 @@ class Slice27P0Test {
         assertEquals(z, p.z, 0.01f);
     }
 
+    /**
+     * TP-SL27-007 — HandleMoveKnockBackAck. Nearby get MSG_MOVE_KNOCK_BACK:
+     * packed guid + MovementInfo + jump cos/sin/xy/zspeed. Sender excluded.
+     */
+    @Test
+    void tpSl27KnockBackAckEchoesToNearby() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Knocked");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player p = a.session().player();
+        a.clear();
+        b.clear();
+        float x = p.x + 5f;
+        float y = p.y + 3f;
+        float z = p.z + 2f;
+        float jumpZ = -10f;
+        float jumpCos = 0.6f;
+        float jumpSin = 0.8f;
+        float jumpXy = 12f;
+        WowBuffer in = new WowBuffer(64);
+        in.putPackedGuid(p.guid);
+        in.putU32(1);
+        in.putU32(MovementInfo.MOVEFLAG_FALLING);
+        in.putU8(0);
+        in.putU32(100);
+        in.putFloat(x);
+        in.putFloat(y);
+        in.putFloat(z);
+        in.putFloat(1.2f);
+        in.putU32(0);
+        in.putFloat(jumpZ);
+        in.putFloat(jumpCos);
+        in.putFloat(jumpSin);
+        in.putFloat(jumpXy);
+        a.handle(world, Opcodes.CMSG_MOVE_KNOCK_BACK_ACK, in.array());
+        assertFalse(a.saw(Opcodes.MSG_MOVE_KNOCK_BACK));
+        WowBuffer out = new WowBuffer(lastPayload(b, Opcodes.MSG_MOVE_KNOCK_BACK));
+        assertEquals(p.guid, out.getPackedGuid());
+        assertEquals(MovementInfo.MOVEFLAG_FALLING, out.getU32());
+        assertEquals(0, out.getU8());
+        out.getU32();
+        assertEquals(x, out.getFloat(), 0.01f);
+        assertEquals(y, out.getFloat(), 0.01f);
+        assertEquals(z, out.getFloat(), 0.01f);
+        assertEquals(1.2f, out.getFloat(), 0.01f);
+        assertEquals(0, out.getU32());
+        assertEquals(jumpZ, out.getFloat(), 0.01f);
+        assertEquals(jumpCos, out.getFloat(), 0.01f);
+        assertEquals(jumpSin, out.getFloat(), 0.01f);
+        assertEquals(jumpXy, out.getFloat(), 0.01f);
+        assertEquals(jumpCos, out.getFloat(), 0.01f);
+        assertEquals(jumpSin, out.getFloat(), 0.01f);
+        assertEquals(jumpXy, out.getFloat(), 0.01f);
+        assertEquals(jumpZ, out.getFloat(), 0.01f);
+        assertEquals(x, p.x, 0.01f);
+        assertEquals(y, p.y, 0.01f);
+        assertEquals(z, p.z, 0.01f);
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);

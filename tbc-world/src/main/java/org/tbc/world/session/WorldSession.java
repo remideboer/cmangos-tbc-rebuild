@@ -385,6 +385,10 @@ public final class WorldSession {
             handleMove(world, opcode, in, false);
             return;
         }
+        if (opcode == Opcodes.CMSG_MOVE_KNOCK_BACK_ACK) {
+            handleKnockBackAck(world, in);
+            return;
+        }
         switch (opcode) {
             case Opcodes.CMSG_LOGOUT_REQUEST -> handleLogoutRequest(world);
             case Opcodes.CMSG_LOGOUT_CANCEL -> handleLogoutCancel();
@@ -1344,6 +1348,41 @@ public final class WorldSession {
         player.relocate(m.x, m.y, m.z, m.o);
         world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
         player.movement = m;
+    }
+
+    /**
+     * HandleMoveKnockBackAck — packed guid + counter + MovementInfo.
+     * Observers get MSG_MOVE_KNOCK_BACK: packed guid + MovementInfo + jump cos/sin/xy/zspeed.
+     * Sender excluded (SendMessageToAllWhoSeeMeMove).
+     */
+    private void handleKnockBackAck(World world, WowBuffer in) {
+        if (in.remaining() < 5) {
+            return;
+        }
+        in.getPackedGuid();
+        if (in.remaining() < 4) {
+            return;
+        }
+        in.getU32();
+        MovementInfo m = MovementInfo.readC2s(in);
+        float ox = player.x;
+        float oy = player.y;
+        player.relocate(m.x, m.y, m.z, m.o);
+        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
+        player.movement = m;
+        m.stime = (int) world.nowMs();
+        WowBuffer echo = new WowBuffer(80);
+        m.write(echo, true, player.guid, m.stime);
+        echo.putFloat(m.jumpCos);
+        echo.putFloat(m.jumpSin);
+        echo.putFloat(m.jumpXy);
+        echo.putFloat(m.jumpZ);
+        byte[] pkt = echo.array();
+        for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
+            if (o != player && o.session != null) {
+                o.session.send(Opcodes.MSG_MOVE_KNOCK_BACK, pkt);
+            }
+        }
     }
 
     /** MiscHandler::HandlePlayedTime — SMSG_PLAYED_TIME total then level, seconds. */
