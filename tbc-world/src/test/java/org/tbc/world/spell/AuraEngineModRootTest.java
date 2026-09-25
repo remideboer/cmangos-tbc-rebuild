@@ -94,6 +94,39 @@ class AuraEngineModRootTest {
         assertTrue(mob.rooted());
     }
 
+    /**
+     * TP-SL26-121 — HandleAuraModRoot(false) → SetImmobilizedState(false) → SendMoveRoot(false).
+     */
+    @Test
+    void unapplyWhenModRootOnPlayerShouldSendForceMoveUnroot() {
+        World world = World.inMemory();
+        Sink victim = login(world, "Victim");
+        Player target = victim.session.player();
+        SpellEngine eng = new SpellEngine();
+        eng.apply(new Player(), target, FROST_NOVA);
+        victim.last.clear();
+        eng.unapplyAura(target, 122);
+        WowBuffer unroot = new WowBuffer(victim.last.get(Opcodes.SMSG_FORCE_MOVE_UNROOT));
+        assertEquals(target.guid, unroot.getPackedGuid());
+        assertEquals(1, unroot.getU32());
+        assertFalse(target.rooted());
+    }
+
+    @Test
+    void unapplyWhenModRootOnCreatureShouldSendSplineMoveUnroot() {
+        Creature mob = new Creature();
+        mob.guid = 0xF130000000000007L;
+        Map<Integer, byte[]> last = new HashMap<>();
+        mob.messageToSet = (opcode, payload) -> last.put(opcode, payload);
+        SpellEngine eng = new SpellEngine();
+        eng.apply(new Player(), mob, FROST_NOVA);
+        last.clear();
+        eng.unapplyAura(mob, 122);
+        WowBuffer unroot = new WowBuffer(last.get(Opcodes.SMSG_SPLINE_MOVE_UNROOT));
+        assertEquals(mob.guid, unroot.getPackedGuid());
+        assertFalse(mob.rooted());
+    }
+
     @Test
     void sendMoveRootWhenReleasedShouldSendForceMoveUnroot() {
         World world = World.inMemory();

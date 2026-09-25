@@ -327,7 +327,7 @@ public final class SpellEngine {
         // Spell.dbc StartRecoveryTime 1500 / StartRecoveryCategory 133; on-next-swing Heroic Strike has none.
         spells.put(FIREBALL, new SpellInfo(FIREBALL, EFFECT_SCHOOL_DAMAGE, 0, 4, 30, 8, 12, 30f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
-        spells.put(FROST_NOVA, new SpellInfo(FROST_NOVA, EFFECT_APPLY_AURA, 0, 4, 55, 0, 0, 0f)
+        spells.put(FROST_NOVA, new SpellInfo(FROST_NOVA, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_ROOT, 4, 55, 0, 0, 0f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withRecovery(FROST_NOVA_RECOVERY_MS));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
