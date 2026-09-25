@@ -120,6 +120,20 @@ class Slice28P0Test {
     }
 
     /**
+     * TP-SL28-005 — HandleGMTicketSystemStatusOpcode.
+     * CMSG_GMTICKET_SYSTEMSTATUS → SMSG_GMTICKET_SYSTEMSTATUS u32 1 (queue enabled).
+     */
+    @Test
+    void tpSl28GmTicketSystemStatusEnabled() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "TicketSys");
+        a.clear();
+        a.handle(world, Opcodes.CMSG_GMTICKET_SYSTEMSTATUS, new byte[0]);
+        byte[] st = lastPayload(a, Opcodes.SMSG_GMTICKET_SYSTEMSTATUS);
+        assertEquals(1, WowClientDouble.u32le(st, 0));
+    }
+
+    /**
      * TP-SL28-006 — CMSG_GMTICKET_GETTICKET with no open ticket is GMTICKET_STATUS_DEFAULT 0x0A
      * (not HASTEXT 0x06), so the client does not show “you have an open ticket”.
      */

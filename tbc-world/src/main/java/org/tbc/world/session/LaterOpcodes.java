@@ -533,6 +533,13 @@ public final class LaterOpcodes {
             s.send(Opcodes.SMSG_GMTICKET_DELETETICKET, del.array());
             return true;
         }
+        if (opcode == Opcodes.CMSG_GMTICKET_SYSTEMSTATUS) {
+            // GMTicketHandler::HandleGMTicketSystemStatusOpcode — queue enabled = 1.
+            WowBuffer st = new WowBuffer(4);
+            st.putU32(1);
+            s.send(Opcodes.SMSG_GMTICKET_SYSTEMSTATUS, st.array());
+            return true;
+        }
         if (opcode == Opcodes.CMSG_ACCEPT_LFG_MATCH) {
             LfgHandler.acceptMatch(s);
             return true;

@@ -207,6 +207,7 @@ final class HandledOpcodes {
             Opcodes.CMSG_GMTICKET_GETTICKET,
             Opcodes.CMSG_GMTICKET_UPDATETEXT,
             Opcodes.CMSG_GMTICKET_DELETETICKET,
+            Opcodes.CMSG_GMTICKET_SYSTEMSTATUS,
             Opcodes.CMSG_ACCEPT_LFG_MATCH,
             Opcodes.CMSG_TURN_IN_PETITION,
             Opcodes.MSG_INSPECT_HONOR_STATS,
