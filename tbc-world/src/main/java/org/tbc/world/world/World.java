@@ -483,8 +483,13 @@ public final class World implements Runnable {
         }
     }
 
-    /** HandleDuelCancelledOpcode after startTime: the canceller forfeits, opponent wins. */
+    /** HandleDuelCancelledOpcode after startTime: Beg 7267 then the canceller forfeits. */
     public void forfeitDuel(Player forfeiter) {
+        if (forfeiter != null && forfeiter.session != null) {
+            GameMap m = map(forfeiter.mapId, forfeiter.instanceId);
+            spells.cast(forfeiter, m, nowMs(), SpellEngine.SPELL_BEG, 0, new WowBuffer(0),
+                    forfeiter.session::send);
+        }
         completeDuelWon(forfeiter);
     }
 

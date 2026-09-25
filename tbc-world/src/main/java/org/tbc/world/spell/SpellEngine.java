@@ -192,6 +192,8 @@ public final class SpellEngine {
     public static final int PROC_FLAG_DEAL_MELEE_SWING = 0x4;
     /** SharedDefines.h SPELL_ID_PASSIVE_BATTLE_STANCE. Effect APPLY_AURA, aura 36, misc FORM_BATTLESTANCE 17. */
     public static final int SPELL_BATTLE_STANCE = 2457;
+    /** Beg — Spell.dbc 7267; DuelHandler forfeit CastSpell TRIGGERED. */
+    public static final int SPELL_BEG = 7267;
     public static final int CLASS_WARRIOR = 1;
     /** Spell.dbc EffectAmplitude1 for Unstable Affliction rank 1. */
     public static final int UA_AMPLITUDE_MS = 3000;
@@ -342,6 +344,8 @@ public final class SpellEngine {
                 .withCastTime(HEARTHSTONE_CAST_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
+        // Beg — Spell.dbc 7267; DuelHandler forfeit CastSpell TRIGGERED.
+        spells.put(SPELL_BEG, new SpellInfo(SPELL_BEG, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
         spells.put(SPELL_BATTLE_STANCE, new SpellInfo(SPELL_BATTLE_STANCE, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_SHAPESHIFT, 0, 0, 0, 0, 0f, Unit.FORM_BATTLESTANCE));
         catalogCreateBar();

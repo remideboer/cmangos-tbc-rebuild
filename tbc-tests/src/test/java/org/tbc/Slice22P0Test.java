@@ -144,6 +144,37 @@ class Slice22P0Test {
     }
 
     /**
+     * TP-SL22-008 — HandleDuelCancelledOpcode after startTime casts Beg 7267 on the forfeiter
+     * before DuelComplete (inspect-duel.md; DuelHandler.cpp CastSpell 7267 TRIGGERED).
+     */
+    @Test
+    void tpSl22DuelForfeitCastsBegSpell() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Killer");
+        WowClientDouble b = login(world, ACC_B, "Victim");
+        Player initiator = a.session().player();
+        Player target = b.session().player();
+        initiator.selection = target.guid;
+        WowBuffer go = new WowBuffer(8);
+        go.putU64(7);
+        a.handle(world, Opcodes.CMSG_GAMEOBJ_USE, go.array());
+        WowBuffer accept = new WowBuffer(8);
+        accept.putU64(initiator.guid);
+        b.handle(world, Opcodes.CMSG_DUEL_ACCEPTED, accept.array());
+        world.advanceMs(3000);
+        world.tick(3000);
+        a.clear();
+        b.clear();
+        WowBuffer cancel = new WowBuffer(8);
+        cancel.putU64(initiator.guid);
+        b.handle(world, Opcodes.CMSG_DUEL_CANCELLED, cancel.array());
+        WowBuffer spellGo = new WowBuffer(lastPayload(b, Opcodes.SMSG_SPELL_GO));
+        spellGo.getPackedGuid();
+        spellGo.getPackedGuid();
+        assertEquals(7267, spellGo.getU32());
+    }
+
+    /**
      * TP-SL22-008 — Player::DuelComplete removes the arbiter GO.
      * SMSG_DESTROY_OBJECT is the raw guid from SMSG_DUEL_REQUESTED (update-object.md).
      */
