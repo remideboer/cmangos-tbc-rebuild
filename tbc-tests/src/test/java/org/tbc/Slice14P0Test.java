@@ -1937,6 +1937,72 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — HandleSwapItem → EquipItem → _ApplyItemMods ITEM_MOD_HIT_SPELL_RATING.
+     * CMSG_SWAP_ITEM bag 0 of Auchenai Anchorite's Robe 29341 onto the chest slot must write
+     * spell hit 23 on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_SPELL (Unit.h 7).
+     */
+    @Test
+    void tpSl14SwapItemAppliesSpellHitRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "SpellHitBag", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item robe = new Item(world.nextItemGuid(), Content.ITEM_AUCHENAI_ANCHORITES_ROBE);
+        robe.inventoryType = 20;
+        robe.slot = src;
+        p.items.put((int) robe.guid, robe);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(robe));
+        int dest = world.objectMgr.destEquipSlot(p, 20);
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(4);
+        swap.putU8(0);
+        swap.putU8(dest);
+        swap.putU8(0);
+        swap.putU8(src);
+        client.handle(world, Opcodes.CMSG_SWAP_ITEM, swap.array());
+        assertEquals(23, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 7));
+    }
+
+    /**
+     * TP-SL14-013 — DestroyItem → _ApplyItemMods(false) ITEM_MOD_HIT_SPELL_RATING.
+     * CMSG_DESTROYITEM of equipped Auchenai Anchorite's Robe 29341 must put spell hit 0
+     * back on self VALUES PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_SPELL.
+     */
+    @Test
+    void tpSl14DestroyEquippedItemReversesSpellHitRating() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "DestroySpellHit", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int src = p.firstFreeBagSlot();
+        Item robe = new Item(world.nextItemGuid(), Content.ITEM_AUCHENAI_ANCHORITES_ROBE);
+        robe.inventoryType = 20;
+        robe.slot = src;
+        p.items.put((int) robe.guid, robe);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(robe));
+
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+        int dest = robe.slot;
+
+        client.clear();
+        WowBuffer destroy = new WowBuffer(3);
+        destroy.putU8(0);
+        destroy.putU8(dest);
+        destroy.putU8(0);
+        client.handle(world, Opcodes.CMSG_DESTROYITEM, destroy.array());
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 7));
+    }
+
+    /**
      * TP-SL14-013 — Player::_ApplyItemBonuses proto-&gt;Block → HandleBaseModValue(SHIELD_BLOCK_VALUE).
      * Autoequip Worn Wooden Shield 2362 must write block 1 on self VALUES PLAYER_SHIELD_BLOCK
      * (update-fields.yaml 1331).
