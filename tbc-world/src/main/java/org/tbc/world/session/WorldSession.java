@@ -621,6 +621,7 @@ public final class WorldSession {
             case Opcodes.MSG_PVP_LOG_DATA -> sendPvpLog();
             case Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS -> sendBgPlayerPositions();
             case Opcodes.CMSG_BATTLEFIELD_LIST -> sendBattlefieldList(in);
+            case Opcodes.CMSG_BATTLEMASTER_HELLO -> battlemasterHello(world, in);
             default -> handleRest(world, opcode, in);
         }
     }
@@ -2144,9 +2145,33 @@ public final class WorldSession {
         if (bgTypeId == 0) {
             return;
         }
+        sendBattlefieldListPacket(player.guid, bgTypeId);
+    }
+
+    /**
+     * HandleBattlemasterHelloOpcode — raw creature guid → SMSG_BATTLEFIELD_LIST for that BM's
+     * bgTypeId (battleground.md).
+     */
+    private void battlemasterHello(World world, WowBuffer in) {
+        if (in.remaining() < 8) {
+            return;
+        }
+        long guid = in.getU64();
+        Creature c = world.map(player.mapId, player.instanceId).creatures.get(guid);
+        if (c == null) {
+            return;
+        }
+        int bgTypeId = world.objectMgr.battleMasterBgType(c.entry);
+        if (bgTypeId == 0) {
+            return;
+        }
+        sendBattlefieldListPacket(guid, bgTypeId);
+    }
+
+    private void sendBattlefieldListPacket(long masterGuid, int bgTypeId) {
         // BATTLEGROUND_AA = 6
         WowBuffer data = new WowBuffer(24);
-        data.putU64(player.guid);
+        data.putU64(masterGuid);
         data.putU32(bgTypeId);
         if (bgTypeId == 6) {
             data.putU8(5);

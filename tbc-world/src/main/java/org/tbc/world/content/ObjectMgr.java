@@ -1405,6 +1405,7 @@ public final class ObjectMgr {
             this(id, itemEntry, owner, startBid, buyout, timeLeftMs, name, 0, 0, 0, 0);
         }
     }
+    public final Map<Integer, Integer> battleMasterBg = new HashMap<>();
     public final Map<Integer, List<TrainerSpell>> trainerSpells = new HashMap<>();
     public final Map<Integer, Integer> trainerClass = new HashMap<>();
     public final Map<Integer, TaxiNode> taxiNodes = new HashMap<>();
@@ -1532,6 +1533,11 @@ public final class ObjectMgr {
                 loadWeather(c);
             } catch (Exception e) {
                 log.debug("game_weather load skipped: {}", e.getMessage());
+            }
+            try {
+                loadBattleMasters(c);
+            } catch (Exception e) {
+                log.debug("battlemaster_entry load skipped: {}", e.getMessage());
             }
         } catch (Exception e) {
             log.warn("ObjectMgr SQL load failed, using defaults: {}", e.getMessage());
@@ -2296,6 +2302,21 @@ public final class ObjectMgr {
         }
     }
 
+    /** BattleGroundMgr::LoadBattleMastersEntry — entry → BattleGroundTypeId. */
+    private void loadBattleMasters(Connection c) throws Exception {
+        try (PreparedStatement ps = c.prepareStatement("SELECT entry, bg_template FROM battlemaster_entry");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                battleMasterBg.put(rs.getInt(1), rs.getInt(2));
+            }
+        }
+    }
+
+    /** MapDataContainer::GetBattleMasterBG — 0 if the entry is not a battlemaster. */
+    public int battleMasterBgType(int creatureEntry) {
+        return battleMasterBg.getOrDefault(creatureEntry, 0);
+    }
+
     /** tbc-db playercreateinfo_action (race, class, button, action, type). */
     private void seedCreateActions() {
         int[][] rows = {
@@ -2685,6 +2706,8 @@ public final class ObjectMgr {
 
     private void seedQueryDefaults() {
         creatures.putIfAbsent(6, seedKoboldVermin());
+        // battlemaster_entry: Kurak (2302) → BATTLEGROUND_WS = 2
+        battleMasterBg.putIfAbsent(2302, 2);
         creatures.putIfAbsent(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         items.putIfAbsent(25, ItemTemplate.wornShortsword());

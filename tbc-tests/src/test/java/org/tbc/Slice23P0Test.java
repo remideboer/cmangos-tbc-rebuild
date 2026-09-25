@@ -305,6 +305,29 @@ class Slice23P0Test {
         assertEquals(0, out.getU32());
     }
 
+    /**
+     * TP-SL23-014 — HandleBattlemasterHelloOpcode. CMSG_BATTLEMASTER_HELLO raw creature guid
+     * of WSG battlemaster 2302 → SMSG_BATTLEFIELD_LIST with that guid and bgTypeId 2
+     * (battleground.md; battlemaster_entry).
+     */
+    @Test
+    void tpSl23BattlemasterHelloSendsBattlefieldList() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, ACC_A, "HelloBm");
+        Player p = client.session().player();
+        Creature bm = world.objectMgr.spawnCreature(2302, p.mapId, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(bm);
+        client.clear();
+        WowBuffer in = new WowBuffer(8);
+        in.putU64(bm.guid);
+        client.handle(world, Opcodes.CMSG_BATTLEMASTER_HELLO, in.array());
+        WowBuffer out = new WowBuffer(lastPayload(client, Opcodes.SMSG_BATTLEFIELD_LIST));
+        assertEquals(bm.guid, out.getU64());
+        assertEquals(2, out.getU32());
+        assertEquals(0, out.getU8());
+        assertEquals(0, out.getU32());
+    }
+
     @Test
     void tpSl23AreaSpiritHealerQueryShouldSendTime() {
         World world = World.inMemory();
