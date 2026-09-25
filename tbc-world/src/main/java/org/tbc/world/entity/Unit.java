@@ -69,6 +69,8 @@ public class Unit extends Entity {
     private int increaseSpeedPct;
     /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SWIM_SPEED); 0 = none. */
     private int increaseSwimSpeedPct;
+    /** CMaNGOS GetTotalAuraModifier(SPELL_AURA_SAFE_FALL) — yards subtracted from fall height. */
+    private int safeFallBonus;
     /** CMaNGOS m_speed_rate[MOVE_RUN]; default 1.0. */
     private float runSpeedRate = 1.0f;
     /** CMaNGOS m_speed_rate[MOVE_SWIM]; default 1.0. */
@@ -163,6 +165,14 @@ public class Unit extends Entity {
     public void setIncreaseSwimSpeedPct(int pct) {
         increaseSwimSpeedPct = pct;
         updateSwimSpeed();
+    }
+
+    public void addSafeFall(int yards) {
+        safeFallBonus += yards;
+    }
+
+    public int safeFall() {
+        return safeFallBonus;
     }
 
     public float runSpeed() {

@@ -43,6 +43,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER = 124;
     public static final int SPELL_AURA_MOD_MELEE_HASTE = 138;
     public static final int SPELL_AURA_MOD_RANGED_HASTE = 140;
+    public static final int SPELL_AURA_SAFE_FALL = 144;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
     /** SharedDefines.h MAX_STATS — strength through spirit. */
@@ -62,7 +63,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_BREATHING,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
-            SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE);
+            SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_SAFE_FALL);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -122,6 +123,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE) {
             modRangedHaste(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_SAFE_FALL) {
+            modSafeFall(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(true);
@@ -242,6 +246,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE) {
             modRangedHaste(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_SAFE_FALL) {
+            modSafeFall(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_WATER_WALK) {
             target.sendWaterWalk(false);
@@ -510,6 +517,18 @@ public final class AuraEngine {
         int delta = apply ? amount : -amount;
         target.setInt(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS,
                 target.getInt(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS) + delta);
+    }
+
+    /**
+     * Aura 144 — CMaNGOS HandleAuraSafeFall (fall damage in HandleMovementOpcodes uses
+     * GetTotalAuraModifier). Accumulate yards reduced from fall height.
+     */
+    private static void modSafeFall(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        target.addSafeFall(apply ? amount : -amount);
     }
 
     /**
