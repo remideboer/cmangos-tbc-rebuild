@@ -389,6 +389,18 @@ public final class WorldSession {
             handleKnockBackAck(world, in);
             return;
         }
+        if (opcode == Opcodes.CMSG_MOVE_HOVER_ACK) {
+            handleMoveFlagChangeAck(world, in, Opcodes.MSG_MOVE_HOVER);
+            return;
+        }
+        if (opcode == Opcodes.CMSG_MOVE_WATER_WALK_ACK) {
+            handleMoveFlagChangeAck(world, in, Opcodes.MSG_MOVE_WATER_WALK);
+            return;
+        }
+        if (opcode == Opcodes.CMSG_MOVE_FEATHER_FALL_ACK) {
+            handleMoveFlagChangeAck(world, in, Opcodes.MSG_MOVE_FEATHER_FALL);
+            return;
+        }
         switch (opcode) {
             case Opcodes.CMSG_LOGOUT_REQUEST -> handleLogoutRequest(world);
             case Opcodes.CMSG_LOGOUT_CANCEL -> handleLogoutCancel();
@@ -1381,6 +1393,39 @@ public final class WorldSession {
         for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
             if (o != player && o.session != null) {
                 o.session.send(Opcodes.MSG_MOVE_KNOCK_BACK, pkt);
+            }
+        }
+    }
+
+    /**
+     * HandleMoveFlagChangeOpcode — packed guid + counter + MovementInfo + isApplied u32.
+     * Observers get response MSG (HOVER / WATER_WALK / FEATHER_FALL) with packed guid + MovementInfo.
+     */
+    private void handleMoveFlagChangeAck(World world, WowBuffer in, int responseOpcode) {
+        if (in.remaining() < 5) {
+            return;
+        }
+        in.getPackedGuid();
+        if (in.remaining() < 4) {
+            return;
+        }
+        in.getU32();
+        MovementInfo m = MovementInfo.readC2s(in);
+        if (in.remaining() >= 4) {
+            in.getU32();
+        }
+        float ox = player.x;
+        float oy = player.y;
+        player.relocate(m.x, m.y, m.z, m.o);
+        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
+        player.movement = m;
+        m.stime = (int) world.nowMs();
+        WowBuffer echo = new WowBuffer(64);
+        m.write(echo, true, player.guid, m.stime);
+        byte[] pkt = echo.array();
+        for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
+            if (o != player && o.session != null) {
+                o.session.send(responseOpcode, pkt);
             }
         }
     }

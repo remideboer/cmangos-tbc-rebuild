@@ -319,6 +319,118 @@ class Slice27P0Test {
         assertEquals(z, p.z, 0.01f);
     }
 
+    /**
+     * TP-SL27-007 — HandleMoveFlagChangeOpcode CMSG_MOVE_HOVER_ACK.
+     * Nearby get MSG_MOVE_HOVER (packed guid + MovementInfo). Sender excluded.
+     */
+    @Test
+    void tpSl27HoverAckEchoesToNearby() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Hoverer");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player p = a.session().player();
+        a.clear();
+        b.clear();
+        float x = p.x + 2f;
+        float y = p.y + 1f;
+        float z = p.z;
+        WowBuffer in = new WowBuffer(48);
+        in.putPackedGuid(p.guid);
+        in.putU32(2);
+        in.putU32(0);
+        in.putU8(0);
+        in.putU32(50);
+        in.putFloat(x);
+        in.putFloat(y);
+        in.putFloat(z);
+        in.putFloat(0f);
+        in.putU32(0);
+        in.putU32(1);
+        a.handle(world, Opcodes.CMSG_MOVE_HOVER_ACK, in.array());
+        assertFalse(a.saw(Opcodes.MSG_MOVE_HOVER));
+        WowBuffer out = new WowBuffer(lastPayload(b, Opcodes.MSG_MOVE_HOVER));
+        assertEquals(p.guid, out.getPackedGuid());
+        assertEquals(0, out.getU32());
+        assertEquals(0, out.getU8());
+        out.getU32();
+        assertEquals(x, out.getFloat(), 0.01f);
+        assertEquals(y, out.getFloat(), 0.01f);
+        assertEquals(z, out.getFloat(), 0.01f);
+        assertEquals(x, p.x, 0.01f);
+    }
+
+    /**
+     * TP-SL27-007 — HandleMoveFlagChangeOpcode CMSG_MOVE_WATER_WALK_ACK → MSG_MOVE_WATER_WALK.
+     */
+    @Test
+    void tpSl27WaterWalkAckEchoesToNearby() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Walker");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player p = a.session().player();
+        a.clear();
+        b.clear();
+        float x = p.x + 3f;
+        WowBuffer in = new WowBuffer(48);
+        in.putPackedGuid(p.guid);
+        in.putU32(3);
+        in.putU32(0);
+        in.putU8(0);
+        in.putU32(60);
+        in.putFloat(x);
+        in.putFloat(p.y);
+        in.putFloat(p.z);
+        in.putFloat(0f);
+        in.putU32(0);
+        in.putU32(1);
+        a.handle(world, Opcodes.CMSG_MOVE_WATER_WALK_ACK, in.array());
+        assertFalse(a.saw(Opcodes.MSG_MOVE_WATER_WALK));
+        WowBuffer out = new WowBuffer(lastPayload(b, Opcodes.MSG_MOVE_WATER_WALK));
+        assertEquals(p.guid, out.getPackedGuid());
+        out.getU32();
+        out.getU8();
+        out.getU32();
+        assertEquals(x, out.getFloat(), 0.01f);
+        assertEquals(x, p.x, 0.01f);
+    }
+
+    /**
+     * TP-SL27-007 — HandleMoveFlagChangeOpcode CMSG_MOVE_FEATHER_FALL_ACK → MSG_MOVE_FEATHER_FALL.
+     */
+    @Test
+    void tpSl27FeatherFallAckEchoesToNearby() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Feather");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player p = a.session().player();
+        a.clear();
+        b.clear();
+        float z = p.z + 4f;
+        WowBuffer in = new WowBuffer(48);
+        in.putPackedGuid(p.guid);
+        in.putU32(4);
+        in.putU32(0);
+        in.putU8(0);
+        in.putU32(70);
+        in.putFloat(p.x);
+        in.putFloat(p.y);
+        in.putFloat(z);
+        in.putFloat(0f);
+        in.putU32(0);
+        in.putU32(1);
+        a.handle(world, Opcodes.CMSG_MOVE_FEATHER_FALL_ACK, in.array());
+        assertFalse(a.saw(Opcodes.MSG_MOVE_FEATHER_FALL));
+        WowBuffer out = new WowBuffer(lastPayload(b, Opcodes.MSG_MOVE_FEATHER_FALL));
+        assertEquals(p.guid, out.getPackedGuid());
+        out.getU32();
+        out.getU8();
+        out.getU32();
+        out.getFloat();
+        out.getFloat();
+        assertEquals(z, out.getFloat(), 0.01f);
+        assertEquals(z, p.z, 0.01f);
+    }
+
     private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
         client.connect(acc);
