@@ -214,6 +214,8 @@ public final class SpellEngine {
     public static final int SPELL_HOVER = 11010;
     /** Swim Speed — Spell.dbc 7840; APPLY_AURA MOD_INCREASE_SWIM_SPEED +100%. */
     public static final int SWIM_SPEED = 7840;
+    /** Find Minerals — Spell.dbc 2580; APPLY_AURA TRACK_RESOURCES misc 3. */
+    public static final int FIND_MINERALS = 2580;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -403,6 +405,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_HOVER, 0, 0, 0, 0, 0f));
         spells.put(SWIM_SPEED, new SpellInfo(SWIM_SPEED, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_INCREASE_SWIM_SPEED, 0, 0, 100, 100, 0f));
+        spells.put(FIND_MINERALS, new SpellInfo(FIND_MINERALS, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_TRACK_RESOURCES, 0, 0, 0, 0, 0f, 3));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
