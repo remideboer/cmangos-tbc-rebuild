@@ -6,6 +6,7 @@ import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.ReputationMgr;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
@@ -746,6 +747,11 @@ public final class Content {
         ObjectMgr.QuestExtras extra = mgr.questExtras.get(questId);
         if (extra != null && extra.rewRepFaction() > 0) {
             p.modifyReputation(extra.rewRepFaction(), extra.rewRepValue());
+            byte[] standingPkt = p.reputations.encodeStandingUpdate(
+                    ReputationMgr.listIdForFaction(extra.rewRepFaction()));
+            if (standingPkt.length > 0) {
+                send.accept(Opcodes.SMSG_SET_FACTION_STANDING, standingPkt);
+            }
         }
         if (extra != null && extra.isDaily()) {
             p.dailyQuestDone.add(questId);

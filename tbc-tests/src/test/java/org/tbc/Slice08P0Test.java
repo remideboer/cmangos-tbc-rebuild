@@ -3,9 +3,11 @@ package org.tbc;
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
+import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.ReputationMgr;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -308,6 +310,46 @@ class Slice08P0Test {
         assertEquals(5, innDone.getU32());
         assertTrue(p.items.values().stream().anyMatch(it ->
                 it.entry == Content.ITEM_REFRESHING_SPRING_WATER && it.count == 5));
+    }
+
+    /**
+     * TP-SL08-023 — Player::RewardReputation → ReputationMgr::SendState.
+     * Quest 2158 RewRepFaction1 Stormwind 72 / RewRepValue1 75 must send
+     * SMSG_SET_FACTION_STANDING (0x124): raf float 0, count 1, list 19, standing 75.
+     */
+    @Test
+    void tpSl08QuestRewardReputationStanding() {
+        World world = World.inMemory();
+        world.objectMgr.questExtras.put(Content.QUEST_REST_AND_RELAXATION,
+                ObjectMgr.QuestExtras.reputation(72, 75, 0, 0));
+        world.objectMgr.questGivers.put(Content.NPC_INNKEEPER_FARLEY,
+                new java.util.ArrayList<>(java.util.List.of(Content.QUEST_REST_AND_RELAXATION)));
+        world.objectMgr.questInvolved.put(Content.NPC_INNKEEPER_FARLEY,
+                new java.util.ArrayList<>(java.util.List.of(Content.QUEST_REST_AND_RELAXATION)));
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "RepRew", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature farley = world.objectMgr.spawnCreature(Content.NPC_INNKEEPER_FARLEY, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(farley);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(farley.guid);
+        accept.putU32(Content.QUEST_REST_AND_RELAXATION);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(farley.guid);
+        choose.putU32(Content.QUEST_REST_AND_RELAXATION);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_SET_FACTION_STANDING));
+        WowBuffer standing = new WowBuffer(client.payload(Opcodes.SMSG_SET_FACTION_STANDING));
+        assertEquals(0f, standing.getFloat());
+        assertEquals(1, standing.getU32());
+        assertEquals(ReputationMgr.LIST_STORMWIND, standing.getU32());
+        assertEquals(75, standing.getU32());
+        assertEquals(75, p.reputationStanding(72));
     }
 
     /**

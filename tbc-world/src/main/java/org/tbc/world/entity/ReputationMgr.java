@@ -25,6 +25,10 @@ public final class ReputationMgr {
     public static final int FLAG_PEACE_FORCED = 0x10;
     /** ReputationMgr.h FACTION_FLAG_INACTIVE. */
     public static final int FLAG_INACTIVE = 0x20;
+    /** Faction.dbc 21 Booty Bay. */
+    public static final int FACTION_BOOTY_BAY = 21;
+    /** Faction.dbc 72 Stormwind City. */
+    public static final int FACTION_STORMWIND = 72;
     /** Faction.dbc 21 Booty Bay reputationListID. */
     public static final int LIST_BOOTY_BAY = 1;
     /** Faction.dbc 72 Stormwind reputationListID. */
@@ -96,6 +100,48 @@ public final class ReputationMgr {
             return;
         }
         standing[listId] = amount;
+    }
+
+    /** ReputationMgr::SetOneFactionReputation incremental — Standing += amount when slot occupied. */
+    public void addStanding(int listId, int amount) {
+        if (listId < 0 || listId >= SLOTS || !occupied[listId] || amount == 0) {
+            return;
+        }
+        standing[listId] += amount;
+    }
+
+    public int standing(int listId) {
+        if (listId < 0 || listId >= SLOTS) {
+            return 0;
+        }
+        return standing[listId];
+    }
+
+    /** Faction.dbc id → reputationListID for seeded factions. */
+    public static int listIdForFaction(int factionId) {
+        if (factionId == FACTION_STORMWIND) {
+            return LIST_STORMWIND;
+        }
+        if (factionId == FACTION_BOOTY_BAY) {
+            return LIST_BOOTY_BAY;
+        }
+        return -1;
+    }
+
+    /**
+     * ReputationMgr::SendState — SMSG_SET_FACTION_STANDING (0x124):
+     * raf float, count u32, (listId u32, standing u32)*count.
+     */
+    public byte[] encodeStandingUpdate(int listId) {
+        if (listId < 0 || listId >= SLOTS || !occupied[listId]) {
+            return new byte[0];
+        }
+        WowBuffer out = new WowBuffer(16);
+        out.putFloat(0f);
+        out.putU32(1);
+        out.putU32(listId);
+        out.putU32(standing[listId]);
+        return out.array();
     }
 
     static int reputationToRank(int standing) {

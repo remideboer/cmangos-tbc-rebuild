@@ -95,12 +95,16 @@ public final class Player extends Unit {
         setInt(UpdateFields.PLAYER_BYTES_3, (bytes & ~0xFFFF) | packed);
     }
 
-    /** CMaNGOS ReputationMgr::ModifyReputation — standing += amount. */
+    /** CMaNGOS ReputationMgr::ModifyReputation — standing += amount; list Standing when known. */
     public void modifyReputation(int factionId, int amount) {
         if (factionId <= 0 || amount == 0) {
             return;
         }
         reputation.merge(factionId, amount, Integer::sum);
+        int listId = ReputationMgr.listIdForFaction(factionId);
+        if (listId >= 0) {
+            reputations.addStanding(listId, amount);
+        }
     }
 
     public int reputationStanding(int factionId) {

@@ -139,4 +139,31 @@ class ReputationMgrTest {
         r.setAtWar(ReputationMgr.LIST_BOOTY_BAY, true);
         assertEquals(0, r.flags(ReputationMgr.LIST_BOOTY_BAY));
     }
+
+    @Test
+    void encodeStandingUpdateWhenOccupiedShouldWriteRafCountListStanding() {
+        ReputationMgr r = new ReputationMgr();
+        r.seedCreateDefaults(ReputationMgr.TEAM_ALLIANCE);
+        r.addStanding(ReputationMgr.LIST_STORMWIND, 75);
+        WowBuffer in = new WowBuffer(r.encodeStandingUpdate(ReputationMgr.LIST_STORMWIND));
+        assertEquals(0f, in.getFloat());
+        assertEquals(1, in.getU32());
+        assertEquals(ReputationMgr.LIST_STORMWIND, in.getU32());
+        assertEquals(75, in.getU32());
+        assertEquals(75, r.standing(ReputationMgr.LIST_STORMWIND));
+    }
+
+    @Test
+    void encodeStandingUpdateWhenEmptyOrUnknownShouldReturnEmpty() {
+        ReputationMgr r = new ReputationMgr();
+        assertEquals(0, r.encodeStandingUpdate(ReputationMgr.LIST_STORMWIND).length);
+        assertEquals(0, r.encodeStandingUpdate(-1).length);
+        assertEquals(-1, ReputationMgr.listIdForFaction(9999));
+        assertEquals(ReputationMgr.LIST_STORMWIND, ReputationMgr.listIdForFaction(ReputationMgr.FACTION_STORMWIND));
+        assertEquals(ReputationMgr.LIST_BOOTY_BAY, ReputationMgr.listIdForFaction(ReputationMgr.FACTION_BOOTY_BAY));
+        r.addStanding(ReputationMgr.LIST_STORMWIND, 10);
+        assertEquals(0, r.standing(ReputationMgr.LIST_STORMWIND));
+        assertEquals(0, r.standing(-1));
+        assertEquals(0, r.standing(ReputationMgr.SLOTS));
+    }
 }

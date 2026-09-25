@@ -4,6 +4,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.ReputationMgr;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
@@ -40,6 +41,8 @@ class ContentQuestLoopTest {
         p.guid = 1;
         p.race = 1;
         p.level = 1;
+        p.team = ReputationMgr.TEAM_ALLIANCE;
+        p.reputations.seedCreateDefaults(p.team);
         p.relocate(0, 0, 0, 0);
         map.add(p);
     }
@@ -560,6 +563,27 @@ class ContentQuestLoopTest {
         p.questLogState[0] = Content.QUEST_STATE_COMPLETE;
         content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), () -> 1L, this::capture);
         assertEquals(150, p.reputationStanding(72));
+        assertTrue(ops.contains(Opcodes.SMSG_SET_FACTION_STANDING));
+        WowBuffer standing = new WowBuffer(last.get(Opcodes.SMSG_SET_FACTION_STANDING));
+        assertEquals(0f, standing.getFloat());
+        assertEquals(1, standing.getU32());
+        assertEquals(ReputationMgr.LIST_STORMWIND, standing.getU32());
+        assertEquals(150, standing.getU32());
+    }
+
+    @Test
+    void completeWhenRewRepFactionUnknownShouldSkipStandingPacket() {
+        Creature farley = spawn(Content.NPC_INNKEEPER_FARLEY);
+        mgr.questGivers.put(Content.NPC_INNKEEPER_FARLEY, new ArrayList<>(List.of(Content.QUEST_REST_AND_RELAXATION)));
+        mgr.questInvolved.put(Content.NPC_INNKEEPER_FARLEY, new ArrayList<>(List.of(Content.QUEST_REST_AND_RELAXATION)));
+        mgr.quests.put(Content.QUEST_REST_AND_RELAXATION, questTemplate(
+                Content.QUEST_REST_AND_RELAXATION, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0));
+        mgr.questExtras.put(Content.QUEST_REST_AND_RELAXATION, ObjectMgr.QuestExtras.reputation(9999, 50, 0, 0));
+        p.questLogId[0] = Content.QUEST_REST_AND_RELAXATION;
+        p.questLogState[0] = Content.QUEST_STATE_COMPLETE;
+        content.completeQuest(p, map, quest(farley.guid, Content.QUEST_REST_AND_RELAXATION), () -> 1L, this::capture);
+        assertEquals(50, p.reputationStanding(9999));
+        assertFalse(ops.contains(Opcodes.SMSG_SET_FACTION_STANDING));
     }
 
     @Test
