@@ -113,6 +113,20 @@ public class Unit extends Entity {
     }
 
     /**
+     * CMaNGOS Unit::SetFeatherFall when not client-controlled: SMSG_SPLINE_MOVE_FEATHER_FALL / NORMAL_FALL
+     * packed guid via {@link #messageToSet}. Players override with SMSG_MOVE_FEATHER_FALL / NORMAL_FALL.
+     */
+    public void sendFeatherFall(boolean enable) {
+        if (messageToSet == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(9);
+        b.putPackedGuid(guid);
+        messageToSet.accept(enable ? Opcodes.SMSG_SPLINE_MOVE_FEATHER_FALL : Opcodes.SMSG_SPLINE_MOVE_NORMAL_FALL,
+                b.array());
+    }
+
+    /**
      * CMaNGOS UpdateSpeed(MOVE_RUN) after MOD_DECREASE_SPEED — rate *= (100+slow)/100,
      * then SetSpeedRate → SMSG_SPLINE_SET_RUN_SPEED (non-player) / FORCE (Player override).
      */
