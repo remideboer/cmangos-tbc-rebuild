@@ -15,13 +15,16 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     public static final int SPELL_AURA_MOD_ROOT = 26;
     public static final int SPELL_AURA_MOD_SILENCE = 27;
+    public static final int SPELL_AURA_MOD_STAT = 29;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
+    /** SharedDefines.h MAX_STATS — strength through spirit. */
+    public static final int MAX_STATS = 5;
 
     private static final Set<Integer> KNOWN_AURAS = Set.of(
             SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_ROOT,
-            SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_SHAPESHIFT);
+            SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT, SPELL_AURA_MOD_SHAPESHIFT);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -47,6 +50,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_RESISTANCE) {
             modResistance(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_STAT) {
+            modStat(target, sp, true);
+        }
     }
 
     /** Reverse {@link #apply} for auras that mutate stats (CMaNGOS Aura::ApplyModifier(false)). */
@@ -56,6 +62,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RESISTANCE) {
             modResistance(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_STAT) {
+            modStat(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_STUN) {
             // HandleAuraModStun(false) → SetStunned(false) → clear flag + SetImmobilizedState(false).
@@ -96,6 +105,34 @@ public final class AuraEngine {
             int buffBase = amount > 0
                     ? UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE
                     : UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE;
+            int buffField = buffBase + i;
+            target.setInt(buffField, target.getInt(buffField) + delta);
+        }
+    }
+
+    /**
+     * Aura 29 — CMaNGOS HandleAuraModStat: misc is stat index (0–4) or &lt; 0 for all stats;
+     * TOTAL_VALUE amount then ApplyStatBuffMod for POSSTAT/NEGSTAT columns.
+     */
+    private static void modStat(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int misc = sp.misc();
+        if (misc < -2 || misc > 4) {
+            return;
+        }
+        for (int i = 0; i < MAX_STATS; i++) {
+            if (misc >= 0 && misc != i) {
+                continue;
+            }
+            int delta = apply ? amount : -amount;
+            int statField = UpdateFields.UNIT_FIELD_STAT0 + i;
+            target.setInt(statField, target.getInt(statField) + delta);
+            int buffBase = amount > 0
+                    ? UpdateFields.UNIT_FIELD_POSSTAT0
+                    : UpdateFields.UNIT_FIELD_NEGSTAT0;
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
         }
