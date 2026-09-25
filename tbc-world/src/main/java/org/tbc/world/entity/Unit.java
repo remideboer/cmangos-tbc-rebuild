@@ -37,6 +37,10 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_SKINNABLE = 0x04000000;
     /** Unit.h UNIT_FLAG_PREVENT_ANIM — Feign Death. */
     public static final int UNIT_FLAG_PREVENT_ANIM = 0x20000000;
+    /** Unit.h UNIT_FLAG2_FEIGN_DEATH. */
+    public static final int UNIT_FLAG2_FEIGN_DEATH = 0x00000001;
+    /** SharedDefines.h UNIT_DYNFLAG_DEAD. */
+    public static final int UNIT_DYNFLAG_DEAD = 0x0020;
     public static final int UPDATEFLAG_SELF = 0x01;
     public static final int UPDATEFLAG_LOWGUID = 0x08;
     public static final int UPDATEFLAG_HIGHGUID = 0x10;
@@ -173,6 +177,26 @@ public class Unit extends Entity {
 
     public int safeFall() {
         return safeFallBonus;
+    }
+
+    /**
+     * CMaNGOS Unit::SetFeignDeath success/NPC path — FLAGS_2 FEIGN_DEATH + DYNFLAG_DEAD.
+     * Combat disengage / resist roll later.
+     */
+    public void setFeignDeath(boolean apply) {
+        int f2 = getInt(UpdateFields.UNIT_FIELD_FLAGS_2);
+        int dyn = getInt(UpdateFields.UNIT_DYNAMIC_FLAGS);
+        if (apply) {
+            setInt(UpdateFields.UNIT_FIELD_FLAGS_2, f2 | UNIT_FLAG2_FEIGN_DEATH);
+            setInt(UpdateFields.UNIT_DYNAMIC_FLAGS, dyn | UNIT_DYNFLAG_DEAD);
+        } else {
+            setInt(UpdateFields.UNIT_FIELD_FLAGS_2, f2 & ~UNIT_FLAG2_FEIGN_DEATH);
+            setInt(UpdateFields.UNIT_DYNAMIC_FLAGS, dyn & ~UNIT_DYNFLAG_DEAD);
+        }
+    }
+
+    public boolean isFeigningDeath() {
+        return (getInt(UpdateFields.UNIT_FIELD_FLAGS_2) & UNIT_FLAG2_FEIGN_DEATH) != 0;
     }
 
     public float runSpeed() {
