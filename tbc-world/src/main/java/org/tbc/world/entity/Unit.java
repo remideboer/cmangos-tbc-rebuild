@@ -19,6 +19,8 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_IMMUNE_TO_PLAYER = 0x00000100;
     public static final int UNIT_FLAG_IMMUNE_TO_NPC = 0x00000200;
     public static final int UNIT_FLAG_PVP = 0x00001000;
+    /** Unit.h UNIT_FLAG_SILENCED — silenced, 2.1.1. */
+    public static final int UNIT_FLAG_SILENCED = 0x00002000;
     public static final int UNIT_FLAG_UNTARGETABLE = 0x00010000;
     public static final int UNIT_FLAG_STUNNED = 0x00040000;
     public static final int UNIT_FLAG_IN_COMBAT = 0x00080000;
@@ -244,6 +246,13 @@ public class Unit extends Entity {
         int flags = getInt(UpdateFields.UNIT_FIELD_FLAGS);
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
                 apply ? flags | UNIT_FLAG_STUNNED : flags & ~UNIT_FLAG_STUNNED);
+    }
+
+    /** CMaNGOS HandleAuraModSilence — SetFlag/RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED). */
+    public void setSilenced(boolean apply) {
+        int flags = getInt(UpdateFields.UNIT_FIELD_FLAGS);
+        setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                apply ? flags | UNIT_FLAG_SILENCED : flags & ~UNIT_FLAG_SILENCED);
     }
 
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */

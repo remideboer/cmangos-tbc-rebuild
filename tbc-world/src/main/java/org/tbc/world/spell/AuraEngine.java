@@ -14,12 +14,14 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_STUN = 12;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     public static final int SPELL_AURA_MOD_ROOT = 26;
+    public static final int SPELL_AURA_MOD_SILENCE = 27;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
 
     private static final Set<Integer> KNOWN_AURAS = Set.of(
-            SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SHAPESHIFT);
+            SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_ROOT,
+            SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_SHAPESHIFT);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -35,6 +37,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             immobilize(target);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SILENCE) {
+            target.setSilenced(true);
         }
         if (sp.aura() == SPELL_AURA_MOD_SHAPESHIFT) {
             target.setShapeshiftForm(sp.misc());
@@ -61,6 +66,10 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.
             target.sendMoveRoot(false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SILENCE) {
+            // HandleAuraModSilence(false); stacking other MOD_SILENCE later.
+            target.setSilenced(false);
         }
     }
 
