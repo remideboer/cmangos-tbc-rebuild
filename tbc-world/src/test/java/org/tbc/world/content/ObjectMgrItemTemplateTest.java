@@ -1164,4 +1164,107 @@ class ObjectMgrItemTemplateTest {
             assertEquals(6, glaive.dmgType[2]);
         }
     }
+
+    /**
+     * TP-SL14-013 — LoadItemPrototypes fourth and fifth damage lines. SQL item_template must
+     * carry dmg_min4/max4/type4 and dmg_min5/max5/type5 (JYoo test item 1259 frost 1000 and
+     * shadow 4000).
+     */
+    @Test
+    void loadItemsWhenTemplateHasFourthAndFifthDamageLinesShouldCarrySchoolDamage() throws Exception {
+        String url = "jdbc:h2:mem:items_dmg45_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "item-template-dmg45")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE item_template (
+                          entry INT,
+                          class INT,
+                          subclass INT,
+                          name VARCHAR(255),
+                          displayid INT,
+                          Quality INT,
+                          Flags INT,
+                          BuyPrice INT,
+                          SellPrice INT,
+                          InventoryType INT,
+                          AllowableClass INT,
+                          AllowableRace INT,
+                          ItemLevel INT,
+                          RequiredLevel INT,
+                          maxcount INT,
+                          stackable INT,
+                          ContainerSlots INT,
+                          armor INT,
+                          delay INT,
+                          bonding INT,
+                          description VARCHAR(255),
+                          MaxDurability INT,
+                          Duration INT,
+                          RequiredDisenchantSkill INT,
+                          dmg_min1 FLOAT,
+                          dmg_max1 FLOAT,
+                          stat_type1 INT,
+                          stat_value1 INT,
+                          stat_type2 INT,
+                          stat_value2 INT,
+                          stat_type3 INT,
+                          stat_value3 INT,
+                          stat_type4 INT,
+                          stat_value4 INT,
+                          stat_type5 INT,
+                          stat_value5 INT,
+                          fire_res INT,
+                          nature_res INT,
+                          frost_res INT,
+                          shadow_res INT,
+                          arcane_res INT,
+                          dmg_min2 FLOAT,
+                          dmg_max2 FLOAT,
+                          dmg_type2 INT,
+                          stat_type6 INT,
+                          stat_value6 INT,
+                          stat_type7 INT,
+                          stat_value7 INT,
+                          block INT,
+                          dmg_min3 FLOAT,
+                          dmg_max3 FLOAT,
+                          dmg_type3 INT,
+                          dmg_min4 FLOAT,
+                          dmg_max4 FLOAT,
+                          dmg_type4 INT,
+                          dmg_min5 FLOAT,
+                          dmg_max5 FLOAT,
+                          dmg_type5 INT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO item_template (
+                          entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice,
+                          InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount,
+                          stackable, ContainerSlots, armor, delay, bonding, description, MaxDurability,
+                          Duration, RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1,
+                          stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4,
+                          stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res,
+                          dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6, stat_type7, stat_value7,
+                          block, dmg_min3, dmg_max3, dmg_type3, dmg_min4, dmg_max4, dmg_type4,
+                          dmg_min5, dmg_max5, dmg_type5)
+                        VALUES (1259, 2, 0, 'JYoo test item', 0, 0, 0, 0, 0, 21,
+                          -1, -1, 1, 1, 0, 1, 0, 0, 1000, 0, '', 0, 0, -1, 1, 1, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3000, 3000, 2, 0, 0, 0, 0, 0,
+                          2000, 2000, 3, 1000, 1000, 4, 4000, 4000, 5)
+                        """);
+            }
+            ObjectMgr mgr = new ObjectMgr();
+            mgr.load(worldDb, null);
+            ObjectMgr.ItemTemplate item = mgr.items.get(1259);
+            assertNotNull(item);
+            assertEquals(1000f, item.dmgMin[3]);
+            assertEquals(1000f, item.dmgMax[3]);
+            assertEquals(4, item.dmgType[3]);
+            assertEquals(4000f, item.dmgMin[4]);
+            assertEquals(4000f, item.dmgMax[4]);
+            assertEquals(5, item.dmgType[4]);
+        }
+    }
 }

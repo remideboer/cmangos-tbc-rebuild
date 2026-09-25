@@ -2421,6 +2421,56 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-013 — LoadItemPrototypes fourth and fifth damage lines (dmg_min4/dmg_min5).
+     * CMSG_ITEM_QUERY_SINGLE of JYoo test item 1259 must put frost 1000 school 4 and shadow
+     * 4000 school 5 on proto damage slots 3 and 4 (queries.md MAX_ITEM_PROTO_DAMAGES).
+     */
+    @Test
+    void tpSl14ItemQueryCarriesFourthAndFifthDamageLines() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Jyoo", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+
+        client.clear();
+        WowBuffer q = new WowBuffer(4);
+        q.putU32(Content.ITEM_JYOO_TEST_ITEM);
+        client.handle(world, Opcodes.CMSG_ITEM_QUERY_SINGLE, q.array());
+        WowBuffer b = new WowBuffer(lastPayload(client, Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE));
+        assertEquals(Content.ITEM_JYOO_TEST_ITEM, b.getU32());
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        b.getCString();
+        b.getU8();
+        b.getU8();
+        b.getU8();
+        for (int i = 0; i < 20; i++) {
+            b.getU32();
+        }
+        for (int i = 0; i < 10; i++) {
+            b.getU32();
+            b.getU32();
+        }
+        b.getFloat();
+        b.getFloat();
+        b.getU32();
+        b.getFloat();
+        b.getFloat();
+        b.getU32();
+        b.getFloat();
+        b.getFloat();
+        b.getU32();
+        assertEquals(1000f, b.getFloat());
+        assertEquals(1000f, b.getFloat());
+        assertEquals(4, b.getU32());
+        assertEquals(4000f, b.getFloat());
+        assertEquals(4000f, b.getFloat());
+        assertEquals(5, b.getU32());
+    }
+
+    /**
      * TP-SL14-013 — Player::_ApplyItemBonuses ITEM_MOD_HIT_MELEE_RATING (ItemPrototype.h 16).
      * Autoequip Tom's Boots 1 32954 (+15 melee hit) must write 15 on self VALUES
      * PLAYER_FIELD_COMBAT_RATING_1 + CR_HIT_MELEE (Unit.h 5). Type 16 must not dump into

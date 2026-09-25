@@ -1089,6 +1089,40 @@ public final class ObjectMgr {
         }
 
         /**
+         * JYoo test item — tbc-db 1259 (five damage lines; frost 1000 school 4, shadow 4000 school 5).
+         */
+        public static ItemTemplate jyooTestItem() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_JYOO_TEST_ITEM;
+            t.itemClass = 2;
+            t.subClass = 0;
+            t.name = "JYoo test item";
+            t.inventoryType = 21;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 1;
+            t.requiredLevel = 1;
+            t.stackable = 1;
+            t.dmgMin[0] = 1;
+            t.dmgMax[0] = 1;
+            t.dmgMin[1] = 3000;
+            t.dmgMax[1] = 3000;
+            t.dmgType[1] = 2;
+            t.dmgMin[2] = 2000;
+            t.dmgMax[2] = 2000;
+            t.dmgType[2] = 3;
+            t.dmgMin[3] = 1000;
+            t.dmgMax[3] = 1000;
+            t.dmgType[3] = 4;
+            t.dmgMin[4] = 4000;
+            t.dmgMax[4] = 4000;
+            t.dmgType[4] = 5;
+            t.delay = 1000;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
+        /**
          * Tom's Boots 1 — tbc-db 32954 (STR 30, STA 43, CRIT 23, HIT_MELEE 15, HIT_RANGED 15).
          */
         public static ItemTemplate tomsBoots1() {
@@ -1992,6 +2026,15 @@ public final class ObjectMgr {
                         + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
                         + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
                         + "dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6, stat_type7, stat_value7, "
+                        + "`block`, dmg_min3, dmg_max3, dmg_type3, dmg_min4, dmg_max4, dmg_type4, "
+                        + "dmg_min5, dmg_max5, dmg_type5 FROM item_template LIMIT 50000",
+                "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
+                        + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
+                        + "ContainerSlots, armor, delay, bonding, description, MaxDurability, Duration, "
+                        + "RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1, "
+                        + "stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4, "
+                        + "stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res, "
+                        + "dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6, stat_type7, stat_value7, "
                         + "`block`, dmg_min3, dmg_max3, dmg_type3 FROM item_template LIMIT 50000",
                 "SELECT entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice, "
                         + "InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount, stackable, "
@@ -2170,6 +2213,16 @@ public final class ObjectMgr {
                         t.dmgMin[2] = rs.getFloat(50);
                         t.dmgMax[2] = rs.getFloat(51);
                         t.dmgType[2] = rs.getInt(52);
+                    }
+                    if (cols >= 55) {
+                        t.dmgMin[3] = rs.getFloat(53);
+                        t.dmgMax[3] = rs.getFloat(54);
+                        t.dmgType[3] = rs.getInt(55);
+                    }
+                    if (cols >= 58) {
+                        t.dmgMin[4] = rs.getFloat(56);
+                        t.dmgMax[4] = rs.getFloat(57);
+                        t.dmgType[4] = rs.getInt(58);
                     }
                     items.put(t.entry, t);
                 }
@@ -2640,6 +2693,7 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_CLOAK_OF_DARKNESS, ItemTemplate.cloakOfDarkness());
         items.putIfAbsent(Content.ITEM_NETHERSTRAND_LONGBOW, ItemTemplate.netherstrandLongbow());
         items.putIfAbsent(Content.ITEM_TWIN_BLADES_OF_AZZINOTH, ItemTemplate.twinBladesOfAzzinoth());
+        items.putIfAbsent(Content.ITEM_JYOO_TEST_ITEM, ItemTemplate.jyooTestItem());
         items.putIfAbsent(Content.ITEM_TOMS_BOOTS_1, ItemTemplate.tomsBoots1());
         items.putIfAbsent(Content.ITEM_TEST_HP_RING, ItemTemplate.testHpRing());
         items.putIfAbsent(Content.ITEM_TEST_HOLY_RESIST_VEST, ItemTemplate.testHolyResistVest());

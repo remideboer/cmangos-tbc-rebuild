@@ -184,6 +184,8 @@ public final class Content {
     public static final int ITEM_NETHERSTRAND_LONGBOW = 30318;
     /** tbc-db item_template 18582; physical 148–155 plus shadow 40–60 and arcane 40–60. */
     public static final int ITEM_TWIN_BLADES_OF_AZZINOTH = 18582;
+    /** tbc-db item_template 1259; five damage lines including frost 1000 and shadow 4000. */
+    public static final int ITEM_JYOO_TEST_ITEM = 1259;
     /** tbc-db item_template 32954; STR 30 / STA 43 / CRIT 23 / HIT_MELEE 15 / HIT_RANGED 15, armor 997. */
     public static final int ITEM_TOMS_BOOTS_1 = 32954;
     /** tbc-db item_template 6673; ITEM_MOD_HEALTH 1 / −60, finger. */
