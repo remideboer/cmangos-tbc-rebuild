@@ -1267,4 +1267,114 @@ class ObjectMgrItemTemplateTest {
             assertEquals(5, item.dmgType[4]);
         }
     }
+
+    /**
+     * TP-SL14-013 — LoadItemPrototypes eighth through tenth stat slots. SQL item_template must
+     * carry stat_type8..10 / stat_value8..10 (no live TBC row uses them; synthetic entry 90001
+     * STA 5 in slot 8 proves the loader).
+     */
+    @Test
+    void loadItemsWhenTemplateHasEighthStatShouldCarryStamina() throws Exception {
+        String url = "jdbc:h2:mem:items_stat8_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool worldDb = new DbPool(url, "sa", "", "item-template-stat8")) {
+            try (Connection c = worldDb.get(); Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE item_template (
+                          entry INT,
+                          class INT,
+                          subclass INT,
+                          name VARCHAR(255),
+                          displayid INT,
+                          Quality INT,
+                          Flags INT,
+                          BuyPrice INT,
+                          SellPrice INT,
+                          InventoryType INT,
+                          AllowableClass INT,
+                          AllowableRace INT,
+                          ItemLevel INT,
+                          RequiredLevel INT,
+                          maxcount INT,
+                          stackable INT,
+                          ContainerSlots INT,
+                          armor INT,
+                          delay INT,
+                          bonding INT,
+                          description VARCHAR(255),
+                          MaxDurability INT,
+                          Duration INT,
+                          RequiredDisenchantSkill INT,
+                          dmg_min1 FLOAT,
+                          dmg_max1 FLOAT,
+                          stat_type1 INT,
+                          stat_value1 INT,
+                          stat_type2 INT,
+                          stat_value2 INT,
+                          stat_type3 INT,
+                          stat_value3 INT,
+                          stat_type4 INT,
+                          stat_value4 INT,
+                          stat_type5 INT,
+                          stat_value5 INT,
+                          fire_res INT,
+                          nature_res INT,
+                          frost_res INT,
+                          shadow_res INT,
+                          arcane_res INT,
+                          dmg_min2 FLOAT,
+                          dmg_max2 FLOAT,
+                          dmg_type2 INT,
+                          stat_type6 INT,
+                          stat_value6 INT,
+                          stat_type7 INT,
+                          stat_value7 INT,
+                          block INT,
+                          dmg_min3 FLOAT,
+                          dmg_max3 FLOAT,
+                          dmg_type3 INT,
+                          dmg_min4 FLOAT,
+                          dmg_max4 FLOAT,
+                          dmg_type4 INT,
+                          dmg_min5 FLOAT,
+                          dmg_max5 FLOAT,
+                          dmg_type5 INT,
+                          stat_type8 INT,
+                          stat_value8 INT,
+                          stat_type9 INT,
+                          stat_value9 INT,
+                          stat_type10 INT,
+                          stat_value10 INT
+                        )
+                        """);
+                st.execute("""
+                        INSERT INTO item_template (
+                          entry, class, subclass, name, displayid, Quality, Flags, BuyPrice, SellPrice,
+                          InventoryType, AllowableClass, AllowableRace, ItemLevel, RequiredLevel, maxcount,
+                          stackable, ContainerSlots, armor, delay, bonding, description, MaxDurability,
+                          Duration, RequiredDisenchantSkill, dmg_min1, dmg_max1, stat_type1, stat_value1,
+                          stat_type2, stat_value2, stat_type3, stat_value3, stat_type4, stat_value4,
+                          stat_type5, stat_value5, fire_res, nature_res, frost_res, shadow_res, arcane_res,
+                          dmg_min2, dmg_max2, dmg_type2, stat_type6, stat_value6, stat_type7, stat_value7,
+                          block, dmg_min3, dmg_max3, dmg_type3, dmg_min4, dmg_max4, dmg_type4,
+                          dmg_min5, dmg_max5, dmg_type5, stat_type8, stat_value8, stat_type9, stat_value9,
+                          stat_type10, stat_value10)
+                        VALUES (90001, 4, 0, 'Stat8 Vest', 0, 1, 0, 0, 0, 5,
+                          -1, -1, 1, 1, 0, 1, 0, 10, 0, 1, '', 0, 0, -1, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 5, 3, 2, 4, 1)
+                        """);
+            }
+            ObjectMgr mgr = new ObjectMgr();
+            mgr.load(worldDb, null);
+            ObjectMgr.ItemTemplate item = mgr.items.get(90001);
+            assertNotNull(item);
+            assertEquals(7, item.statType[7]);
+            assertEquals(5, item.statValue[7]);
+            assertEquals(3, item.statType[8]);
+            assertEquals(2, item.statValue[8]);
+            assertEquals(4, item.statType[9]);
+            assertEquals(1, item.statValue[9]);
+        }
+    }
 }
