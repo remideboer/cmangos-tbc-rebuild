@@ -35,6 +35,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_MOD_DISARM = 67;
     public static final int SPELL_AURA_WATER_BREATHING = 82;
+    public static final int SPELL_AURA_MOD_ATTACK_POWER = 99;
     public static final int SPELL_AURA_WATER_WALK = 104;
     public static final int SPELL_AURA_FEATHER_FALL = 105;
     public static final int SPELL_AURA_HOVER = 106;
@@ -57,6 +58,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_MOD_DISARM, SPELL_AURA_WATER_BREATHING,
+            SPELL_AURA_MOD_ATTACK_POWER,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
             SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE);
 
@@ -103,6 +105,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
             modWaterBreathing(target, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_ATTACK_POWER) {
+            modAttackPower(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, true);
@@ -214,6 +219,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
             modWaterBreathing(target, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_ATTACK_POWER) {
+            modAttackPower(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, false);
@@ -445,6 +453,21 @@ public final class AuraEngine {
         int bit = 1 << (misc - 1);
         int flags = player.getInt(UpdateFields.PLAYER_TRACK_CREATURES);
         player.setInt(UpdateFields.PLAYER_TRACK_CREATURES, apply ? flags | bit : flags & ~bit);
+    }
+
+    /**
+     * Aura 99 — CMaNGOS HandleAuraModAttackPower → HandleStatModifier(UNIT_MOD_ATTACK_POWER, TOTAL_VALUE).
+     * Sheet bonus lives in UNIT_FIELD_ATTACK_POWER_MODS (same field ObjectMgr writes for ON_EQUIP 14052).
+     * Packed pos/neg TWO_SHORT and full UpdateAttackPowerAndDamage later.
+     */
+    private static void modAttackPower(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int delta = apply ? amount : -amount;
+        target.setInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS,
+                target.getInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS) + delta);
     }
 
     /**
