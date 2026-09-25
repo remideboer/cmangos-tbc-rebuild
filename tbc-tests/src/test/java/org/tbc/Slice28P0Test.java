@@ -96,6 +96,30 @@ class Slice28P0Test {
     }
 
     /**
+     * TP-SL28-005 — HandleGMTicketDeleteTicketOpcode.
+     * Open ticket then CMSG_GMTICKET_DELETETICKET → SMSG_GMTICKET_DELETETICKET
+     * GMTICKET_RESPONSE_TICKET_DELETED 9; GETTICKET then DEFAULT 0x0A.
+     */
+    @Test
+    void tpSl28GmTicketDeleteClearsOpenTicket() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "TicketDel");
+        a.clear();
+        WowBuffer create = new WowBuffer(16);
+        create.putCString("stuck");
+        a.handle(world, Opcodes.CMSG_GMTICKET_CREATE, create.array());
+        a.clear();
+        a.handle(world, Opcodes.CMSG_GMTICKET_DELETETICKET, new byte[0]);
+        byte[] del = lastPayload(a, Opcodes.SMSG_GMTICKET_DELETETICKET);
+        assertEquals(9, WowClientDouble.u32le(del, 0));
+        a.clear();
+        a.handle(world, Opcodes.CMSG_GMTICKET_GETTICKET, new byte[0]);
+        byte[] t = lastPayload(a, Opcodes.SMSG_GMTICKET_GETTICKET);
+        assertEquals(0x0A, WowClientDouble.u32le(t, 0));
+        assertEquals(4, t.length);
+    }
+
+    /**
      * TP-SL28-006 — CMSG_GMTICKET_GETTICKET with no open ticket is GMTICKET_STATUS_DEFAULT 0x0A
      * (not HASTEXT 0x06), so the client does not show “you have an open ticket”.
      */

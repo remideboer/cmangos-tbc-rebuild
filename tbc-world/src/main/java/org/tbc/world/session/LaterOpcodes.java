@@ -519,6 +519,20 @@ public final class LaterOpcodes {
             s.send(Opcodes.SMSG_GMTICKET_UPDATETEXT, ok.array());
             return true;
         }
+        if (opcode == Opcodes.CMSG_GMTICKET_DELETETICKET) {
+            // GMTicketHandler::HandleGMTicketDeleteTicketOpcode — TICKET_DELETED 9 / NOT_EXIST 0.
+            if (s.lastTicket == null || s.lastTicket.isEmpty()) {
+                WowBuffer none = new WowBuffer(4);
+                none.putU32(0);
+                s.send(Opcodes.SMSG_GMTICKET_DELETETICKET, none.array());
+                return true;
+            }
+            s.lastTicket = "";
+            WowBuffer del = new WowBuffer(4);
+            del.putU32(9);
+            s.send(Opcodes.SMSG_GMTICKET_DELETETICKET, del.array());
+            return true;
+        }
         if (opcode == Opcodes.CMSG_ACCEPT_LFG_MATCH) {
             LfgHandler.acceptMatch(s);
             return true;
