@@ -19,6 +19,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_STAT = 29;
     public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
+    public static final int SPELL_AURA_MOD_INCREASE_HEALTH = 34;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     /** SpellSchools.h MAX_SPELL_SCHOOL — normal through arcane. */
     public static final int MAX_SPELL_SCHOOL = 7;
@@ -29,7 +30,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_PACIFY,
             SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_DECREASE_SPEED,
-            SPELL_AURA_MOD_SHAPESHIFT);
+            SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_SHAPESHIFT);
 
     public boolean knownAura(int aura) {
         return KNOWN_AURAS.contains(aura);
@@ -67,6 +68,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_STAT) {
             modStat(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
+            modIncreaseHealth(target, sp, true);
+        }
     }
 
     /** Reverse {@link #apply} for auras that mutate stats (CMaNGOS Aura::ApplyModifier(false)). */
@@ -79,6 +83,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_STAT) {
             modStat(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
+            modIncreaseHealth(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_STUN) {
             // HandleAuraModStun(false) → SetStunned(false) → clear flag + SetImmobilizedState(false).
@@ -159,6 +166,26 @@ public final class AuraEngine {
                     : UpdateFields.UNIT_FIELD_NEGSTAT0;
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
+        }
+    }
+
+    /**
+     * Aura 34 — CMaNGOS HandleAuraModIncreaseHealth default → HandleStatModifier(UNIT_MOD_HEALTH).
+     * Clamp current health when max drops below it on unapply.
+     */
+    private static void modIncreaseHealth(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int delta = apply ? amount : -amount;
+        int max = target.maxHealth() + delta;
+        if (max < 1) {
+            max = 1;
+        }
+        target.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, max);
+        if (target.health() > max) {
+            target.setHealth(max);
         }
     }
 
