@@ -765,8 +765,8 @@ class SpellEngineTest {
         mh.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
         p.items.put(1, mh);
         int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
-        // 1.2 * 108 * 1.2 * 1.03 * 3.3 / 100 + 1 + 0.03 * 15 ≈ 6.74 → 6
-        assertEquals(6, dmg);
+        // CMaNGOS: int32(1.2*108*1.2*1.03*3.3/100+1 + 0.03*15) + 1 ≈ 7
+        assertEquals(7, dmg);
     }
 
     @Test

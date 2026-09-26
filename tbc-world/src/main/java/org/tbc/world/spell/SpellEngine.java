@@ -3142,23 +3142,33 @@ public final class SpellEngine {
         return SEAL_OF_RIGHTEOUSNESS_TRIGGERS.getOrDefault(auraId, 0);
     }
 
-    /** One-hand / two-hand formula from HandleDummyAuraProc. Amount is the seal's EffectBasePoints+1. */
+    /**
+     * HandleDummyAuraProc Seal of Righteousness — 1H / 2H formulas.
+     * Amount is EffectBasePoints+1 (seeded 108 for rank 1). Speed from mainhand delay /
+     * UNIT_FIELD_BASEATTACKTIME; weapon avg from UNIT_FIELD_MIN/MAXDAMAGE (base weapon line).
+     * <p>
+     * Client surfaces differ on purpose: the action-bar tooltip is a DBC estimate; the buff
+     * tooltip re-evaluates with the equipped weapon. Combat log must match the live formula
+     * (same as CMaNGOS {@code damagePoint}), not the static action-bar string.
+     */
     static int sealOfRighteousnessDamage(Player attacker, SpellInfo seal) {
         int amount = (seal.minDmg + seal.maxDmg) / 2;
+        Item mh = attacker.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND);
+        boolean twoHand = mh != null && mh.inventoryType == INVTYPE_2HWEAPON;
         int attackTime = attacker.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
         float speed = (attackTime > 0 ? attackTime : 2000) / 1000f;
         float weapon = (attacker.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE)
                 + attacker.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE)) / 2f;
-        Item mh = attacker.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND);
-        boolean twoHand = mh != null && mh.inventoryType == INVTYPE_2HWEAPON;
+        float damageBasePoints;
         if (twoHand) {
-            // 1.20f * amount * 1.2f * 1.03f * speed / 100 + 1 + 0.03 * weaponAvg
-            double damageBasePoints = 1.20 * amount * 1.2 * 1.03 * speed / 100.0 + 1;
-            return (int) (damageBasePoints + 0.03 * weapon);
+            // 1.20f * amount * 1.2f * 1.03f * speed / 100 + 1
+            damageBasePoints = 1.20f * amount * 1.2f * 1.03f * speed / 100.0f + 1;
+        } else {
+            // 0.85f * ceil(amount * 1.2f * 1.03f * speed / 100) - 1
+            damageBasePoints = 0.85f * (float) Math.ceil(amount * 1.2f * 1.03f * speed / 100.0f) - 1;
         }
-        // 0.85f * ceil(amount * 1.2f * 1.03f * speed / 100) - 1 + 0.03 * weaponAvg + 1
-        double damageBasePoints = 0.85 * Math.ceil(amount * 1.2 * 1.03 * speed / 100.0) - 1;
-        return (int) (damageBasePoints + 0.03 * weapon) + 1;
+        // int32(damageBasePoints + 0.03f * weaponAvg) + 1 — trailing +1 for both hands.
+        return (int) (damageBasePoints + 0.03f * weapon) + 1;
     }
 
     /**
