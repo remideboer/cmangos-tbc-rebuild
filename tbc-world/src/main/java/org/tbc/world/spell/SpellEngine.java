@@ -240,6 +240,8 @@ public final class SpellEngine {
     public static final int SAYGES_STRENGTH = 23735;
     /** Recklessness — Spell.dbc 1719 Effect 1; MOD_CRIT_PERCENT +100% (EquippedItemClass −1). */
     public static final int RECKLESSNESS = 1719;
+    /** Evasion — Spell.dbc 5277; MOD_DODGE_PERCENT +50%. */
+    public static final int EVASION = 5277;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -455,6 +457,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_PERCENT_STAT, 0, 0, 10, 10, 0f, 0));
         spells.put(RECKLESSNESS, new SpellInfo(RECKLESSNESS, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_CRIT_PERCENT, 0, 0, 100, 100, 0f));
+        spells.put(EVASION, new SpellInfo(EVASION, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_DODGE_PERCENT, 0, 0, 50, 50, 0f));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
