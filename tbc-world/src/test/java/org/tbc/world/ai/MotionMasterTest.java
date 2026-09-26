@@ -173,6 +173,34 @@ class MotionMasterTest {
         assertEquals(MotionMaster.IDLE, c.motion.type());
     }
 
+    /**
+     * CMaNGOS InterruptMoving → UpdateSplinePosition before Stop:
+     * if the server lagged behind the walk packet the client is still interpolating,
+     * stop must relocate to ComputePosition (not the stale server xyz) or the client jumps.
+     */
+    @Test
+    void stopWhenServerLaggedBehindWalkSplineShouldSyncToClientPosition() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.relocate(0, 0, 0, 0);
+        c.spawnX = 0;
+        c.spawnY = 0;
+        c.spawnZ = 0;
+        int[] n = {0};
+        c.motion.rng(() -> n[0]++ == 0 ? 0.0 : 1.0);
+        c.motion.moveRandom(10f);
+        assertNotNull(c.motion.update(c, 1000));
+        assertEquals(UpdateBuilder.WALK, c.x, 0.05f);
+        c.relocate(0.5f, 0f, 0f, 0f);
+        byte[] stop = c.motion.stop(c);
+        assertEquals(UpdateBuilder.WALK, c.x, 0.05f);
+        assertEquals(0f, c.y, 0.05f);
+        WowBuffer pkt = new WowBuffer(stop);
+        pkt.getPackedGuid();
+        assertEquals(UpdateBuilder.WALK, pkt.getFloat(), 0.05f);
+        assertEquals(0f, pkt.getFloat(), 0.05f);
+    }
+
     @Test
     void chaseWhenArrivingShouldStopAtMeleeAndFaceVictim() {
         Creature c = new Creature();

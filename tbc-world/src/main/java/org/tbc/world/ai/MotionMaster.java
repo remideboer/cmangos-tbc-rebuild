@@ -48,6 +48,13 @@ public final class MotionMaster {
     private int nextSplineId = 1;
     private float lastFaceO;
     private DoubleSupplier rng = ThreadLocalRandom.current()::nextDouble;
+    /** Last launched client spline (CMaNGOS movespline) — used by InterruptMoving sync. */
+    private float splineFromX;
+    private float splineFromY;
+    private float splineFromZ;
+    private int splineDurationMs;
+    private int splineElapsedMs;
+    private boolean splineActive;
 
     public int type() {
         return type;
@@ -65,6 +72,7 @@ public final class MotionMaster {
         faceSent = false;
         sentPacket = false;
         sincePacketMs = CHASE_REACTION_MS;
+        clearSpline();
     }
 
     public void moveRandom(float spawnDist) {
@@ -76,6 +84,7 @@ public final class MotionMaster {
         faceSent = false;
         sentPacket = false;
         sincePacketMs = CHASE_REACTION_MS;
+        clearSpline();
     }
 
     public void moveIdle() {
@@ -86,6 +95,7 @@ public final class MotionMaster {
         faceSent = false;
         sentPacket = false;
         sincePacketMs = CHASE_REACTION_MS;
+        clearSpline();
     }
 
     public void moveHome() {
@@ -96,10 +106,19 @@ public final class MotionMaster {
         faceSent = false;
         sentPacket = false;
         sincePacketMs = CHASE_REACTION_MS;
+        clearSpline();
     }
 
-    /** MoveSplineInit::Stop — MonsterMoveStop so the client drops FACING_TARGET. */
+    /** MoveSplineInit::Stop — InterruptMoving syncs to ComputePosition first, then MonsterMoveStop. */
     public byte[] stop(Creature c) {
+        return stop(c, Terrain.NONE);
+    }
+
+    public byte[] stop(Creature c, Terrain.Height ground) {
+        if (c != null && splineActive) {
+            syncSplinePosition(c, ground == null ? Terrain.NONE : ground);
+        }
+        clearSpline();
         moveIdle();
         if (c == null) {
             return null;
@@ -142,6 +161,7 @@ public final class MotionMaster {
         if (dist <= stop) {
             hasDest = false;
             splineSent = false;
+            clearSpline();
             return faceOnWire(c, target);
         }
         double nx = target.x - c.x;
@@ -165,10 +185,14 @@ public final class MotionMaster {
         }
         byte[] spline = null;
         if (!splineSent && readyToSend()) {
+            beginSpline(c, destX, destY, destZ, UpdateBuilder.RUN);
             spline = emit(c, destX, destY, destZ, UpdateBuilder.RUN, target.guid);
             splineSent = true;
             faceSent = true;
             lastFaceO = angleTo(c, target);
+        }
+        if (splineActive) {
+            splineElapsedMs += diffMs;
         }
         advance(c, destX, destY, destZ, UpdateBuilder.RUN, diffMs, g, target);
         return spline;
@@ -182,12 +206,17 @@ public final class MotionMaster {
         hasDest = true;
         byte[] spline = null;
         if (!splineSent && readyToSend()) {
+            beginSpline(c, destX, destY, destZ, UpdateBuilder.RUN);
             spline = emit(c, destX, destY, destZ, UpdateBuilder.RUN, 0);
             splineSent = true;
+        }
+        if (splineActive) {
+            splineElapsedMs += diffMs;
         }
         advance(c, destX, destY, destZ, UpdateBuilder.RUN, diffMs, g, null);
         if (arrived(c)) {
             c.relocate(c.spawnX, c.spawnY, c.spawnZ, c.spawnO);
+            clearSpline();
         }
         return spline;
     }
@@ -203,11 +232,53 @@ public final class MotionMaster {
         byte[] spline = null;
         if (!hasDest || arrived(c)) {
             pickDest(c, g);
+            beginSpline(c, destX, destY, destZ, UpdateBuilder.WALK);
             spline = monsterMove(c, destX, destY, destZ, UpdateBuilder.WALK);
             splineSent = true;
         }
+        if (splineActive) {
+            splineElapsedMs += diffMs;
+        }
         advance(c, destX, destY, destZ, UpdateBuilder.WALK, diffMs, g, null);
         return spline;
+    }
+
+    private void beginSpline(Creature c, float toX, float toY, float toZ, float speed) {
+        float dx = toX - c.x;
+        float dy = toY - c.y;
+        float dz = toZ - c.z;
+        float dist = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        splineFromX = c.x;
+        splineFromY = c.y;
+        splineFromZ = c.z;
+        destX = toX;
+        destY = toY;
+        destZ = toZ;
+        splineDurationMs = Math.max(1, (int) (dist / Math.max(1e-3f, speed) * 1000f));
+        splineElapsedMs = 0;
+        splineActive = true;
+    }
+
+    /** CMaNGOS MoveSpline::ComputePosition for the linear monster-move we launched. */
+    private void syncSplinePosition(Creature c, Terrain.Height g) {
+        float t = Math.min(1f, splineElapsedMs / (float) splineDurationMs);
+        float x = splineFromX + (destX - splineFromX) * t;
+        float y = splineFromY + (destY - splineFromY) * t;
+        float z = splineFromZ + (destZ - splineFromZ) * t;
+        float o = c.o;
+        if (Math.hypot(destX - splineFromX, destY - splineFromY) > 1e-3) {
+            o = (float) Math.atan2(destY - splineFromY, destX - splineFromX);
+            if (o < 0) {
+                o += (float) (Math.PI * 2);
+            }
+        }
+        c.relocate(x, y, g.at(c.mapId, x, y, z), o);
+    }
+
+    private void clearSpline() {
+        splineActive = false;
+        splineElapsedMs = 0;
+        splineDurationMs = 1;
     }
 
     private void advance(Creature c, float toX, float toY, float toZ, float speed, int diffMs,

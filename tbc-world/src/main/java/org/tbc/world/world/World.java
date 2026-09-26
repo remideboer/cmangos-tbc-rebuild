@@ -674,8 +674,13 @@ public final class World implements Runnable {
             return;
         }
         boolean fresh = !c.inCombat;
-        byte[] stopMove = combat.startAttack(p, c, nowMs());
         GameMap m = map(p.mapId, p.instanceId);
+        float ox = c.x;
+        float oy = c.y;
+        byte[] stopMove = combat.startAttack(p, c, nowMs());
+        if (c.x != ox || c.y != oy) {
+            m.reindex(c, ox, oy);
+        }
         if (stopMove != null) {
             for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
                 if (pl.session != null) {
@@ -845,7 +850,8 @@ public final class World implements Runnable {
                     }
                     continue;
                 }
-                boolean combatPulse = c.inCombat || c.evading || c.motion.type() == MotionMaster.HOME;
+                boolean combatPulse = c.inCombat || c.evading || c.motion.type() == MotionMaster.HOME
+                        || c.motion.type() == MotionMaster.RANDOM;
                 if (!combatPulse) {
                     if (c.nextUpdateMs > 0) {
                         c.nextUpdateMs -= diff;

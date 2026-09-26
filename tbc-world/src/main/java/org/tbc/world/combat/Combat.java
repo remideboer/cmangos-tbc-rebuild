@@ -232,15 +232,15 @@ public final class Combat {
         refreshCombatTimer(c, nowMs);
         int swing = c.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME);
         c.meleeCooldownMs = swing > 0 ? swing : 2000;
-        if (c.combatStartMs == 0) {
-            c.combatStartMs = nowMs;
-            c.combatStartX = c.x;
-            c.combatStartY = c.y;
-        }
         byte[] stopMove = null;
         int motion = c.motion.type();
         if (motion == org.tbc.world.ai.MotionMaster.RANDOM || motion == org.tbc.world.ai.MotionMaster.HOME) {
             stopMove = c.motion.stop(c);
+        }
+        if (c.combatStartMs == 0) {
+            c.combatStartMs = nowMs;
+            c.combatStartX = c.x;
+            c.combatStartY = c.y;
         }
         if (c.combatMovement) {
             c.motion.moveChase(p);
