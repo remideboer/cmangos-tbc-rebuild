@@ -3128,7 +3128,11 @@ public final class SpellEngine {
         for (Unit.Aura aura : held) {
             int sealTrigger = sealOfRighteousnessTrigger(aura.spellId());
             if (sealTrigger != 0) {
-                int dmg = sealOfRighteousnessDamage(attacker, info(aura.spellId()));
+                SpellInfo seal = info(aura.spellId());
+                int dmg = sealOfRighteousnessDamage(attacker, seal);
+                MainhandWeaponStats w = MainhandWeaponStats.from(attacker);
+                log.info("SoR proc spell={} amount={} speed={} avg={} holy={}",
+                        aura.spellId(), (seal.minDmg + seal.maxDmg) / 2, w.speedSec(), w.avgDamage(), dmg);
                 landProcDamage(attacker, victim, sealTrigger, 2, dmg, send);
                 continue;
             }

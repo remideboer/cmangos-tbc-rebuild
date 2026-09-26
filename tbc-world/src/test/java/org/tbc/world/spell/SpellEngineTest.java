@@ -757,6 +757,16 @@ class SpellEngineTest {
     }
 
     @Test
+    void sealOfRighteousnessDamageWhenBattlewornClaymoreShouldMatchServerTemplate() {
+        // Mila DB: item 23346 delay 2900 dmg 3–5 → unified formula trunc 5 (not buff-stale 9).
+        Item mh = new Item(10, 23346);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, 2900, 3f, 5f);
+        p.items.put(10, mh);
+        assertEquals(5, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
+    }
+
+    @Test
     void sealOfRighteousnessDamageWhenWeaponProtoShouldIgnoreUnitFieldFists() {
         Item mh = new Item(1, 25);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
