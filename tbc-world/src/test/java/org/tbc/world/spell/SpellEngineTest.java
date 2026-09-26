@@ -822,6 +822,70 @@ class SpellEngineTest {
     }
 
     @Test
+    void sealOfRighteousnessDamageWhenMisclassifiedOneHandShouldBecomeTwoHandAfterHeal() {
+        // Combat log 5 = 1H formula on 2H stats; buff 9 = client Item.dbc 2H. Heal inventoryType.
+        org.tbc.world.content.ObjectMgr mgr = new org.tbc.world.content.ObjectMgr();
+        mgr.load(null, null);
+        int entry = 900_353;
+        org.tbc.world.content.ObjectMgr.ItemTemplate t = new org.tbc.world.content.ObjectMgr.ItemTemplate();
+        t.entry = entry;
+        t.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        t.delay = 3500;
+        t.dmgMin[0] = 80f;
+        t.dmgMax[0] = 100f;
+        mgr.items.put(entry, t);
+        Item mh = new Item(7, entry);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.inventoryType = 13;
+        mh.delay = 3500;
+        mh.dmgMin = 80f;
+        mh.dmgMax = 100f;
+        p.items.put(7, mh);
+        assertEquals(5, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
+        mgr.applyEquippedMelee(p);
+        assertEquals(9, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
+    }
+
+    @Test
+    void procMeleeWhenSealOfRighteousnessTwoHandShouldLogTooltipDamageAndZeroResist() {
+        org.tbc.world.content.ObjectMgr mgr = new org.tbc.world.content.ObjectMgr();
+        mgr.load(null, null);
+        int entry = 900_354;
+        org.tbc.world.content.ObjectMgr.ItemTemplate t = new org.tbc.world.content.ObjectMgr.ItemTemplate();
+        t.entry = entry;
+        t.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        t.delay = 3500;
+        t.dmgMin[0] = 80f;
+        t.dmgMax[0] = 100f;
+        mgr.items.put(entry, t);
+        Item mh = new Item(8, entry);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.inventoryType = 13;
+        mh.delay = 3500;
+        mh.dmgMin = 80f;
+        mh.dmgMax = 100f;
+        p.items.put(8, mh);
+        mgr.applyEquippedMelee(p);
+        p.spells.add(SpellEngine.SEAL_OF_RIGHTEOUSNESS);
+        c.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 200);
+        c.setHealth(100);
+        // Holy resist must not shrink SoR (CMaNGOS ignores SPELL_SCHOOL_MASK_HOLY).
+        c.setInt(UpdateFields.UNIT_FIELD_RESISTANCES + 1, 100);
+        engine.cast(p, map, 0, SpellEngine.SEAL_OF_RIGHTEOUSNESS, 1, empty(), this::capture);
+        ops.clear();
+        engine.procMelee(p, c, false, this::capture);
+        WowBuffer log = new WowBuffer(last.get(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        log.getPackedGuid();
+        log.getPackedGuid();
+        assertEquals(25742, log.getU32());
+        assertEquals(9, log.getU32());
+        assertEquals(2, log.getU8());
+        assertEquals(0, log.getU32());
+        assertEquals(0, log.getU32());
+        assertEquals(91, c.health());
+    }
+
+    @Test
     void sealOfRighteousnessDamageWhenMainhandHasNoDelayShouldFallBackToUnitField() {
         Item mh = new Item(5, 25);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;

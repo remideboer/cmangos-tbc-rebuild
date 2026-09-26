@@ -3727,18 +3727,7 @@ public final class ObjectMgr {
         if (p.getFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_COMBATREACH) <= 0f) {
             p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_COMBATREACH, 1.5f);
         }
-        healEquippedWeaponLine(p, Player.EQUIPMENT_SLOT_MAINHAND);
-        healEquippedWeaponLine(p, Player.EQUIPMENT_SLOT_OFFHAND);
-        ItemTemplate main = equippedTemplate(p, Player.EQUIPMENT_SLOT_MAINHAND);
-        if (main != null && main.dmgMax[0] > 0f) {
-            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINDAMAGE, main.dmgMin[0]);
-            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXDAMAGE, main.dmgMax[0]);
-            p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME, main.delay > 0 ? main.delay : 2000);
-        } else {
-            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINDAMAGE, 1.0f);
-            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXDAMAGE, 3.0f);
-            p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2000);
-        }
+        syncEquippedWeaponAttack(p);
         ItemTemplate off = equippedTemplate(p, Player.EQUIPMENT_SLOT_OFFHAND);
         if (off != null && off.dmgMax[0] > 0f) {
             p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE, off.dmgMin[0]);
@@ -3905,12 +3894,35 @@ public final class ObjectMgr {
     }
 
     /**
+     * Heal mainhand Item weapon line from template and push UNIT_FIELD attack speed/damage.
+     * Cheap enough to call before seal procs so SoR handedness matches the client buff tooltip.
+     */
+    public void syncEquippedWeaponAttack(Player p) {
+        if (p == null) {
+            return;
+        }
+        healEquippedWeaponLine(p, Player.EQUIPMENT_SLOT_MAINHAND);
+        healEquippedWeaponLine(p, Player.EQUIPMENT_SLOT_OFFHAND);
+        ItemTemplate main = equippedTemplate(p, Player.EQUIPMENT_SLOT_MAINHAND);
+        if (main != null && main.dmgMax[0] > 0f) {
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINDAMAGE, main.dmgMin[0]);
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXDAMAGE, main.dmgMax[0]);
+            p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME, main.delay > 0 ? main.delay : 2000);
+        } else {
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINDAMAGE, 1.0f);
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXDAMAGE, 3.0f);
+            p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2000);
+        }
+    }
+
+    /**
      * Copy inventoryType / delay / dmg from {@link ItemTemplate} onto the equipped {@link Item}
-     * when the instance line is missing (delay 0). Keeps MainhandWeaponStats aligned with UNIT_FIELD.
+     * whenever the template has a weapon line. Fixes delay-only fills that left inventoryType as
+     * 1H (SoR combat log used the 1H formula while the client buff used Item.dbc 2H).
      */
     private void healEquippedWeaponLine(Player p, int slot) {
         Item it = p.itemAt(0, slot);
-        if (it == null || it.delay > 0) {
+        if (it == null) {
             return;
         }
         ItemTemplate t = items.get(it.entry);

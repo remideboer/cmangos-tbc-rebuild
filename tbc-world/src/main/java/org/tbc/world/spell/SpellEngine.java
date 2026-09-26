@@ -3230,9 +3230,14 @@ public final class SpellEngine {
 
     private void landProcDamage(Player attacker, Unit victim, int spellId, int school, int dmg,
                                 BiConsumer<Integer, byte[]> send) {
-        victim.setHealth(victim.health() - dmg);
-        SpellInfo sp = new SpellInfo(spellId, EFFECT_SCHOOL_DAMAGE, 0, school, 0, dmg, dmg, 0f);
-        send.accept(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG, encodeDamageLog(victim.guid, attacker.guid, sp, dmg));
+        // school is schoolMask (HOLY=2). Holy is never partial-resisted (CMaNGOS clears HOLY mask).
+        int resist = 0;
+        int absorb = 0;
+        int dealt = Math.max(0, dmg - absorb - resist);
+        victim.setHealth(victim.health() - dealt);
+        SpellInfo sp = new SpellInfo(spellId, EFFECT_SCHOOL_DAMAGE, 0, school, 0, dealt, dealt, 0f);
+        send.accept(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG,
+                encodeDamageLog(victim.guid, attacker.guid, sp, dealt, absorb, resist));
         var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(victim, UpdateFields.UNIT_FIELD_HEALTH));
         send.accept(hp.opcode(), hp.payload());
     }
@@ -3263,14 +3268,23 @@ public final class SpellEngine {
     }
 
     public byte[] encodeDamageLog(long target, long attacker, SpellInfo sp, int damage) {
+        return encodeDamageLog(target, attacker, sp, damage, 0, 0);
+    }
+
+    /**
+     * {@code SMSG_SPELLNONMELEEDAMAGELOG}: damage is after absorb/resist; resist field is signed
+     * amount resisted (holy school is never partial-resisted — CMaNGOS clears HOLY from the mask).
+     */
+    public byte[] encodeDamageLog(long target, long attacker, SpellInfo sp, int damage,
+                                  int absorb, int resist) {
         WowBuffer b = new WowBuffer(64);
         b.putPackedGuid(target);
         b.putPackedGuid(attacker);
         b.putU32(sp.id);
         b.putU32(damage);
         b.putU8(sp.school);
-        b.putU32(0);
-        b.putU32(0);
+        b.putU32(absorb);
+        b.putU32(resist);
         b.putU8(0);
         b.putU8(0);
         b.putU32(0);

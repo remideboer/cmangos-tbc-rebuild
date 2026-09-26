@@ -52,4 +52,35 @@ class ObjectMgrEquippedMeleeTest {
         assertEquals(80f, p.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
         assertEquals(100f, p.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
     }
+
+    @Test
+    void applyEquippedMeleeWhenInventoryTypeWrongButDelaySetShouldHealHandedness() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        ObjectMgr.ItemTemplate t = new ObjectMgr.ItemTemplate();
+        t.entry = ENTRY_2H;
+        t.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        t.delay = 3500;
+        t.dmgMin[0] = 80f;
+        t.dmgMax[0] = 100f;
+        mgr.items.put(ENTRY_2H, t);
+
+        Player p = new Player();
+        p.guid = 1;
+        Item mh = new Item(11, ENTRY_2H);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        // Delay/dmg already filled (client buff = 9) but inventoryType stuck as 1H → SoR used 1H → log 5.
+        mh.inventoryType = 13;
+        mh.delay = 3500;
+        mh.dmgMin = 80f;
+        mh.dmgMax = 100f;
+        p.items.put(11, mh);
+
+        mgr.applyEquippedMelee(p);
+
+        assertEquals(SpellEngine.INVTYPE_2HWEAPON, mh.inventoryType);
+        assertEquals(3500, mh.delay);
+        assertEquals(80f, mh.dmgMin);
+        assertEquals(100f, mh.dmgMax);
+    }
 }
