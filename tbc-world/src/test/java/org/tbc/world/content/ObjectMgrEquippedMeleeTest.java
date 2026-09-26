@@ -1,0 +1,55 @@
+package org.tbc.world.content;
+
+import org.junit.jupiter.api.Test;
+import org.tbc.world.entity.Item;
+import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.spell.SpellEngine;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+/**
+ * applyEquippedMelee must heal zero-delay Item weapon lines from the template so
+ * MainhandWeaponStats / SoR match the client buff tooltip.
+ */
+class ObjectMgrEquippedMeleeTest {
+
+    private static final int ENTRY_2H = 900_351;
+
+    @Test
+    void applyEquippedMeleeWhenMainhandDelayZeroShouldHealItemAndUnitFields() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        ObjectMgr.ItemTemplate t = new ObjectMgr.ItemTemplate();
+        t.entry = ENTRY_2H;
+        t.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        t.delay = 3500;
+        t.dmgMin[0] = 80f;
+        t.dmgMax[0] = 100f;
+        mgr.items.put(ENTRY_2H, t);
+
+        Player p = new Player();
+        p.guid = 1;
+        p.name = "P";
+        Item mh = new Item(10, ENTRY_2H);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        mh.delay = 0;
+        mh.dmgMin = 0f;
+        mh.dmgMax = 0f;
+        p.items.put(10, mh);
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2000);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 1f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 3f);
+
+        mgr.applyEquippedMelee(p);
+
+        assertEquals(3500, mh.delay);
+        assertEquals(80f, mh.dmgMin);
+        assertEquals(100f, mh.dmgMax);
+        assertEquals(SpellEngine.INVTYPE_2HWEAPON, mh.inventoryType);
+        assertEquals(3500, p.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+        assertEquals(80f, p.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
+        assertEquals(100f, p.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
+    }
+}

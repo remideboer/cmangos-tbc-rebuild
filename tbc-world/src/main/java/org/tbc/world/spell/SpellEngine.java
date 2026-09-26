@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.tbc.common.Codes;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
+import org.tbc.world.combat.MainhandWeaponStats;
 import org.tbc.world.entity.Corpse;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.DynamicObject;
@@ -3165,24 +3166,14 @@ public final class SpellEngine {
     /**
      * Seal of Righteousness holy damage — same evaluation as the 8606 Spell.dbc buff/action-bar
      * tooltip (handedness × amount × speed + 3% weapon avg), plus CMaNGOS holy SP coeff on hit.
-     * Weapon speed/damage come from the mainhand item proto (what the client tooltip uses), not
-     * from possibly stale UNIT_FIELD fist defaults.
+     * Weapon speed/damage via {@link MainhandWeaponStats} (item proto first).
      */
     static int sealOfRighteousnessDamage(Player attacker, SpellInfo seal) {
         int amount = (seal.minDmg + seal.maxDmg) / 2;
-        Item mh = attacker.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND);
-        boolean twoHand = mh != null && mh.inventoryType == INVTYPE_2HWEAPON;
-        float speed;
-        float weapon;
-        if (mh != null && mh.delay > 0) {
-            speed = mh.delay / 1000f;
-            weapon = (mh.dmgMin + mh.dmgMax) / 2f;
-        } else {
-            int attackTime = attacker.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
-            speed = (attackTime > 0 ? attackTime : 2000) / 1000f;
-            weapon = (attacker.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE)
-                    + attacker.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE)) / 2f;
-        }
+        MainhandWeaponStats w = MainhandWeaponStats.from(attacker);
+        float speed = w.speedSec();
+        float weapon = w.avgDamage();
+        boolean twoHand = w.twoHand();
         float damage;
         if (twoHand) {
             // Tooltip: 1.2 * (amount * 1.2 * 1.03 * MWS / 100) + 0.03 * avg + 1

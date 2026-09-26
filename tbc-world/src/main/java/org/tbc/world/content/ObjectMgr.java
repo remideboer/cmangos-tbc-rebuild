@@ -3727,6 +3727,8 @@ public final class ObjectMgr {
         if (p.getFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_COMBATREACH) <= 0f) {
             p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_COMBATREACH, 1.5f);
         }
+        healEquippedWeaponLine(p, Player.EQUIPMENT_SLOT_MAINHAND);
+        healEquippedWeaponLine(p, Player.EQUIPMENT_SLOT_OFFHAND);
         ItemTemplate main = equippedTemplate(p, Player.EQUIPMENT_SLOT_MAINHAND);
         if (main != null && main.dmgMax[0] > 0f) {
             p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINDAMAGE, main.dmgMin[0]);
@@ -3900,6 +3902,25 @@ public final class ObjectMgr {
             }
         }
         p.syncItemEquipAuras(wanted);
+    }
+
+    /**
+     * Copy inventoryType / delay / dmg from {@link ItemTemplate} onto the equipped {@link Item}
+     * when the instance line is missing (delay 0). Keeps MainhandWeaponStats aligned with UNIT_FIELD.
+     */
+    private void healEquippedWeaponLine(Player p, int slot) {
+        Item it = p.itemAt(0, slot);
+        if (it == null || it.delay > 0) {
+            return;
+        }
+        ItemTemplate t = items.get(it.entry);
+        if (t == null || t.delay <= 0) {
+            return;
+        }
+        it.inventoryType = t.inventoryType;
+        it.delay = t.delay;
+        it.dmgMin = t.dmgMin[0];
+        it.dmgMax = t.dmgMax[0];
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {

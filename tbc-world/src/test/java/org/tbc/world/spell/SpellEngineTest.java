@@ -799,6 +799,29 @@ class SpellEngineTest {
     }
 
     @Test
+    void sealOfRighteousnessDamageWhenApplyEquippedMeleeHealsItemShouldMatchTooltip() {
+        org.tbc.world.content.ObjectMgr mgr = new org.tbc.world.content.ObjectMgr();
+        mgr.load(null, null);
+        int entry = 900_352;
+        org.tbc.world.content.ObjectMgr.ItemTemplate t = new org.tbc.world.content.ObjectMgr.ItemTemplate();
+        t.entry = entry;
+        t.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        t.delay = 3500;
+        t.dmgMin[0] = 80f;
+        t.dmgMax[0] = 100f;
+        mgr.items.put(entry, t);
+        Item mh = new Item(4, entry);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.delay = 0;
+        p.items.put(4, mh);
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2000);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 1f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 3f);
+        mgr.applyEquippedMelee(p);
+        assertEquals(9, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
+    }
+
+    @Test
     void sealOfRighteousnessDamageWhenMainhandHasNoDelayShouldFallBackToUnitField() {
         Item mh = new Item(5, 25);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
