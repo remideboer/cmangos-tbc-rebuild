@@ -994,9 +994,34 @@ public final class Player extends Unit {
             setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2,
                     Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
             if (it.slot < EQUIPMENT_SLOT_END) {
-                setInt(UpdateFields.PLAYER_VISIBLE_ITEM_1_0 + it.slot * MAX_VISIBLE_ITEM_OFFSET, it.entry);
+                setVisibleItemSlot(it.slot, it);
             }
         }
+        refreshSheath();
+    }
+
+    /**
+     * CMaNGOS Player::SetVisibleItemSlot — paper-doll / 3D model entry for an equipment slot.
+     * Pass {@code null} to clear (unequip).
+     */
+    public void setVisibleItemSlot(int slot, Item item) {
+        if (slot < 0 || slot >= EQUIPMENT_SLOT_END) {
+            return;
+        }
+        int base = UpdateFields.PLAYER_VISIBLE_ITEM_1_0 + slot * MAX_VISIBLE_ITEM_OFFSET;
+        setInt(base, item != null ? item.entry : 0);
+    }
+
+    /** UNIT_FIELD_BYTES_2 sheath byte: 1 when mainhand equipped, else 0. */
+    public void refreshSheath() {
+        int sheath = itemAt(0, EQUIPMENT_SLOT_MAINHAND) != null ? 1 : 0;
+        int shapeshift = shapeshiftForm();
+        setInt(UpdateFields.UNIT_FIELD_BYTES_2,
+                sheath | (PLAYER_CONTROLLED_DEBUFF_LIMIT << 8) | (shapeshift << 24));
+    }
+
+    public static int visibleItemEntryField(int slot) {
+        return UpdateFields.PLAYER_VISIBLE_ITEM_1_0 + slot * MAX_VISIBLE_ITEM_OFFSET;
     }
 
     public void setMoney(int copper) {

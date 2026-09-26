@@ -502,6 +502,8 @@ class Slice14P0Test {
         sword.slot = Player.EQUIPMENT_SLOT_MAINHAND;
         p.items.put((int) sword.guid, sword);
         p.setGuid(invSlotField(Player.EQUIPMENT_SLOT_MAINHAND), UpdateBuilder.itemGuid(sword));
+        p.setVisibleItemSlot(Player.EQUIPMENT_SLOT_MAINHAND, sword);
+        p.refreshSheath();
         world.objectMgr.applyEquippedMelee(p);
         int dest = p.firstFreeBagSlot();
 
@@ -519,6 +521,10 @@ class Slice14P0Test {
         assertEquals(UpdateBuilder.itemGuid(sword), guidAt(update, invSlotField(dest)));
         assertEquals(0, sword.bag);
         assertEquals(dest, sword.slot);
+        // CMaNGOS SetVisibleItemSlot(nullptr) — model must leave the hand, not stay dual-shown.
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_VISIBLE_ITEM_1_0
+                + Player.EQUIPMENT_SLOT_MAINHAND * Player.MAX_VISIBLE_ITEM_OFFSET));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_BYTES_2) & 0xFF);
     }
 
     /**

@@ -39,6 +39,33 @@ public final class InventoryHandler {
         return all;
     }
 
+    /** After bag0 slot moves: refresh paper-doll visuals for any equipment slots touched. */
+    private static int[] withEquipVisuals(Player p, int srcSlot, int dstSlot, int... fields) {
+        boolean srcEquip = srcSlot >= 0 && srcSlot < Player.EQUIPMENT_SLOT_END;
+        boolean dstEquip = dstSlot >= 0 && dstSlot < Player.EQUIPMENT_SLOT_END;
+        if (srcEquip) {
+            p.setVisibleItemSlot(srcSlot, p.itemAt(0, srcSlot));
+        }
+        if (dstEquip) {
+            p.setVisibleItemSlot(dstSlot, p.itemAt(0, dstSlot));
+        }
+        if (!srcEquip && !dstEquip) {
+            return fields;
+        }
+        p.refreshSheath();
+        int extra = (srcEquip ? 1 : 0) + (dstEquip ? 1 : 0) + 1;
+        int[] all = Arrays.copyOf(fields, fields.length + extra);
+        int i = fields.length;
+        if (srcEquip) {
+            all[i++] = Player.visibleItemEntryField(srcSlot);
+        }
+        if (dstEquip) {
+            all[i++] = Player.visibleItemEntryField(dstSlot);
+        }
+        all[i] = UpdateFields.UNIT_FIELD_BYTES_2;
+        return all;
+    }
+
     public static void swapInvItem(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
         if (in.remaining() < 2) {
@@ -65,7 +92,8 @@ public final class InventoryHandler {
             world.objectMgr.applyEquippedMelee(p);
         }
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, withAuras(p, srcField, srcField + 1, dstField, dstField + 1,
+                UpdateBuilder.values(p, withAuras(p, withEquipVisuals(p, src, dst,
+                        srcField, srcField + 1, dstField, dstField + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -96,7 +124,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA)));
+                        UpdateFields.UNIT_FIELD_AURA))));
         s.send(pkt.opcode(), pkt.payload());
     }
     public static void swapItem(WorldSession s, World world, WowBuffer in) {
@@ -132,7 +160,8 @@ public final class InventoryHandler {
             world.objectMgr.applyEquippedMelee(p);
         }
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, withAuras(p, srcField, srcField + 1, dstField, dstField + 1,
+                UpdateBuilder.values(p, withAuras(p, withEquipVisuals(p, srcSlot, dstSlot,
+                        srcField, srcField + 1, dstField, dstField + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -163,7 +192,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA)));
+                        UpdateFields.UNIT_FIELD_AURA))));
         s.send(pkt.opcode(), pkt.payload());
     }
 
@@ -181,13 +210,15 @@ public final class InventoryHandler {
             return;
         }
         p.items.remove((int) it.guid);
+        int destroyedSlot = it.slot;
         int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
         p.setGuid(field, 0);
         if (world != null) {
             world.objectMgr.applyEquippedMelee(p);
         }
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, withAuras(p, field, field + 1,
+                UpdateBuilder.values(p, withAuras(p, withEquipVisuals(p, destroyedSlot, -1,
+                        field, field + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -218,7 +249,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA)));
+                        UpdateFields.UNIT_FIELD_AURA))));
         s.send(pkt.opcode(), pkt.payload());
     }
 
@@ -401,7 +432,8 @@ public final class InventoryHandler {
         p.setGuid(dstField, UpdateBuilder.itemGuid(it));
         world.objectMgr.applyEquippedMelee(p);
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, withAuras(p, srcField, srcField + 1, dstField, dstField + 1,
+                UpdateBuilder.values(p, withAuras(p, withEquipVisuals(p, srcSlot, dest,
+                        srcField, srcField + 1, dstField, dstField + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -432,7 +464,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA)));
+                        UpdateFields.UNIT_FIELD_AURA))));
         s.send(pkt.opcode(), pkt.payload());
         if (dest >= Player.INVENTORY_SLOT_BAG_START && dest < Player.INVENTORY_SLOT_BAG_END) {
             WowBuffer opened = new WowBuffer(8);
@@ -465,7 +497,8 @@ public final class InventoryHandler {
         p.setGuid(dstField, UpdateBuilder.itemGuid(it));
         world.objectMgr.applyEquippedMelee(p);
         var pkt = UpdateBuilder.maybeCompress(
-                UpdateBuilder.values(p, withAuras(p, srcField, srcField + 1, dstField, dstField + 1,
+                UpdateBuilder.values(p, withAuras(p, withEquipVisuals(p, srcSlot, dest,
+                        srcField, srcField + 1, dstField, dstField + 1,
                         UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
                         UpdateFields.UNIT_FIELD_BASEATTACKTIME,
                         UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
@@ -496,7 +529,7 @@ public final class InventoryHandler {
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 19,
                         UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + 23,
                         UpdateFields.PLAYER_SHIELD_BLOCK,
-                        UpdateFields.UNIT_FIELD_AURA)));
+                        UpdateFields.UNIT_FIELD_AURA))));
         s.send(pkt.opcode(), pkt.payload());
     }
 
