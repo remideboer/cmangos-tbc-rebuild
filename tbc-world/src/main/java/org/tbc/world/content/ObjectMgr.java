@@ -6,6 +6,7 @@ import org.tbc.common.DbPool;
 import org.tbc.world.ai.DbScriptStore;
 import org.tbc.world.ai.EventAiStore;
 import org.tbc.world.combat.Factions;
+import org.tbc.world.combat.MainhandWeaponStats;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.GameObject;
 import org.tbc.world.entity.Guid;
@@ -3378,11 +3379,8 @@ public final class ObjectMgr {
                 continue;
             }
             it.displayId = t.displayId;
-            it.inventoryType = t.inventoryType;
             it.quality = t.quality;
-            it.delay = t.delay;
-            it.dmgMin = t.dmgMin[0];
-            it.dmgMax = t.dmgMax[0];
+            applyWeaponProto(it, t);
             if (it.durability <= 0) {
                 it.durability = t.maxDurability;
             }
@@ -3475,11 +3473,8 @@ public final class ObjectMgr {
         it.slot = slot;
         it.count = Math.max(1, count);
         it.displayId = t.displayId;
-        it.inventoryType = t.inventoryType;
         it.quality = t.quality;
-        it.delay = t.delay;
-        it.dmgMin = t.dmgMin[0];
-        it.dmgMax = t.dmgMax[0];
+        applyWeaponProto(it, t);
         it.durability = t.maxDurability;
         p.items.put(Guid.low(it.guid), it);
     }
@@ -3916,6 +3911,24 @@ public final class ObjectMgr {
     }
 
     /**
+     * Copy subclass / inventoryType / delay / dmg from template. Normalizes InventoryType to
+     * {@link SpellEngine#INVTYPE_2HWEAPON} when subclass is a 2H weapon (client $HND / SoR).
+     */
+    public static void applyWeaponProto(Item it, ItemTemplate t) {
+        if (it == null || t == null) {
+            return;
+        }
+        it.subClass = t.subClass;
+        it.inventoryType = t.inventoryType;
+        it.delay = t.delay;
+        it.dmgMin = t.dmgMin[0];
+        it.dmgMax = t.dmgMax[0];
+        if (MainhandWeaponStats.isTwoHandSubclass(t.subClass)) {
+            it.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        }
+    }
+
+    /**
      * Copy inventoryType / delay / dmg from {@link ItemTemplate} onto the equipped {@link Item}
      * whenever the template has a weapon line. Fixes delay-only fills that left inventoryType as
      * 1H (SoR combat log used the 1H formula while the client buff used Item.dbc 2H).
@@ -3929,10 +3942,7 @@ public final class ObjectMgr {
         if (t == null || t.delay <= 0) {
             return;
         }
-        it.inventoryType = t.inventoryType;
-        it.delay = t.delay;
-        it.dmgMin = t.dmgMin[0];
-        it.dmgMax = t.dmgMax[0];
+        applyWeaponProto(it, t);
     }
 
     private ItemTemplate equippedTemplate(Player p, int slot) {

@@ -83,4 +83,27 @@ class ObjectMgrEquippedMeleeTest {
         assertEquals(80f, mh.dmgMin);
         assertEquals(100f, mh.dmgMax);
     }
+
+    @Test
+    void applyWeaponProtoWhenTwoHandSubclassShouldNormalizeInventoryType() {
+        ObjectMgr.ItemTemplate t = new ObjectMgr.ItemTemplate();
+        t.subClass = org.tbc.world.combat.MainhandWeaponStats.SUBCLASS_MACE2;
+        t.inventoryType = 21;
+        t.delay = 3500;
+        t.dmgMin[0] = 80f;
+        t.dmgMax[0] = 100f;
+        Item it = new Item(1, 2361);
+        ObjectMgr.applyWeaponProto(it, t);
+        assertEquals(SpellEngine.INVTYPE_2HWEAPON, it.inventoryType);
+        assertEquals(org.tbc.world.combat.MainhandWeaponStats.SUBCLASS_MACE2, it.subClass);
+        assertEquals(3500, it.delay);
+    }
+
+    @Test
+    void applyWeaponProtoWhenNullShouldNoOp() {
+        ObjectMgr.applyWeaponProto(null, null);
+        Item it = new Item(1, 25);
+        ObjectMgr.applyWeaponProto(it, null);
+        assertEquals(0, it.delay);
+    }
 }

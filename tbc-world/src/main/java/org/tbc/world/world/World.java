@@ -551,6 +551,10 @@ public final class World implements Runnable {
             p.rewardRageFromHit(r.damage(), r.outcome() == MeleeTable.Outcome.CRIT);
             if (p.session != null) {
                 objectMgr.syncEquippedWeaponAttack(p);
+                var atk = UpdateBuilder.maybeCompress(UpdateBuilder.values(p,
+                        UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
+                        UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+                p.session.send(atk.opcode(), atk.payload());
                 spells.procMelee(p, c, false, p.session::send);
             }
         }

@@ -18,7 +18,7 @@ class MainhandWeaponStatsTest {
         Player p = player();
         Item mh = new Item(1, 25);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
-        mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, 3500, 80f, 100f);
+        mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, MainhandWeaponStats.SUBCLASS_SWORD2, 3500, 80f, 100f);
         p.items.put(1, mh);
         p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2000);
         p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 1f);
@@ -29,6 +29,21 @@ class MainhandWeaponStatsTest {
         assertEquals(90f, s.avgDamage());
         assertEquals(3500, s.delayMs());
         assertTrue(s.twoHand());
+    }
+
+    @Test
+    void fromWhenTwoHandSubclassButInventoryTypeOneHandShouldStillBeTwoHand() {
+        // Live bug: buff $HND=2 (9) while server InventoryType 21/13 → SoR 1H trunc 5.
+        Player p = player();
+        Item mh = new Item(3, 2361);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(21, MainhandWeaponStats.SUBCLASS_MACE2, 3500, 80f, 100f);
+        p.items.put(3, mh);
+
+        MainhandWeaponStats s = MainhandWeaponStats.from(p);
+        assertTrue(s.twoHand());
+        assertEquals(3.5f, s.speedSec());
+        assertEquals(90f, s.avgDamage());
     }
 
     @Test

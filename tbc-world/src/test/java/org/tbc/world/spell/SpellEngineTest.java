@@ -830,6 +830,7 @@ class SpellEngineTest {
         org.tbc.world.content.ObjectMgr.ItemTemplate t = new org.tbc.world.content.ObjectMgr.ItemTemplate();
         t.entry = entry;
         t.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        t.subClass = org.tbc.world.combat.MainhandWeaponStats.SUBCLASS_SWORD2;
         t.delay = 3500;
         t.dmgMin[0] = 80f;
         t.dmgMax[0] = 100f;
@@ -843,6 +844,16 @@ class SpellEngineTest {
         p.items.put(7, mh);
         assertEquals(5, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
         mgr.applyEquippedMelee(p);
+        assertEquals(9, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenTwoHandSubclassAndWrongInventoryTypeShouldUseTwoHandFormula() {
+        Item mh = new Item(9, 2361);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        // Template/SQL left InventoryType as 21 but subclass is 2H mace — client buff still shows 9.
+        mh.applyWeaponLine(21, org.tbc.world.combat.MainhandWeaponStats.SUBCLASS_MACE2, 3500, 80f, 100f);
+        p.items.put(9, mh);
         assertEquals(9, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
     }
 
