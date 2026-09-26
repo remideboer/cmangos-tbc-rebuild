@@ -136,6 +136,53 @@ class AuraSlotsTest {
     }
 
     @Test
+    void expireTimedWhenCasterKnownShouldInvokeClearExtra() {
+        Player p = new Player();
+        p.guid = 1;
+        p.auras.add(new org.tbc.world.entity.Unit.Aura(116, 1000, 1, 0, 1, 0, 0, 99L));
+        AuraSlots.applyVisible(p, 116, 1, 1);
+        long[] clearedCaster = {0};
+        int[] clearedSpell = {0};
+        AuraSlots.expireTimed(p, 1, null, null, (casterGuid, spellId) -> {
+            clearedCaster[0] = casterGuid;
+            clearedSpell[0] = spellId;
+        });
+        assertEquals(99L, clearedCaster[0]);
+        assertEquals(116, clearedSpell[0]);
+    }
+
+    @Test
+    void sendClearExtraAuraInfoShouldEncodePackedGuidAndSpell() {
+        Creature c = new Creature();
+        c.guid = 0xFFL;
+        List<byte[]> payloads = new ArrayList<>();
+        AuraSlots.sendClearExtraAuraInfo(c, 770, (op, payload) -> {
+            assertEquals(Opcodes.SMSG_CLEAR_EXTRA_AURA_INFO, op);
+            payloads.add(payload);
+        });
+        assertEquals(1, payloads.size());
+        AuraSlots.sendClearExtraAuraInfo(null, 770, (op, payload) -> {
+            throw new AssertionError("null target");
+        });
+        AuraSlots.sendSetExtraAuraInfo(null, 0, 770, 1000, 1000, (op, payload) -> {
+            throw new AssertionError("null target");
+        });
+    }
+
+    @Test
+    void sendApplyWhenPlayerCasterShouldSendExtraAuraInfo() {
+        Player target = new Player();
+        target.guid = 2;
+        Player caster = new Player();
+        caster.guid = 3;
+        // session null → SET_EXTRA skipped; VALUES still via send
+        AuraSlots.applyVisible(target, 116, 1, 1);
+        List<Integer> ops = new ArrayList<>();
+        AuraSlots.sendApply(target, caster, 116, 40_000, 40_000, (op, payload) -> ops.add(op));
+        assertTrue(ops.contains(Opcodes.SMSG_UPDATE_OBJECT) || ops.contains(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
+    @Test
     void pulsePeriodicWhenAmplitudeElapsedShouldFireOnceAndReschedule() {
         Player p = new Player();
         p.auras.add(new org.tbc.world.entity.Unit.Aura(30108, 18_000, 1, 0, 0, 3000, 5000, 1));

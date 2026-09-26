@@ -81,9 +81,15 @@ public final class AuraSlots {
 
     /**
      * VALUES for the slot plus SMSG_UPDATE_AURA_DURATION to a player target
-     * (SpellAuraHolder::SendAuraDuration).
+     * (SpellAuraHolder::SendAuraDuration) and SMSG_SET_EXTRA_AURA_INFO to a player caster
+     * (SendAuraDurationToCaster).
      */
     public static void sendApply(Unit target, int spellId, int remainMs, BiConsumer<Integer, byte[]> send) {
+        sendApply(target, null, spellId, remainMs, remainMs, send);
+    }
+
+    public static void sendApply(Unit target, Unit caster, int spellId, int maxMs, int remainMs,
+                                 BiConsumer<Integer, byte[]> send) {
         int slot = slotOf(target, spellId);
         if (slot < 0 || send == null) {
             return;
@@ -94,12 +100,47 @@ public final class AuraSlots {
                 UpdateFields.UNIT_FIELD_AURALEVELS + slot / 4,
                 UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + slot / 4));
         send.accept(upd.opcode(), upd.payload());
-        if (target instanceof Player) {
+        if (target instanceof Player tp) {
+            // Duration opcode has no GUID — always the target's own session (CMaNGOS SendAuraDuration).
+            BiConsumer<Integer, byte[]> toTarget = tp.session != null ? tp.session::send : send;
+            if (caster != null && caster != target && tp.session != null) {
+                // Cast send is usually caster-only; target still needs the VALUES.
+                tp.session.send(upd.opcode(), upd.payload());
+            }
             WowBuffer dur = new WowBuffer(5);
             dur.putU8(slot);
             dur.putU32(remainMs);
-            send.accept(Opcodes.SMSG_UPDATE_AURA_DURATION, dur.array());
+            toTarget.accept(Opcodes.SMSG_UPDATE_AURA_DURATION, dur.array());
         }
+        if (caster instanceof Player cp && cp.session != null) {
+            sendSetExtraAuraInfo(target, slot, spellId, maxMs, remainMs, cp.session::send);
+        }
+    }
+
+    /** SpellAuraHolder::BuildAuraDurationToCaster — packed guid, slot, spell, max, remain. */
+    public static void sendSetExtraAuraInfo(Unit target, int slot, int spellId, int maxMs, int remainMs,
+                                           BiConsumer<Integer, byte[]> send) {
+        if (target == null || send == null || slot < 0) {
+            return;
+        }
+        WowBuffer data = new WowBuffer(24);
+        data.putPackedGuid(target.guid);
+        data.putU8(slot);
+        data.putU32(spellId);
+        data.putU32(maxMs);
+        data.putU32(remainMs);
+        send.accept(Opcodes.SMSG_SET_EXTRA_AURA_INFO, data.array());
+    }
+
+    /** SpellAuraHolder::ClearExtraAuraInfo — packed guid + spell id to the caster. */
+    public static void sendClearExtraAuraInfo(Unit target, int spellId, BiConsumer<Integer, byte[]> send) {
+        if (target == null || send == null) {
+            return;
+        }
+        WowBuffer data = new WowBuffer(16);
+        data.putPackedGuid(target.guid);
+        data.putU32(spellId);
+        send.accept(Opcodes.SMSG_CLEAR_EXTRA_AURA_INFO, data.array());
     }
 
     /** SpellAuraHolder remove visible slot (SetAura 0, flags/levels/applications cleared). */
@@ -118,26 +159,36 @@ public final class AuraSlots {
      * (not permanent: duration 0 / expireAt 0) are removed AURA_REMOVE_BY_EXPIRE.
      */
     public static void expireTimed(Unit target, long nowMs, BiConsumer<Integer, byte[]> send) {
-        expireTimed(target, nowMs, send, null);
+        expireTimed(target, nowMs, send, null, null);
     }
 
     public static void expireTimed(Unit target, long nowMs, BiConsumer<Integer, byte[]> send,
                                    Consumer<Integer> onExpireSpell) {
+        expireTimed(target, nowMs, send, onExpireSpell, null);
+    }
+
+    /**
+     * @param onClearExtra casterGuid + spellId for SMSG_CLEAR_EXTRA_AURA_INFO (may be null)
+     */
+    public static void expireTimed(Unit target, long nowMs, BiConsumer<Integer, byte[]> send,
+                                   Consumer<Integer> onExpireSpell,
+                                   java.util.function.BiConsumer<Long, Integer> onClearExtra) {
         if (target == null) {
             return;
         }
-        ArrayList<Integer> expired = new ArrayList<>();
+        ArrayList<Unit.Aura> expired = new ArrayList<>();
         for (Unit.Aura a : target.auras) {
             if (a.durationMs() > 0 && a.expireAtMs() > 0 && nowMs >= a.expireAtMs()) {
-                expired.add(a.spellId());
+                expired.add(a);
             }
         }
-        for (int spellId : expired) {
+        for (Unit.Aura a : expired) {
+            int spellId = a.spellId();
             if (onExpireSpell != null) {
                 onExpireSpell.accept(spellId);
             }
             int slot = slotOf(target, spellId);
-            target.auras.removeIf(a -> a.spellId() == spellId);
+            target.auras.removeIf(x -> x.spellId() == spellId);
             if (slot >= 0) {
                 clearVisible(target, slot);
                 if (send != null) {
@@ -148,6 +199,9 @@ public final class AuraSlots {
                             UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + slot / 4));
                     send.accept(upd.opcode(), upd.payload());
                 }
+            }
+            if (onClearExtra != null && a.casterGuid() != 0) {
+                onClearExtra.accept(a.casterGuid(), spellId);
             }
         }
     }

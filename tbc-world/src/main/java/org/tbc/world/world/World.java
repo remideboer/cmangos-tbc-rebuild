@@ -1032,20 +1032,46 @@ public final class World implements Runnable {
         });
     }
 
-    /** Unit::_UpdateSpells — expire timed holders on in-map players (AURA_REMOVE_BY_EXPIRE). */
+    /** Unit::_UpdateSpells — expire timed holders on in-map units (AURA_REMOVE_BY_EXPIRE). */
     private void expirePlayerAuras() {
         long now = nowMs();
         for (GameMap m : maps.values()) {
             for (Player p : m.players()) {
-                AuraSlots.expireTimed(p, now, p.session != null ? p.session::send : null, spellId -> {
-                    spells.unapplyAura(p, spellId);
-                    SpellEngine.SpellInfo sp = spells.info(spellId);
-                    if (sp != null && p.session != null) {
-                        SpellEngine.sendResistanceStatValues(p, sp, p.session::send);
-                    }
-                });
+                expireUnitAuras(m, p, now);
+            }
+            for (Creature c : m.creaturesNearPlayers(GameMap.VISIBILITY)) {
+                expireUnitAuras(m, c, now);
             }
         }
+    }
+
+    /**
+     * Broadcast VALUES clears to the unit and nearby players (same visibility as periodic ticks).
+     * Caster gets SMSG_CLEAR_EXTRA_AURA_INFO (SpellAuraHolder::ClearExtraAuraInfo).
+     */
+    private void expireUnitAuras(GameMap m, Unit u, long now) {
+        BiConsumer<Integer, byte[]> broadcast = (op, payload) -> {
+            if (u instanceof Player self && self.session != null) {
+                self.session.send(op, payload);
+            }
+            for (Player pl : m.nearbyPlayers(u, GameMap.VISIBILITY)) {
+                if (pl.session != null) {
+                    pl.session.send(op, payload);
+                }
+            }
+        };
+        AuraSlots.expireTimed(u, now, broadcast, spellId -> {
+            spells.unapplyAura(u, spellId);
+            SpellEngine.SpellInfo sp = spells.info(spellId);
+            if (sp != null && u instanceof Player p && p.session != null) {
+                SpellEngine.sendResistanceStatValues(p, sp, p.session::send);
+            }
+        }, (casterGuid, spellId) -> {
+            Player caster = m.players.get(casterGuid);
+            if (caster != null && caster.session != null) {
+                AuraSlots.sendClearExtraAuraInfo(u, spellId, caster.session::send);
+            }
+        });
     }
 
     @Override
@@ -1086,7 +1112,7 @@ public final class World implements Runnable {
         SpellEngine.SpellInfo info = spells.info(spell);
         int dmg = 0;
         if (info != null) {
-            dmg = spells.apply(cr, target, info);
+            dmg = spells.apply(cr, target, info, nowMs());
         }
         byte[] go = spells.encodeGo(cr.guid, hit, spell, nowMs(), tgt);
         for (Player pl : m.nearbyPlayers(cr, GameMap.VISIBILITY)) {

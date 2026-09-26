@@ -7,7 +7,10 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.pvp.PvpObjectives;
+import org.tbc.world.spell.AuraSlots;
 import org.tbc.world.world.World;
 
 /** Remaining slice 10+ C2S that is not a dedicated WorldSession method. */
@@ -399,7 +402,42 @@ public final class LaterOpcodes {
         }
         if (opcode == Opcodes.CMSG_CANCEL_AURA) {
             int spell = in.remaining() >= 4 ? in.getU32() : 0;
+            int slot = AuraSlots.slotOf(p, spell);
+            long casterGuid = 0;
+            for (org.tbc.world.entity.Unit.Aura a : p.auras) {
+                if (a.spellId() == spell) {
+                    casterGuid = a.casterGuid();
+                    break;
+                }
+            }
             world.spells.cancelAura(p, spell);
+            world.spells.unapplyAura(p, spell);
+            if (slot >= 0) {
+                AuraSlots.clearVisible(p, slot);
+                var upd = UpdateBuilder.maybeCompress(
+                        UpdateBuilder.values(p,
+                                UpdateFields.UNIT_FIELD_AURA + slot,
+                                UpdateFields.UNIT_FIELD_AURAFLAGS + slot / 4,
+                                UpdateFields.UNIT_FIELD_AURALEVELS + slot / 4,
+                                UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + slot / 4));
+                GameMap m = world.map(p.mapId, p.instanceId);
+                if (p.session != null) {
+                    p.session.send(upd.opcode(), upd.payload());
+                }
+                if (m != null) {
+                    for (Player pl : m.nearbyPlayers(p, GameMap.VISIBILITY)) {
+                        if (pl.session != null) {
+                            pl.session.send(upd.opcode(), upd.payload());
+                        }
+                    }
+                    if (casterGuid != 0) {
+                        Player caster = m.players.get(casterGuid);
+                        if (caster != null && caster.session != null) {
+                            AuraSlots.sendClearExtraAuraInfo(p, spell, caster.session::send);
+                        }
+                    }
+                }
+            }
             // BattleGroundWS::HandlePlayerDroppedFlag — flag aura cancel → ON_GROUND (-1).
             if (p.mapId == 489 && (spell == PvpObjectives.WSG_FLAG_A || spell == PvpObjectives.WSG_FLAG_H)) {
                 // Match pickup stub: aura 23333 ↔ WS 1545; aura 23335 ↔ WS 1546.

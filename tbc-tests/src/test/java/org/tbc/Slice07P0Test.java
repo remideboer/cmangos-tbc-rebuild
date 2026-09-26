@@ -504,6 +504,54 @@ class Slice07P0Test {
         assertFalse(p.hasAura(FROST_ARMOR), "holder removed (AURA_REMOVE_BY_EXPIRE)");
     }
 
+    private static final int FROSTBOLT = 116;
+    /** SpellDuration fallback when DurationIndex unset — matches SpellEngine.auraDurationMs. */
+    private static final int DEBUFF_DURATION_FALLBACK_MS = 30_000;
+
+    /**
+     * TP-SL07-015 — Debuff on another unit (Faerie Fire / Frostbolt): caster saw UNIT_FIELD_AURA via
+     * apply VALUES; on AURA_REMOVE_BY_EXPIRE the same observers must get slot cleared (not stuck at 0s).
+     * Creature holders must expire too — not only players.
+     */
+    @Test
+    void tpSl07DebuffExpireClearsAuraForCaster() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(FROSTBOLT);
+        Creature c = kobold(world, p);
+        client.castSpell(world, FROSTBOLT, 1, c.guid);
+        assertEquals(FROSTBOLT, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_AURA));
+        assertTrue(c.hasAura(FROSTBOLT));
+        client.clear();
+        world.advanceMs(DEBUFF_DURATION_FALLBACK_MS);
+        world.tick(1);
+        assertEquals(0, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_AURA),
+                "caster must receive VALUES clearing the expired debuff slot");
+        assertFalse(c.hasAura(FROSTBOLT));
+    }
+
+    /**
+     * TP-SL07-015 — Caster also gets SMSG_CLEAR_EXTRA_AURA_INFO (packed target guid + spell id)
+     * on expire — SpellAuraHolder::ClearExtraAuraInfo.
+     */
+    @Test
+    void tpSl07DebuffExpireClearsExtraAuraInfoForCaster() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(FROSTBOLT);
+        Creature c = kobold(world, p);
+        client.castSpell(world, FROSTBOLT, 1, c.guid);
+        client.clear();
+        world.advanceMs(DEBUFF_DURATION_FALLBACK_MS);
+        world.tick(1);
+        assertTrue(client.saw(Opcodes.SMSG_CLEAR_EXTRA_AURA_INFO));
+        byte[] clear = client.payload(Opcodes.SMSG_CLEAR_EXTRA_AURA_INFO);
+        int off = WowClientDouble.skipPackedGuid(clear, 0);
+        assertEquals(FROSTBOLT, WowClientDouble.u32le(clear, off));
+    }
+
     private static final int UNSTABLE_AFFLICTION = 30108;
 
     /**

@@ -983,7 +983,8 @@ public final class SpellEngine {
                 send.accept(hp.opcode(), hp.payload());
             }
             if (sp.effect == EFFECT_APPLY_AURA) {
-                AuraSlots.sendApply(target, sp.id, auraDurationMs(sp), send);
+                int dur = auraDurationMs(sp);
+                AuraSlots.sendApply(target, caster, sp.id, dur, dur, send);
                 sendResistanceStatValues(target, sp, send);
                 List<SpellInfo> extras = extraEffects.get(sp.id);
                 if (extras != null) {
