@@ -86,6 +86,14 @@ public final class QueryHandler {
         session.send(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, writeItem(t));
     }
 
+    /** Login/inventory refresh — push proto so client SoR $MW/$mw match item_template. */
+    public static void sendItemQuery(WorldSession session, ObjectMgr.ItemTemplate t) {
+        if (session == null || t == null) {
+            return;
+        }
+        session.send(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, writeItem(t));
+    }
+
     public static void quest(WorldSession session, World world, WowBuffer in) {
         int id = readU32(in);
         ObjectMgr.QuestTemplate t = world.objectMgr.quests.get(id);

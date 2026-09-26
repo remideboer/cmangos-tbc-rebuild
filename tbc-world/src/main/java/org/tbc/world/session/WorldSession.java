@@ -1001,9 +1001,14 @@ public final class WorldSession {
         }
         seen.clear();
         seen.add(player.guid);
-        LoginBurst.sendInventory(this, player);
+        LoginBurst.sendInventory(this, player, world);
+        world.objectMgr.applyEquippedMelee(player);
         var self = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(player, true, (int) world.nowMs()));
         send(self.opcode(), self.payload());
+        var atk = UpdateBuilder.maybeCompress(UpdateBuilder.values(player,
+                UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
+                UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+        send(atk.opcode(), atk.payload());
         revealNearby(world);
     }
 

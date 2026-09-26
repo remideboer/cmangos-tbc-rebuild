@@ -2,6 +2,7 @@ package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.ChrStatic;
+import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.ReputationMgr;
@@ -13,6 +14,7 @@ import org.tbc.world.world.World;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /** spec/03-protocol/packets/login-burst.md — order is normative. */
@@ -130,9 +132,17 @@ public final class LoginBurst {
         }
         p.applyCreateFields();
         DeathHandler.restoreGhostOnLogin(s);
-        sendInventory(s, p);
+        // Weapon UNIT_FIELD must be set before create-self (SoR buff/action-bar $mw / $MWS).
+        world.objectMgr.applyEquippedMelee(p);
+        sendInventory(s, p, world);
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, true, (int) world.nowMs()));
         s.send(upd.opcode(), upd.payload());
+        sent.add(Opcodes.SMSG_UPDATE_OBJECT);
+        // Explicit VALUES so OWNER_ONLY damage fields are not lost if create mask was sparse.
+        var atk = UpdateBuilder.maybeCompress(UpdateBuilder.values(p,
+                UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
+                UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+        s.send(atk.opcode(), atk.payload());
         sent.add(Opcodes.SMSG_UPDATE_OBJECT);
         sendKnownLanguages(s, p);
         SocialHandler.contactList(s, world);
@@ -186,9 +196,29 @@ public final class LoginBurst {
     }
 
     public static void sendInventory(WorldSession s, Player p) {
+        sendInventory(s, p, null);
+    }
+
+    /**
+     * Create-item blocks for bag contents, then {@code SMSG_ITEM_QUERY_SINGLE_RESPONSE} for each
+     * unique entry so the client SoR tooltip ($MW/$mw/$MWS) uses live item_template — not a stale
+     * WDB row or empty proto.
+     */
+    public static void sendInventory(WorldSession s, Player p, World world) {
         for (Item it : p.items.values()) {
             var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(it, p.guid));
             s.send(pkt.opcode(), pkt.payload());
+        }
+        if (world == null || world.objectMgr == null) {
+            return;
+        }
+        LinkedHashSet<Integer> entries = new LinkedHashSet<>();
+        for (Item it : p.items.values()) {
+            entries.add(it.entry);
+        }
+        for (int entry : entries) {
+            ObjectMgr.ItemTemplate t = world.objectMgr.items.get(entry);
+            QueryHandler.sendItemQuery(s, t);
         }
     }
 

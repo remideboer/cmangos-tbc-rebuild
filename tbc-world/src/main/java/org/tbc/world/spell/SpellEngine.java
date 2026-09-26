@@ -3131,8 +3131,12 @@ public final class SpellEngine {
                 SpellInfo seal = info(aura.spellId());
                 int dmg = sealOfRighteousnessDamage(attacker, seal);
                 MainhandWeaponStats w = MainhandWeaponStats.from(attacker);
-                log.info("SoR proc spell={} amount={} speed={} avg={} holy={}",
-                        aura.spellId(), (seal.minDmg + seal.maxDmg) / 2, w.speedSec(), w.avgDamage(), dmg);
+                log.info("SoR proc spell={} amount={} speed={} avg={} unitMin={} unitMax={} unitDelay={} holy={}",
+                        aura.spellId(), (seal.minDmg + seal.maxDmg) / 2, w.speedSec(), w.avgDamage(),
+                        attacker.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE),
+                        attacker.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE),
+                        attacker.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME),
+                        dmg);
                 landProcDamage(attacker, victim, sealTrigger, 2, dmg, send);
                 continue;
             }

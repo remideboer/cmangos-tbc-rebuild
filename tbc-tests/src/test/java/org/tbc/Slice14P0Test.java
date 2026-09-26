@@ -12,6 +12,7 @@ import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.session.LoginBurst;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +30,73 @@ class Slice14P0Test {
             new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
     private static final World.Account ACC_B =
             new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86");
+
+    /**
+     * SoR buff tooltip ($MW/$mw/$MWS) reads client item proto — login must push
+     * SMSG_ITEM_QUERY_SINGLE_RESPONSE for Battleworn Claymore 23346 (3–5 @ 2900), not only createItem.
+     */
+    @Test
+    void loginWhenClaymoreEquippedShouldPushItemQueryAndWeaponUnitFields() throws Exception {
+        World world = World.inMemory();
+        ObjectMgr.ItemTemplate clay = new ObjectMgr.ItemTemplate();
+        clay.entry = 23346;
+        clay.name = "Battleworn Claymore";
+        clay.itemClass = 2;
+        clay.subClass = 8;
+        clay.inventoryType = 17;
+        clay.delay = 2900;
+        clay.dmgMin[0] = 3f;
+        clay.dmgMax[0] = 5f;
+        world.objectMgr.items.put(23346, clay);
+
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "ClaySor", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        Item mh = new Item(world.nextItemGuid(), 23346);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        p.items.put((int) mh.guid, mh);
+        p.setGuid(invSlotField(Player.EQUIPMENT_SLOT_MAINHAND), UpdateBuilder.itemGuid(mh));
+        world.objectMgr.applyEquippedMelee(p);
+
+        client.clear();
+        LoginBurst.sendInventory(client.session(), p, world);
+        assertTrue(client.saw(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE));
+        WowBuffer q = new WowBuffer(lastPayload(client, Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE));
+        assertEquals(23346, q.getU32());
+        q.getU32();
+        q.getU32();
+        q.getU32();
+        q.getCString();
+        q.getU8();
+        q.getU8();
+        q.getU8();
+        for (int i = 0; i < 20; i++) {
+            q.getU32();
+        }
+        for (int i = 0; i < 10; i++) {
+            q.getU32();
+            q.getU32();
+        }
+        assertEquals(3f, q.getFloat());
+        assertEquals(5f, q.getFloat());
+        q.getU32();
+        for (int i = 1; i < 5; i++) {
+            q.getFloat();
+            q.getFloat();
+            q.getU32();
+        }
+        for (int i = 0; i < 7; i++) {
+            q.getU32();
+        }
+        assertEquals(2900, q.getU32());
+
+        assertEquals(3f, p.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
+        assertEquals(5f, p.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
+        assertEquals(2900, p.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+    }
 
     @Test
     void tpSl14SwapInvItem() throws Exception {
