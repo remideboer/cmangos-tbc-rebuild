@@ -98,6 +98,80 @@ class Slice14P0Test {
         assertEquals(2900, p.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME));
     }
 
+    /**
+     * Client SoR buff tooltip evaluates $MW/$mw/$MWS at cast time from item proto.
+     * Re-push query + UNIT_FIELD when casting SoR so a stale WDB/cast-before-query
+     * cannot keep showing the old 3.5s/avg90 → 9 tooltip while combat uses claymore → 5.
+     */
+    @Test
+    void castSoRWhenClaymoreEquippedShouldRepushItemQueryWithClaymoreDamage() throws Exception {
+        World world = World.inMemory();
+        ObjectMgr.ItemTemplate clay = new ObjectMgr.ItemTemplate();
+        clay.entry = 23346;
+        clay.name = "Battleworn Claymore";
+        clay.itemClass = 2;
+        clay.subClass = 8;
+        clay.inventoryType = 17;
+        clay.delay = 2900;
+        clay.dmgMin[0] = 3f;
+        clay.dmgMax[0] = 5f;
+        world.objectMgr.items.put(23346, clay);
+
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "SorClay", 1, 2, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.spells.add(org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS);
+        p.setPower(100);
+
+        Item mh = new Item(world.nextItemGuid(), 23346);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        p.items.put((int) mh.guid, mh);
+        p.setGuid(invSlotField(Player.EQUIPMENT_SLOT_MAINHAND), UpdateBuilder.itemGuid(mh));
+        world.objectMgr.applyEquippedMelee(p);
+
+        client.clear();
+        WowBuffer cast = new WowBuffer(16);
+        cast.putU32(org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS);
+        cast.putU8(1);
+        cast.putU32(0);
+        client.handle(world, Opcodes.CMSG_CAST_SPELL, cast.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE));
+        WowBuffer q = new WowBuffer(lastPayload(client, Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE));
+        assertEquals(23346, q.getU32());
+        q.getU32();
+        q.getU32();
+        q.getU32();
+        q.getCString();
+        q.getU8();
+        q.getU8();
+        q.getU8();
+        for (int i = 0; i < 20; i++) {
+            q.getU32();
+        }
+        for (int i = 0; i < 10; i++) {
+            q.getU32();
+            q.getU32();
+        }
+        assertEquals(3f, q.getFloat());
+        assertEquals(5f, q.getFloat());
+        q.getU32();
+        for (int i = 1; i < 5; i++) {
+            q.getFloat();
+            q.getFloat();
+            q.getU32();
+        }
+        for (int i = 0; i < 7; i++) {
+            q.getU32();
+        }
+        assertEquals(2900, q.getU32());
+        assertEquals(3f, p.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
+        assertEquals(5f, p.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
+        assertEquals(2900, p.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+    }
+
     @Test
     void tpSl14SwapInvItem() throws Exception {
         World world = World.inMemory();

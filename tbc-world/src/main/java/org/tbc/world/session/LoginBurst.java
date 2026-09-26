@@ -209,6 +209,33 @@ public final class LoginBurst {
             var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(it, p.guid));
             s.send(pkt.opcode(), pkt.payload());
         }
+        pushItemQueries(s, p, world);
+    }
+
+    /**
+     * Re-sync UNIT_FIELD weapon line and push MH/OH item query so the client SoR buff
+     * (${$cond($eq($HND,1),…)}) evaluates claymore 3–5 @ 2.9s → ~5, not a stale 3.5s/avg90 → 9.
+     */
+    public static void pushWeaponClientStats(WorldSession s, Player p, World world) {
+        if (s == null || p == null || world == null || world.objectMgr == null) {
+            return;
+        }
+        world.objectMgr.applyEquippedMelee(p);
+        Item mh = p.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND);
+        if (mh != null) {
+            QueryHandler.sendItemQuery(s, world.objectMgr.items.get(mh.entry));
+        }
+        Item oh = p.itemAt(0, Player.EQUIPMENT_SLOT_OFFHAND);
+        if (oh != null) {
+            QueryHandler.sendItemQuery(s, world.objectMgr.items.get(oh.entry));
+        }
+        var atk = UpdateBuilder.maybeCompress(UpdateBuilder.values(p,
+                UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
+                UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+        s.send(atk.opcode(), atk.payload());
+    }
+
+    private static void pushItemQueries(WorldSession s, Player p, World world) {
         if (world == null || world.objectMgr == null) {
             return;
         }
@@ -217,8 +244,7 @@ public final class LoginBurst {
             entries.add(it.entry);
         }
         for (int entry : entries) {
-            ObjectMgr.ItemTemplate t = world.objectMgr.items.get(entry);
-            QueryHandler.sendItemQuery(s, t);
+            QueryHandler.sendItemQuery(s, world.objectMgr.items.get(entry));
         }
     }
 

@@ -1770,6 +1770,10 @@ public final class WorldSession {
         }
         int spellId = in.getU32();
         int castCount = in.remaining() > 0 ? in.getU8() : 0;
+        // SoR buff tooltip reads $MW/$mw/$MWS from item proto at cast — refresh before aura applies.
+        if (org.tbc.world.spell.SpellEngine.isSealOfRighteousness(spellId)) {
+            LoginBurst.pushWeaponClientStats(this, player, world);
+        }
         GameMap map = world.map(player.mapId, player.instanceId);
         byte[] rest = in.remainingBytes();
         org.tbc.world.spell.SpellCastTargets targets = org.tbc.world.spell.SpellCastTargets.read(new WowBuffer(rest));

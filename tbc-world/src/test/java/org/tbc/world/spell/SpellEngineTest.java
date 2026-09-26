@@ -767,6 +767,14 @@ class SpellEngineTest {
     }
 
     @Test
+    void isSealOfRighteousnessWhenRankAuraShouldBeTrueAndHolyLightFalse() {
+        assertTrue(SpellEngine.isSealOfRighteousness(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+        assertTrue(SpellEngine.isSealOfRighteousness(21084));
+        assertFalse(SpellEngine.isSealOfRighteousness(SpellEngine.HOLY_LIGHT));
+        assertFalse(SpellEngine.isSealOfRighteousness(0));
+    }
+
+    @Test
     void sealOfRighteousnessDamageWhenWeaponProtoShouldIgnoreUnitFieldFists() {
         Item mh = new Item(1, 25);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;

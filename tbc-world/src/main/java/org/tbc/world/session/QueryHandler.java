@@ -329,7 +329,7 @@ public final class QueryHandler {
         out.putU32(t.entry);
         out.putU32(t.itemClass);
         out.putU32(t.subClass);
-        out.putU32(t.unk);
+        out.putU32(0xFFFF_FFFF); // CMaNGOS ItemHandler: uint32(-1) unk 2.0.3
         out.putCString(nz(t.name));
         out.putU8(0);
         out.putU8(0);

@@ -3171,6 +3171,11 @@ public final class SpellEngine {
         return SEAL_OF_RIGHTEOUSNESS_TRIGGERS.getOrDefault(auraId, 0);
     }
 
+    /** True for Seal of Righteousness aura ranks (client buff tooltip uses $HND/$MW/$mw/$MWS). */
+    public static boolean isSealOfRighteousness(int spellId) {
+        return sealOfRighteousnessTrigger(spellId) != 0;
+    }
+
     /**
      * Seal of Righteousness holy damage — single formula for every mainhand (no 1H/2H / $HND
      * branch; user-requested divergence from CMaNGOS HandleDummyAuraProc 1H path). Matches the
