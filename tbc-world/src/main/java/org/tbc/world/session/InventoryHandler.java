@@ -22,6 +22,14 @@ import java.util.function.BiConsumer;
 public final class InventoryHandler {
     private InventoryHandler() {}
 
+    /**
+     * Official 8606 client sends {@link Player#INVENTORY_SLOT_BAG_0} (255) for paper-doll / backpack.
+     * Server storage uses bag 0; leave real bag indices (1–4) unchanged.
+     */
+    static int bagIndex(int bag) {
+        return bag == Player.INVENTORY_SLOT_BAG_0 ? 0 : bag;
+    }
+
     /** Slot 0 is Battle Stance on warriors; ON_EQUIP / unequip must push later slots and attack-power mods. */
     private static int[] withAuras(Player p, int... fields) {
         int[] extra = AuraSlots.paperDollAuraFields(p);
@@ -96,9 +104,9 @@ public final class InventoryHandler {
         if (in.remaining() < 4) {
             return;
         }
-        int dstBag = in.getU8();
+        int dstBag = bagIndex(in.getU8());
         int dstSlot = in.getU8();
-        int srcBag = in.getU8();
+        int srcBag = bagIndex(in.getU8());
         int srcSlot = in.getU8();
         if (srcBag == dstBag && srcSlot == dstSlot) {
             return;
@@ -165,7 +173,7 @@ public final class InventoryHandler {
         if (in.remaining() < 3) {
             return;
         }
-        int bag = in.getU8();
+        int bag = bagIndex(in.getU8());
         int slot = in.getU8();
         in.getU8();
         Item it = p.itemAt(bag, slot);
@@ -220,9 +228,9 @@ public final class InventoryHandler {
         if (in.remaining() < 5) {
             return;
         }
-        int srcBag = in.getU8();
+        int srcBag = bagIndex(in.getU8());
         int srcSlot = in.getU8();
-        int dstBag = in.getU8();
+        int dstBag = bagIndex(in.getU8());
         int dstSlot = in.getU8();
         int count = in.getU8();
         if (count == 0 || srcBag != 0 || dstBag != 0 || srcSlot == dstSlot) {
@@ -310,7 +318,7 @@ public final class InventoryHandler {
         if (in.remaining() < 2) {
             return;
         }
-        int srcBag = in.getU8();
+        int srcBag = bagIndex(in.getU8());
         int srcSlot = in.getU8();
         if (srcBag != 0 || srcSlot >= Player.BANK_SLOT_ITEM_START) {
             return;
@@ -336,7 +344,7 @@ public final class InventoryHandler {
         if (in.remaining() < 2) {
             return;
         }
-        int srcBag = in.getU8();
+        int srcBag = bagIndex(in.getU8());
         int srcSlot = in.getU8();
         if (srcBag != 0) {
             return;
@@ -367,7 +375,7 @@ public final class InventoryHandler {
         if (in.remaining() < 2) {
             return;
         }
-        int srcBag = in.getU8();
+        int srcBag = bagIndex(in.getU8());
         int srcSlot = in.getU8();
         if (srcBag != 0) {
             return;
@@ -439,9 +447,9 @@ public final class InventoryHandler {
         if (in.remaining() < 3) {
             return;
         }
-        int srcBag = in.getU8();
+        int srcBag = bagIndex(in.getU8());
         int srcSlot = in.getU8();
-        int dstBag = in.getU8();
+        int dstBag = bagIndex(in.getU8());
         if (srcBag != 0 || dstBag != 0) {
             return;
         }
@@ -510,7 +518,7 @@ public final class InventoryHandler {
         if (in.remaining() < 2) {
             return;
         }
-        int bag = in.getU8();
+        int bag = bagIndex(in.getU8());
         int slot = in.getU8();
         Item it = p.itemAt(bag, slot);
         if (it == null) {
@@ -534,9 +542,9 @@ public final class InventoryHandler {
         if (p.channeling) {
             return;
         }
-        int giftBag = in.getU8();
+        int giftBag = bagIndex(in.getU8());
         int giftSlot = in.getU8();
-        int itemBag = in.getU8();
+        int itemBag = bagIndex(in.getU8());
         int itemSlot = in.getU8();
         if (giftBag != 0 || itemBag != 0) {
             return;
@@ -624,7 +632,7 @@ public final class InventoryHandler {
         if (in.remaining() < 2) {
             return;
         }
-        int bag = in.getU8();
+        int bag = bagIndex(in.getU8());
         int slot = in.getU8();
         Item it = p.itemAt(bag, slot);
         if (it == null) {
@@ -651,7 +659,7 @@ public final class InventoryHandler {
         if (in.remaining() < 12) {
             return;
         }
-        int bag = in.getU8();
+        int bag = bagIndex(in.getU8());
         int slot = in.getU8();
         int spellIndex = in.getU8();
         int castCount = in.getU8();

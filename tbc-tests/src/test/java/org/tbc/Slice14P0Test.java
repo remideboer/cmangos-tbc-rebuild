@@ -420,6 +420,108 @@ class Slice14P0Test {
     }
 
     /**
+     * TP-SL14-015 — Official 8606 client sends INVENTORY_SLOT_BAG_0 = 255 on paper-doll / backpack
+     * positions (Player.h). Right-click equip must still move the item onto EQUIPMENT_SLOT_MAINHAND.
+     */
+    @Test
+    void tpSl14AutoequipItemWithClientBag255() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Bag255Equip", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int src = p.firstFreeBagSlot();
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = src;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer equip = new WowBuffer(2);
+        equip.putU8(Player.INVENTORY_SLOT_BAG_0);
+        equip.putU8(src);
+        client.handle(world, Opcodes.CMSG_AUTOEQUIP_ITEM, equip.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        assertEquals(UpdateBuilder.itemGuid(sword), guidAt(update, invSlotField(Player.EQUIPMENT_SLOT_MAINHAND)));
+        assertEquals(0, sword.bag);
+        assertEquals(Player.EQUIPMENT_SLOT_MAINHAND, sword.slot);
+    }
+
+    /**
+     * TP-SL14-015 — Drag gear onto the character pane: CMSG_SWAP_ITEM with bag 255 both ends.
+     */
+    @Test
+    void tpSl14SwapItemEquipWithClientBag255() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Bag255Swap", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        int src = p.firstFreeBagSlot();
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = src;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(src), UpdateBuilder.itemGuid(sword));
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(4);
+        swap.putU8(Player.INVENTORY_SLOT_BAG_0);
+        swap.putU8(Player.EQUIPMENT_SLOT_MAINHAND);
+        swap.putU8(Player.INVENTORY_SLOT_BAG_0);
+        swap.putU8(src);
+        client.handle(world, Opcodes.CMSG_SWAP_ITEM, swap.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        assertEquals(UpdateBuilder.itemGuid(sword), guidAt(update, invSlotField(Player.EQUIPMENT_SLOT_MAINHAND)));
+        assertEquals(0L, guidAt(update, invSlotField(src)));
+        assertEquals(0, sword.bag);
+        assertEquals(Player.EQUIPMENT_SLOT_MAINHAND, sword.slot);
+    }
+
+    /**
+     * TP-SL14-015 — Unequip drag: CMSG_SWAP_ITEM from equipment → backpack with bag 255.
+     * Client greys the slot on predict; server must confirm INV_SLOT VALUES or the item sticks grey.
+     */
+    @Test
+    void tpSl14SwapItemUnequipWithClientBag255() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Bag255Unequip", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+
+        Item sword = new Item(world.nextItemGuid(), Content.ITEM_WORN_SHORTSWORD);
+        sword.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        p.items.put((int) sword.guid, sword);
+        p.setGuid(invSlotField(Player.EQUIPMENT_SLOT_MAINHAND), UpdateBuilder.itemGuid(sword));
+        world.objectMgr.applyEquippedMelee(p);
+        int dest = p.firstFreeBagSlot();
+
+        client.clear();
+        WowBuffer swap = new WowBuffer(4);
+        swap.putU8(Player.INVENTORY_SLOT_BAG_0);
+        swap.putU8(dest);
+        swap.putU8(Player.INVENTORY_SLOT_BAG_0);
+        swap.putU8(Player.EQUIPMENT_SLOT_MAINHAND);
+        client.handle(world, Opcodes.CMSG_SWAP_ITEM, swap.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE));
+        byte[] update = lastValuesUpdate(client);
+        assertEquals(0L, guidAt(update, invSlotField(Player.EQUIPMENT_SLOT_MAINHAND)));
+        assertEquals(UpdateBuilder.itemGuid(sword), guidAt(update, invSlotField(dest)));
+        assertEquals(0, sword.bag);
+        assertEquals(dest, sword.slot);
+    }
+
+    /**
      * TP-SL14-013 — Player::_ApplyItemMods weapon half. Autoequip Worn Shortsword 25 must put
      * UNIT_FIELD_MINDAMAGE/MAXDAMAGE and UNIT_FIELD_BASEATTACKTIME on the self VALUES (inventory.md).
      */
