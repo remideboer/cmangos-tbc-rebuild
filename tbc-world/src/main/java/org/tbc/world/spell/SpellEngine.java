@@ -3164,30 +3164,22 @@ public final class SpellEngine {
     }
 
     /**
-     * Seal of Righteousness holy damage — same evaluation as the 8606 Spell.dbc buff/action-bar
-     * tooltip (handedness × amount × speed + 3% weapon avg), plus CMaNGOS holy SP coeff on hit.
-     * Weapon speed/damage via {@link MainhandWeaponStats} (item proto first).
+     * Seal of Righteousness holy damage — single formula for every mainhand (no 1H/2H / $HND
+     * branch; user-requested divergence from CMaNGOS HandleDummyAuraProc 1H path). Matches the
+     * former 8606 2H buff tooltip + one holy SP coeff. Weapon speed/avg via
+     * {@link MainhandWeaponStats} (item proto first).
      */
     static int sealOfRighteousnessDamage(Player attacker, SpellInfo seal) {
         int amount = (seal.minDmg + seal.maxDmg) / 2;
         MainhandWeaponStats w = MainhandWeaponStats.from(attacker);
         float speed = w.speedSec();
         float weapon = w.avgDamage();
-        boolean twoHand = w.twoHand();
-        float damage;
-        if (twoHand) {
-            // Tooltip: 1.2 * (amount * 1.2 * 1.03 * MWS / 100) + 0.03 * avg + 1
-            damage = 1.2f * amount * 1.2f * 1.03f * speed / 100.0f + 0.03f * weapon + 1f;
-        } else {
-            // Tooltip: 0.85 * (amount * 1.2 * 1.03 * MWS / 100) + 0.03 * avg - 1
-            damage = 0.85f * amount * 1.2f * 1.03f * speed / 100.0f + 0.03f * weapon - 1f;
-        }
-        // HandleDummyAuraProc: bonusDamage * (0.092|0.108) * speed
+        // Same expr for all weapons: 1.2 * (amount * 1.2 * 1.03 * MWS / 100) + 0.03 * avg + 1
+        float damage = 1.2f * amount * 1.2f * 1.03f * speed / 100.0f + 0.03f * weapon + 1f;
         int holySp = attacker.getInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 1)
                 - attacker.getInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 1);
         if (holySp != 0) {
-            float coeff = twoHand ? 0.108f * speed : 0.092f * speed;
-            damage += holySp * coeff;
+            damage += holySp * (0.108f * speed);
         }
         return Math.max(0, (int) damage);
     }

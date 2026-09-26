@@ -943,6 +943,9 @@ public final class WorldSession {
         p.session = this;
         p.gmLevel = account.gmlevel();
         p.applyCreateFields();
+        // Re-apply after create fields so UNIT_FIELD weapon avg/speed reach LoginBurst createUnit
+        // (action-bar SoR $mw); otherwise fist defaults 1–3 stay on the wire until first swing.
+        world.objectMgr.applyEquippedMelee(p);
         status = STATUS_LOGGEDIN;
         log.info("login {} race={} commonSkill={} gnomishSkill={} langSpell={}",
                 p.name, p.race, p.hasSkill(ChrStatic.SKILL_LANG_COMMON),

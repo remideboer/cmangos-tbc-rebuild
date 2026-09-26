@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * applyEquippedMelee must heal zero-delay Item weapon lines from the template so
- * MainhandWeaponStats / SoR match the client buff tooltip.
+ * UNIT_FIELD attack stats (and SoR) match the equipped weapon, not fist defaults.
  */
 class ObjectMgrEquippedMeleeTest {
 
@@ -54,6 +54,38 @@ class ObjectMgrEquippedMeleeTest {
     }
 
     @Test
+    void applyEquippedMeleeAfterCreateFieldsShouldKeepWeaponUnitFields() {
+        // Login order: applyCreateFields then applyEquippedMelee — weapon avg must win for action bar.
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        ObjectMgr.ItemTemplate t = new ObjectMgr.ItemTemplate();
+        t.entry = ENTRY_2H;
+        t.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        t.delay = 3500;
+        t.dmgMin[0] = 80f;
+        t.dmgMax[0] = 100f;
+        mgr.items.put(ENTRY_2H, t);
+
+        Player p = new Player();
+        p.guid = 1;
+        p.name = "P";
+        p.race = 1;
+        p.clazz = 2;
+        p.level = 1;
+        Item mh = new Item(12, ENTRY_2H);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.delay = 0;
+        p.items.put(12, mh);
+
+        p.applyCreateFields();
+        mgr.applyEquippedMelee(p);
+
+        assertEquals(3500, p.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+        assertEquals(80f, p.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
+        assertEquals(100f, p.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
+    }
+
+    @Test
     void applyEquippedMeleeWhenInventoryTypeWrongButDelaySetShouldHealHandedness() {
         ObjectMgr mgr = new ObjectMgr();
         mgr.load(null, null);
@@ -69,7 +101,6 @@ class ObjectMgrEquippedMeleeTest {
         p.guid = 1;
         Item mh = new Item(11, ENTRY_2H);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
-        // Delay/dmg already filled (client buff = 9) but inventoryType stuck as 1H → SoR used 1H → log 5.
         mh.inventoryType = 13;
         mh.delay = 3500;
         mh.dmgMin = 80f;

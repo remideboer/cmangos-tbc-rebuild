@@ -607,8 +607,9 @@ public final class CharacterStore {
                 save(p);
             }
         }
-        mgr.applyEquippedMelee(p);
+        // Create/level fields first, then weapon UNIT_FIELD so action-bar SoR sees real avg/speed.
         p.applyCreateFields();
+        mgr.applyEquippedMelee(p);
     }
 
     private static int loadActions(Connection c, Player p) throws Exception {
