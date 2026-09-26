@@ -1084,10 +1084,11 @@ public final class Player extends Unit {
     /**
      * CMaNGOS Unit::SendMoveRoot for a client-controlled unit: SMSG_FORCE_MOVE_ROOT / UNROOT
      * = packed guid + uint32 order counter, sent only to the controlling session (movement.md).
+     * Does not set UNIT_STAT_ROOT — that is SetImmobilizedState / AuraEngine.immobilize
+     * (KillPlayer force-root alone must not block BuildPlayerRepop unroot).
      */
     @Override
     public void sendMoveRoot(boolean root) {
-        setRooted(root);
         if (session == null) {
             return;
         }

@@ -109,7 +109,8 @@ public final class DeathHandler {
         p.setHealth(1);
         p.stand();
         p.setBytes1MiscFlags(Unit.UNIT_BYTE1_FLAG_ALWAYS_STAND);
-        // BuildPlayerRepop: clear the release timer byte, unroot unless still immobilized.
+        // BuildPlayerRepop: clear the release timer byte; unroot unless still immobilized
+        // (UNIT_STAT_ROOT / stun from auras — KillPlayer's force-root packet alone does not set it).
         p.setInt(UpdateFields.PLAYER_FIELD_BYTES,
                 p.getInt(UpdateFields.PLAYER_FIELD_BYTES) & ~PLAYER_FIELD_BYTE_RELEASE_TIMER);
         if (!p.rooted()) {

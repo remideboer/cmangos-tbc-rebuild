@@ -209,6 +209,7 @@ public final class AuraEngine {
             // HandleAuraModStun(false) → SetStunned(false) → clear flag + SetImmobilizedState(false).
             // Stacking other MOD_STUN auras later (HasAuraType check).
             target.setStunned(false);
+            target.setRooted(false);
             target.sendMoveRoot(false);
         }
         if (sp.aura() == SPELL_AURA_MOD_FEAR) {
@@ -276,6 +277,7 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
             // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.
+            target.setRooted(false);
             target.sendMoveRoot(false);
         }
         if (sp.aura() == SPELL_AURA_MOD_SILENCE) {
@@ -678,10 +680,12 @@ public final class AuraEngine {
     }
 
     /**
-     * CMaNGOS Unit::SetImmobilizedState → SendMoveRoot(true). Root itself has no UNIT_FIELD_FLAGS
-     * bit; players get SMSG_FORCE_MOVE_ROOT, other units SMSG_SPLINE_MOVE_ROOT (Unit.cpp).
+     * CMaNGOS Unit::SetImmobilizedState → add UNIT_STAT_ROOT then SendMoveRoot(true).
+     * Root itself has no UNIT_FIELD_FLAGS bit; players get SMSG_FORCE_MOVE_ROOT, other units
+     * SMSG_SPLINE_MOVE_ROOT (Unit.cpp). Players' SendMoveRoot does not set unit state.
      */
     private static void immobilize(Unit target) {
+        target.setRooted(true);
         target.sendMoveRoot(true);
     }
 }
