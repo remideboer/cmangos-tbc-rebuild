@@ -73,6 +73,62 @@ class ServerProcessServiceTest {
     }
 
     @Test
+    void startWhenWorldClassesNewerThanJarShouldRefuse() throws Exception {
+        Path worldClass = home.resolve(ServerProcessService.WORLD_CLASS);
+        Files.createDirectories(worldClass.getParent());
+        Files.writeString(worldClass, "class");
+        long jarMs = Files.getLastModifiedTime(home.resolve(WORLD_JAR)).toMillis();
+        Files.setLastModifiedTime(worldClass, java.nio.file.attribute.FileTime.fromMillis(jarMs + 60_000));
+        assertMsg("tbc-world jar is older than target/classes. Run build.bat (package), not only mvn test.",
+                svc::startServers);
+    }
+
+    @Test
+    void startWhenAuthClassesNewerThanJarShouldRefuse() throws Exception {
+        Path authClass = home.resolve(ServerProcessService.AUTH_CLASS);
+        Files.createDirectories(authClass.getParent());
+        Files.writeString(authClass, "class");
+        long jarMs = Files.getLastModifiedTime(home.resolve(AUTH_JAR)).toMillis();
+        Files.setLastModifiedTime(authClass, java.nio.file.attribute.FileTime.fromMillis(jarMs + 60_000));
+        assertMsg("tbc-auth jar is older than target/classes. Run build.bat (package), not only mvn test.",
+                svc::startServers);
+    }
+
+    @Test
+    void openAdminWhenClassesNewerThanJarShouldRefuse() throws Exception {
+        Path adminClass = home.resolve(ServerProcessService.ADMIN_CLASS);
+        Files.createDirectories(adminClass.getParent());
+        Files.writeString(adminClass, "class");
+        long jarMs = Files.getLastModifiedTime(home.resolve(ADMIN_JAR)).toMillis();
+        Files.setLastModifiedTime(adminClass, java.nio.file.attribute.FileTime.fromMillis(jarMs + 60_000));
+        assertMsg("tbc-admin jar is older than target/classes. Run build.bat (package), not only mvn test.",
+                svc::openAdmin);
+    }
+
+    @Test
+    void openEditorWhenClassesNewerThanJarShouldRefuse() throws Exception {
+        Path editorClass = home.resolve(ServerProcessService.EDITOR_CLASS);
+        Files.createDirectories(editorClass.getParent());
+        Files.writeString(editorClass, "class");
+        long jarMs = Files.getLastModifiedTime(home.resolve(EDITOR_JAR)).toMillis();
+        Files.setLastModifiedTime(editorClass, java.nio.file.attribute.FileTime.fromMillis(jarMs + 60_000));
+        assertMsg("tbc-editor jar is older than target/classes. Run build.bat (package), not only mvn test.",
+                svc::openEditor);
+    }
+
+    @Test
+    void startWhenClassesOlderOrAbsentShouldStart() throws Exception {
+        Path worldClass = home.resolve(ServerProcessService.WORLD_CLASS);
+        Files.createDirectories(worldClass.getParent());
+        Files.writeString(worldClass, "class");
+        long jarMs = Files.getLastModifiedTime(home.resolve(WORLD_JAR)).toMillis();
+        Files.setLastModifiedTime(worldClass, java.nio.file.attribute.FileTime.fromMillis(jarMs - 60_000));
+        svc.startServers();
+        assertTrue(svc.isWorldRunning());
+        svc.stopServers();
+    }
+
+    @Test
     void startWhenAlreadyRunningShouldRefuse() {
         svc.startServers();
         assertMsg("Auth is already running.", svc::startServers);
@@ -124,14 +180,31 @@ class ServerProcessServiceTest {
         starter.worldStdout = "world-hi\n";
         svc.startServers();
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-        while ((authLines.isEmpty() || worldLines.isEmpty()) && System.nanoTime() < deadline) {
+        while ((authLines.size() < 2 || worldLines.size() < 2) && System.nanoTime() < deadline) {
             Thread.sleep(20);
         }
-        assertEquals(List.of("auth-hi"), authLines);
-        assertEquals(List.of("world-hi"), worldLines);
+        assertTrue(authLines.get(0).startsWith("starting auth jar="), authLines.toString());
+        assertTrue(authLines.contains("auth-hi"), authLines.toString());
+        assertTrue(worldLines.get(0).startsWith("starting world jar="), worldLines.toString());
+        assertTrue(worldLines.contains("world-hi"), worldLines.toString());
         assertEquals("auth-hi\n", Files.readString(home.resolve("logs").resolve("auth.log")));
         assertEquals("world-hi\n", Files.readString(home.resolve("logs").resolve("world.log")));
         svc.stopServers();
+    }
+
+    @Test
+    void rejectIfStaleWhenSentinelNullOrEmptyShouldNoOp() {
+        Path jar = home.resolve(WORLD_JAR);
+        svc.rejectIfStale(jar, "tbc-world", null);
+        svc.rejectIfStale(jar, "tbc-world", "");
+    }
+
+    @Test
+    void jarStartLineShouldIncludeAbsolutePathAndMtime() {
+        Path jar = home.resolve(WORLD_JAR).toAbsolutePath().normalize();
+        String line = ServerProcessService.jarStartLine("world", jar);
+        assertTrue(line.startsWith("starting world jar=" + jar));
+        assertTrue(line.contains("mtimeMs="));
     }
 
     @Test

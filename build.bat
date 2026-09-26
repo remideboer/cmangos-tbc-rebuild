@@ -38,7 +38,20 @@ if not exist "tbc-launcher\target\tbc-launcher-0.1.0-SNAPSHOT.jar" goto :missing
 if not exist "TbcLauncher.exe" goto :missing
 
 echo.
-echo Jars ready. Run TbcLauncher.exe or start.bat.
+echo Shaded jars (launcher starts these paths under this folder):
+for %%J in (
+  "tbc-auth\target\tbc-auth-0.1.0-SNAPSHOT.jar"
+  "tbc-world\target\tbc-world-0.1.0-SNAPSHOT.jar"
+  "tbc-admin\target\tbc-admin-0.1.0-SNAPSHOT.jar"
+  "tbc-editor\target\tbc-editor-0.1.0-SNAPSHOT.jar"
+  "tbc-launcher\target\tbc-launcher-0.1.0-SNAPSHOT.jar"
+) do (
+  echo   %%~J
+  echo     %%~tJ  %%~zJ bytes
+)
+echo.
+echo Jars ready. Run TbcLauncher.exe or start.bat from this directory ^(cwd must be tbc-server^).
+echo Note: mvn test alone does NOT refresh these jars — always use build.bat / package.
 exit /b 0
 
 :missing

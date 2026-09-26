@@ -13,6 +13,11 @@ public final class ServerProcessService {
     public static final String WORLD_JAR = "tbc-world/target/tbc-world-0.1.0-SNAPSHOT.jar";
     public static final String ADMIN_JAR = "tbc-admin/target/tbc-admin-0.1.0-SNAPSHOT.jar";
     public static final String EDITOR_JAR = "tbc-editor/target/tbc-editor-0.1.0-SNAPSHOT.jar";
+    /** Sentinels under target/classes — if newer than the shaded jar, package was skipped. */
+    public static final String AUTH_CLASS = "tbc-auth/target/classes/org/tbc/auth/AuthMain.class";
+    public static final String WORLD_CLASS = "tbc-world/target/classes/org/tbc/world/WorldMain.class";
+    public static final String ADMIN_CLASS = "tbc-admin/target/classes/org/tbc/admin/AdminMain.class";
+    public static final String EDITOR_CLASS = "tbc-editor/target/classes/org/tbc/editor/EditorMain.class";
     public static final String LOCAL_REALMD = "conf/local-realmd.conf";
     public static final String REALMD = "conf/realmd.conf";
     public static final String LOCAL_MANGOSD = "conf/local-mangosd.conf";
@@ -71,10 +76,12 @@ public final class ServerProcessService {
             throw new LauncherException("World is already running.");
         }
         Path java = resolveJava();
-        Path authJar = requireJar(AUTH_JAR, "tbc-auth");
-        Path worldJar = requireJar(WORLD_JAR, "tbc-world");
+        Path authJar = requireJar(AUTH_JAR, "tbc-auth", AUTH_CLASS);
+        Path worldJar = requireJar(WORLD_JAR, "tbc-world", WORLD_CLASS);
         Path realmd = resolveConf(LOCAL_REALMD, REALMD);
         Path mangosd = resolveConf(LOCAL_MANGOSD, MANGOSD);
+        notifyLog(authLogListener, jarStartLine("auth", authJar));
+        notifyLog(worldLogListener, jarStartLine("world", worldJar));
         auth = spawn("auth", java, authJar, realmd, "auth.log", true, authLogListener);
         world = spawn("world", java, worldJar, mangosd, "world.log", true, worldLogListener);
     }
@@ -93,14 +100,14 @@ public final class ServerProcessService {
 
     public void openAdmin() {
         Path java = resolveJava();
-        Path jar = requireJar(ADMIN_JAR, "tbc-admin");
+        Path jar = requireJar(ADMIN_JAR, "tbc-admin", ADMIN_CLASS);
         Path conf = resolveConf(LOCAL_REALMD, REALMD);
         spawn("admin", java, jar, conf, "admin.log", false, null);
     }
 
     public void openEditor() {
         Path java = resolveJava();
-        Path jar = requireJar(EDITOR_JAR, "tbc-editor");
+        Path jar = requireJar(EDITOR_JAR, "tbc-editor", EDITOR_CLASS);
         Path conf = resolveConf(LOCAL_MANGOSD, MANGOSD);
         spawn("editor", java, jar, conf, "editor.log", false, null);
     }
@@ -164,12 +171,45 @@ public final class ServerProcessService {
         throw new LauncherException("Java 21 not found. Set JAVA_HOME.");
     }
 
-    private Path requireJar(String relative, String label) {
+    private Path requireJar(String relative, String label, String sentinelClass) {
         Path p = home.resolve(relative);
         if (!Files.isRegularFile(p)) {
             throw new LauncherException("Missing " + label + " jar. Run build.bat first.");
         }
-        return p.toAbsolutePath().normalize();
+        Path abs = p.toAbsolutePath().normalize();
+        rejectIfStale(abs, label, sentinelClass);
+        return abs;
+    }
+
+    /**
+     * {@code mvn test} refreshes target/classes without shading the runnable jar. Refuse start
+     * when a sentinel class is newer than the jar the launcher would exec.
+     */
+    void rejectIfStale(Path jar, String label, String sentinelClass) {
+        if (sentinelClass == null || sentinelClass.isEmpty()) {
+            return;
+        }
+        Path cls = home.resolve(sentinelClass);
+        if (!Files.isRegularFile(cls)) {
+            return;
+        }
+        long classMs = cls.toFile().lastModified();
+        long jarMs = jar.toFile().lastModified();
+        if (classMs > jarMs) {
+            throw new LauncherException(
+                    label + " jar is older than target/classes. Run build.bat (package), not only mvn test.");
+        }
+    }
+
+    static String jarStartLine(String name, Path jar) {
+        long ms = jar.toFile().lastModified();
+        return "starting " + name + " jar=" + jar.toAbsolutePath().normalize() + " mtimeMs=" + ms;
+    }
+
+    private static void notifyLog(Consumer<String> listener, String line) {
+        if (listener != null) {
+            listener.accept(line);
+        }
     }
 
     private Path resolveConf(String preferred, String fallback) {
