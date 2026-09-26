@@ -31,6 +31,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     public static final int SPELL_AURA_MOD_PACIFY_SILENCE = 60;
+    public static final int SPELL_AURA_MOD_CRIT_PERCENT = 52;
     public static final int SPELL_AURA_MOD_SCALE = 61;
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_FEIGN_DEATH = 66;
@@ -58,6 +59,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY,
             SPELL_AURA_TRACK_CREATURES, SPELL_AURA_TRACK_RESOURCES,
+            SPELL_AURA_MOD_CRIT_PERCENT,
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
@@ -177,6 +179,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_PERCENT_STAT) {
             modPercentStat(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_CRIT_PERCENT) {
+            modCritPercent(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, true);
         }
@@ -198,6 +203,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_PERCENT_STAT) {
             modPercentStat(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_CRIT_PERCENT) {
+            modCritPercent(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, false);
@@ -357,6 +365,28 @@ public final class AuraEngine {
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
         }
+    }
+
+    /**
+     * Aura 52 — CMaNGOS HandleAuraModCritPercent EquippedItemClass −1 path:
+     * HandleBaseModValue(CRIT / OFFHAND / RANGED_CRIT_PERCENTAGE, FLAT_MOD).
+     * Weapon-class masks and creature m_modCritChance later.
+     */
+    private static void modCritPercent(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player)) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        float delta = apply ? amount : -amount;
+        target.setFloat(UpdateFields.PLAYER_CRIT_PERCENTAGE,
+                target.getFloat(UpdateFields.PLAYER_CRIT_PERCENTAGE) + delta);
+        target.setFloat(UpdateFields.PLAYER_OFFHAND_CRIT_PERCENTAGE,
+                target.getFloat(UpdateFields.PLAYER_OFFHAND_CRIT_PERCENTAGE) + delta);
+        target.setFloat(UpdateFields.PLAYER_RANGED_CRIT_PERCENTAGE,
+                target.getFloat(UpdateFields.PLAYER_RANGED_CRIT_PERCENTAGE) + delta);
     }
 
     /**
