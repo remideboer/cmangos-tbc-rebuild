@@ -1062,9 +1062,8 @@ public final class World implements Runnable {
         };
         AuraSlots.expireTimed(u, now, broadcast, spellId -> {
             spells.unapplyAura(u, spellId);
-            SpellEngine.SpellInfo sp = spells.info(spellId);
-            if (sp != null && u instanceof Player p && p.session != null) {
-                SpellEngine.sendResistanceStatValues(p, sp, p.session::send);
+            if (u instanceof Player p && p.session != null) {
+                spells.sendUnapplyAuraValues(p, spellId, p.session::send);
             }
         }, (casterGuid, spellId) -> {
             Player caster = m.players.get(casterGuid);

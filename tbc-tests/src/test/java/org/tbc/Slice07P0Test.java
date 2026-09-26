@@ -504,6 +504,32 @@ class Slice07P0Test {
         assertFalse(p.hasAura(FROST_ARMOR), "holder removed (AURA_REMOVE_BY_EXPIRE)");
     }
 
+    /**
+     * TP-SL07-016 — CMSG_CANCEL_AURA (right-click buff): RemoveAura must reverse modifiers and
+     * push UNIT_FIELD_RESISTANCES so the character sheet drops Frost Armor's +30 armor.
+     */
+    @Test
+    void tpSl07CancelAuraRemovesFrostArmorStats() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(FROST_ARMOR);
+        int armorBefore = p.getInt(UpdateFields.UNIT_FIELD_RESISTANCES);
+        client.castSpell(world, FROST_ARMOR, 1, p.guid);
+        assertEquals(armorBefore + 30, p.getInt(UpdateFields.UNIT_FIELD_RESISTANCES));
+        assertEquals(armorBefore + 30, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES));
+        client.clear();
+        WowBuffer cancel = new WowBuffer(4);
+        cancel.putU32(FROST_ARMOR);
+        client.handle(world, Opcodes.CMSG_CANCEL_AURA, cancel.array());
+        assertFalse(p.hasAura(FROST_ARMOR));
+        assertEquals(0, p.getInt(UpdateFields.UNIT_FIELD_AURA));
+        assertEquals(armorBefore, p.getInt(UpdateFields.UNIT_FIELD_RESISTANCES),
+                "server armor must reverse on cancel");
+        assertEquals(armorBefore, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_RESISTANCES),
+                "client sheet must receive VALUES clearing the armor buff");
+    }
+
     private static final int FROSTBOLT = 116;
     /** SpellDuration fallback when DurationIndex unset — matches SpellEngine.auraDurationMs. */
     private static final int DEBUFF_DURATION_FALLBACK_MS = 30_000;

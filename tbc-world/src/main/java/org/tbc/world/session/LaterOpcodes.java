@@ -412,6 +412,8 @@ public final class LaterOpcodes {
             }
             world.spells.cancelAura(p, spell);
             world.spells.unapplyAura(p, spell);
+            // ApplyModifier(false) mutates UNIT_FIELD_* — push sheet fields (Frost Armor armor, etc.).
+            world.spells.sendUnapplyAuraValues(p, spell, s::send);
             if (slot >= 0) {
                 AuraSlots.clearVisible(p, slot);
                 var upd = UpdateBuilder.maybeCompress(

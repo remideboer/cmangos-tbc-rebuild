@@ -109,6 +109,34 @@ class SpellEngineModResistanceTest {
     }
 
     @Test
+    void sendUnapplyAuraValuesWhenGuardsOrFrostArmorShouldCoverBranches() {
+        engine.sendUnapplyAuraValues(null, SpellEngine.FROST_ARMOR, this::capture);
+        engine.sendUnapplyAuraValues(p, 0, this::capture);
+        engine.sendUnapplyAuraValues(p, -1, this::capture);
+        engine.sendUnapplyAuraValues(p, SpellEngine.FROST_ARMOR, null);
+        engine.sendUnapplyAuraValues(p, 999_999, this::capture);
+        assertTrue(valuesPayloads.isEmpty());
+        engine.apply(p, p, engine.info(SpellEngine.FROST_ARMOR), 1L);
+        valuesPayloads.clear();
+        ops.clear();
+        engine.unapplyAura(p, SpellEngine.FROST_ARMOR);
+        engine.sendUnapplyAuraValues(p, SpellEngine.FROST_ARMOR, this::capture);
+        assertTrue(valuesPayloads.size() >= 1);
+    }
+
+    @Test
+    void sendUnapplyAuraValuesWhenMultiEffectShouldSendExtras() {
+        engine.putTemplate(900_171, SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_MOD_RESISTANCE,
+                16, 0, 30, 30, 0f, 0, 0, 0, SpellEngine.FROST_ARMOR_DURATION_MS,
+                SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_MOD_RESISTANCE, 5, 5,
+                0, 0, 0, 0, 0, 0, 1, 1 << 1, 0);
+        valuesPayloads.clear();
+        engine.sendUnapplyAuraValues(p, 900_171, this::capture);
+        // Primary + extra Effect2 resistance → at least one VALUES (both have misc masks).
+        assertTrue(valuesPayloads.size() >= 1);
+    }
+
+    @Test
     void sendResistanceStatValuesWhenGuardsShouldNoOp() {
         SpellEngine.SpellInfo frost = engine.info(SpellEngine.FROST_ARMOR);
         SpellEngine.sendResistanceStatValues(null, frost, this::capture);

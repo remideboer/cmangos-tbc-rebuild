@@ -234,6 +234,8 @@ public final class PetHandler {
         Unit u = pet.asUnit();
         int slot = AuraSlots.slotOf(u, spellId);
         world.spells.cancelAura(u, spellId);
+        world.spells.unapplyAura(u, spellId);
+        world.spells.sendUnapplyAuraValues(u, spellId, s::send);
         if (slot >= 0) {
             AuraSlots.clearVisible(u, slot);
             var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(u,

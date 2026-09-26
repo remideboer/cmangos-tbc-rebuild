@@ -1095,7 +1095,7 @@ public final class SpellEngine {
         send.accept(upd.opcode(), upd.payload());
     }
 
-    /** Reverse MOD_RESISTANCE (and extras) when a timed holder expires. */
+    /** Reverse MOD_RESISTANCE (and extras) when a timed holder expires or is cancelled. */
     public void unapplyAura(Unit target, int spellId) {
         if (target == null) {
             return;
@@ -1108,6 +1108,26 @@ public final class SpellEngine {
         if (extras != null) {
             for (SpellInfo e : extras) {
                 auras.unapply(target, e);
+            }
+        }
+    }
+
+    /**
+     * After {@link #unapplyAura}: push resistance sheet fields so the client drops buffed armor
+     * (CMSG_CANCEL_AURA / AURA_REMOVE_BY_EXPIRE). Same fields as apply via {@link #sendResistanceStatValues}.
+     */
+    public void sendUnapplyAuraValues(Unit target, int spellId, BiConsumer<Integer, byte[]> send) {
+        if (target == null || send == null || spellId <= 0) {
+            return;
+        }
+        SpellInfo sp = info(spellId);
+        if (sp != null) {
+            sendResistanceStatValues(target, sp, send);
+        }
+        List<SpellInfo> extras = extraEffects.get(spellId);
+        if (extras != null) {
+            for (SpellInfo e : extras) {
+                sendResistanceStatValues(target, e, send);
             }
         }
     }
