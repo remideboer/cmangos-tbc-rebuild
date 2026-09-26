@@ -3380,6 +3380,9 @@ public final class ObjectMgr {
             it.displayId = t.displayId;
             it.inventoryType = t.inventoryType;
             it.quality = t.quality;
+            it.delay = t.delay;
+            it.dmgMin = t.dmgMin[0];
+            it.dmgMax = t.dmgMax[0];
             if (it.durability <= 0) {
                 it.durability = t.maxDurability;
             }
@@ -3474,6 +3477,9 @@ public final class ObjectMgr {
         it.displayId = t.displayId;
         it.inventoryType = t.inventoryType;
         it.quality = t.quality;
+        it.delay = t.delay;
+        it.dmgMin = t.dmgMin[0];
+        it.dmgMax = t.dmgMax[0];
         it.durability = t.maxDurability;
         p.items.put(Guid.low(it.guid), it);
     }

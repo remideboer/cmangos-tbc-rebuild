@@ -750,36 +750,103 @@ class SpellEngineTest {
         assertEquals(p.guid, log.getPackedGuid());
         assertEquals(25742, log.getU32());
         int dmg = log.getU32();
-        assertEquals(2, dmg);
+        // Tooltip 1H: 0.85*(108*1.2*1.03*2/100)+0.03*10-1 → trunc 1
+        assertEquals(1, dmg);
         assertEquals(2, log.getU8());
         assertEquals(100 - dmg, c.health());
     }
 
     @Test
     void sealOfRighteousnessDamageWhenTwoHandShouldUseTwoHandFormula() {
-        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 3300);
-        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 15f);
-        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 15f);
         Item mh = new Item(1, 25);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
-        mh.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, 3300, 15f, 15f);
         p.items.put(1, mh);
+        // Stale UNIT_FIELD fist line must not win over item proto (client tooltip uses proto).
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2000);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 1f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 3f);
         int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
-        // CMaNGOS: int32(1.2*108*1.2*1.03*3.3/100+1 + 0.03*15) + 1 ≈ 7
-        assertEquals(7, dmg);
+        // Tooltip 2H: 1.2*(108*1.2*1.03*3.3/100)+0.03*15+1 → trunc 6
+        assertEquals(6, dmg);
     }
 
     @Test
     void sealOfRighteousnessDamageWhenOneHandOrZeroAttackTimeShouldUseOneHandFormula() {
+        Item mh = new Item(2, 25);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(13, 2000, 10f, 10f);
+        p.items.put(2, mh);
         p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 0);
         p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 10f);
         p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 10f);
-        Item mh = new Item(2, 25);
+        int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+        assertEquals(1, dmg);
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenItemProtoMatchesBuffTooltipShouldUseWeaponNotUnitField() {
+        Item mh = new Item(3, 25);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, 3500, 80f, 100f);
+        p.items.put(3, mh);
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2000);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 1f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 3f);
+        int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+        // Tooltip 2H @ 3.5s / avg 90: 1.2*(108*1.2*1.03*3.5/100)+0.03*90+1 → trunc 9
+        assertEquals(9, dmg);
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenMainhandHasNoDelayShouldFallBackToUnitField() {
+        Item mh = new Item(5, 25);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
         mh.inventoryType = 13;
-        p.items.put(2, mh);
+        mh.delay = 0;
+        p.items.put(5, mh);
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 0);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 10f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 10f);
         int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
-        assertEquals(2, dmg);
+        // attackTime 0 → speed 2.0 default; same as 1H tooltip trunc 1
+        assertEquals(1, dmg);
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenOneHandFloorIsNegativeShouldClampAtZero() {
+        engine.putTemplate(SpellEngine.SEAL_OF_RIGHTEOUSNESS, SpellEngine.EFFECT_APPLY_AURA,
+                SpellEngine.SPELL_AURA_DUMMY, 2, 20, 0, 0, 0f,
+                0, 1500, 0, 30_000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        Item mh = new Item(6, 25);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(13, 1000, 0f, 0f);
+        p.items.put(6, mh);
+        assertEquals(0, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenHolySpellPowerShouldAddCoeff() {
+        Item mh = new Item(4, 25);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(13, 2000, 10f, 10f);
+        p.items.put(4, mh);
+        p.setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 1, 50);
+        int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+        // Base trunc 1 + 50 * 0.092 * 2.0 = 1 + 9.2 → trunc 10
+        assertEquals(10, dmg);
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenTwoHandHolySpellPowerShouldUseHigherCoeff() {
+        Item mh = new Item(7, 25);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, 2000, 10f, 10f);
+        p.items.put(7, mh);
+        p.setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 1, 50);
+        int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+        // 2H base + 50 * 0.108 * 2.0 → trunc 15
+        assertEquals(15, dmg);
     }
 
     @Test

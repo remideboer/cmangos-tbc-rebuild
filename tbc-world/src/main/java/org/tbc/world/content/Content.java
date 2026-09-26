@@ -396,6 +396,9 @@ public final class Content {
         it.displayId = t.displayId;
         it.inventoryType = t.inventoryType;
         it.quality = t.quality;
+        it.delay = t.delay;
+        it.dmgMin = t.dmgMin[0];
+        it.dmgMax = t.dmgMax[0];
         p.items.put(Guid.low(it.guid), it);
         p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + slot * 2,
                 Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
@@ -793,6 +796,9 @@ public final class Content {
             it.displayId = t.displayId;
             it.inventoryType = t.inventoryType;
             it.quality = t.quality;
+            it.delay = t.delay;
+            it.dmgMin = t.dmgMin[0];
+            it.dmgMax = t.dmgMax[0];
         }
         p.items.put(Guid.low(it.guid), it);
         p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bagSlot * 2, UpdateBuilder.itemGuid(it));

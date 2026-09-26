@@ -16,9 +16,22 @@ public final class Item {
     public int quality;
     public int flags;
     public boolean soulbound;
+    /** ItemPrototype Delay (ms) — Seal of Righteousness / client tooltips use proto, not UNIT_FIELD. */
+    public int delay;
+    /** ItemPrototype DmgMin[0] / DmgMax[0]. */
+    public float dmgMin;
+    public float dmgMax;
 
     public Item(long guid, int entry) {
         this.guid = guid;
         this.entry = entry;
+    }
+
+    /** Copy weapon line used by the 8606 client for SoR buff/action-bar tooltips. */
+    public void applyWeaponLine(int inventoryType, int delayMs, float minDmg, float maxDmg) {
+        this.inventoryType = inventoryType;
+        this.delay = delayMs;
+        this.dmgMin = minDmg;
+        this.dmgMax = maxDmg;
     }
 }

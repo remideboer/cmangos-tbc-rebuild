@@ -770,6 +770,9 @@ public final class InventoryHandler {
             sold.displayId = it.displayId;
             sold.inventoryType = it.inventoryType;
             sold.quality = it.quality;
+            sold.delay = it.delay;
+            sold.dmgMin = it.dmgMin;
+            sold.dmgMax = it.dmgMax;
             addToBuyback(p, sold, money);
             var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(sold, p.guid));
             s.send(created.opcode(), created.payload());

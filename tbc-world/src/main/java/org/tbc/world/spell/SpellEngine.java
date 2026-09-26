@@ -3163,32 +3163,42 @@ public final class SpellEngine {
     }
 
     /**
-     * HandleDummyAuraProc Seal of Righteousness — 1H / 2H formulas.
-     * Amount is EffectBasePoints+1 (seeded 108 for rank 1). Speed from mainhand delay /
-     * UNIT_FIELD_BASEATTACKTIME; weapon avg from UNIT_FIELD_MIN/MAXDAMAGE (base weapon line).
-     * <p>
-     * Client surfaces differ on purpose: the action-bar tooltip is a DBC estimate; the buff
-     * tooltip re-evaluates with the equipped weapon. Combat log must match the live formula
-     * (same as CMaNGOS {@code damagePoint}), not the static action-bar string.
+     * Seal of Righteousness holy damage — same evaluation as the 8606 Spell.dbc buff/action-bar
+     * tooltip (handedness × amount × speed + 3% weapon avg), plus CMaNGOS holy SP coeff on hit.
+     * Weapon speed/damage come from the mainhand item proto (what the client tooltip uses), not
+     * from possibly stale UNIT_FIELD fist defaults.
      */
     static int sealOfRighteousnessDamage(Player attacker, SpellInfo seal) {
         int amount = (seal.minDmg + seal.maxDmg) / 2;
         Item mh = attacker.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND);
         boolean twoHand = mh != null && mh.inventoryType == INVTYPE_2HWEAPON;
-        int attackTime = attacker.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
-        float speed = (attackTime > 0 ? attackTime : 2000) / 1000f;
-        float weapon = (attacker.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE)
-                + attacker.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE)) / 2f;
-        float damageBasePoints;
-        if (twoHand) {
-            // 1.20f * amount * 1.2f * 1.03f * speed / 100 + 1
-            damageBasePoints = 1.20f * amount * 1.2f * 1.03f * speed / 100.0f + 1;
+        float speed;
+        float weapon;
+        if (mh != null && mh.delay > 0) {
+            speed = mh.delay / 1000f;
+            weapon = (mh.dmgMin + mh.dmgMax) / 2f;
         } else {
-            // 0.85f * ceil(amount * 1.2f * 1.03f * speed / 100) - 1
-            damageBasePoints = 0.85f * (float) Math.ceil(amount * 1.2f * 1.03f * speed / 100.0f) - 1;
+            int attackTime = attacker.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
+            speed = (attackTime > 0 ? attackTime : 2000) / 1000f;
+            weapon = (attacker.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE)
+                    + attacker.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE)) / 2f;
         }
-        // int32(damageBasePoints + 0.03f * weaponAvg) + 1 — trailing +1 for both hands.
-        return (int) (damageBasePoints + 0.03f * weapon) + 1;
+        float damage;
+        if (twoHand) {
+            // Tooltip: 1.2 * (amount * 1.2 * 1.03 * MWS / 100) + 0.03 * avg + 1
+            damage = 1.2f * amount * 1.2f * 1.03f * speed / 100.0f + 0.03f * weapon + 1f;
+        } else {
+            // Tooltip: 0.85 * (amount * 1.2 * 1.03 * MWS / 100) + 0.03 * avg - 1
+            damage = 0.85f * amount * 1.2f * 1.03f * speed / 100.0f + 0.03f * weapon - 1f;
+        }
+        // HandleDummyAuraProc: bonusDamage * (0.092|0.108) * speed
+        int holySp = attacker.getInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 1)
+                - attacker.getInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 1);
+        if (holySp != 0) {
+            float coeff = twoHand ? 0.108f * speed : 0.092f * speed;
+            damage += holySp * coeff;
+        }
+        return Math.max(0, (int) damage);
     }
 
     /**
