@@ -2,6 +2,7 @@ package org.tbc.world.spell;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -114,12 +115,59 @@ class SpellEngineTest {
         p.setPower(200);
         int hp = c.health();
         engine.cast(p, map, 0, 78, 1, unitTarget(c.guid), this::capture);
-        assertTrue(p.hasNextMeleeSwingQueued());
+        assertTrue(p.hasNextMeleeSpellQueued());
+        assertEquals(SpellEngine.HEROIC_STRIKE, p.peekNextMeleeSpellId());
         assertEquals(hp, c.health());
+        assertEquals(200, p.power(), "TakePower waits for the swing (Spell::cast)");
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_START));
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertEquals(2, p.queuedNextMeleeBonus());
+    }
+
+    @Test
+    void finishNextMeleeSwingWhenHeroicStrikeShouldSendGoAndDamageLog() {
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setPower(200);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 5f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 5f);
+        c.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        c.setHealth(50);
+        engine.cast(p, map, 0, SpellEngine.HEROIC_STRIKE, 1, unitTarget(c.guid), this::capture);
+        ops.clear();
+        int bonus = p.queuedNextMeleeBonus();
+        int damage = 5 + bonus;
+        c.setHealth(c.health() - damage);
+        p.consumeNextMeleeSwing();
+        engine.finishNextMeleeSwing(p, c, SpellEngine.HEROIC_STRIKE, 1, damage, 100, this::capture);
+        assertEquals(50, p.power());
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+        WowBuffer log = new WowBuffer(last.get(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertEquals(c.guid, log.getPackedGuid());
+        assertEquals(p.guid, log.getPackedGuid());
+        assertEquals(SpellEngine.HEROIC_STRIKE, log.getU32());
+        assertEquals(damage, log.getU32());
+    }
+
+    @Test
+    void finishNextMeleeSwingWhenInvalidOrZeroDamageShouldIgnoreOrSkipLog() {
+        engine.finishNextMeleeSwing(null, c, SpellEngine.HEROIC_STRIKE, 1, 5, 0, this::capture);
+        engine.finishNextMeleeSwing(p, null, SpellEngine.HEROIC_STRIKE, 1, 5, 0, this::capture);
+        engine.finishNextMeleeSwing(p, c, SpellEngine.HEROIC_STRIKE, 1, 5, 0, null);
+        engine.finishNextMeleeSwing(p, c, 0, 1, 5, 0, this::capture);
+        engine.finishNextMeleeSwing(p, c, 999_999, 1, 5, 0, this::capture);
+        assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.powerType = 1;
+        p.setPower(200);
+        engine.finishNextMeleeSwing(p, c, SpellEngine.HEROIC_STRIKE, 1, 0, 50, this::capture);
         assertEquals(50, p.power());
         assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
         assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
-        assertEquals(2, p.queuedNextMeleeBonus());
+        ops.clear();
+        engine.finishNextMeleeSwing(p, c, SpellEngine.LOGINEFFECT, 1, 0, 60, this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertEquals(50, p.power(), "mana 0 spell does not TakePower");
     }
 
     /** TP-SL07-003 — Spell::update: timer counts down across ticks; no GO until it reaches 0. */
@@ -303,6 +351,12 @@ class SpellEngineTest {
     }
 
     @Test
+    void castFromItemWhenOnFinishedNullShouldUseNoOpCallback() {
+        assertTrue(engine.castFromItem(p, map, 10, SpellEngine.SPELL_FOOD, 1, empty(), this::capture, null));
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+    }
+
+    @Test
     void tpSl13CatalogDummyAndKnownEffects() {
         assertTrue(engine.knownEffect(SpellEngine.EFFECT_SCHOOL_DAMAGE));
         assertTrue(engine.knownEffect(SpellEngine.EFFECT_DUMMY));
@@ -332,9 +386,9 @@ class SpellEngineTest {
         p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
         p.setPower(200);
         engine.cast(p, map, 0, 78, 1, unitTarget(c.guid), this::capture);
-        assertTrue(p.hasNextMeleeSwingQueued());
+        assertTrue(p.hasNextMeleeSpellQueued());
         assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
-        assertEquals(50, p.power());
+        assertEquals(200, p.power(), "rage taken on the swing, not on queue");
         engine.apply(p, c, engine.info(78));
         engine.apply(p, c, engine.info(ClassScripts.SPELL_EXECUTE));
         engine.apply(p, p, new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_SCRIPT, 0, 0, 0, 0, 0, 0f));
@@ -398,6 +452,58 @@ class SpellEngineTest {
         engine.tickPeriodic(p, c, engine.info(30108), null);
         engine.tickPeriodic(p, c, engine.info(36300), this::capture);
         assertFalse(ops.contains(Opcodes.SMSG_PERIODICAURALOG));
+    }
+
+    @Test
+    void tickPeriodicWhenFoodShouldHealLivingTarget() {
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        p.setHealth(40);
+        engine.tickPeriodic(p, p, engine.info(SpellEngine.SPELL_FOOD), this::capture);
+        assertEquals(57, p.health());
+        assertTrue(ops.contains(Opcodes.SMSG_UPDATE_OBJECT) || ops.contains(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+    }
+
+    @Test
+    void tickPeriodicWhenFoodDeadOrZeroAmountShouldIgnore() {
+        p.setHealth(0);
+        engine.tickPeriodic(p, p, engine.info(SpellEngine.SPELL_FOOD), this::capture);
+        assertEquals(0, p.health());
+        SpellEngine.SpellInfo zero = new SpellEngine.SpellInfo(
+                SpellEngine.SPELL_FOOD, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_REGEN,
+                0, 0, 0, 0, 0f);
+        p.setHealth(40);
+        engine.tickPeriodic(p, p, zero, this::capture);
+        assertEquals(40, p.health());
+    }
+
+    @Test
+    void tickPeriodicWhenDrinkShouldRestoreMana() {
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setPower(10);
+        p.powerType = 0;
+        engine.tickPeriodic(p, p, engine.info(SpellEngine.SPELL_DRINK), this::capture);
+        assertEquals(52, p.power());
+    }
+
+    @Test
+    void tickPeriodicWhenDrinkNonManaOrDeadShouldIgnore() {
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setPower(10);
+        p.powerType = 1;
+        engine.tickPeriodic(p, p, engine.info(SpellEngine.SPELL_DRINK), this::capture);
+        assertEquals(10, p.getInt(UpdateFields.UNIT_FIELD_POWER1));
+        p.powerType = 0;
+        p.setHealth(0);
+        engine.tickPeriodic(p, p, engine.info(SpellEngine.SPELL_DRINK), this::capture);
+        assertEquals(10, p.power());
+        SpellEngine.SpellInfo zero = new SpellEngine.SpellInfo(
+                SpellEngine.SPELL_DRINK, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_POWER_REGEN,
+                0, 0, 0, 0, 0f);
+        p.setHealth(50);
+        engine.tickPeriodic(p, p, zero, this::capture);
+        assertEquals(10, p.power());
+        engine.tickPeriodic(p, c, engine.info(SpellEngine.SPELL_DRINK), this::capture);
+        assertEquals(10, p.power());
     }
 
     @Test
@@ -647,6 +753,33 @@ class SpellEngineTest {
         assertEquals(2, dmg);
         assertEquals(2, log.getU8());
         assertEquals(100 - dmg, c.health());
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenTwoHandShouldUseTwoHandFormula() {
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 3300);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 15f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 15f);
+        Item mh = new Item(1, 25);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.inventoryType = SpellEngine.INVTYPE_2HWEAPON;
+        p.items.put(1, mh);
+        int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+        // 1.2 * 108 * 1.2 * 1.03 * 3.3 / 100 + 1 + 0.03 * 15 ≈ 6.74 → 6
+        assertEquals(6, dmg);
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenOneHandOrZeroAttackTimeShouldUseOneHandFormula() {
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 0);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 10f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 10f);
+        Item mh = new Item(2, 25);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.inventoryType = 13;
+        p.items.put(2, mh);
+        int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+        assertEquals(2, dmg);
     }
 
     @Test

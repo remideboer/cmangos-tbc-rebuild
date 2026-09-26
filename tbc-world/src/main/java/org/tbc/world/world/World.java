@@ -539,7 +539,9 @@ public final class World implements Runnable {
 
     private void applyMeleeHit(Player p, Creature c, boolean offhand) {
         GameMap hitMap = map(p.mapId, p.instanceId);
-        boolean spellSwing = !offhand && p.hasNextMeleeSwingQueued();
+        boolean nextMeleeSpell = !offhand && p.hasNextMeleeSpellQueued();
+        int spellId = nextMeleeSpell ? p.peekNextMeleeSpellId() : 0;
+        int castCount = nextMeleeSpell ? p.peekNextMeleeCastCount() : 0;
         MeleeTable.Result r = combat.swing(p, c, nowMs(),
                 (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell), offhand);
         if (c.alive() && !c.inCombat && !c.evading && r.outcome() != MeleeTable.Outcome.EVADE) {
@@ -552,12 +554,17 @@ public final class World implements Runnable {
             }
         }
         if (p.session != null) {
-            p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(p, c, r, spellSwing, offhand));
+            if (nextMeleeSpell && spellId != 0) {
+                // CURRENT_MELEE_SPELL cast() — SPELL_GO + damage log; no white ATTACKERSTATEUPDATE.
+                spells.finishNextMeleeSwing(p, c, spellId, castCount, r.damage(), nowMs(), p.session::send);
+            } else {
+                p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(p, c, r, false, offhand));
+            }
             if (c.alive()) {
                 var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
                 p.session.send(hp.opcode(), hp.payload());
             }
-            if (r.damage() > 0) {
+            if (r.damage() > 0 || (nextMeleeSpell && spellId != 0)) {
                 var pwr = UpdateBuilder.maybeCompress(
                         UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_POWER1 + p.powerType));
                 p.session.send(pwr.opcode(), pwr.payload());

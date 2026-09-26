@@ -12,6 +12,7 @@ import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.spell.AuraSlots;
+import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
 
 import java.util.Arrays;
@@ -643,7 +644,7 @@ public final class InventoryHandler {
 
     /**
      * CMSG_USE_ITEM: bag, slot, spell_index, cast_count, raw item GUID, SpellCastTargets.
-     * SpellHandler.cpp HandleUseItemOpcode → Player::CastItemUseSpell.
+     * SpellHandler.cpp HandleUseItemOpcode → Player::CastItemUseSpell → Spell::cast → TakeCastItem.
      */
     public static void useItem(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
@@ -671,9 +672,47 @@ public final class InventoryHandler {
             if (spellId == 0 || proto.spellTrigger[i] != ITEM_SPELLTRIGGER_ON_USE || i != spellIndex) {
                 continue;
             }
+            final int spellSlot = i;
+            WowBuffer targets = new WowBuffer(in.remainingBytes());
             world.spells.castFromItem(p, world.map(p.mapId, p.instanceId), world.nowMs(), spellId, castCount,
-                    new WowBuffer(in.remainingBytes()), s::send);
+                    targets, s::send, () -> {
+                        if (spellId == SpellEngine.HEARTHSTONE) {
+                            // NearTeleportTo homebind — MSG_MOVE_TELEPORT_ACK / SMSG_NEW_WORLD (World.teleport).
+                            world.teleport(p, p.bindMap, p.bindX, p.bindY, p.bindZ, p.o);
+                        }
+                        takeCastItem(s, world, it, proto, spellSlot);
+                    });
             return;
+        }
+    }
+
+    /**
+     * Spell::TakeCastItem — negative SpellCharges means expendable; after use, DestroyItemCount 1.
+     * Hearthstone charges 0 → no destroy. Food/drink charges −1 → consume one from the stack.
+     */
+    static void takeCastItem(WorldSession s, World world, Item it, ObjectMgr.ItemTemplate proto, int spellIndex) {
+        if (it == null || proto == null || spellIndex < 0 || spellIndex >= proto.spellCharges.length) {
+            return;
+        }
+        // Only expendable (negative) charges remove the item; positive-charge items later.
+        if (proto.spellCharges[spellIndex] >= 0) {
+            return;
+        }
+        Player p = s.player();
+        if (it.count > 1) {
+            it.count--;
+            var pkt = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.valuesItem(it, UpdateFields.ITEM_FIELD_STACK_COUNT));
+            s.send(pkt.opcode(), pkt.payload());
+            return;
+        }
+        p.items.remove(Guid.low(it.guid));
+        int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
+        p.setGuid(field, 0);
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+        s.send(pkt.opcode(), pkt.payload());
+        if (world != null) {
+            world.objectMgr.applyEquippedMelee(p);
         }
     }
 

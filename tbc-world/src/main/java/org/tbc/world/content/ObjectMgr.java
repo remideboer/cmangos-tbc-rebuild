@@ -15,6 +15,7 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.DbcFile;
 import org.tbc.world.script.ScriptRegistry;
+import org.tbc.world.spell.SpellEngine;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -341,9 +342,10 @@ public final class ObjectMgr {
         public int requiredDisenchantSkill = -1;
         public float armorDamageModifier;
         public int duration;
-        /** item_template spellid_1..5 / spelltrigger_1..5. ItemPrototype.h MAX_ITEM_PROTO_SPELLS. */
+        /** item_template spellid_1..5 / spelltrigger_1..5 / spellcharges_1..5. */
         public final int[] spellId = new int[5];
         public final int[] spellTrigger = new int[5];
+        public final int[] spellCharges = new int[5];
 
         /** Worn Shortsword — item 25 from CMaNGOS item_template, used by handleBuy. */
         public static ItemTemplate wornShortsword() {
@@ -1302,7 +1304,7 @@ public final class ObjectMgr {
             return t;
         }
 
-        /** Hearthstone — item 6948 ON_USE spell 8690 (ITEM_SPELLTRIGGER_ON_USE). */
+        /** Hearthstone — item 6948 ON_USE spell 8690 (ITEM_SPELLTRIGGER_ON_USE, charges 0). */
         public static ItemTemplate hearthstone() {
             ItemTemplate t = new ItemTemplate();
             t.entry = Content.ITEM_HEARTHSTONE;
@@ -1310,7 +1312,41 @@ public final class ObjectMgr {
             t.quality = 1;
             t.stackable = 1;
             t.requiredDisenchantSkill = -1;
-            t.spellId[0] = 8690;
+            t.spellId[0] = SpellEngine.HEARTHSTONE;
+            t.spellTrigger[0] = 0;
+            t.spellCharges[0] = 0;
+            return t;
+        }
+
+        /** Tough Jerky — item 117 ON_USE Food 433, expendable charges −1. */
+        public static ItemTemplate toughJerky() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_TOUGH_JERKY;
+            t.name = "Tough Jerky";
+            t.itemClass = 0;
+            t.subClass = 0;
+            t.quality = 1;
+            t.stackable = 20;
+            t.requiredDisenchantSkill = -1;
+            t.spellId[0] = SpellEngine.SPELL_FOOD;
+            t.spellTrigger[0] = 0;
+            t.spellCharges[0] = -1;
+            return t;
+        }
+
+        /** Refreshing Spring Water — item 159 ON_USE Drink 430, expendable charges −1. */
+        public static ItemTemplate refreshingSpringWater() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_REFRESHING_SPRING_WATER;
+            t.name = "Refreshing Spring Water";
+            t.itemClass = 0;
+            t.subClass = 5;
+            t.quality = 1;
+            t.stackable = 20;
+            t.requiredDisenchantSkill = -1;
+            t.spellId[0] = SpellEngine.SPELL_DRINK;
+            t.spellTrigger[0] = 0;
+            t.spellCharges[0] = -1;
             return t;
         }
     }
@@ -1521,6 +1557,7 @@ public final class ObjectMgr {
             loadQuestExtras(c);
             loadAreaTriggers(c);
             loadItems(c);
+            loadItemSpells(c);
             loadNpcVendors(c);
             try {
                 loadGossip(c);
@@ -1549,6 +1586,10 @@ public final class ObjectMgr {
         if (createActions.isEmpty()) {
             seedCreateActions();
         }
+        // SQL item rows may lack spell columns until loadItemSpells; always force usable seeds.
+        mergeUsableItemSpells(ItemTemplate.hearthstone());
+        mergeUsableItemSpells(ItemTemplate.toughJerky());
+        mergeUsableItemSpells(ItemTemplate.refreshingSpringWater());
         seedQueryDefaults();
         loadStartOutfit(dataDir);
         loadTalents(dataDir);
@@ -2020,6 +2061,49 @@ public final class ObjectMgr {
         List<Integer> list = dest.computeIfAbsent(entry, k -> new ArrayList<>());
         if (!list.contains(questId)) {
             list.add(questId);
+        }
+    }
+
+    private void mergeUsableItemSpells(ItemTemplate seed) {
+        ItemTemplate t = items.get(seed.entry);
+        if (t == null) {
+            items.put(seed.entry, seed);
+            return;
+        }
+        for (int i = 0; i < 5; i++) {
+            if (seed.spellId[i] != 0) {
+                t.spellId[i] = seed.spellId[i];
+                t.spellTrigger[i] = seed.spellTrigger[i];
+                t.spellCharges[i] = seed.spellCharges[i];
+            }
+        }
+    }
+
+    /**
+     * item_template spellid_1..5 / spelltrigger_1..5 / spellcharges_1..5 — not in the base SELECT.
+     * Merges onto templates already loaded by {@link #loadItems}.
+     */
+    private void loadItemSpells(Connection c) {
+        String sql = "SELECT entry, spellid_1, spelltrigger_1, spellcharges_1, "
+                + "spellid_2, spelltrigger_2, spellcharges_2, "
+                + "spellid_3, spelltrigger_3, spellcharges_3, "
+                + "spellid_4, spelltrigger_4, spellcharges_4, "
+                + "spellid_5, spelltrigger_5, spellcharges_5 FROM item_template";
+        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                ItemTemplate t = items.get(rs.getInt(1));
+                if (t == null) {
+                    continue;
+                }
+                for (int i = 0; i < 5; i++) {
+                    int base = 2 + i * 3;
+                    t.spellId[i] = rs.getInt(base);
+                    t.spellTrigger[i] = rs.getInt(base + 1);
+                    t.spellCharges[i] = rs.getInt(base + 2);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("item_template spell columns load failed: {}", e.getMessage());
         }
     }
 
@@ -2746,6 +2830,12 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_BAND_OF_THE_ETERNAL_CHAMPION, ItemTemplate.bandOfTheEternalChampion());
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
+        items.putIfAbsent(Content.ITEM_TOUGH_JERKY, ItemTemplate.toughJerky());
+        items.putIfAbsent(Content.ITEM_REFRESHING_SPRING_WATER, ItemTemplate.refreshingSpringWater());
+        // SQL load may have created empty spell rows; force usable-item spells from seeds.
+        mergeUsableItemSpells(ItemTemplate.hearthstone());
+        mergeUsableItemSpells(ItemTemplate.toughJerky());
+        mergeUsableItemSpells(ItemTemplate.refreshingSpringWater());
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
                 0, "Speak with Marshal McBride.", "Speak with Marshal McBride.", 0, 0, 0, 0, 1, 24, 0, 0));
         quests.putIfAbsent(Content.QUEST_REST_AND_RELAXATION, new QuestTemplate(Content.QUEST_REST_AND_RELAXATION,

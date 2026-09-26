@@ -110,6 +110,9 @@ public final class UpdateBuilder {
     /** Item VALUES (packed item GUID, ITEM_END). CMaNGOS Item::SetUInt32Value. */
     public static byte[] valuesItem(Item it, int... fields) {
         return values(itemGuid(it), UpdateFields.ITEM_END, f -> {
+            if (f == UpdateFields.ITEM_FIELD_STACK_COUNT) {
+                return Math.max(1, it.count);
+            }
             if (f == UpdateFields.ITEM_FIELD_DURABILITY) {
                 return it.durability;
             }

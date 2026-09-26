@@ -12,15 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** TP-SL26-060 — SPELL_EFFECT_TELEPORT_UNITS (5). Hearthstone 8690 to homebind. */
 class SpellEngineTeleportUnitsTest {
     @Test
-    void applyTeleportUnitsWhenHearthstoneShouldNearTeleportToHomebind() {
+    void teleportUnitsWhenHearthstoneShouldNearTeleportToHomebind() {
         SpellEngine eng = new SpellEngine();
         assertTrue(eng.knownEffect(SpellEngine.EFFECT_TELEPORT_UNITS));
         Player p = new Player();
         p.mapId = 530;
         p.relocate(100f, 200f, 10f, 1.5f);
         p.setHomebindToLocation(0, 12, -9115.27f, 423.261f, 92.5f);
-        SpellEngine.SpellInfo hs = new SpellEngine.SpellInfo(8690, SpellEngine.EFFECT_TELEPORT_UNITS, 0, 0, 0, 0, 0, 0f);
-        eng.apply(p, p, hs);
+        eng.teleportUnits(p, p.bindMap, p.bindX, p.bindY, p.bindZ, p.o);
         assertEquals(0, p.mapId);
         assertEquals(-9115.27f, p.x, 0.01f);
         assertEquals(423.261f, p.y, 0.01f);
@@ -29,21 +28,33 @@ class SpellEngineTeleportUnitsTest {
     }
 
     @Test
-    void applyTeleportUnitsWhenTaxiFlyingShouldNoOp() {
+    void applyTeleportUnitsWhenHearthstonePlayerShouldLeaveWireToWorldTeleport() {
+        SpellEngine eng = new SpellEngine();
+        Player p = new Player();
+        p.mapId = 530;
+        p.relocate(100f, 200f, 10f, 0f);
+        p.setHomebindToLocation(0, 12, -9115.27f, 423.261f, 92.5f);
+        SpellEngine.SpellInfo hs = new SpellEngine.SpellInfo(8690, SpellEngine.EFFECT_TELEPORT_UNITS, 0, 0, 0, 0, 0, 0f);
+        eng.apply(p, p, hs);
+        assertEquals(530, p.mapId);
+        assertEquals(100f, p.x, 0.01f);
+    }
+
+    @Test
+    void teleportUnitsWhenTaxiFlyingShouldNoOp() {
         SpellEngine eng = new SpellEngine();
         Player p = new Player();
         p.mapId = 0;
         p.relocate(100f, 200f, 10f, 0f);
         p.setHomebindToLocation(0, 12, -9115.27f, 423.261f, 92.5f);
         p.setInt(UpdateFields.UNIT_FIELD_FLAGS, Unit.UNIT_FLAG_TAXI_FLIGHT);
-        SpellEngine.SpellInfo hs = new SpellEngine.SpellInfo(8690, SpellEngine.EFFECT_TELEPORT_UNITS, 0, 0, 0, 0, 0, 0f);
-        eng.apply(p, p, hs);
+        eng.teleportUnits(p, p.bindMap, p.bindX, p.bindY, p.bindZ, p.o);
         assertEquals(100f, p.x, 0.01f);
         assertEquals(200f, p.y, 0.01f);
         Creature npc = new Creature();
         npc.relocate(1f, 2f, 3f, 0f);
-        eng.apply(p, npc, hs);
-        assertEquals(1f, npc.x, 0.01f);
+        eng.teleportUnits(npc, 0, 9f, 8f, 7f, 0f);
+        assertEquals(9f, npc.x, 0.01f);
         SpellEngine.SpellInfo other = new SpellEngine.SpellInfo(
                 3561, SpellEngine.EFFECT_TELEPORT_UNITS, 0, 0, 0, 0, 0, 0f);
         Player stay = new Player();

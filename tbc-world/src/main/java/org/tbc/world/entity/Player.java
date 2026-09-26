@@ -363,6 +363,9 @@ public final class Player extends Unit {
 
     public boolean nextMeleeSwingQueued;
     private int nextMeleeBonus;
+    /** CURRENT_MELEE_SPELL id while SPELL_ATTR_ON_NEXT_SWING is preparing (Heroic Strike, etc.). */
+    private int nextMeleeSpellId;
+    private int nextMeleeCastCount;
     /** Camera viewpoint guid; 0 = self (CMSG_FAR_SIGHT / Camera::SetView). */
     private long cameraViewGuid;
     /** Pending ritual/GM summon (Player::m_summon_*). */
@@ -944,14 +947,38 @@ public final class Player extends Unit {
         nextMeleeBonus = bonusDamage;
     }
 
+    /**
+     * Spell::prepare for ON_NEXT_SWING — queue CURRENT_MELEE_SPELL; cast() lands on the next mainhand swing.
+     */
+    public void queueNextMeleeSpell(int spellId, int castCount, int bonusDamage) {
+        nextMeleeSwingQueued = true;
+        nextMeleeSpellId = spellId;
+        nextMeleeCastCount = castCount;
+        nextMeleeBonus = bonusDamage;
+    }
+
     public boolean hasNextMeleeSwingQueued() {
         return nextMeleeSwingQueued;
+    }
+
+    public boolean hasNextMeleeSpellQueued() {
+        return nextMeleeSwingQueued && nextMeleeSpellId != 0;
+    }
+
+    public int peekNextMeleeSpellId() {
+        return nextMeleeSpellId;
+    }
+
+    public int peekNextMeleeCastCount() {
+        return nextMeleeCastCount;
     }
 
     public int consumeNextMeleeSwing() {
         int bonus = nextMeleeBonus;
         nextMeleeSwingQueued = false;
         nextMeleeBonus = 0;
+        nextMeleeSpellId = 0;
+        nextMeleeCastCount = 0;
         return bonus;
     }
 

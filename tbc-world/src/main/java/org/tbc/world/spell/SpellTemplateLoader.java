@@ -88,6 +88,7 @@ public final class SpellTemplateLoader {
         m.put(21, 15_000);
         m.put(28, SpellEngine.DRAIN_LIFE_DURATION_MS);
         m.put(30, SpellEngine.FROST_ARMOR_DURATION_MS);
+        m.put(85, SpellEngine.FOOD_DURATION_MS);
         loadDurationDbc(dataDir, m);
         return m;
     }

@@ -2,6 +2,7 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -232,6 +233,115 @@ class Slice07P0Test {
         assertEquals(1, start[off + 4] & 0xFF);
         assertEquals(HEARTHSTONE_CAST_MS, WowClientDouble.u32le(start, off + 4 + 1 + 2));
         assertFalse(client.saw(Opcodes.SMSG_SPELL_GO), "10 s bar still running");
+    }
+
+    /**
+     * TP-SL07-010 complete — after the 10 s bar, SPELL_GO + MSG_MOVE_TELEPORT_ACK to homebind
+     * (Spell::cast TakeCastItem / NearTeleportTo). Same-map hearth.
+     */
+    @Test
+    void tpSl07UseItemHearthstoneCompletesToHomebind() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.setHomebindToLocation(p.mapId, 12, -9115.27f, 423.261f, 92.5f);
+        p.relocate(-9000f, 100f, 80f, 0f);
+        int slot = p.firstFreeBagSlot();
+        Item hs = new Item(world.nextItemGuid(), HEARTHSTONE_ITEM);
+        hs.slot = slot;
+        p.items.put((int) hs.guid, hs);
+
+        client.clear();
+        WowBuffer use = new WowBuffer(20);
+        use.putU8(INVENTORY_SLOT_BAG_0);
+        use.putU8(slot);
+        use.putU8(0);
+        use.putU8(1);
+        use.putU64(UpdateBuilder.itemGuid(hs));
+        use.putU32(0);
+        client.handle(world, Opcodes.CMSG_USE_ITEM, use.array());
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_START));
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
+
+        world.advanceMs(HEARTHSTONE_CAST_MS);
+        world.tick(HEARTHSTONE_CAST_MS);
+
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
+        assertEquals(-9115.27f, p.x, 0.01f);
+        assertEquals(423.261f, p.y, 0.01f);
+        assertEquals(92.5f, p.z, 0.01f);
+        assertTrue(p.items.containsKey((int) hs.guid), "hearthstone charges 0 — not consumed");
+    }
+
+    /**
+     * CMSG_USE_ITEM Tough Jerky 117 → Food 433 APPLY_AURA MOD_REGEN; expendable charges −1 consumes
+     * one from the stack; first Amplitude heals (+17).
+     */
+    @Test
+    void tpSl07UseItemToughJerkyConsumesAndHeals() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        p.setHealth(40);
+        int slot = p.firstFreeBagSlot();
+        Item jerky = new Item(world.nextItemGuid(), Content.ITEM_TOUGH_JERKY);
+        jerky.slot = slot;
+        jerky.count = 3;
+        p.items.put((int) jerky.guid, jerky);
+
+        client.clear();
+        WowBuffer use = new WowBuffer(20);
+        use.putU8(INVENTORY_SLOT_BAG_0);
+        use.putU8(slot);
+        use.putU8(0);
+        use.putU8(1);
+        use.putU64(UpdateBuilder.itemGuid(jerky));
+        use.putU32(0);
+        client.handle(world, Opcodes.CMSG_USE_ITEM, use.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(2, jerky.count);
+        assertEquals(1, p.auras.stream().filter(a -> a.spellId() == SpellEngine.SPELL_FOOD).count());
+
+        world.advanceMs(SpellEngine.FOOD_AMPLITUDE_MS);
+        world.tick(SpellEngine.FOOD_AMPLITUDE_MS);
+        assertEquals(57, p.health());
+    }
+
+    /**
+     * CMSG_USE_ITEM Refreshing Spring Water 159 → Drink 430 MOD_POWER_REGEN; last stack destroys the item.
+     */
+    @Test
+    void tpSl07UseItemWaterConsumesLastAndRestoresMana() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setPower(10);
+        int slot = p.firstFreeBagSlot();
+        Item water = new Item(world.nextItemGuid(), Content.ITEM_REFRESHING_SPRING_WATER);
+        water.slot = slot;
+        water.count = 1;
+        p.items.put((int) water.guid, water);
+
+        client.clear();
+        WowBuffer use = new WowBuffer(20);
+        use.putU8(INVENTORY_SLOT_BAG_0);
+        use.putU8(slot);
+        use.putU8(0);
+        use.putU8(1);
+        use.putU64(UpdateBuilder.itemGuid(water));
+        use.putU32(0);
+        client.handle(world, Opcodes.CMSG_USE_ITEM, use.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertFalse(p.items.containsKey((int) water.guid));
+
+        world.advanceMs(SpellEngine.DRINK_AMPLITUDE_MS);
+        world.tick(SpellEngine.DRINK_AMPLITUDE_MS);
+        assertEquals(52, p.power());
     }
 
     /** Player.h INVENTORY_SLOT_BAG_0 — backpack / equipped in CMSG_USE_ITEM bagIndex. */

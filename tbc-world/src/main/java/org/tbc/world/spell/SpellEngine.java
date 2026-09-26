@@ -262,12 +262,27 @@ public final class SpellEngine {
     public static final int SPELL_BATTLE_STANCE = 2457;
     /** Beg — Spell.dbc 7267; DuelHandler forfeit CastSpell TRIGGERED. */
     public static final int SPELL_BEG = 7267;
+    public static final int HEROIC_STRIKE = 78;
+    /** ItemPrototype.h INVTYPE_2HWEAPON — Seal of Righteousness 2H formula branch. */
+    public static final int INVTYPE_2HWEAPON = 17;
+    /**
+     * Spell.dbc Attributes SPELL_ATTR_ON_NEXT_SWING / ON_NEXT_SWING_NO_DAMAGE — CURRENT_MELEE_SPELL.
+     * Seeded starter ranks: Heroic Strike, Cleave, Raptor Strike, Maul.
+     */
+    private static final Set<Integer> NEXT_SWING_SPELLS = Set.of(78, 845, 2973, 6807);
     public static final int CLASS_WARRIOR = 1;
     /** Spell.dbc EffectAmplitude1 for Unstable Affliction rank 1. */
     public static final int UA_AMPLITUDE_MS = 3000;
     /** Hearthstone. Spell.dbc CastingTimeIndex 7 → SpellCastTimes.dbc 10000 ms, StartRecoveryTime 1500. */
     public static final int HEARTHSTONE = 8690;
     public static final int HEARTHSTONE_CAST_MS = 10_000;
+    /** Food — Spell.dbc 433 APPLY_AURA MOD_REGEN +17 / 5 s (Tough Jerky). DurationIndex 85 → 30 s. */
+    public static final int SPELL_FOOD = 433;
+    public static final int FOOD_DURATION_MS = 30_000;
+    public static final int FOOD_AMPLITUDE_MS = 5_000;
+    /** Drink — Spell.dbc 430 APPLY_AURA MOD_POWER_REGEN (Refreshing Spring Water). */
+    public static final int SPELL_DRINK = 430;
+    public static final int DRINK_AMPLITUDE_MS = 2_000;
     /** Drain Life rank 1. Spell.dbc AttributesEx SPELL_ATTR_EX_IS_CHANNELED, DurationIndex 28 → 5000 ms. */
     public static final int DRAIN_LIFE = 689;
     public static final int DRAIN_LIFE_DURATION_MS = 5000;
@@ -391,7 +406,7 @@ public final class SpellEngine {
 
     public SpellEngine(DoubleSupplier missRoll) {
         this.missRoll = missRoll;
-        spells.put(78, new SpellInfo(78, EFFECT_WEAPON_DAMAGE, 0, 0, 150, 1, 3, 5f));
+        spells.put(HEROIC_STRIKE, new SpellInfo(HEROIC_STRIKE, EFFECT_WEAPON_DAMAGE, 0, 0, 150, 1, 3, 5f));
         // Spell.dbc StartRecoveryTime 1500 / StartRecoveryCategory 133; on-next-swing Heroic Strike has none.
         spells.put(FIREBALL, new SpellInfo(FIREBALL, EFFECT_SCHOOL_DAMAGE, 0, 4, 30, 8, 12, 30f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
@@ -480,6 +495,12 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(DRAIN_LIFE_DURATION_MS));
         spells.put(HEARTHSTONE, new SpellInfo(HEARTHSTONE, EFFECT_TELEPORT_UNITS, 0, 0, 0, 0, 0, 0f)
                 .withCastTime(HEARTHSTONE_CAST_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        // Food 433: EffectBasePoints 16 → +17 HP each 5 s for 30 s (HandleModRegen PeriodicTick).
+        spells.put(SPELL_FOOD, new SpellInfo(SPELL_FOOD, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_REGEN,
+                0, 0, 17, 17, 0f).withDuration(FOOD_DURATION_MS).withAmplitude(FOOD_AMPLITUDE_MS));
+        // Drink 430: mana restore stand-in amount 42 every 2 s (HandleModPowerRegen PeriodicTick).
+        spells.put(SPELL_DRINK, new SpellInfo(SPELL_DRINK, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_POWER_REGEN,
+                0, 0, 42, 42, 0f).withDuration(FOOD_DURATION_MS).withAmplitude(DRINK_AMPLITUDE_MS));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
         // Beg — Spell.dbc 7267; DuelHandler forfeit CastSpell TRIGGERED.
@@ -767,10 +788,18 @@ public final class SpellEngine {
 
     /**
      * Player::CastItemUseSpell — item ON_USE is not a known-spell check (spell.md).
+     * {@code onFinished} runs after effects land (TakeCastItem / NearTeleportTo from the caller).
      */
     public boolean castFromItem(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
+                                BiConsumer<Integer, byte[]> send, Runnable onFinished) {
+        return cast(caster, map, nowMs, spellId, castCount, rest, send,
+                onFinished != null ? onFinished : () -> { }, true);
+    }
+
+    /** @deprecated prefer {@link #castFromItem(Player, GameMap, long, int, int, WowBuffer, BiConsumer, Runnable)} */
+    public boolean castFromItem(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
                                 BiConsumer<Integer, byte[]> send) {
-        return cast(caster, map, nowMs, spellId, castCount, rest, send, () -> { }, true);
+        return castFromItem(caster, map, nowMs, spellId, castCount, rest, send, () -> { });
     }
 
     boolean cast(Player caster, GameMap map, long nowMs, int spellId, int castCount, WowBuffer rest,
@@ -811,6 +840,13 @@ public final class SpellEngine {
         }
         // Spell::prepare → AddGCD at cast start; nothing is sent (client runs its own GCD timer).
         caster.cooldowns.addGcd(SpellCooldowns.GCD_CATEGORY_NORMAL, sp.gcdMs, nowMs);
+        // ON_NEXT_SWING: SetCurrentCastedSpell(CURRENT_MELEE_SPELL); cast() waits for the next mainhand swing.
+        if (NEXT_SWING_SPELLS.contains(spellId)) {
+            int bonus = Math.max(1, (sp.minDmg + sp.maxDmg) / 2);
+            caster.queueNextMeleeSpell(spellId, castCount, bonus);
+            send.accept(Opcodes.SMSG_SPELL_START, encodeStart(caster.guid, sp.id, castCount, 0, targets));
+            return true;
+        }
         send.accept(Opcodes.SMSG_SPELL_START, encodeStart(caster.guid, sp.id, castCount, sp.castTimeMs, targets));
         if (sp.castTimeMs > 0) {
             pendingCasts.put(caster.guid, new PendingCast(caster, map, target, sp, castCount, targets, send,
@@ -920,15 +956,11 @@ public final class SpellEngine {
         }
         int hpBefore = target.health();
         int dmg = 0;
-        if (sp.id == 78) {
-            caster.queueNextMeleeSwing(Math.max(1, (sp.minDmg + sp.maxDmg) / 2));
-        } else {
-            dmg = apply(caster, target, sp, nowMs);
-            List<SpellInfo> extra = extraEffects.get(sp.id);
-            if (extra != null) {
-                for (SpellInfo e : extra) {
-                    apply(caster, target, e, nowMs);
-                }
+        dmg = apply(caster, target, sp, nowMs);
+        List<SpellInfo> extra = extraEffects.get(sp.id);
+        if (extra != null) {
+            for (SpellInfo e : extra) {
+                apply(caster, target, e, nowMs);
             }
         }
         boolean schoolMiss = sp.effect == EFFECT_SCHOOL_DAMAGE && dmg == 0;
@@ -1095,9 +1127,8 @@ public final class SpellEngine {
             return 0;
         }
         if (sp.effect == EFFECT_TELEPORT_UNITS) {
-            if (sp.id == 8690 && target instanceof Player p) {
-                teleportUnits(p, p.bindMap, p.bindX, p.bindY, p.bindZ, p.o);
-            }
+            // Player NearTeleportTo is World.teleport (MSG_MOVE_TELEPORT_ACK / SMSG_NEW_WORLD).
+            // Domain NearTeleportTo for hearthstone: callers use teleportUnits() directly.
             return 0;
         }
         if (sp.effect == EFFECT_TELEPORT_UNITS_FACE_CASTER) {
@@ -2925,21 +2956,51 @@ public final class SpellEngine {
 
     public static final int SPELL_AURA_PERIODIC_DAMAGE = 3;
 
-    /** Amplitude tick: PERIODIC_DAMAGE → SMSG_PERIODICAURALOG; damage = health delta. combat-log.md */
+    /**
+     * Amplitude tick: PERIODIC_DAMAGE (DoT), MOD_REGEN (food), MOD_POWER_REGEN (drink).
+     * combat-log.md / CMaNGOS Aura::PeriodicTick.
+     */
     public void tickPeriodic(Unit caster, Unit target, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
         if (caster == null || target == null || sp == null || send == null) {
             return;
         }
-        if (sp.aura != SPELL_AURA_PERIODIC_DAMAGE) {
+        if (sp.aura == SPELL_AURA_PERIODIC_DAMAGE) {
+            int dmg = (sp.minDmg + sp.maxDmg) / 2;
+            int before = target.health();
+            target.setHealth(before - dmg);
+            int dealt = before - target.health();
+            send.accept(Opcodes.SMSG_PERIODICAURALOG, encodePeriodicDamageLog(target.guid, caster.guid, sp, dealt));
+            var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
+            send.accept(hp.opcode(), hp.payload());
             return;
         }
-        int dmg = (sp.minDmg + sp.maxDmg) / 2;
-        int before = target.health();
-        target.setHealth(before - dmg);
-        int dealt = before - target.health();
-        send.accept(Opcodes.SMSG_PERIODICAURALOG, encodePeriodicDamageLog(target.guid, caster.guid, sp, dealt));
-        var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
-        send.accept(hp.opcode(), hp.payload());
+        if (sp.aura == AuraEngine.SPELL_AURA_MOD_REGEN) {
+            // HandleModRegen PeriodicTick → ModifyHealth(amount).
+            if (!target.alive()) {
+                return;
+            }
+            int amount = (sp.minDmg + sp.maxDmg) / 2;
+            if (amount <= 0) {
+                return;
+            }
+            target.setHealth(target.health() + amount);
+            var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
+            send.accept(hp.opcode(), hp.payload());
+            return;
+        }
+        if (sp.aura == AuraEngine.SPELL_AURA_MOD_POWER_REGEN) {
+            // HandleModPowerRegen PeriodicTick → ModifyPower for matching power type (mana drinks).
+            if (!target.alive() || !(target instanceof Player p) || p.powerType != 0) {
+                return;
+            }
+            int amount = (sp.minDmg + sp.maxDmg) / 2;
+            if (amount <= 0) {
+                return;
+            }
+            p.setPower(p.power() + amount);
+            var pwr = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_POWER1));
+            send.accept(pwr.opcode(), pwr.payload());
+        }
     }
 
     byte[] encodePeriodicDamageLog(long target, long caster, SpellInfo sp, int damage) {
@@ -3080,14 +3141,59 @@ public final class SpellEngine {
         return SEAL_OF_RIGHTEOUSNESS_TRIGGERS.getOrDefault(auraId, 0);
     }
 
-    /** One-hand / no-weapon formula from HandleDummyAuraProc. Amount is the seal's base points + 1. */
+    /** One-hand / two-hand formula from HandleDummyAuraProc. Amount is the seal's EffectBasePoints+1. */
     static int sealOfRighteousnessDamage(Player attacker, SpellInfo seal) {
         int amount = (seal.minDmg + seal.maxDmg) / 2;
-        float speed = attacker.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME) / 1000f;
-        double damageBasePoints = 0.85 * Math.ceil(amount * 1.2 * 1.03 * speed / 100.0) - 1;
+        int attackTime = attacker.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
+        float speed = (attackTime > 0 ? attackTime : 2000) / 1000f;
         float weapon = (attacker.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE)
                 + attacker.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE)) / 2f;
+        Item mh = attacker.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND);
+        boolean twoHand = mh != null && mh.inventoryType == INVTYPE_2HWEAPON;
+        if (twoHand) {
+            // 1.20f * amount * 1.2f * 1.03f * speed / 100 + 1 + 0.03 * weaponAvg
+            double damageBasePoints = 1.20 * amount * 1.2 * 1.03 * speed / 100.0 + 1;
+            return (int) (damageBasePoints + 0.03 * weapon);
+        }
+        // 0.85f * ceil(amount * 1.2f * 1.03f * speed / 100) - 1 + 0.03 * weaponAvg + 1
+        double damageBasePoints = 0.85 * Math.ceil(amount * 1.2 * 1.03 * speed / 100.0) - 1;
         return (int) (damageBasePoints + 0.03 * weapon) + 1;
+    }
+
+    /**
+     * Unit::AttackerStateUpdate CURRENT_MELEE_SPELL path: cast() on the next mainhand swing —
+     * TakePower, weapon+bonus damage (already applied by Combat.swing), SPELL_GO + damage log.
+     * No white SMSG_ATTACKERSTATEUPDATE (CMaNGOS returns after the melee spell cast).
+     */
+    public void finishNextMeleeSwing(Player caster, Unit target, int spellId, int castCount, int damage,
+                                     long nowMs, BiConsumer<Integer, byte[]> send) {
+        if (caster == null || target == null || send == null || spellId == 0) {
+            return;
+        }
+        SpellInfo sp = info(spellId);
+        if (sp == null) {
+            return;
+        }
+        caster.cooldowns.addSpell(sp.id, sp.recoveryMs, nowMs);
+        if (sp.mana > 0) {
+            caster.setPower(caster.power() - sp.mana);
+            if (caster.powerType == 0) {
+                caster.noteManaUse();
+            }
+            var pwr = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.values(caster, UpdateFields.UNIT_FIELD_POWER1 + caster.powerType));
+            send.accept(pwr.opcode(), pwr.payload());
+        }
+        SpellCastTargets targets = new SpellCastTargets();
+        targets.mask = SpellCastTargets.UNIT;
+        targets.unitGuid = target.guid;
+        send.accept(Opcodes.SMSG_SPELL_GO, encodeGo(caster.guid, target.guid, sp.id, nowMs, targets));
+        if (damage > 0) {
+            SpellInfo log = new SpellInfo(sp.id, EFFECT_WEAPON_DAMAGE, 0, sp.school, 0, damage, damage, 0f);
+            send.accept(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG, encodeDamageLog(target.guid, caster.guid, log, damage));
+            var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
+            send.accept(hp.opcode(), hp.payload());
+        }
     }
 
     private void landProcDamage(Player attacker, Unit victim, int spellId, int school, int dmg,

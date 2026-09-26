@@ -213,6 +213,8 @@ public final class Content {
     public static final int ITEM_RED_BURLAP_BANDANA = 752;
     /** locales_item 6948 Hearthstone; item_template spellid_1 8690. */
     public static final int ITEM_HEARTHSTONE = 6948;
+    /** locales_item 117 Tough Jerky; item_template spellid_1 433 charges −1. */
+    public static final int ITEM_TOUGH_JERKY = 117;
     public static final int ITEM_ROUGH_ARROW = 2512;
     public static final int ITEM_SMALL_BROWN_POUCH = 4496;
     /** locales_item 889; PageText 16 is locales_page_text (Stalvan to Crillian). */
