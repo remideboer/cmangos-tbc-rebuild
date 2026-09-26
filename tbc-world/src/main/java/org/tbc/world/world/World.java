@@ -674,11 +674,18 @@ public final class World implements Runnable {
             return;
         }
         boolean fresh = !c.inCombat;
-        combat.startAttack(p, c, nowMs());
+        byte[] stopMove = combat.startAttack(p, c, nowMs());
+        GameMap m = map(p.mapId, p.instanceId);
+        if (stopMove != null) {
+            for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+                if (pl.session != null) {
+                    pl.session.send(Opcodes.SMSG_MONSTER_MOVE, stopMove);
+                }
+            }
+        }
         if (!fresh) {
             return;
         }
-        GameMap m = map(p.mapId, p.instanceId);
         if (c.eventAi != null) {
             c.eventAi.onAggro(c, p, (cr, t, spell) -> sendEventAiCast(m, cr, t, spell));
         }

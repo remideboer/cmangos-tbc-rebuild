@@ -215,7 +215,11 @@ public final class Combat {
         return c.distance2d(target) <= attackDistance(c, target);
     }
 
-    public void startAttack(Player p, Creature c, long nowMs) {
+    /**
+     * CMaNGOS AttackStart → Mutate(Chase) → StopMoving when clearing OOC generators.
+     * @return MonsterMoveStop payload when RANDOM/HOME was interrupted; otherwise null
+     */
+    public byte[] startAttack(Player p, Creature c, long nowMs) {
         p.inCombat = true;
         p.victim = c.guid;
         c.inCombat = true;
@@ -233,11 +237,17 @@ public final class Combat {
             c.combatStartX = c.x;
             c.combatStartY = c.y;
         }
+        byte[] stopMove = null;
+        int motion = c.motion.type();
+        if (motion == org.tbc.world.ai.MotionMaster.RANDOM || motion == org.tbc.world.ai.MotionMaster.HOME) {
+            stopMove = c.motion.stop(c);
+        }
         if (c.combatMovement) {
             c.motion.moveChase(p);
         } else {
             c.motion.moveIdle();
         }
+        return stopMove;
     }
 
     public void stopAttack(Player p) {

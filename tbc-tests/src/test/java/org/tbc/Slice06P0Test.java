@@ -672,6 +672,55 @@ class Slice06P0Test {
     }
 
     /**
+     * CMaNGOS MotionMaster::Mutate → StopMoving when Random is replaced by Chase:
+     * engage while OOC-RANDOM must MonsterMoveStop at the live position (not snap to spawn).
+     * Without STOP the client keeps the OOC walk toward spawn±radius — looks like a jump.
+     */
+    @Test
+    void tpSl06EngageWhileWanderingShouldStopAtLivePositionNotSpawn() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Puller", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        float spawnX = p.x;
+        float spawnY = p.y;
+        Creature c = world.objectMgr.spawnCreature(6, 0, spawnX, spawnY, p.z, p.o, world.scripts);
+        c.spawnX = spawnX;
+        c.spawnY = spawnY;
+        c.spawnZ = c.z;
+        c.spawnDist = 10f;
+        c.movementType = org.tbc.world.ai.MotionMaster.RANDOM;
+        c.ai = null;
+        c.eventAi = null;
+        c.startOocMotion();
+        world.map(p.mapId, p.instanceId).add(c);
+        float walkedX = spawnX + 7f;
+        float walkedY = spawnY;
+        float ox = c.x;
+        float oy = c.y;
+        c.relocate(walkedX, walkedY, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(c, ox, oy);
+        int[] n = {0};
+        c.motion.rng(() -> n[0]++ == 0 ? 0.0 : 1.0);
+        c.motion.update(c, 1);
+        assertEquals(org.tbc.world.ai.MotionMaster.RANDOM, c.motion.type());
+        ox = p.x;
+        oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.clear();
+        client.attackSwing(world, c.guid);
+        assertTrue(c.inCombat);
+        assertEquals(walkedX, c.x, 0.05f, "server must not relocate to spawn on engage");
+        assertEquals(walkedY, c.y, 0.05f, "server must not relocate to spawn on engage");
+        assertTrue(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_STOP),
+                "OOC walk must MonsterMoveStop before chase");
+        assertTrue(stopBeforeChase(client, c.guid));
+    }
+
+    /**
      * Unit::SetDeathState(JUST_DIED) StopMoving: SMSG_MONSTER_MOVE MonsterMoveStop so the client
      * drops FACING_TARGET (otherwise the corpse keeps turning toward the looter).
      */
@@ -763,6 +812,33 @@ class Slice06P0Test {
             }
         }
         return false;
+    }
+
+    /** True when the first MonsterMove for guid after pull is STOP (before any FACING_TARGET chase). */
+    private static boolean stopBeforeChase(WowClientDouble client, long guid) {
+        boolean sawStop = false;
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_MONSTER_MOVE) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            if (packedGuid(payload, 0) != guid) {
+                continue;
+            }
+            int off = WowClientDouble.skipPackedGuid(payload, 0) + 16;
+            if (off >= payload.length) {
+                continue;
+            }
+            int moveType = payload[off] & 0xFF;
+            if (moveType == org.tbc.world.session.TaxiHandler.MONSTER_MOVE_STOP) {
+                sawStop = true;
+                continue;
+            }
+            if (moveType == org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_TARGET) {
+                return sawStop;
+            }
+        }
+        return sawStop;
     }
 
     private static long packedGuid(byte[] p, int off) {

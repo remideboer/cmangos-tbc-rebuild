@@ -1252,7 +1252,14 @@ public final class WorldSession {
         if (!c.inCombat) {
             world.engage(c, player);
         } else {
-            world.combat.startAttack(player, c, world.nowMs());
+            byte[] stopMove = world.combat.startAttack(player, c, world.nowMs());
+            if (stopMove != null) {
+                for (Player pl : map.nearbyPlayers(c, GameMap.VISIBILITY)) {
+                    if (pl.session != null) {
+                        pl.session.send(Opcodes.SMSG_MONSTER_MOVE, stopMove);
+                    }
+                }
+            }
             beginPlayerAutoAttack(world, c);
         }
         // Unit::Attack only — AttackerStateUpdate runs from UpdateMeleeAttackingState (session tick).

@@ -18,6 +18,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,6 +44,66 @@ class CombatTest {
     private static void setFaction(Unit u, int templateId) {
         u.faction = templateId;
         u.setInt(UpdateFields.UNIT_FIELD_FACTIONTEMPLATE, templateId);
+    }
+
+    /**
+     * CMaNGOS Mutate(Chase) → StopMoving: mid-RANDOM engage keeps live coords and returns MonsterMoveStop.
+     */
+    @Test
+    void startAttackWhenRandomWalkingShouldStopSplineWithoutRelocateToSpawn() {
+        c.spawnX = 0;
+        c.spawnY = 0;
+        c.spawnZ = 0;
+        c.relocate(7f, 0f, 0f, 0f);
+        c.motion.moveRandom(10f);
+        c.motion.update(c, 1);
+        float x = c.x;
+        float y = c.y;
+        byte[] stop = combat.startAttack(p, c, 1000);
+        assertEquals(x, c.x, 0.001f);
+        assertEquals(y, c.y, 0.001f);
+        assertNotEquals(c.spawnX, c.x, 0.5f);
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, c.motion.type());
+        assertNotNull(stop);
+        WowBuffer pkt = new WowBuffer(stop);
+        pkt.getPackedGuid();
+        assertEquals(x, pkt.getFloat(), 0.001f);
+        assertEquals(y, pkt.getFloat(), 0.001f);
+        pkt.getFloat();
+        pkt.getU32();
+        assertEquals(org.tbc.world.session.TaxiHandler.MONSTER_MOVE_STOP, pkt.getU8());
+    }
+
+    /** HOME mid-evade pull also StopMoving before Chase (same Mutate path as RANDOM). */
+    @Test
+    void startAttackWhenHomeMotionShouldStopSplineWithoutRelocateToSpawn() {
+        c.spawnX = 0;
+        c.spawnY = 0;
+        c.spawnZ = 0;
+        c.relocate(5f, 0f, 0f, 0f);
+        c.motion.moveHome();
+        float x = c.x;
+        float y = c.y;
+        byte[] stop = combat.startAttack(p, c, 1000);
+        assertEquals(x, c.x, 0.001f);
+        assertEquals(y, c.y, 0.001f);
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, c.motion.type());
+        assertNotNull(stop);
+        WowBuffer pkt = new WowBuffer(stop);
+        pkt.getPackedGuid();
+        assertEquals(x, pkt.getFloat(), 0.001f);
+        assertEquals(y, pkt.getFloat(), 0.001f);
+        pkt.getFloat();
+        pkt.getU32();
+        assertEquals(org.tbc.world.session.TaxiHandler.MONSTER_MOVE_STOP, pkt.getU8());
+    }
+
+    /** Idle engage has no OOC spline to clear — no MonsterMoveStop. */
+    @Test
+    void startAttackWhenIdleShouldNotEmitStop() {
+        assertEquals(org.tbc.world.ai.MotionMaster.IDLE, c.motion.type());
+        assertNull(combat.startAttack(p, c, 1000));
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, c.motion.type());
     }
 
     @Test
