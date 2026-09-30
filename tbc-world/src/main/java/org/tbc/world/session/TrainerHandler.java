@@ -21,8 +21,12 @@ public final class TrainerHandler {
     public static final int TRAINER_SPELL_GRAY = 2;
     /** SharedDefines.h TRAINER_TYPE_CLASS. */
     public static final int TRAINER_TYPE_CLASS = 0;
+    /** SharedDefines.h TRAINER_TYPE_MOUNTS. */
+    public static final int TRAINER_TYPE_MOUNTS = 1;
     /** SharedDefines.h TRAINER_TYPE_TRADESKILLS. */
     public static final int TRAINER_TYPE_TRADESKILLS = 2;
+    /** SharedDefines.h TRAINER_TYPE_PETS. */
+    public static final int TRAINER_TYPE_PETS = 3;
     /** mangos.sql mangos_string 51 LANG_NPC_TAINER_HELLO. */
     public static final String DEFAULT_GREETING = "Hello! Ready for some training?";
     /** Spell.dbc Apprentice Blacksmith — EFFECT_SKILL_STEP skill 164. */
@@ -45,12 +49,11 @@ public final class TrainerHandler {
         if (!isTrainerOf(p, c, mgr)) {
             return null;
         }
-        List<ObjectMgr.TrainerSpell> rows = mgr.trainerSpells.get(c.entry);
-        if (rows == null || rows.isEmpty()) {
+        List<ObjectMgr.TrainerSpell> rows = mgr.spellsForTrainer(c.entry);
+        if (rows.isEmpty()) {
             return null;
         }
-        ObjectMgr.CreatureTemplate t = mgr.creatures.get(c.entry);
-        int trainerType = t == null ? 0 : t.trainerType();
+        int trainerType = mgr.trainerType(c.entry);
         WowBuffer b = new WowBuffer(16 + rows.size() * 38 + DEFAULT_GREETING.length() + 1);
         b.putU64(c.guid);
         b.putU32(trainerType);
@@ -73,18 +76,9 @@ public final class TrainerHandler {
         return b.array();
     }
 
-    /** CMaNGOS Creature::IsTrainerOf — class match or tradeskill trainer. */
+    /** Delegates to ObjectMgr — gossip and trainer packets share one rule. */
     static boolean isTrainerOf(Player p, Creature c, ObjectMgr mgr) {
-        ObjectMgr.CreatureTemplate t = mgr.creatures.get(c.entry);
-        int trainerType = t == null ? 0 : t.trainerType();
-        if (trainerType == TRAINER_TYPE_TRADESKILLS) {
-            return true;
-        }
-        Integer cls = mgr.trainerClass.get(c.entry);
-        if (cls != null && cls != 0 && cls != p.clazz) {
-            return false;
-        }
-        return true;
+        return mgr.isTrainerOf(p, c);
     }
 
     public static void buySpell(WorldSession s, World world, WowBuffer in) {
@@ -100,13 +94,11 @@ public final class TrainerHandler {
             return;
         }
         ObjectMgr.TrainerSpell row = null;
-        List<ObjectMgr.TrainerSpell> rows = world.objectMgr.trainerSpells.get(npc.entry);
-        if (rows != null) {
-            for (ObjectMgr.TrainerSpell t : rows) {
-                if (t.spell() == spell) {
-                    row = t;
-                    break;
-                }
+        List<ObjectMgr.TrainerSpell> rows = world.objectMgr.spellsForTrainer(npc.entry);
+        for (ObjectMgr.TrainerSpell t : rows) {
+            if (t.spell() == spell) {
+                row = t;
+                break;
             }
         }
         if (row == null || p.money < row.cost()) {

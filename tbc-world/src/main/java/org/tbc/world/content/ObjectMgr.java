@@ -1453,8 +1453,15 @@ public final class ObjectMgr {
         }
     }
     public final Map<Integer, Integer> battleMasterBg = new HashMap<>();
+    /** npc_trainer keyed by creature entry (CMaNGOS m_mCacheTrainerSpellMap). */
     public final Map<Integer, List<TrainerSpell>> trainerSpells = new HashMap<>();
+    /** npc_trainer_template keyed by template id (CMaNGOS m_mCacheTrainerTemplateSpellMap). */
+    public final Map<Integer, List<TrainerSpell>> trainerTemplateSpells = new HashMap<>();
     public final Map<Integer, Integer> trainerClass = new HashMap<>();
+    /** creature_template.TrainerType (0 class, 1 mounts, 2 tradeskills, 3 pets). */
+    public final Map<Integer, Integer> trainerTypeByEntry = new HashMap<>();
+    /** creature_template.TrainerTemplateId → npc_trainer_template.entry. */
+    public final Map<Integer, Integer> trainerTemplateId = new HashMap<>();
     public final Map<Integer, TaxiNode> taxiNodes = new HashMap<>();
     public final Map<Long, TaxiHop> taxiPaths = new HashMap<>();
     public final Map<Integer, ZoneWeather> weather = new HashMap<>();
@@ -1592,6 +1599,11 @@ public final class ObjectMgr {
             } catch (Exception e) {
                 log.debug("npc_trainer load skipped: {}", e.getMessage());
             }
+            try {
+                loadTrainerMeta(c);
+            } catch (Exception e) {
+                log.debug("trainer meta load skipped: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.warn("ObjectMgr SQL load failed, using defaults: {}", e.getMessage());
             seedDefaults();
@@ -1672,14 +1684,15 @@ public final class ObjectMgr {
         }
     }
 
-    /** CMaNGOS ObjectMgr::LoadTrainers — npc_trainer then npc_trainer_template keyed by entry. */
+    /** CMaNGOS ObjectMgr::LoadTrainers — separate entry vs template maps (ids may collide). */
     private void loadTrainers(Connection c) throws Exception {
-        loadTrainerTable(c, "npc_trainer", false);
-        loadTrainerTable(c, "npc_trainer_template", true);
-        log.info("loaded trainer spell lists for {} entries", trainerSpells.size());
+        loadTrainerTable(c, "npc_trainer", trainerSpells);
+        loadTrainerTable(c, "npc_trainer_template", trainerTemplateSpells);
+        log.info("loaded trainer spell lists for {} creature entries and {} templates",
+                trainerSpells.size(), trainerTemplateSpells.size());
     }
 
-    private void loadTrainerTable(Connection c, String table, boolean template) throws Exception {
+    private void loadTrainerTable(Connection c, String table, Map<Integer, List<TrainerSpell>> into) throws Exception {
         PreparedStatement ps = c.prepareStatement(
                 "SELECT entry, spell, spellcost, reqskill, reqskillvalue, reqlevel, "
                         + "ReqAbility1, ReqAbility2, ReqAbility3 FROM " + table);
@@ -1700,15 +1713,62 @@ public final class ObjectMgr {
             int a2 = rs.getObject(9) == null ? 0 : rs.getInt(9);
             boolean firstProf = spell == Content.SPELL_APPRENTICE_BLACKSMITH;
             TrainerSpell row = new TrainerSpell(spell, cost, reqLevel, reqSkill, reqSkillValue, a0, a1, a2, firstProf);
-            if (template) {
-                // Template id is the entry; creature.TrainerTemplateId points here — merge under template key.
-                trainerSpells.computeIfAbsent(entry, k -> new ArrayList<>()).add(row);
-            } else {
-                trainerSpells.computeIfAbsent(entry, k -> new ArrayList<>()).add(row);
-            }
+            into.computeIfAbsent(entry, k -> new ArrayList<>()).add(row);
             n++;
         }
         log.info("loaded {} rows from {}", n, table);
+    }
+
+    /** creature_template TrainerType / TrainerClass / TrainerTemplateId (CMaNGOS Creature::IsTrainerOf). */
+    private void loadTrainerMeta(Connection c) throws Exception {
+        PreparedStatement ps = c.prepareStatement(
+                "SELECT Entry, TrainerType, TrainerClass, TrainerTemplateId FROM creature_template");
+        ResultSet rs = ps.executeQuery();
+        int n = 0;
+        while (rs.next()) {
+            int entry = rs.getInt(1);
+            trainerTypeByEntry.put(entry, rs.getInt(2));
+            int clazz = rs.getInt(3);
+            if (clazz != 0) {
+                trainerClass.put(entry, clazz);
+            }
+            int tmpl = rs.getInt(4);
+            if (tmpl != 0) {
+                trainerTemplateId.put(entry, tmpl);
+            }
+            n++;
+        }
+        log.info("loaded trainer meta for {} creature_template rows", n);
+    }
+
+    /**
+     * CMaNGOS SendTrainerList — npc_trainer rows for the entry plus npc_trainer_template via TrainerTemplateId.
+     */
+    public List<TrainerSpell> spellsForTrainer(int entry) {
+        List<TrainerSpell> direct = trainerSpells.getOrDefault(entry, List.of());
+        int tmpl = trainerTemplateId.getOrDefault(entry, 0);
+        List<TrainerSpell> fromTemplate = tmpl == 0
+                ? List.of()
+                : trainerTemplateSpells.getOrDefault(tmpl, List.of());
+        if (direct.isEmpty()) {
+            return fromTemplate;
+        }
+        if (fromTemplate.isEmpty()) {
+            return direct;
+        }
+        List<TrainerSpell> merged = new ArrayList<>(direct.size() + fromTemplate.size());
+        merged.addAll(direct);
+        merged.addAll(fromTemplate);
+        return merged;
+    }
+
+    public int trainerType(int entry) {
+        Integer fromMeta = trainerTypeByEntry.get(entry);
+        if (fromMeta != null) {
+            return fromMeta;
+        }
+        CreatureTemplate t = creatures.get(entry);
+        return t == null ? 0 : t.trainerType();
     }
 
     private void loadCreatures(Connection c) {
@@ -2772,6 +2832,7 @@ public final class ObjectMgr {
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER, "", "", 0));
         creatures.put(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
+        trainerTypeByEntry.put(Content.NPC_LLANE_BESHERE, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
         trainerClass.put(Content.NPC_LLANE_BESHERE, 1);
         trainerSpells.put(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
@@ -2780,6 +2841,7 @@ public final class ObjectMgr {
         creatures.put(Content.NPC_DANE_LINDGREN, new CreatureTemplate(Content.NPC_DANE_LINDGREN, "Dane Lindgren", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_TRAINER, "", "",
                 org.tbc.world.session.TrainerHandler.TRAINER_TYPE_TRADESKILLS));
+        trainerTypeByEntry.put(Content.NPC_DANE_LINDGREN, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_TRADESKILLS);
         trainerSpells.put(Content.NPC_DANE_LINDGREN, new ArrayList<>(List.of(
                 new TrainerSpell(Content.SPELL_APPRENTICE_BLACKSMITH, Content.TRAINER_SPELL_APPRENTICE_BLACKSMITH_COST, 1,
                         0, 0, 0, 0, 0, true))));
@@ -2929,6 +2991,7 @@ public final class ObjectMgr {
         if (willemInvolved != null && !willemInvolved.contains(Content.QUEST_BROTHERHOOD_OF_THIEVES)) {
             willemInvolved.add(Content.QUEST_BROTHERHOOD_OF_THIEVES);
         }
+        trainerTypeByEntry.putIfAbsent(Content.NPC_LLANE_BESHERE, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
         trainerClass.putIfAbsent(Content.NPC_LLANE_BESHERE, 1);
         trainerSpells.putIfAbsent(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
@@ -2937,6 +3000,7 @@ public final class ObjectMgr {
         creatures.putIfAbsent(Content.NPC_DANE_LINDGREN, new CreatureTemplate(Content.NPC_DANE_LINDGREN, "Dane Lindgren", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_TRAINER, "", "",
                 org.tbc.world.session.TrainerHandler.TRAINER_TYPE_TRADESKILLS));
+        trainerTypeByEntry.putIfAbsent(Content.NPC_DANE_LINDGREN, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_TRADESKILLS);
         trainerSpells.putIfAbsent(Content.NPC_DANE_LINDGREN, new ArrayList<>(List.of(
                 new TrainerSpell(Content.SPELL_APPRENTICE_BLACKSMITH, Content.TRAINER_SPELL_APPRENTICE_BLACKSMITH_COST, 1,
                         0, 0, 0, 0, 0, true))));
@@ -3079,18 +3143,29 @@ public final class ObjectMgr {
         };
     }
 
-    private boolean isTrainerOf(Player p, Creature c) {
-        if (p == null) {
+    /**
+     * CMaNGOS Creature::IsTrainerOf — non-empty spell list (entry or template) and type/class rules.
+     * Used for gossip TRAINER option and CMSG_TRAINER_LIST / BUY.
+     */
+    public boolean isTrainerOf(Player p, Creature c) {
+        if (p == null || c == null) {
             return false;
         }
-        List<TrainerSpell> spells = trainerSpells.get(c.entry);
-        if (spells == null || spells.isEmpty()) {
+        List<TrainerSpell> spells = spellsForTrainer(c.entry);
+        if (spells.isEmpty()) {
             return false;
         }
-        int req = trainerClass.getOrDefault(c.entry, 0);
-        CreatureTemplate t = creatures.get(c.entry);
-        int trainerType = t == null ? 0 : t.trainerType();
-        return trainerType != 0 || p.clazz == req;
+        int type = trainerType(c.entry);
+        int reqClass = trainerClass.getOrDefault(c.entry, 0);
+        return switch (type) {
+            // Creature.cpp IsTrainerOf TRAINER_TYPE_CLASS — exact TrainerClass match.
+            case org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS -> p.clazz == reqClass;
+            case org.tbc.world.session.TrainerHandler.TRAINER_TYPE_TRADESKILLS -> true;
+            case org.tbc.world.session.TrainerHandler.TRAINER_TYPE_PETS -> p.clazz == CLASS_HUNTER;
+            // Mount race/exalted gating deferred; empty list already refused above.
+            case org.tbc.world.session.TrainerHandler.TRAINER_TYPE_MOUNTS -> true;
+            default -> false;
+        };
     }
 
     private void seedMenu0() {
