@@ -12,6 +12,7 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Mail;
 import org.tbc.world.entity.Player;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -36,6 +37,10 @@ public final class CharacterStore {
     private final Map<Integer, Mail> mails = new ConcurrentHashMap<>();
     private final Map<Integer, List<Integer>> inbox = new ConcurrentHashMap<>();
     private final Map<Integer, String[]> declined = new ConcurrentHashMap<>();
+    /** accountId → type → blob (global cache types only). */
+    private final Map<Integer, Map<Integer, String>> globalAccountData = new ConcurrentHashMap<>();
+    /** guid-low → type → blob (per-character cache types). */
+    private final Map<Integer, Map<Integer, String>> charAccountData = new ConcurrentHashMap<>();
     private final AtomicInteger nextMail = new AtomicInteger(1);
 
     public CharacterStore(DbPool chars) {
@@ -1362,4 +1367,89 @@ public final class CharacterStore {
         cases[4] = rs.getString(5);
         declined.put(Guid.low(p.guid), cases);
     }
+
+    /**
+     * WorldSession::SetAccountData — DELETE+INSERT into account_data (global)
+     * or character_account_data (per-character). ownerId is account id or guid-low.
+     */
+    public void saveAccountData(boolean global, int ownerId, int type, long time, String data) {
+        if (!global && ownerId == 0) {
+            return;
+        }
+        String blob = data == null ? "" : data;
+        Map<Integer, Map<Integer, String>> mem = global ? globalAccountData : charAccountData;
+        mem.computeIfAbsent(ownerId, k -> new ConcurrentHashMap<>()).put(type, blob);
+        if (chars == null) {
+            return;
+        }
+        String delSql = global
+                ? "DELETE FROM account_data WHERE account=? AND type=?"
+                : "DELETE FROM character_account_data WHERE guid=? AND type=?";
+        String insSql = global
+                ? "INSERT INTO account_data (account, type, time, data) VALUES (?,?,?,?)"
+                : "INSERT INTO character_account_data (guid, type, time, data) VALUES (?,?,?,?)";
+        try (Connection c = chars.get()) {
+            boolean auto = c.getAutoCommit();
+            c.setAutoCommit(false);
+            try {
+                try (PreparedStatement del = c.prepareStatement(delSql)) {
+                    del.setInt(1, ownerId);
+                    del.setInt(2, type);
+                    del.executeUpdate();
+                }
+                try (PreparedStatement ins = c.prepareStatement(insSql)) {
+                    ins.setInt(1, ownerId);
+                    ins.setInt(2, type);
+                    ins.setLong(3, time);
+                    ins.setBytes(4, blob.getBytes(StandardCharsets.UTF_8));
+                    ins.executeUpdate();
+                }
+                c.commit();
+            } catch (Exception e) {
+                try {
+                    c.rollback();
+                } catch (Exception ignored) {
+                }
+                log.warn("saveAccountData {}", e.getMessage());
+            } finally {
+                try {
+                    c.setAutoCommit(auto);
+                } catch (Exception ignored) {
+                }
+            }
+        } catch (Exception e) {
+            log.warn("saveAccountData {}", e.getMessage());
+        }
+    }
+
+    /** Rows for LoadAccountData — type, time, data. */
+    public List<AccountDataRow> loadAccountData(boolean global, int ownerId) {
+        List<AccountDataRow> rows = new ArrayList<>();
+        if (chars != null) {
+            String sql = global
+                    ? "SELECT type, time, data FROM account_data WHERE account=?"
+                    : "SELECT type, time, data FROM character_account_data WHERE guid=?";
+            try (Connection c = chars.get(); PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setInt(1, ownerId);
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    byte[] raw = rs.getBytes(3);
+                    String data = raw == null ? "" : new String(raw, StandardCharsets.UTF_8);
+                    rows.add(new AccountDataRow(rs.getInt(1), rs.getLong(2), data));
+                }
+                return rows;
+            } catch (Exception e) {
+                log.warn("loadAccountData {}", e.getMessage());
+            }
+        }
+        Map<Integer, String> mem = (global ? globalAccountData : charAccountData).get(ownerId);
+        if (mem != null) {
+            for (var e : mem.entrySet()) {
+                rows.add(new AccountDataRow(e.getKey(), 0L, e.getValue()));
+            }
+        }
+        return rows;
+    }
+
+    public record AccountDataRow(int type, long time, String data) {}
 }

@@ -1312,6 +1312,7 @@ public final class ObjectMgr {
             t.name = "Hearthstone";
             t.quality = 1;
             t.stackable = 1;
+            t.maxCount = 1;
             t.requiredDisenchantSkill = -1;
             t.spellId[0] = SpellEngine.HEARTHSTONE;
             t.spellTrigger[0] = 0;

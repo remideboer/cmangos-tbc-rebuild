@@ -10,6 +10,7 @@ import org.tbc.world.content.Content;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.combat.Relations;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.PlayerNames;
@@ -68,6 +69,8 @@ public final class WorldSession {
     private final AtomicInteger timeSync = new AtomicInteger();
     private final AtomicInteger moveOrder = new AtomicInteger();
     private final AccountData accountData = new AccountData();
+    /** Kept after logout for CMSG_UPDATE_ACCOUNT_DATA (STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT). */
+    private int lastCharGuidLow;
     public Player pendingInviteFrom;
     public final List<String> channels = new ArrayList<>();
     public String lastTicket = "";
@@ -337,7 +340,11 @@ public final class WorldSession {
             GroupHandler.optOutOfLoot(in);
             return;
         }
+        // STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT — client flushes UI prefs on logout.
         if (status < STATUS_LOGGEDIN) {
+            if (opcode == Opcodes.CMSG_UPDATE_ACCOUNT_DATA) {
+                handleUpdateAccountData(world, in);
+            }
             return;
         }
         if (opcode == Opcodes.MSG_MOVE_WORLDPORT_ACK) {
@@ -451,7 +458,7 @@ public final class WorldSession {
                 }
             }
             case Opcodes.CMSG_PLAYED_TIME -> handlePlayedTime();
-            case Opcodes.CMSG_UPDATE_ACCOUNT_DATA -> accountData.update(in);
+            case Opcodes.CMSG_UPDATE_ACCOUNT_DATA -> handleUpdateAccountData(world, in);
             case Opcodes.CMSG_REQUEST_ACCOUNT_DATA -> handleRequestAccountData(in);
             case Opcodes.CMSG_SET_ACTIONBAR_TOGGLES -> handleSetActionBarToggles(in);
             case Opcodes.CMSG_SET_TAXI_BENCHMARK_MODE -> handleSetTaxiBenchmarkMode(in);
@@ -734,6 +741,7 @@ public final class WorldSession {
         send(Opcodes.SMSG_ADDON_INFO, AddonInfo.buildSmsg(addons));
         this.account = acc;
         this.status = STATUS_AUTHED;
+        loadGlobalAccountData(world);
         WowBuffer ok = new WowBuffer(16);
         ok.putU8(Codes.AUTH_OK);
         ok.putU32(0);
@@ -942,6 +950,9 @@ public final class WorldSession {
         this.player = p;
         p.session = this;
         p.gmLevel = account.gmlevel();
+        lastCharGuidLow = Guid.low(p.guid);
+        loadGlobalAccountData(world);
+        loadCharacterAccountData(world);
         p.applyCreateFields();
         // Re-apply after create fields so UNIT_FIELD weapon avg/speed reach LoginBurst createUnit
         // (action-bar SoR $mw); otherwise fist defaults 1–3 stay on the wire until first swing.
@@ -1474,11 +1485,51 @@ public final class WorldSession {
         send(Opcodes.SMSG_PLAYED_TIME, out.array());
     }
 
+    /** MiscHandler::HandleUpdateAccountData + WorldSession::SetAccountData. */
+    private void handleUpdateAccountData(World world, WowBuffer in) {
+        int type = accountData.update(in);
+        if (type < 0) {
+            return;
+        }
+        boolean global = AccountData.isGlobal(type);
+        int owner = global ? account.id() : (player != null ? Guid.low(player.guid) : lastCharGuidLow);
+        world.characters.saveAccountData(global, owner, type, 0L, accountData.slot(type));
+    }
+
     private void handleRequestAccountData(WowBuffer in) {
         byte[] payload = accountData.request(in);
         if (payload != null) {
             send(Opcodes.SMSG_UPDATE_ACCOUNT_DATA, payload);
         }
+    }
+
+    private void loadGlobalAccountData(World world) {
+        if (account == null) {
+            return;
+        }
+        accountData.clearMask(AccountData.GLOBAL_CACHE_MASK);
+        for (var row : world.characters.loadAccountData(true, account.id())) {
+            if (AccountData.isGlobal(row.type())) {
+                accountData.setSlot(row.type(), row.time(), row.data());
+            }
+        }
+    }
+
+    private void loadCharacterAccountData(World world) {
+        if (player == null) {
+            return;
+        }
+        accountData.clearMask(AccountData.PER_CHARACTER_CACHE_MASK);
+        for (var row : world.characters.loadAccountData(false, Guid.low(player.guid))) {
+            if (!AccountData.isGlobal(row.type())) {
+                accountData.setSlot(row.type(), row.time(), row.data());
+            }
+        }
+    }
+
+    /** LoginBurst SMSG_ACCOUNT_DATA_TIMES payload. */
+    byte[] accountDataTimes() {
+        return accountData.timesDigest();
     }
 
     /** MiscHandler::HandleSetActionBarTogglesOpcode — PLAYER_FIELD_BYTES byte 2. */

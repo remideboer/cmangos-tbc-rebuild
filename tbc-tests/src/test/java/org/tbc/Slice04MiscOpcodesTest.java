@@ -123,6 +123,48 @@ class Slice04MiscOpcodesTest {
     }
 
     /**
+     * TP-SL04-021 — CMSG_UPDATE_ACCOUNT_DATA (per-char layout) survives logout/relog:
+     * SMSG_ACCOUNT_DATA_TIMES MD5 of the blob, then CMSG_REQUEST returns the same string.
+     */
+    @Test
+    void tpSl04AccountDataSurvivesRelog() throws Exception {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "UiPref");
+        long guid = client.session().player().guid;
+        client.clear();
+        byte[] raw = "layout-persist\0".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        WowBuffer upd = new WowBuffer(8 + 64);
+        upd.putU32(6);
+        upd.putU32(raw.length);
+        upd.putBytes(deflate(raw));
+        client.handle(world, Opcodes.CMSG_UPDATE_ACCOUNT_DATA, upd.array());
+        client.session().logout(world, true);
+
+        WowClientDouble relog = new WowClientDouble();
+        relog.connect(ACC);
+        relog.login(world, guid);
+
+        byte[] times = relog.payload(Opcodes.SMSG_ACCOUNT_DATA_TIMES);
+        assertEquals(128, times.length);
+        byte[] expectedMd5 = java.security.MessageDigest.getInstance("MD5")
+                .digest("layout-persist".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        byte[] slot6 = java.util.Arrays.copyOfRange(times, 6 * 16, 7 * 16);
+        assertTrue(java.util.Arrays.equals(expectedMd5, slot6));
+
+        relog.clear();
+        WowBuffer req = new WowBuffer(4);
+        req.putU32(6);
+        relog.handle(world, Opcodes.CMSG_REQUEST_ACCOUNT_DATA, req.array());
+        assertTrue(relog.saw(Opcodes.SMSG_UPDATE_ACCOUNT_DATA));
+        WowBuffer out = new WowBuffer(relog.payload(Opcodes.SMSG_UPDATE_ACCOUNT_DATA));
+        assertEquals(6, out.getU32());
+        int len = out.getU32();
+        assertEquals(14, len);
+        byte[] inflated = inflate(out.remainingBytes(), len);
+        assertEquals("layout-persist", new String(inflated, java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    /**
      * CMSG_SET_ACTIONBAR_TOGGLES — SetByteValue PLAYER_FIELD_BYTES offset 2.
      */
     @Test

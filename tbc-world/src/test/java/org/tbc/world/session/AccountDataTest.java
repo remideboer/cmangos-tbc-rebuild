@@ -27,17 +27,33 @@ class AccountDataTest {
     void updateWhenSizeZeroShouldEraseStoredBlob() {
         AccountData data = new AccountData();
         byte[] raw = "keep\0".getBytes(StandardCharsets.UTF_8);
-        data.update(updatePacket(1, raw.length, deflate(raw)));
+        assertEquals(1, data.update(updatePacket(1, raw.length, deflate(raw))));
         WowBuffer erase = new WowBuffer(8);
         erase.putU32(1);
         erase.putU32(0);
-        data.update(erase);
+        assertEquals(1, data.update(erase));
         WowBuffer req = new WowBuffer(4);
         req.putU32(1);
         WowBuffer out = new WowBuffer(data.request(req));
         assertEquals(1, out.getU32());
         assertEquals(0, out.getU32());
         assertEquals(0, out.remaining());
+    }
+
+    @Test
+    void timesDigestWhenSlotFilledShouldBeMd5OfString() throws Exception {
+        AccountData data = new AccountData();
+        data.setSlot(6, 0, "layout-persist");
+        byte[] times = data.timesDigest();
+        assertEquals(128, times.length);
+        byte[] expected = java.security.MessageDigest.getInstance("MD5")
+                .digest("layout-persist".getBytes(StandardCharsets.UTF_8));
+        for (int i = 0; i < 16; i++) {
+            assertEquals(expected[i], times[6 * 16 + i]);
+        }
+        for (int i = 0; i < 6 * 16; i++) {
+            assertEquals(0, times[i]);
+        }
     }
 
     @Test

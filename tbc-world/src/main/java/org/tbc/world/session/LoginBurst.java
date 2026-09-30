@@ -56,7 +56,7 @@ public final class LoginBurst {
         vw.putFloat(p.o);
         s.send(Opcodes.SMSG_LOGIN_VERIFY_WORLD, vw.array());
         sent.add(Opcodes.SMSG_LOGIN_VERIFY_WORLD);
-        s.send(Opcodes.SMSG_ACCOUNT_DATA_TIMES, new byte[128]);
+        s.send(Opcodes.SMSG_ACCOUNT_DATA_TIMES, s.accountDataTimes());
         sent.add(Opcodes.SMSG_ACCOUNT_DATA_TIMES);
         s.send(Opcodes.SMSG_FEATURE_SYSTEM_STATUS, new byte[]{2, 0});
         sent.add(Opcodes.SMSG_FEATURE_SYSTEM_STATUS);
