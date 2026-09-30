@@ -1272,6 +1272,30 @@ public final class Player extends Unit {
         return false;
     }
 
+    /** CMaNGOS GetSkillValueBase — low 16 of PLAYER_SKILL_INFO value word. */
+    public int skillValue(int skillId) {
+        int want = skillId & 0xFFFF;
+        for (int slot = 0; slot < 127; slot++) {
+            int base = UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
+            if ((getInt(base) & 0xFFFF) == want) {
+                return getInt(base + 1) & 0xFFFF;
+            }
+        }
+        return 0;
+    }
+
+    /** High 16 of PLAYER_SKILL_INFO value word. */
+    public int skillMax(int skillId) {
+        int want = skillId & 0xFFFF;
+        for (int slot = 0; slot < 127; slot++) {
+            int base = UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
+            if ((getInt(base) & 0xFFFF) == want) {
+                return (getInt(base + 1) >>> 16) & 0xFFFF;
+            }
+        }
+        return 0;
+    }
+
     /** CMaNGOS GetSkillStep — PAIR32 high part of PLAYER_SKILL_INFO. */
     public int skillStep(int skillId) {
         int want = skillId & 0xFFFF;

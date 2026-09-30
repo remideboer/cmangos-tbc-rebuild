@@ -131,4 +131,18 @@ class PlayerPersistTest {
         assertEquals(1, d.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_QUEST_LOG_1_1 + 1));
         assertEquals(2, d.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_QUEST_LOG_1_1 + 2) & 0xFF);
     }
+
+    @Test
+    void copyWhenSkillLearnedShouldMirrorSkillInfo() {
+        Player src = new Player();
+        src.guid = 15;
+        src.learnSkill(164, 1, 75, 1);
+        Player d = PlayerPersist.copy(src);
+        assertTrue(d.hasSkill(164));
+        assertEquals(1, d.skillValue(164));
+        assertEquals(75, d.skillMax(164));
+        assertEquals(1, d.skillStep(164));
+        src.learnSkill(164, 50, 75, 1);
+        assertEquals(1, d.skillValue(164), "clone is independent");
+    }
 }

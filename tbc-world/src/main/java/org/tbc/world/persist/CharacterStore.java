@@ -257,7 +257,7 @@ public final class CharacterStore {
                 p.bindY = ci.y();
                 p.bindZ = ci.z();
             }
-            mgr.applyCreateSkills(p);
+            // Skills loaded from character_skills after row; create defaults only if empty.
         }
         initStatsForLevel(p, mgr);
         p.applyCreateFields();
@@ -567,6 +567,26 @@ public final class CharacterStore {
                 log.warn("load spell cooldowns {}", e.getMessage());
             }
             try {
+                if (!loadSpells(c, p) && mgr != null && p.spells.isEmpty()) {
+                    List<Integer> sp = mgr.createSpells.get((int) ObjectMgr.key(p.race, p.clazz));
+                    if (sp != null) {
+                        p.spells.addAll(sp);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("load spells {}", e.getMessage());
+            }
+            try {
+                if (!loadSkills(c, p) && mgr != null) {
+                    mgr.applyCreateSkills(p);
+                }
+            } catch (Exception e) {
+                if (mgr != null) {
+                    mgr.applyCreateSkills(p);
+                }
+                log.warn("load skills {}", e.getMessage());
+            }
+            try {
                 loadQuestStatus(c, p);
             } catch (Exception e) {
                 log.warn("load quest status {}", e.getMessage());
@@ -699,6 +719,16 @@ public final class CharacterStore {
                     writeSpellCooldowns(c, p);
                 } catch (Exception e) {
                     log.warn("save spell cooldowns {}", e.getMessage());
+                }
+                try {
+                    writeSpells(c, p);
+                } catch (Exception e) {
+                    log.warn("save spells {}", e.getMessage());
+                }
+                try {
+                    writeSkills(c, p);
+                } catch (Exception e) {
+                    log.warn("save skills {}", e.getMessage());
                 }
                 Savepoint inv = c.setSavepoint();
                 try {
@@ -907,6 +937,80 @@ public final class CharacterStore {
             ins.addBatch();
         }
         ins.executeBatch();
+    }
+
+    private static void writeSpells(Connection c, Player p) throws Exception {
+        PreparedStatement del = c.prepareStatement("DELETE FROM character_spell WHERE guid = ?");
+        del.setInt(1, Guid.low(p.guid));
+        del.executeUpdate();
+        PreparedStatement ins = c.prepareStatement(
+                "INSERT INTO character_spell (guid, spell, active, disabled) VALUES (?,?,1,0)");
+        for (int spell : p.spells) {
+            if (spell <= 0) {
+                continue;
+            }
+            ins.setInt(1, Guid.low(p.guid));
+            ins.setInt(2, spell);
+            ins.addBatch();
+        }
+        ins.executeBatch();
+    }
+
+    private static void writeSkills(Connection c, Player p) throws Exception {
+        PreparedStatement del = c.prepareStatement("DELETE FROM character_skills WHERE guid = ?");
+        del.setInt(1, Guid.low(p.guid));
+        del.executeUpdate();
+        PreparedStatement ins = c.prepareStatement(
+                "INSERT INTO character_skills (guid, skill, `value`, `max`) VALUES (?,?,?,?)");
+        for (int slot = 0; slot < 127; slot++) {
+            int base = org.tbc.world.net.wow8606.UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
+            int skill = p.getInt(base) & 0xFFFF;
+            if (skill == 0) {
+                continue;
+            }
+            int packed = p.getInt(base + 1);
+            ins.setInt(1, Guid.low(p.guid));
+            ins.setInt(2, skill);
+            ins.setInt(3, packed & 0xFFFF);
+            ins.setInt(4, (packed >>> 16) & 0xFFFF);
+            ins.addBatch();
+        }
+        ins.executeBatch();
+    }
+
+    /** @return true if at least one spell row was loaded (replaces create defaults). */
+    private static boolean loadSpells(Connection c, Player p) throws Exception {
+        PreparedStatement ps = c.prepareStatement(
+                "SELECT spell FROM character_spell WHERE guid = ? AND disabled = 0");
+        ps.setInt(1, Guid.low(p.guid));
+        ResultSet rs = ps.executeQuery();
+        java.util.ArrayList<Integer> loaded = new java.util.ArrayList<>();
+        while (rs.next()) {
+            loaded.add(rs.getInt(1));
+        }
+        if (loaded.isEmpty()) {
+            return false;
+        }
+        p.spells.clear();
+        p.spells.addAll(loaded);
+        return true;
+    }
+
+    /** @return true if at least one skill row was loaded. */
+    private static boolean loadSkills(Connection c, Player p) throws Exception {
+        PreparedStatement ps = c.prepareStatement(
+                "SELECT skill, `value`, `max` FROM character_skills WHERE guid = ?");
+        ps.setInt(1, Guid.low(p.guid));
+        ResultSet rs = ps.executeQuery();
+        boolean any = false;
+        while (rs.next()) {
+            any = true;
+            int skill = rs.getInt(1);
+            int value = rs.getInt(2);
+            int max = rs.getInt(3);
+            p.learnSkill(skill, value, max, 0);
+        }
+        return any;
     }
 
     /** Player::_LoadSpellCooldowns — SpellExpireTime is unix seconds. */

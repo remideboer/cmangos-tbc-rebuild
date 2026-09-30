@@ -80,7 +80,16 @@ public final class PlayerPersist {
         d.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, Math.max(1, src.maxHealth()));
         d.setInt(UpdateFields.UNIT_FIELD_POWER1, src.getInt(UpdateFields.UNIT_FIELD_POWER1));
         d.setInt(UpdateFields.UNIT_FIELD_POWER4, src.getInt(UpdateFields.UNIT_FIELD_POWER4));
+        copySkills(src, d);
         return d;
+    }
+
+    /** PLAYER_SKILL_INFO_1_1 — 127 slots × 3 ints (id/step, value/max, bonus). */
+    static void copySkills(Player src, Player d) {
+        int base = UpdateFields.PLAYER_SKILL_INFO_1_1;
+        for (int i = 0; i < 127 * 3; i++) {
+            d.setInt(base + i, src.getInt(base + i));
+        }
     }
 
     static Item copyItem(Item src) {
