@@ -98,6 +98,37 @@ class SpellEngineTest {
     }
 
     @Test
+    void castFireballWhenSpellHitChanceShouldReduceMagicMiss() {
+        p.adjustSpellHitChance(1f);
+        // Base miss 4% → 3% with +1 spell hit; roll 0.035 misses without hit, hits with.
+        SpellEngine hit = new SpellEngine(() -> 0.035);
+        hit.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        hit.update(FIREBALL_CAST_MS, 10);
+        assertEquals(32, c.health());
+        assertFalse(ops.contains(Opcodes.SMSG_SPELLLOGMISS));
+    }
+
+    @Test
+    void magicMissChanceWhenSpellHitHighShouldFloorAtOnePercent() {
+        SpellEngine eng = new SpellEngine();
+        p.adjustSpellHitChance(10f);
+        assertEquals(0.01, eng.magicMissChance(p), 1e-9);
+        SpellEngine miss = new SpellEngine(() -> 0.005);
+        int hp = c.health();
+        miss.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
+        miss.update(FIREBALL_CAST_MS, 10);
+        assertEquals(hp, c.health());
+        assertTrue(ops.contains(Opcodes.SMSG_SPELLLOGMISS));
+    }
+
+    @Test
+    void magicMissChanceWhenSpellHitNegativeShouldClampAtOneHundred() {
+        SpellEngine eng = new SpellEngine();
+        p.adjustSpellHitChance(-200f);
+        assertEquals(1.0, eng.magicMissChance(p), 1e-9);
+    }
+
+    @Test
     void castFireballSpendsManaAndLogsDamage() {
         engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
         engine.update(FIREBALL_CAST_MS, 10);

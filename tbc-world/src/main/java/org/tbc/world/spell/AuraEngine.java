@@ -36,6 +36,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_PARRY_PERCENT = 47;
     public static final int SPELL_AURA_MOD_BLOCK_PERCENT = 51;
     public static final int SPELL_AURA_MOD_HIT_CHANCE = 54;
+    public static final int SPELL_AURA_MOD_SPELL_HIT_CHANCE = 55;
     public static final int SPELL_AURA_MOD_SCALE = 61;
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_FEIGN_DEATH = 66;
@@ -66,7 +67,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY,
             SPELL_AURA_TRACK_CREATURES, SPELL_AURA_TRACK_RESOURCES,
             SPELL_AURA_MOD_CRIT_PERCENT, SPELL_AURA_MOD_DODGE_PERCENT, SPELL_AURA_MOD_PARRY_PERCENT,
-            SPELL_AURA_MOD_BLOCK_PERCENT, SPELL_AURA_MOD_HIT_CHANCE,
+            SPELL_AURA_MOD_BLOCK_PERCENT, SPELL_AURA_MOD_HIT_CHANCE, SPELL_AURA_MOD_SPELL_HIT_CHANCE,
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
@@ -202,6 +203,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_HIT_CHANCE) {
             modHitChance(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_SPELL_HIT_CHANCE) {
+            modSpellHitChance(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, true);
         }
@@ -238,6 +242,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_HIT_CHANCE) {
             modHitChance(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SPELL_HIT_CHANCE) {
+            modSpellHitChance(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, false);
@@ -397,6 +404,19 @@ public final class AuraEngine {
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
         }
+    }
+
+    /**
+     * Aura 55 — CMaNGOS HandleModSpellHitChance: m_modSpellHitChance += amount
+     * (creature path; player UpdateSpellHitChances same aura sum).
+     */
+    private static void modSpellHitChance(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        float delta = apply ? amount : -amount;
+        target.adjustSpellHitChance(delta);
     }
 
     /**

@@ -249,6 +249,8 @@ public final class SpellEngine {
     public static final int SHIELD_BLOCK = 2565;
     /** Spell.dbc 6562 Heroic Presence — SPELL_AURA_MOD_HIT_CHANCE +1% (EffectBasePoints 0 + 1). */
     public static final int HEROIC_PRESENCE = 6562;
+    /** Spell.dbc 28878 Inspiring Presence — SPELL_AURA_MOD_SPELL_HIT_CHANCE +1% (EffectBasePoints 0 + 1). */
+    public static final int INSPIRING_PRESENCE = 28878;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -293,7 +295,22 @@ public final class SpellEngine {
     public static final int DRAIN_LIFE_DURATION_MS = 5000;
     public static final int LOGINEFFECT = 836;
     public static final int SPELL_MISS_MISS = 1;
+    /** Same-level magic school miss before hit auras (CMaNGOS CalculateSpellMissChance base). */
     private static final double MAGIC_MISS = 0.04;
+
+    /**
+     * CMaNGOS CalculateSpellMissChance — base 4%, subtract m_modSpellHitChance, Pre-WotLK floor 1%.
+     */
+    double magicMissChance(Unit caster) {
+        double pct = MAGIC_MISS * 100.0 - caster.spellHitChance();
+        if (pct < 1.0) {
+            pct = 1.0;
+        }
+        if (pct > 100.0) {
+            pct = 100.0;
+        }
+        return pct / 100.0;
+    }
 
     private static final Set<Integer> KNOWN_EFFECTS = Set.of(
             EFFECT_SCHOOL_DAMAGE, EFFECT_TELEPORT_UNITS, EFFECT_TELEPORT_UNITS_FACE_CASTER, EFFECT_HEAL, EFFECT_HEAL_MAX_HEALTH, EFFECT_APPLY_AURA, EFFECT_APPLY_AREA_AURA_PARTY, EFFECT_APPLY_AREA_AURA_FRIEND, EFFECT_APPLY_AREA_AURA_ENEMY, EFFECT_APPLY_AREA_AURA_PET, EFFECT_APPLY_AREA_AURA_OWNER, EFFECT_WEAPON_DAMAGE,
@@ -489,6 +506,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_BLOCK_PERCENT, 0, 0, 75, 75, 0f));
         spells.put(HEROIC_PRESENCE, new SpellInfo(HEROIC_PRESENCE, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_HIT_CHANCE, 0, 0, 1, 1, 0f));
+        spells.put(INSPIRING_PRESENCE, new SpellInfo(INSPIRING_PRESENCE, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_SPELL_HIT_CHANCE, 0, 0, 1, 1, 0f));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
@@ -1512,7 +1531,7 @@ public final class SpellEngine {
             redirectThreat(caster, target);
             return 0;
         }
-        if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < MAGIC_MISS) {
+        if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < magicMissChance(caster)) {
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE || sp.effect == EFFECT_WEAPON_DAMAGE

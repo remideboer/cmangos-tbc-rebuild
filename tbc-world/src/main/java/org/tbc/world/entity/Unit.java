@@ -73,6 +73,8 @@ public class Unit extends Entity {
     private int extraAttacks;
     /** CMaNGOS m_modWeaponHitChance[MAX_ATTACK] — SPELL_AURA_MOD_HIT_CHANCE + ratings. */
     private final float[] modWeaponHitChance = new float[MAX_ATTACK];
+    /** CMaNGOS m_modSpellHitChance — SPELL_AURA_MOD_SPELL_HIT_CHANCE + CR_HIT_SPELL. */
+    private float modSpellHitChance;
     private boolean rooted;
     /** CMaNGOS GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED); 0 = none. */
     private int decreaseSpeedPct;
@@ -194,6 +196,16 @@ public class Unit extends Entity {
     /** CMaNGOS HandleModHitChance creature path / UpdateWeaponHitChances EquippedItemClass −1. */
     public void adjustWeaponHitChance(int attackType, float delta) {
         modWeaponHitChance[attackType] += delta;
+    }
+
+    /** CMaNGOS Unit::GetHitChance(SpellSchoolMask) base — m_modSpellHitChance. */
+    public float spellHitChance() {
+        return modSpellHitChance;
+    }
+
+    /** CMaNGOS HandleModSpellHitChance creature path / UpdateSpellHitChances aura sum. */
+    public void adjustSpellHitChance(float delta) {
+        modSpellHitChance += delta;
     }
 
     /**
