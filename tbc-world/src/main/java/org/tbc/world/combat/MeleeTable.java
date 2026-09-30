@@ -54,7 +54,7 @@ public final class MeleeTable {
             return new Result(Outcome.EVADE, 0, 0);
         }
         double r = unitRoll.getAsDouble();
-        double acc = missChance(attacker, victim);
+        double acc = missChance(attacker, victim, offhand);
         if (r < acc) {
             return miss();
         }
@@ -110,6 +110,11 @@ public final class MeleeTable {
 
     /** Base 5%. Dual-wield white +19 unless a next-melee swing is queued. Vs NPC, defense − skill: ≤10 at 0.1 each; above that leftover at 0.2+0.4. */
     static double missChance(Unit attacker, Unit victim) {
+        return missChance(attacker, victim, false);
+    }
+
+    /** CMaNGOS CalculateEffectiveMissChance — subtract GetHitChance(attType). */
+    static double missChance(Unit attacker, Unit victim, boolean offhand) {
         double pct = 5.0;
         if (victim instanceof Creature creature && creature.totem) {
             pct = 0;
@@ -132,6 +137,8 @@ public final class MeleeTable {
         } else {
             pct += difference * 0.04;
         }
+        // chance -= GetHitChance(attType); Unit.cpp CalculateEffectiveMissChance.
+        pct -= attacker.weaponHitChance(offhand ? Unit.OFF_ATTACK : Unit.BASE_ATTACK);
         if (pct < 0) {
             pct = 0;
         }

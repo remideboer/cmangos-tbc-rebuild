@@ -247,6 +247,8 @@ public final class SpellEngine {
     public static final int NIMBLE_REFLEXES = 3238;
     /** Shield Block — Spell.dbc 2565; MOD_BLOCK_PERCENT +75%. */
     public static final int SHIELD_BLOCK = 2565;
+    /** Spell.dbc 6562 Heroic Presence — SPELL_AURA_MOD_HIT_CHANCE +1% (EffectBasePoints 0 + 1). */
+    public static final int HEROIC_PRESENCE = 6562;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -485,6 +487,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_PARRY_PERCENT, 0, 0, 50, 50, 0f));
         spells.put(SHIELD_BLOCK, new SpellInfo(SHIELD_BLOCK, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_BLOCK_PERCENT, 0, 0, 75, 75, 0f));
+        spells.put(HEROIC_PRESENCE, new SpellInfo(HEROIC_PRESENCE, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_HIT_CHANCE, 0, 0, 1, 1, 0f));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

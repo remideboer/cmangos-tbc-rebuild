@@ -3,6 +3,7 @@ package org.tbc.world.combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.junit.jupiter.api.Test;
 
@@ -67,6 +68,22 @@ class MeleeTableTest {
         a.level = 1;
         v.level = 3;
         assertEquals(MeleeTable.Outcome.HIT, table(0.50).rollOne(a, v, 2, 2).outcome());
+    }
+
+    @Test
+    void rollOneWhenAttackerHasWeaponHitChanceShouldReduceMiss() {
+        Player a = new Player();
+        a.level = 1;
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        // Same-level NPC miss 5%; roll 0.045 is miss without hit.
+        assertEquals(MeleeTable.Outcome.MISS, table(0.045).rollOne(a, v, 2, 2).outcome());
+        a.adjustWeaponHitChance(Unit.BASE_ATTACK, 1f);
+        // +1% hit → miss 4%; same roll is dodge (next band).
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.045).rollOne(a, v, 2, 2).outcome());
+        a.adjustWeaponHitChance(Unit.OFF_ATTACK, 1f);
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.045).rollOne(a, v, 2, 2, true).outcome());
     }
 
     @Test

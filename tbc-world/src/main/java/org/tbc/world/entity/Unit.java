@@ -61,11 +61,18 @@ public class Unit extends Entity {
     public static final float BASE_RUN_SPEED = 7.0f;
     /** Unit.cpp baseMoveSpeed[MOVE_SWIM]. */
     public static final float BASE_SWIM_SPEED = 4.722222f;
+    /** SharedDefines.h WeaponAttackType. */
+    public static final int BASE_ATTACK = 0;
+    public static final int OFF_ATTACK = 1;
+    public static final int RANGED_ATTACK = 2;
+    public static final int MAX_ATTACK = 3;
 
     public MovementInfo movement = new MovementInfo();
     public long victim;
     public boolean inCombat;
     private int extraAttacks;
+    /** CMaNGOS m_modWeaponHitChance[MAX_ATTACK] — SPELL_AURA_MOD_HIT_CHANCE + ratings. */
+    private final float[] modWeaponHitChance = new float[MAX_ATTACK];
     private boolean rooted;
     /** CMaNGOS GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED); 0 = none. */
     private int decreaseSpeedPct;
@@ -177,6 +184,16 @@ public class Unit extends Entity {
 
     public int safeFall() {
         return safeFallBonus;
+    }
+
+    /** CMaNGOS Unit::GetHitChance(WeaponAttackType). */
+    public float weaponHitChance(int attackType) {
+        return modWeaponHitChance[attackType];
+    }
+
+    /** CMaNGOS HandleModHitChance creature path / UpdateWeaponHitChances EquippedItemClass −1. */
+    public void adjustWeaponHitChance(int attackType, float delta) {
+        modWeaponHitChance[attackType] += delta;
     }
 
     /**
