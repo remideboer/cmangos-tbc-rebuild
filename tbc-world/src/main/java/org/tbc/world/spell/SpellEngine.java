@@ -255,6 +255,8 @@ public final class SpellEngine {
     public static final int MOONKIN_AURA = 24907;
     /** Spell.dbc 1130 Hunter's Mark — SPELL_AURA_MOD_STALKED. */
     public static final int HUNTERS_MARK = 1130;
+    /** Spell.dbc 5923 Holy Power rank 1 — SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL +1% holy. */
+    public static final int HOLY_POWER = 5923;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -516,6 +518,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_SPELL_CRIT_CHANCE, 0, 0, 5, 5, 0f));
         spells.put(HUNTERS_MARK, new SpellInfo(HUNTERS_MARK, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_STALKED, 0, 0, 0, 0, 0f));
+        spells.put(HOLY_POWER, new SpellInfo(HOLY_POWER, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, 0, 0, 1, 1, 0f, 2));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

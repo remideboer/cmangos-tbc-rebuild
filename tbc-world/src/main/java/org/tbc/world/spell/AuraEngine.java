@@ -39,6 +39,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_SPELL_HIT_CHANCE = 55;
     public static final int SPELL_AURA_MOD_SPELL_CRIT_CHANCE = 57;
     public static final int SPELL_AURA_MOD_STALKED = 68;
+    public static final int SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL = 71;
     public static final int SPELL_AURA_MOD_SCALE = 61;
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_FEIGN_DEATH = 66;
@@ -71,6 +72,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_CRIT_PERCENT, SPELL_AURA_MOD_DODGE_PERCENT, SPELL_AURA_MOD_PARRY_PERCENT,
             SPELL_AURA_MOD_BLOCK_PERCENT, SPELL_AURA_MOD_HIT_CHANCE, SPELL_AURA_MOD_SPELL_HIT_CHANCE,
             SPELL_AURA_MOD_SPELL_CRIT_CHANCE, SPELL_AURA_MOD_STALKED,
+            SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL,
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
@@ -215,6 +217,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_SPELL_CRIT_CHANCE) {
             modSpellCritChanceAura(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL) {
+            modSpellCritChanceSchool(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, true);
         }
@@ -257,6 +262,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_SPELL_CRIT_CHANCE) {
             modSpellCritChanceAura(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL) {
+            modSpellCritChanceSchool(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, false);
@@ -418,6 +426,33 @@ public final class AuraEngine {
                     : UpdateFields.UNIT_FIELD_NEGSTAT0;
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
+        }
+    }
+
+    /**
+     * Aura 71 — CMaNGOS HandleModSpellCritChanceShool: misc mask selects schools;
+     * player UpdateSpellCritChance(school); creature m_modSpellCritChance[school].
+     */
+    private static void modSpellCritChanceSchool(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int mask = sp.misc();
+        if (mask == 0) {
+            return;
+        }
+        float delta = apply ? amount : -amount;
+        for (int i = 0; i < MAX_SPELL_SCHOOL; i++) {
+            if ((mask & (1 << i)) == 0) {
+                continue;
+            }
+            if (target instanceof Player) {
+                target.setFloat(UpdateFields.PLAYER_SPELL_CRIT_PERCENTAGE1 + i,
+                        target.getFloat(UpdateFields.PLAYER_SPELL_CRIT_PERCENTAGE1 + i) + delta);
+            } else {
+                target.adjustSpellCritChance(i, delta);
+            }
         }
     }
 
