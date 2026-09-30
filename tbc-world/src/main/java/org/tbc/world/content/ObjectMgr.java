@@ -1462,6 +1462,11 @@ public final class ObjectMgr {
     public final Map<Integer, Integer> trainerTypeByEntry = new HashMap<>();
     /** creature_template.TrainerTemplateId → npc_trainer_template.entry. */
     public final Map<Integer, Integer> trainerTemplateId = new HashMap<>();
+    /** spell_chain keyed by spell_id (CMaNGOS SpellMgr). */
+    public record SpellChainNode(int spellId, int prev, int first, int rank, int req) {}
+    public final Map<Integer, SpellChainNode> spellChain = new HashMap<>();
+    /** spell_template.BaseLevel — fallback when trainer row reqlevel is 0. */
+    public final Map<Integer, Integer> spellBaseLevel = new HashMap<>();
     public final Map<Integer, TaxiNode> taxiNodes = new HashMap<>();
     public final Map<Long, TaxiHop> taxiPaths = new HashMap<>();
     public final Map<Integer, ZoneWeather> weather = new HashMap<>();
@@ -1604,6 +1609,16 @@ public final class ObjectMgr {
             } catch (Exception e) {
                 log.debug("trainer meta load skipped: {}", e.getMessage());
             }
+            try {
+                loadSpellChains(c);
+            } catch (Exception e) {
+                log.debug("spell_chain load skipped: {}", e.getMessage());
+            }
+            try {
+                loadSpellBaseLevels(c);
+            } catch (Exception e) {
+                log.debug("spell BaseLevel load skipped: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.warn("ObjectMgr SQL load failed, using defaults: {}", e.getMessage());
             seedDefaults();
@@ -1739,6 +1754,32 @@ public final class ObjectMgr {
             n++;
         }
         log.info("loaded trainer meta for {} creature_template rows", n);
+    }
+
+    /** CMaNGOS SpellMgr::LoadSpellChains. */
+    private void loadSpellChains(Connection c) throws Exception {
+        PreparedStatement ps = c.prepareStatement(
+                "SELECT spell_id, prev_spell, first_spell, `rank`, req_spell FROM spell_chain");
+        ResultSet rs = ps.executeQuery();
+        int n = 0;
+        while (rs.next()) {
+            int id = rs.getInt(1);
+            spellChain.put(id, new SpellChainNode(id, rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5)));
+            n++;
+        }
+        log.info("loaded {} spell_chain rows", n);
+    }
+
+    /** spell_template.BaseLevel for trainer reqLevel fallback when SQL reqlevel is 0. */
+    private void loadSpellBaseLevels(Connection c) throws Exception {
+        PreparedStatement ps = c.prepareStatement("SELECT Id, BaseLevel FROM spell_template WHERE BaseLevel > 0");
+        ResultSet rs = ps.executeQuery();
+        int n = 0;
+        while (rs.next()) {
+            spellBaseLevel.put(rs.getInt(1), rs.getInt(2));
+            n++;
+        }
+        log.info("loaded BaseLevel for {} spells", n);
     }
 
     /**

@@ -59,7 +59,24 @@ public final class TrainerHandler {
         b.putU32(trainerType);
         b.putU32(rows.size());
         for (ObjectMgr.TrainerSpell s : rows) {
-            int state = TrainerService.state(p, s);
+            int state = TrainerService.state(p, s, mgr);
+            int reqAb0 = s.reqAbility0();
+            int reqAb1 = s.reqAbility1();
+            int reqAb2 = s.reqAbility2();
+            if (reqAb0 == 0 && reqAb1 == 0) {
+                ObjectMgr.SpellChainNode chain = mgr.spellChain.get(s.spell());
+                if (chain != null) {
+                    // NPCHandler SendTrainerSpellHelper — fill prev/req from spell_chain when SQL null.
+                    if (chain.prev() != 0) {
+                        reqAb0 = chain.prev();
+                    } else if (chain.req() != 0) {
+                        reqAb0 = chain.req();
+                    }
+                    if (chain.prev() != 0 && chain.req() != 0) {
+                        reqAb1 = chain.req();
+                    }
+                }
+            }
             b.putU32(s.spell());
             b.putU8(state);
             b.putU32(s.cost());
@@ -68,9 +85,9 @@ public final class TrainerHandler {
             b.putU8(s.reqLevel());
             b.putU32(s.reqSkill());
             b.putU32(s.reqSkillValue());
-            b.putU32(s.reqAbility0());
-            b.putU32(s.reqAbility1());
-            b.putU32(s.reqAbility2());
+            b.putU32(reqAb0);
+            b.putU32(reqAb1);
+            b.putU32(reqAb2);
         }
         b.putCString(DEFAULT_GREETING);
         return b.array();
@@ -104,7 +121,7 @@ public final class TrainerHandler {
         if (row == null || p.money < row.cost()) {
             return;
         }
-        if (TrainerService.state(p, row) != TRAINER_SPELL_GREEN) {
+        if (TrainerService.state(p, row, world.objectMgr) != TRAINER_SPELL_GREEN) {
             return;
         }
         p.setMoney(p.money - row.cost());

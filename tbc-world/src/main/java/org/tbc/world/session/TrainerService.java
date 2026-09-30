@@ -10,13 +10,21 @@ public final class TrainerService {
     private TrainerService() {}
 
     public static int state(Player p, ObjectMgr.TrainerSpell t) {
+        return state(p, t, null);
+    }
+
+    public static int state(Player p, ObjectMgr.TrainerSpell t, ObjectMgr mgr) {
         if (p == null || t == null) {
             return TrainerHandler.TRAINER_SPELL_RED;
         }
         if (p.spells.contains(t.spell())) {
             return TrainerHandler.TRAINER_SPELL_GRAY;
         }
-        if (p.level < t.reqLevel()) {
+        int reqLevel = t.reqLevel();
+        if (reqLevel <= 0 && mgr != null) {
+            reqLevel = mgr.spellBaseLevel.getOrDefault(t.spell(), 0);
+        }
+        if (p.level < reqLevel) {
             return TrainerHandler.TRAINER_SPELL_RED;
         }
         if (t.reqSkill() != 0 && p.skillValue(t.reqSkill()) < t.reqSkillValue()) {
@@ -30,6 +38,17 @@ public final class TrainerService {
         }
         if (t.reqAbility2() != 0 && !p.spells.contains(t.reqAbility2())) {
             return TrainerHandler.TRAINER_SPELL_RED;
+        }
+        if (mgr != null) {
+            ObjectMgr.SpellChainNode chain = mgr.spellChain.get(t.spell());
+            if (chain != null) {
+                if (chain.prev() != 0 && !p.spells.contains(chain.prev())) {
+                    return TrainerHandler.TRAINER_SPELL_RED;
+                }
+                if (chain.req() != 0 && !p.spells.contains(chain.req())) {
+                    return TrainerHandler.TRAINER_SPELL_RED;
+                }
+            }
         }
         if (t.primaryProfessionFirstRank() && primaryProfessionCount(p) >= Player.MAX_PRIMARY_TRADE_SKILL) {
             return TrainerHandler.TRAINER_SPELL_RED;
