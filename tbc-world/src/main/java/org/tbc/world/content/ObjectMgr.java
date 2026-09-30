@@ -1381,6 +1381,10 @@ public final class ObjectMgr {
     public record AreaTrigger(int id, int map, float x, float y, float z, float o) {}
     public final Map<Integer, AreaTrigger> areaTriggers = new HashMap<>();
     public final Map<Integer, List<Integer>> vendorItems = new HashMap<>();
+    /** npc_vendor_template keyed by template id (CMaNGOS m_mCacheVendorTemplateItemMap). */
+    public final Map<Integer, List<Integer>> vendorTemplateItems = new HashMap<>();
+    /** creature_template.VendorTemplateId → npc_vendor_template.entry. */
+    public final Map<Integer, Integer> vendorTemplateId = new HashMap<>();
     public final Map<Integer, Integer> gossipMenuIds = new HashMap<>();
     public final Map<Integer, Integer> gossipTextIds = new HashMap<>();
     public final Map<Integer, List<GossipMenuItem>> gossipOptions = new HashMap<>();
@@ -1582,6 +1586,11 @@ public final class ObjectMgr {
             loadItems(c);
             loadItemSpells(c);
             loadNpcVendors(c);
+            try {
+                loadVendorMeta(c);
+            } catch (Exception e) {
+                log.debug("vendor meta load skipped: {}", e.getMessage());
+            }
             try {
                 loadGossip(c);
             } catch (Exception e) {
@@ -1941,13 +1950,18 @@ public final class ObjectMgr {
     }
 
     private void loadNpcVendors(Connection c) {
-        if (loadNpcVendorQuery(c, "SELECT entry, item FROM npc_vendor ORDER BY slot, item")) {
-            return;
-        }
-        loadNpcVendorQuery(c, "SELECT entry, item FROM npc_vendor");
+        loadNpcVendorTable(c, "npc_vendor", vendorItems);
+        loadNpcVendorTable(c, "npc_vendor_template", vendorTemplateItems);
     }
 
-    private boolean loadNpcVendorQuery(Connection c, String sql) {
+    private void loadNpcVendorTable(Connection c, String table, Map<Integer, List<Integer>> into) {
+        if (loadNpcVendorQuery(c, "SELECT entry, item FROM " + table + " ORDER BY slot, item", into)) {
+            return;
+        }
+        loadNpcVendorQuery(c, "SELECT entry, item FROM " + table, into);
+    }
+
+    private boolean loadNpcVendorQuery(Connection c, String sql, Map<Integer, List<Integer>> into) {
         try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             int n = 0;
             while (rs.next()) {
@@ -1955,18 +1969,67 @@ public final class ObjectMgr {
                 if (item <= 0) {
                     continue;
                 }
-                List<Integer> stock = vendorItems.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>());
+                List<Integer> stock = into.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>());
                 if (!stock.contains(item)) {
                     stock.add(item);
                 }
                 n++;
             }
-            log.info("loaded {} npc_vendor rows", n);
+            log.info("loaded {} rows via {}", n, sql.contains("template") ? "npc_vendor_template" : "npc_vendor");
             return true;
         } catch (Exception e) {
-            log.debug("npc_vendor load skipped: {}", e.getMessage());
+            log.debug("vendor load skipped ({}): {}", sql, e.getMessage());
             return false;
         }
+    }
+
+    /** creature_template.VendorTemplateId (CMaNGOS Creature::GetVendorTemplateItems). */
+    private void loadVendorMeta(Connection c) throws Exception {
+        PreparedStatement ps = c.prepareStatement("SELECT Entry, VendorTemplateId FROM creature_template");
+        ResultSet rs = ps.executeQuery();
+        int n = 0;
+        while (rs.next()) {
+            int entry = rs.getInt(1);
+            int tmpl = rs.getInt(2);
+            if (tmpl != 0) {
+                vendorTemplateId.put(entry, tmpl);
+                n++;
+            }
+        }
+        log.info("loaded VendorTemplateId for {} creatures", n);
+    }
+
+    /**
+     * CMaNGOS SendListInventory — npc_vendor for the entry plus npc_vendor_template via VendorTemplateId.
+     */
+    public List<Integer> itemsForVendor(int entry) {
+        List<Integer> direct = vendorItems.getOrDefault(entry, List.of());
+        int tmpl = vendorTemplateId.getOrDefault(entry, 0);
+        List<Integer> fromTemplate = tmpl == 0
+                ? List.of()
+                : vendorTemplateItems.getOrDefault(tmpl, List.of());
+        if (direct.isEmpty()) {
+            return fromTemplate;
+        }
+        if (fromTemplate.isEmpty()) {
+            return direct;
+        }
+        List<Integer> merged = new ArrayList<>(direct.size() + fromTemplate.size());
+        for (int item : direct) {
+            if (!merged.contains(item)) {
+                merged.add(item);
+            }
+        }
+        for (int item : fromTemplate) {
+            if (!merged.contains(item)) {
+                merged.add(item);
+            }
+        }
+        return merged;
+    }
+
+    public boolean hasVendorStock(Creature c) {
+        return c != null && !itemsForVendor(c.entry).isEmpty();
     }
 
     private boolean loadCreaturesSimple(Connection c, String sql) {
@@ -3170,10 +3233,7 @@ public final class ObjectMgr {
             case GOSSIP_OPTION_QUESTGIVER, GOSSIP_OPTION_ARMORER, GOSSIP_OPTION_BOT,
                     GOSSIP_OPTION_UNLEARNTALENTS, GOSSIP_OPTION_UNLEARNPETSKILLS,
                     GOSSIP_OPTION_BATTLEFIELD -> false;
-            case GOSSIP_OPTION_VENDOR -> {
-                List<Integer> stock = vendorItems.get(c.entry);
-                yield stock != null && !stock.isEmpty();
-            }
+            case GOSSIP_OPTION_VENDOR -> hasVendorStock(c);
             case GOSSIP_OPTION_TRAINER -> isTrainerOf(p, c);
             case GOSSIP_OPTION_SPIRITHEALER -> p != null && (p.ghost || !p.alive());
             case GOSSIP_OPTION_STABLEPET -> p != null && p.clazz == CLASS_HUNTER;

@@ -374,8 +374,8 @@ public final class Content {
         if (c == null || outOfRange(p, c) || (c.npcFlags & UNIT_NPC_FLAG_VENDOR) == 0) {
             return;
         }
-        List<Integer> stock = mgr.vendorItems.get(c.entry);
-        if (stock == null || !stock.contains(itemId)) {
+        List<Integer> stock = mgr.itemsForVendor(c.entry);
+        if (stock.isEmpty() || !stock.contains(itemId)) {
             return;
         }
         ObjectMgr.ItemTemplate t = mgr.items.get(itemId);
@@ -1307,7 +1307,7 @@ public final class Content {
     }
 
     byte[] encodeVendorList(Creature c) {
-        List<Integer> stock = mgr.vendorItems.getOrDefault(c.entry, List.of());
+        List<Integer> stock = mgr.itemsForVendor(c.entry);
         WowBuffer b = new WowBuffer(32 + stock.size() * 32);
         b.putU64(c.guid);
         if (stock.isEmpty()) {
