@@ -56,13 +56,26 @@ class TrainerServiceTest {
     }
 
     @Test
-    void stateWhenPrimaryProfessionCapReachedShouldBeRed() {
+    void stateWhenTwoPrimaryProfessionsShouldStillAllowAnother() {
         Player p = new Player();
         p.level = 1;
         p.learnSkill(164, 1, 75, 1);
         p.learnSkill(165, 1, 75, 1);
         ObjectMgr.TrainerSpell t = new ObjectMgr.TrainerSpell(Content.SPELL_APPRENTICE_BLACKSMITH, 10, 1,
                 0, 0, 0, 0, 0, true);
+        assertEquals(TrainerHandler.TRAINER_SPELL_GREEN, TrainerService.state(p, t, null));
+    }
+
+    @Test
+    void stateWhenAllPrimaryProfessionsLearnedShouldBeRed() {
+        Player p = new Player();
+        p.level = 1;
+        for (int skill : TrainerService.PRIMARY_PROFESSIONS) {
+            p.learnSkill(skill, 1, 75, 1);
+        }
+        ObjectMgr.TrainerSpell t = new ObjectMgr.TrainerSpell(Content.SPELL_APPRENTICE_BLACKSMITH, 10, 1,
+                0, 0, 0, 0, 0, true);
         assertEquals(TrainerHandler.TRAINER_SPELL_RED, TrainerService.state(p, t, null));
+        assertEquals(TrainerService.PRIMARY_PROFESSIONS.length, Player.MAX_PRIMARY_TRADE_SKILL);
     }
 }

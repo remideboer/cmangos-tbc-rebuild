@@ -365,6 +365,24 @@ class Slice04MiscOpcodesTest {
         return raw;
     }
 
+    /**
+     * TP-SL04-023 — CMSG_ZONEUPDATE with AreaTable id → PLAYER_EXPLORED_ZONES bit (map fog uncover).
+     */
+    @Test
+    void tpSl04ZoneUpdateShouldUncoverExploredZonesBit() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "Scout");
+        Player p = client.session().player();
+        client.clear();
+        WowBuffer z = new WowBuffer(4);
+        z.putU32(12); // Elwynn Forest — seeded exploreFlag 10
+        client.handle(world, Opcodes.CMSG_ZONEUPDATE, z.array());
+        int field = UpdateFields.PLAYER_EXPLORED_ZONES_1;
+        int bit = 1 << 10;
+        assertEquals(bit, client.valuesField(p.guid, field) & bit);
+        assertEquals(bit, p.getInt(field) & bit);
+    }
+
     /** WorldSocket.session.inbound — the QueuePacket destination in WorldSocket.cpp OnRead. */
     @SuppressWarnings("unchecked")
     private static java.util.Queue<Object> sessionInbound(WorldSocket socket) throws Exception {

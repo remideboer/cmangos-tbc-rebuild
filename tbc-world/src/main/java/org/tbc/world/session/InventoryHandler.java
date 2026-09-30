@@ -85,6 +85,9 @@ public final class InventoryHandler {
         }
         Item a = p.itemAt(0, src);
         Item b = p.itemAt(0, dst);
+        if (tryMergeStacks(s, world, a, b, src, dst)) {
+            return;
+        }
         if (a != null) {
             a.slot = dst;
         }
@@ -134,6 +137,48 @@ public final class InventoryHandler {
                         UpdateFields.UNIT_FIELD_AURA))));
         s.send(pkt.opcode(), pkt.payload());
     }
+
+    /**
+     * CMaNGOS Player::SwapItem merge/fill when both stacks share an entry under max stack.
+     * @return true when the swap was fully handled as a merge
+     */
+    private static boolean tryMergeStacks(WorldSession s, World world, Item src, Item dst,
+                                          int srcSlot, int dstSlot) {
+        if (src == null || dst == null || src.entry != dst.entry || world == null) {
+            return false;
+        }
+        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(src.entry);
+        if (t == null || t.stackable <= 1) {
+            return false;
+        }
+        int max = t.stackable;
+        if (src.count + dst.count <= max) {
+            dst.count += src.count;
+            Player p = s.player();
+            p.items.remove(Guid.low(src.guid));
+            int srcField = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + srcSlot * 2;
+            p.setGuid(srcField, 0);
+            var destroyed = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, srcField, srcField + 1));
+            s.send(destroyed.opcode(), destroyed.payload());
+            var stack = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.valuesItem(dst, UpdateFields.ITEM_FIELD_STACK_COUNT));
+            s.send(stack.opcode(), stack.payload());
+            return true;
+        }
+        if (dst.count < max) {
+            int move = max - dst.count;
+            dst.count = max;
+            src.count -= move;
+            var dstStack = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.valuesItem(dst, UpdateFields.ITEM_FIELD_STACK_COUNT));
+            s.send(dstStack.opcode(), dstStack.payload());
+            var srcStack = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.valuesItem(src, UpdateFields.ITEM_FIELD_STACK_COUNT));
+            s.send(srcStack.opcode(), srcStack.payload());
+            return true;
+        }
+        return false;
+    }
     public static void swapItem(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
         if (in.remaining() < 4) {
@@ -148,6 +193,9 @@ public final class InventoryHandler {
         }
         Item a = p.itemAt(srcBag, srcSlot);
         Item b = p.itemAt(dstBag, dstSlot);
+        if (srcBag == 0 && dstBag == 0 && tryMergeStacks(s, world, a, b, srcSlot, dstSlot)) {
+            return;
+        }
         if (a != null) {
             a.bag = dstBag;
             a.slot = dstSlot;

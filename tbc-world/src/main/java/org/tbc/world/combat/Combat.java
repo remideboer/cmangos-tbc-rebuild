@@ -2,12 +2,18 @@ package org.tbc.world.combat;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.ai.EventAi;
+import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateFields;
+
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.DoubleSupplier;
+import java.util.function.LongSupplier;
 
 /** Auto-attack, evade, corpse loot. Packets: combat-log.md, loot.md. */
 public final class Combat {
@@ -54,15 +60,29 @@ public final class Combat {
     public static final int VICTIM_EVADES = 6;
     public static final int LOOT_CORPSE = 1;
     public static final int LOOT_SLOT_OWNER = 4;
+    /** CMaNGOS CONFIG_UINT32_CORPSE_DECAY_NORMAL (seconds → ms). */
+    public static final int CORPSE_DECAY_NORMAL_MS = 300_000;
+    public static final int CORPSE_DECAY_ELITE_MS = 600_000;
+    public static final int CORPSE_DECAY_RAREELITE_MS = 1_200_000;
+    public static final int CORPSE_DECAY_WORLDBOSS_MS = 3_600_000;
+    public static final int CORPSE_DECAY_RARE_MS = 900_000;
+    /** CMaNGOS Creature.h MINIMUM_LOOTING_TIME — accel after empty loot. */
+    public static final int MINIMUM_LOOTING_TIME_MS = 120_000;
 
     private final MeleeTable table;
+    private final DoubleSupplier skillChanceRoll;
 
     public Combat() {
         this(MeleeTable.DEFAULT);
     }
 
     public Combat(MeleeTable table) {
+        this(table, () -> ThreadLocalRandom.current().nextDouble());
+    }
+
+    public Combat(MeleeTable table, DoubleSupplier skillChanceRoll) {
         this.table = table;
+        this.skillChanceRoll = skillChanceRoll;
     }
 
     /** CMaNGOS GetCombinedCombatReach(forMeleeRange=true). */
@@ -313,6 +333,8 @@ public final class Combat {
         if (!offhand) {
             p.consumeNextMeleeSwing();
         }
+        // ProcSkillsAndReactives attacker path vs creature (not player/critter).
+        p.updateCombatSkills(false, offhand, skillChanceRoll);
         if (r.damage() > 0) {
             c.setHealth(c.health() - r.damage());
             c.threat += r.threat();
@@ -337,6 +359,10 @@ public final class Combat {
         c.inCombat = false;
         c.lootable = true;
         c.victim = 0;
+        c.corpseRemoved = false;
+        int capped = Math.max(1, Math.max(1, c.respawnDelayMs) * 9 / 10);
+        int corpseMs = Math.min(Math.max(1, c.corpseDelayMs), capped);
+        c.corpseExpireAtMs = nowMs + corpseMs;
         c.respawnAtMs = nowMs + Math.max(1, c.respawnDelayMs);
         c.motion.moveIdle();
         clearCombatVisual(c);
@@ -344,6 +370,47 @@ public final class Combat {
         if (c.eventAi != null) {
             c.eventAi.onDeath(c, killer, deathCast == null ? EventAi.NOOP : deathCast);
         }
+    }
+
+    /**
+     * CMaNGOS Creature::ReduceCorpseDecayTimer — empty loot / non-skinnable LOOTED accelerates to 2 min.
+     */
+    public void reduceCorpseDecayTimer(Creature c, long nowMs) {
+        if (c == null || c.corpseRemoved) {
+            return;
+        }
+        long accel = nowMs + MINIMUM_LOOTING_TIME_MS;
+        if (c.corpseExpireAtMs > accel) {
+            c.corpseExpireAtMs = accel;
+        }
+    }
+
+    /**
+     * CMaNGOS Creature::RemoveCorpse — DEAD wait at spawn; client DESTROY is sent by World.
+     */
+    public void removeCorpse(Creature c) {
+        if (c == null || c.corpseRemoved) {
+            return;
+        }
+        c.corpseExpireAtMs = 0;
+        c.corpseRemoved = true;
+        c.lootable = false;
+        c.lootGold = 0;
+        c.lootItems.clear();
+        c.taggedBy = 0;
+        c.relocate(c.spawnX, c.spawnY, c.spawnZ, c.spawnO);
+        c.motion.moveIdle();
+    }
+
+    /** Rank → CONFIG_UINT32_CORPSE_DECAY_* (CreatureEliteType). */
+    public static int corpseDelayForRank(int rank) {
+        return switch (rank) {
+            case 1 -> CORPSE_DECAY_ELITE_MS;
+            case 2 -> CORPSE_DECAY_RAREELITE_MS;
+            case 3 -> CORPSE_DECAY_WORLDBOSS_MS;
+            case 4 -> CORPSE_DECAY_RARE_MS;
+            default -> CORPSE_DECAY_NORMAL_MS;
+        };
     }
 
     public MeleeTable.Result swing(Creature attacker, Player victim, long nowMs) {
@@ -355,6 +422,8 @@ public final class Combat {
             return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
         }
         MeleeTable.Result r = table.rollOne(attacker, victim, meleeMin(attacker), meleeMax(attacker));
+        // ProcSkillsAndReactives victim defense path vs creature attacker.
+        victim.updateCombatSkills(true, false, skillChanceRoll);
         if (r.damage() > 0) {
             victim.setHealth(victim.health() - r.damage());
             refreshCombatTimer(attacker, nowMs);
@@ -540,6 +609,8 @@ public final class Combat {
         c.lootItems.clear();
         c.taggedBy = 0;
         c.respawnAtMs = 0;
+        c.corpseExpireAtMs = 0;
+        c.corpseRemoved = false;
         c.inCombat = false;
         c.victim = 0;
         c.evading = false;
@@ -557,8 +628,21 @@ public final class Combat {
     }
 
     public Item takeItem(Player p, Creature c, int lootSlot, long itemGuid) {
-        if (!canLoot(p, c) || itemGuid == 0) {
+        if (itemGuid == 0) {
             return null;
+        }
+        List<ObjectMgr.StoredItem> stored = takeItem(p, c, lootSlot, () -> itemGuid, null);
+        return stored.isEmpty() ? null : stored.get(0).item();
+    }
+
+    /**
+     * Loot::SendItem → CanStore/StoreNewItem. When {@code mgr} is set, merges into existing stacks
+     * up to ItemTemplate.stackable before opening a new bag slot.
+     */
+    public List<ObjectMgr.StoredItem> takeItem(Player p, Creature c, int lootSlot, LongSupplier nextGuid,
+                                               ObjectMgr mgr) {
+        if (!canLoot(p, c) || nextGuid == null) {
+            return List.of();
         }
         int idx = -1;
         org.tbc.world.loot.LootSlot found = null;
@@ -570,25 +654,34 @@ public final class Combat {
             }
         }
         if (found == null) {
-            return null;
+            return List.of();
         }
-        int bagSlot = p.firstFreeBagSlot();
-        if (bagSlot < 0) {
-            return null;
+        List<ObjectMgr.StoredItem> stored;
+        if (mgr != null) {
+            stored = mgr.storeNewItem(p, found.itemId(), found.count(), nextGuid);
+            if (stored.isEmpty()) {
+                return List.of();
+            }
+        } else {
+            int bagSlot = p.firstFreeBagSlot();
+            if (bagSlot < 0) {
+                return List.of();
+            }
+            Item it = new Item(nextGuid.getAsLong(), found.itemId());
+            it.ownerGuid = Guid.low(p.guid);
+            it.bag = 0;
+            it.slot = bagSlot;
+            it.count = found.count();
+            it.displayId = found.displayId();
+            p.items.put(Guid.low(it.guid), it);
+            p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bagSlot * 2,
+                    Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
+            p.dirty = true;
+            stored = List.of(new ObjectMgr.StoredItem(it, it.count, true));
         }
-        Item it = new Item(itemGuid, found.itemId());
-        it.ownerGuid = Guid.low(p.guid);
-        it.bag = 0;
-        it.slot = bagSlot;
-        it.count = found.count();
-        it.displayId = found.displayId();
-        p.items.put(Guid.low(it.guid), it);
-        p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bagSlot * 2,
-                Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
-        p.dirty = true;
         c.lootItems.remove(idx);
         finishLootIfEmpty(c);
-        return it;
+        return stored;
     }
 
     public boolean takeMoney(Player p, Creature c) {

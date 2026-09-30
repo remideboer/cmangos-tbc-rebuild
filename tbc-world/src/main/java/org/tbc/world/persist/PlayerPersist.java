@@ -83,6 +83,7 @@ public final class PlayerPersist {
         d.setInt(UpdateFields.UNIT_FIELD_POWER1, src.getInt(UpdateFields.UNIT_FIELD_POWER1));
         d.setInt(UpdateFields.UNIT_FIELD_POWER4, src.getInt(UpdateFields.UNIT_FIELD_POWER4));
         copySkills(src, d);
+        copyExploredZones(src, d);
         return d;
     }
 
@@ -90,6 +91,14 @@ public final class PlayerPersist {
     static void copySkills(Player src, Player d) {
         int base = UpdateFields.PLAYER_SKILL_INFO_1_1;
         for (int i = 0; i < 127 * 3; i++) {
+            d.setInt(base + i, src.getInt(base + i));
+        }
+    }
+
+    /** PLAYER_EXPLORED_ZONES_1 — fog-of-war bitmask (128 ints). */
+    static void copyExploredZones(Player src, Player d) {
+        int base = UpdateFields.PLAYER_EXPLORED_ZONES_1;
+        for (int i = 0; i < Player.PLAYER_EXPLORED_ZONES_SIZE; i++) {
             d.setInt(base + i, src.getInt(base + i));
         }
     }

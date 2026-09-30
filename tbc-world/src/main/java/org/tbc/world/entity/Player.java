@@ -1,7 +1,10 @@
 package org.tbc.world.entity;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
 import org.tbc.world.content.LevelStats;
+import org.tbc.world.content.SkillLineAbility;
+import org.tbc.world.content.WeaponSkills;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.WorldSession;
@@ -14,13 +17,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.DoubleSupplier;
+import java.util.function.IntSupplier;
 
 public final class Player extends Unit {
     public static final int TYPEMASK_PLAYER = 0x0019;
     public static final int AT_LOGIN_RENAME = 0x01;
     public static final int AT_LOGIN_FIRST = 0x20;
-    /** CMaNGOS CONFIG / two primary professions on TBC. */
-    public static final int MAX_PRIMARY_TRADE_SKILL = 2;
+    /** All primary trade skills may be learned (matches TrainerService.PRIMARY_PROFESSIONS). */
+    public static final int MAX_PRIMARY_TRADE_SKILL = 11;
     public static final int REST_STATE_NORMAL = 0x02;
     public static final int PLAYER_CONTROLLED_DEBUFF_LIMIT = 40;
     /** ItemPrototype.h ItemClass — EquippedItemClass on proficiency spells. */
@@ -184,6 +189,9 @@ public final class Player extends Unit {
     /** WorldObject::m_GCDCatMap / m_cooldownMap — not persisted across the in-memory snapshot (GCD is 1.5 s). */
     public final org.tbc.world.spell.SpellCooldowns cooldowns = new org.tbc.world.spell.SpellCooldowns();
     private final java.util.Set<Integer> unlearnableSkills = new java.util.HashSet<>();
+    private final List<Integer> dirtySkillFields = new ArrayList<>();
+    /** CMaNGOS m_fishingSteps — UpdateFishingSkill grace counter. */
+    public int fishingSteps;
     public final int[] tut = new int[8];
     public final Map<Integer, Item> items = new HashMap<>();
     /** ON_EQUIP spells currently applied from paper-doll (Player::ApplyItemEquipSpell). */
@@ -865,6 +873,32 @@ public final class Player extends Unit {
         applyEquippedVisuals();
     }
 
+    public static final int PLAYER_EXPLORED_ZONES_SIZE = 128;
+
+    /**
+     * CMaNGOS Player::CheckAreaExploreAndOutdoor — set PLAYER_EXPLORED_ZONES bit for the map area
+     * exploreFlag so the client fog-of-war uncovers.
+     *
+     * @return field index that changed, or -1 if already known / invalid
+     */
+    public int exploreAreaFlag(int areaFlag) {
+        if (areaFlag == 0 || areaFlag == 0xFFFF) {
+            return -1;
+        }
+        int offset = areaFlag / 32;
+        if (offset >= PLAYER_EXPLORED_ZONES_SIZE) {
+            return -1;
+        }
+        int bit = 1 << (areaFlag % 32);
+        int field = UpdateFields.PLAYER_EXPLORED_ZONES_1 + offset;
+        int curr = getInt(field);
+        if ((curr & bit) != 0) {
+            return -1;
+        }
+        setInt(field, curr | bit);
+        return field;
+    }
+
     public void setGhost(boolean g) {
         ghost = g;
         int flags = getInt(UpdateFields.PLAYER_FLAGS);
@@ -1312,6 +1346,237 @@ public final class Player extends Unit {
 
     public void learnSkill(int skillId, int value, int max, int step) {
         learnSkill(skillId, value, max, step, false);
+    }
+
+    /**
+     * CMaNGOS Player::UpdateSkill — add {@code diff} toward max; marks dirty skill fields for VALUES.
+     * @return true when value changed
+     */
+    public boolean updateSkill(int skillId, int diff) {
+        if (skillId == 0 || diff == 0) {
+            return false;
+        }
+        int want = skillId & 0xFFFF;
+        for (int slot = 0; slot < 127; slot++) {
+            int base = UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
+            if ((getInt(base) & 0xFFFF) != want) {
+                continue;
+            }
+            int packed = getInt(base + 1);
+            int value = packed & 0xFFFF;
+            int max = (packed >>> 16) & 0xFFFF;
+            if (max == 0 || value == 0 || value >= max) {
+                return false;
+            }
+            int next = value + diff;
+            if (next > max) {
+                next = max;
+            }
+            int step = (getInt(base) >>> 16) & 0xFFFF;
+            setSkill(slot, skillId, next, max, step);
+            dirtySkillFields.add(base);
+            dirtySkillFields.add(base + 1);
+            return true;
+        }
+        return false;
+    }
+
+    /** Fields to push in SMSG_UPDATE_OBJECT VALUES after skill gain; cleared on take. */
+    public List<Integer> takeDirtySkillFields() {
+        if (dirtySkillFields.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> out = new ArrayList<>(dirtySkillFields);
+        dirtySkillFields.clear();
+        return out;
+    }
+
+    /**
+     * CMaNGOS GetWeaponSkillIdForAttack — mainhand/offhand item GetSkill, else UNARMED on BASE.
+     */
+    public int weaponSkillIdForAttack(boolean offhand) {
+        int slot = offhand ? EQUIPMENT_SLOT_OFFHAND : EQUIPMENT_SLOT_MAINHAND;
+        Item weapon = itemAt(0, slot);
+        if (weapon != null) {
+            int skill = WeaponSkills.skillForWeaponSubclass(weapon.subClass);
+            if (skill != 0) {
+                return skill;
+            }
+        }
+        if (!offhand) {
+            return WeaponSkills.SKILL_UNARMED;
+        }
+        return 0;
+    }
+
+    /**
+     * CMaNGOS UpdateCombatSkills — chance from room-to-cap curve; on success UpdateWeaponSkill / UpdateDefense.
+     * {@code chanceRoll} is unit [0,1); success when {@code chanceRoll * 100 < finalChancePct}.
+     */
+    public boolean updateCombatSkills(boolean defence, boolean offhand, DoubleSupplier chanceRoll) {
+        int skillId = defence ? WeaponSkills.SKILL_DEFENSE : weaponSkillIdForAttack(offhand);
+        if (skillId == 0) {
+            return false;
+        }
+        int skill = skillValue(skillId);
+        int skillMax = skillMax(skillId);
+        int room = skillMax - skill;
+        if (skillMax == 0 || level == 0 || skill >= skillMax) {
+            return false;
+        }
+        double skillGapLogGrowth = 0.22 * (1.0 + (12.0 / level));
+        double levelCapScale = 1.0;
+        double baseChance;
+        if (room >= 7) {
+            baseChance = (7.0 / skillMax) * levelCapScale
+                    + skillGapLogGrowth * Math.log((room + 5.0) / 12.0);
+        } else {
+            baseChance = (room * room) / (7.0 * skillMax) * levelCapScale;
+        }
+        if (baseChance < 0) {
+            baseChance = 0;
+        }
+        if (baseChance > 1) {
+            baseChance = 1;
+        }
+        double finalChance = baseChance * 100.0;
+        if (chanceRoll.getAsDouble() * 100.0 >= finalChance) {
+            return false;
+        }
+        if (defence) {
+            return updateSkill(WeaponSkills.SKILL_DEFENSE, WeaponSkills.SKILL_GAIN_DEFENSE);
+        }
+        return updateWeaponSkill(offhand);
+    }
+
+    /** CMaNGOS UpdateWeaponSkill — gain on equipped weapon skill or unarmed. */
+    public boolean updateWeaponSkill(boolean offhand) {
+        Item weapon = itemAt(0, offhand ? EQUIPMENT_SLOT_OFFHAND : EQUIPMENT_SLOT_MAINHAND);
+        if (weapon != null) {
+            if (weapon.subClass == WeaponSkills.ITEM_SUBCLASS_WEAPON_FISHING_POLE) {
+                return false;
+            }
+            int skill = WeaponSkills.skillForWeaponSubclass(weapon.subClass);
+            if (skill != 0) {
+                return updateSkill(skill, WeaponSkills.SKILL_GAIN_WEAPON);
+            }
+            return false;
+        }
+        if (!offhand) {
+            return updateSkill(WeaponSkills.SKILL_UNARMED, WeaponSkills.SKILL_GAIN_WEAPON);
+        }
+        return false;
+    }
+
+    /** CMaNGOS SkillChance.* defaults ×10 (UpdateSkillPro Chance tenths of a percent). */
+    public static final int SKILL_CHANCE_ORANGE = 100;
+    public static final int SKILL_CHANCE_YELLOW = 75;
+    public static final int SKILL_CHANCE_GREEN = 25;
+    public static final int SKILL_CHANCE_GREY = 0;
+    public static final int SKILL_GAIN_CRAFTING = 1;
+    public static final int SKILL_GAIN_GATHERING = 1;
+
+    /** CMaNGOS SkillGainChance — orange/yellow/green/grey band as tenths (1000 = 100%). */
+    public static int skillGainChanceTenths(int skillValue, int grayLevel, int greenLevel, int yellowLevel) {
+        if (skillValue >= grayLevel) {
+            return SKILL_CHANCE_GREY * 10;
+        }
+        if (skillValue >= greenLevel) {
+            return SKILL_CHANCE_GREEN * 10;
+        }
+        if (skillValue >= yellowLevel) {
+            return SKILL_CHANCE_YELLOW * 10;
+        }
+        return SKILL_CHANCE_ORANGE * 10;
+    }
+
+    /**
+     * CMaNGOS UpdateSkillPro — {@code roll1to1000} is irand(1,1000); success when roll ≤ chanceTenths.
+     */
+    public boolean updateSkillPro(int skillId, int chanceTenths, int diff, IntSupplier roll1to1000) {
+        if (skillId == 0 || chanceTenths <= 0 || diff == 0) {
+            return false;
+        }
+        if (skillMax(skillId) == 0 || skillValue(skillId) == 0 || skillValue(skillId) >= skillMax(skillId)) {
+            return false;
+        }
+        int roll = roll1to1000.getAsInt();
+        if (roll > chanceTenths) {
+            return false;
+        }
+        return updateSkill(skillId, diff);
+    }
+
+    /**
+     * CMaNGOS UpdateCraftSkill — SkillLineAbility band + UpdateSkillPro (no alchemy discovery).
+     */
+    public boolean updateCraftSkill(int spellId, SkillLineAbility catalog, IntSupplier roll1to1000) {
+        if (catalog == null || spellId == 0) {
+            return false;
+        }
+        SkillLineAbility.Entry e = catalog.bySpell(spellId);
+        if (e == null || e.skillId() == 0) {
+            return false;
+        }
+        int value = skillValue(e.skillId());
+        int green = (e.maxValue() + e.minValue()) / 2;
+        int chance = skillGainChanceTenths(value, e.maxValue(), green, e.minValue());
+        return updateSkillPro(e.skillId(), chance, SKILL_GAIN_CRAFTING, roll1to1000);
+    }
+
+    /**
+     * CMaNGOS UpdateGatherSkill — herbalism/mining/skinning/lockpicking/jewelcrafting bands.
+     * Skinning/mining step-down uses CONFIG defaults 75 when steps &gt; 0.
+     */
+    public boolean updateGatherSkill(int skillId, int skillValue, int redLevel, int multiplicator,
+                                     IntSupplier roll1to1000) {
+        int red = redLevel == 1 ? 5 : redLevel;
+        int chance = skillGainChanceTenths(skillValue, red + 100, red + 50, red + 25) * Math.max(1, multiplicator);
+        return switch (skillId) {
+            case Content.SKILL_HERBALISM, Content.SKILL_LOCKPICKING, Content.SKILL_JEWELCRAFTING ->
+                    updateSkillPro(skillId, chance, SKILL_GAIN_GATHERING, roll1to1000);
+            case Content.SKILL_SKINNING -> {
+                int steps = 75;
+                yield updateSkillPro(skillId, chance >> (skillValue / steps), SKILL_GAIN_GATHERING, roll1to1000);
+            }
+            case Content.SKILL_MINING -> {
+                int steps = 75;
+                yield updateSkillPro(skillId, chance >> (skillValue / steps), SKILL_GAIN_GATHERING, roll1to1000);
+            }
+            default -> false;
+        };
+    }
+
+    /**
+     * CMaNGOS UpdateFishingSkill — grace steps then UpdateSkillPro(1000, 1).
+     * {@code fishingSteps} accumulates; on threshold, skill +1 and steps reduce.
+     */
+    public boolean updateFishingSkill(IntSupplier roll0InclusiveSteps) {
+        int value = skillValue(Content.SKILL_FISHING);
+        if (value >= skillMax(Content.SKILL_FISHING) || skillMax(Content.SKILL_FISHING) == 0) {
+            return false;
+        }
+        int stepsNeeded = fishingStepsNeededToLevelUp(value);
+        fishingSteps++;
+        if (roll0InclusiveSteps.getAsInt() == 0) {
+            fishingSteps++;
+        }
+        if (fishingSteps < stepsNeeded) {
+            return false;
+        }
+        fishingSteps -= stepsNeeded;
+        return updateSkillPro(Content.SKILL_FISHING, 1000, 1, () -> 1);
+    }
+
+    /** CMaNGOS GetFishingStepsNeededToLevelUp. */
+    public static int fishingStepsNeededToLevelUp(int skillValue) {
+        if (skillValue < 75) {
+            return 1;
+        }
+        if (skillValue <= 300) {
+            return skillValue / 44;
+        }
+        return skillValue / 31;
     }
 
     /** When canUnlearn, CMSG_UNLEARN_SKILL may clear the skill (SkillRaceClassInfo SKILL_FLAG_CAN_UNLEARN). */

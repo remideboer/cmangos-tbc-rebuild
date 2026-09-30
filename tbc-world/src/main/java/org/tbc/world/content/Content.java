@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.LongSupplier;
+import java.util.function.LongSupplier;
 
 /** Gossip, vendor buy, starter quest. Packets: gossip.md, quest.md, inventory-gossip-quest.md. */
 public final class Content {
@@ -217,6 +218,8 @@ public final class Content {
     public static final int ITEM_HEARTHSTONE = 6948;
     /** locales_item 117 Tough Jerky; item_template spellid_1 433 charges −1. */
     public static final int ITEM_TOUGH_JERKY = 117;
+    /** Tough Hunk of Bread — stackable food (item_template.stackable 20). */
+    public static final int ITEM_TOUGH_HUNK_OF_BREAD = 4540;
     public static final int ITEM_ROUGH_ARROW = 2512;
     public static final int ITEM_SMALL_BROWN_POUCH = 4496;
     /** locales_item 889; PageText 16 is locales_page_text (Stalvan to Crillian). */
@@ -239,6 +242,12 @@ public final class Content {
     public static final int SPELL_APPRENTICE_BLACKSMITH = 2020;
     public static final int TRAINER_SPELL_APPRENTICE_BLACKSMITH_COST = 10;
     public static final int SKILL_BLACKSMITHING = 164;
+    public static final int SKILL_HERBALISM = 182;
+    public static final int SKILL_MINING = 186;
+    public static final int SKILL_FISHING = 356;
+    public static final int SKILL_SKINNING = 393;
+    public static final int SKILL_LOCKPICKING = 633;
+    public static final int SKILL_JEWELCRAFTING = 755;
     public static final int TAXI_STORMWIND = 2;
     public static final int TAXI_IRONFORGE = 6;
     public static final int ERR_TAXIOK = 0;
@@ -355,7 +364,7 @@ public final class Content {
         send.accept(Opcodes.SMSG_LIST_INVENTORY, encodeVendorList(c));
     }
 
-    public void buy(Player p, GameMap map, WowBuffer in, boolean inSlot, long nextItemGuid,
+    public void buy(Player p, GameMap map, WowBuffer in, boolean inSlot, LongSupplier nextItemGuid,
                     BiConsumer<Integer, byte[]> send) {
         if (in.remaining() < 12) {
             return;
@@ -387,31 +396,55 @@ public final class Content {
             send.accept(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE, encodeEquipErr(EQUIP_ERR_NOT_ENOUGH_MONEY));
             return;
         }
-        int slot = requestedSlot;
-        if (slot < BACKPACK_START || slot >= BACKPACK_END || slotOccupied(p, slot)) {
-            slot = nextBackpackSlot(p);
+        LongSupplier guids = nextItemGuid;
+        if (guids == null) {
+            return;
         }
-        if (slot < 0) {
+        // Prefer merge into existing stacks (CMaNGOS CanStore); requestedSlot only when empty non-stack.
+        List<ObjectMgr.StoredItem> stored;
+        if (inSlot && requestedSlot >= BACKPACK_START && requestedSlot < BACKPACK_END
+                && !slotOccupied(p, requestedSlot) && t.stackable <= 1) {
+            Item it = new Item(guids.getAsLong(), itemId);
+            it.ownerGuid = Guid.low(p.guid);
+            it.bag = 0;
+            it.slot = requestedSlot;
+            it.count = count;
+            it.displayId = t.displayId;
+            it.quality = t.quality;
+            ObjectMgr.applyWeaponProto(it, t);
+            p.items.put(Guid.low(it.guid), it);
+            p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + requestedSlot * 2,
+                    Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
+            stored = List.of(new ObjectMgr.StoredItem(it, count, true));
+        } else {
+            stored = mgr.storeNewItem(p, itemId, count, guids);
+        }
+        if (stored.isEmpty()) {
             return;
         }
         p.setMoney(p.money - price);
-        Item it = new Item(nextItemGuid, itemId);
-        it.ownerGuid = Guid.low(p.guid);
-        it.bag = 0;
-        it.slot = slot;
-        it.count = count;
-        it.displayId = t.displayId;
-        it.quality = t.quality;
-        ObjectMgr.applyWeaponProto(it, t);
-        p.items.put(Guid.low(it.guid), it);
-        p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + slot * 2,
-                Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
         p.dirty = true;
-        var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(it, p.guid));
-        send.accept(created.opcode(), created.payload());
-        int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
-        var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
-        send.accept(inv.opcode(), inv.payload());
+        int total = 0;
+        for (Item x : p.items.values()) {
+            if (x.entry == itemId) {
+                total += x.count;
+            }
+        }
+        boolean anyCreated = false;
+        for (ObjectMgr.StoredItem s : stored) {
+            if (s.created()) {
+                anyCreated = true;
+                var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(s.item(), p.guid));
+                send.accept(created.opcode(), created.payload());
+                int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + s.item().slot * 2;
+                var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+                send.accept(inv.opcode(), inv.payload());
+            } else {
+                var stack = UpdateBuilder.maybeCompress(
+                        UpdateBuilder.valuesItem(s.item(), UpdateFields.ITEM_FIELD_STACK_COUNT));
+                send.accept(stack.opcode(), stack.payload());
+            }
+        }
         var coin = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
         send.accept(coin.opcode(), coin.payload());
         int vendorSlot = stock.indexOf(itemId) + 1;
@@ -421,7 +454,10 @@ public final class Content {
         bought.putU32(0xFFFFFFFF);
         bought.putU32(count);
         send.accept(Opcodes.SMSG_BUY_ITEM, bought.array());
-        send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, count));
+        Item pushItem = stored.get(0).item();
+        // storeNewItem appends creates after merges, so the last entry is the new slot when anyCreated.
+        int pushSlot = anyCreated ? stored.get(stored.size() - 1).item().slot : 0xFFFFFFFF;
+        send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, pushItem, count, 1, total, pushSlot));
         itemAddedQuestCheck(p, map, itemId, count, send);
     }
 
@@ -739,6 +775,13 @@ public final class Content {
         if (q == null || !objectivesMet(p, slot, q)) {
             return;
         }
+        // Player::RewardQuest — DestroyItemCount ReqItemId/ReqItemCount before rewards.
+        for (int i = 0; i < 4; i++) {
+            int reqId = q.reqItemId(i);
+            if (reqId > 0) {
+                destroyItemCount(p, reqId, q.reqItemCount(i), send);
+            }
+        }
         p.questLogState[slot] = QUEST_STATE_COMPLETE;
         send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
         int xp;
@@ -810,6 +853,47 @@ public final class Content {
         var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
         send.accept(inv.opcode(), inv.payload());
         send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodePush(p, it, it.count));
+    }
+
+    /**
+     * Player::DestroyItemCount(entry, count, update=true). Walks backpack stacks matching
+     * {@code itemId}, reducing or removing until {@code count} is consumed.
+     */
+    void destroyItemCount(Player p, int itemId, int count, BiConsumer<Integer, byte[]> send) {
+        if (itemId <= 0 || count <= 0) {
+            return;
+        }
+        int left = count;
+        List<Item> stacks = new ArrayList<>();
+        for (Item it : p.items.values()) {
+            if (it.entry == itemId && it.bag == 0) {
+                stacks.add(it);
+            }
+        }
+        for (Item it : stacks) {
+            if (left <= 0) {
+                break;
+            }
+            if (it.count <= left) {
+                left -= it.count;
+                p.items.remove(Guid.low(it.guid));
+                int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
+                p.setGuid(field, 0);
+                p.dirty = true;
+                var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+                send.accept(inv.opcode(), inv.payload());
+                WowBuffer destroy = new WowBuffer(8);
+                destroy.putU64(UpdateBuilder.itemGuid(it));
+                send.accept(Opcodes.SMSG_DESTROY_OBJECT, destroy.array());
+            } else {
+                it.count -= left;
+                left = 0;
+                p.dirty = true;
+                var stack = UpdateBuilder.maybeCompress(
+                        UpdateBuilder.valuesItem(it, UpdateFields.ITEM_FIELD_STACK_COUNT));
+                send.accept(stack.opcode(), stack.payload());
+            }
+        }
     }
 
     public static boolean outOfRange(Player p, Creature c) {
@@ -1332,21 +1416,25 @@ public final class Content {
     }
 
     static byte[] encodePush(Player p, Item it, int count) {
-        return encodePush(p, it, count, 1, count);
+        return encodePush(p, it, count, 1, count, it.slot);
     }
 
     public static byte[] encodeLootPush(Player p, Item it, int inventoryTotal) {
-        return encodePush(p, it, it.count, 0, inventoryTotal);
+        return encodePush(p, it, it.count, 0, inventoryTotal, it.slot);
     }
 
     static byte[] encodePush(Player p, Item it, int count, int received, int inventoryTotal) {
+        return encodePush(p, it, count, received, inventoryTotal, it.slot);
+    }
+
+    public static byte[] encodePush(Player p, Item it, int count, int received, int inventoryTotal, int itemSlot) {
         WowBuffer b = new WowBuffer(48);
         b.putU64(p.guid);
         b.putU32(received);
         b.putU32(0);
         b.putU32(1);
         b.putU8(it.bag);
-        b.putU32(it.slot);
+        b.putU32(itemSlot);
         b.putU32(it.entry);
         b.putU32(0);
         b.putU32(0);

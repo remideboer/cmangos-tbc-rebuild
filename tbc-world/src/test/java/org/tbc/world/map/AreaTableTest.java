@@ -24,6 +24,18 @@ class AreaTableTest {
         assertEquals(0, areas.zoneId(0));
         assertEquals(0, areas.areaId(0));
         assertEquals(0, areas.areaId(99999));
+        assertEquals(10, areas.exploreFlag(12));
+        assertEquals(11, areas.exploreFlag(87));
+        assertEquals(0, areas.exploreFlag(0));
+        assertEquals(0, areas.exploreFlag(99999));
+    }
+
+    @Test
+    void zoneIdWhenSunstriderIsleShouldBeEversongWoods() {
+        AreaTable areas = AreaTable.seeded();
+        assertEquals(AreaTable.EVERSONG_WOODS, areas.zoneId(AreaTable.SUNSTRIDER_ISLE));
+        assertEquals(AreaTable.SUNSTRIDER_ISLE, areas.areaId(AreaTable.SUNSTRIDER_ISLE));
+        assertEquals(AreaTable.EVERSONG_WOODS, areas.zoneId(AreaTable.EVERSONG_WOODS));
     }
 
     @Test

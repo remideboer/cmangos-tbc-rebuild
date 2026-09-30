@@ -615,7 +615,9 @@ class Slice06P0Test {
         world.advanceMs(1_000);
         world.tick(50);
         assertTrue(c.alive());
-        assertEquals(c.maxHealth(), client.valuesField(c.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        assertEquals(c.maxHealth(), c.health());
+        // Corpse expired earlier (90% of respawn) → RemoveCorpse DESTROY; respawn is CREATE, not VALUES.
+        assertTrue(client.sawCreateObject(c.guid));
     }
 
     /** TP-SL06-014 — UNIT_FIELD_HEALTH is a public field: Map::SendObjectUpdates delivers the victim's VALUES to nearby players. */

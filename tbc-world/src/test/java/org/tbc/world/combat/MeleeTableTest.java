@@ -5,6 +5,7 @@ import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.content.WeaponSkills;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -427,6 +428,67 @@ class MeleeTableTest {
         assertEquals(MeleeTable.Outcome.EVADE, r.outcome());
         assertEquals(0, r.damage());
         assertEquals(0, r.threat());
+    }
+
+    /**
+     * TP-SL12-003 — player weapon/defense skillValue feeds the hit table (not only level×5).
+     * Unarmed skill 1 vs L1 NPC: defense−skill = 4 → +0.4% miss (5.4%); roll 0.052 is miss.
+     * At skill 5 (cap): miss stays 5%; same roll is dodge.
+     */
+    @Test
+    void tpSl12WeaponSkillValueShouldAffectMissVsNpc() {
+        Player a = new Player();
+        a.level = 1;
+        a.learnSkill(WeaponSkills.SKILL_UNARMED, 1, 5, 0);
+        Creature v = new Creature();
+        v.level = 1;
+        v.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        assertEquals(4, MeleeTable.defenseSkill(v, a) - MeleeTable.weaponSkill(a, v, false));
+        assertEquals(MeleeTable.Outcome.MISS, table(0.052).rollOne(a, v, 2, 2).outcome());
+        a.learnSkill(WeaponSkills.SKILL_UNARMED, 5, 5, 0);
+        assertEquals(0, MeleeTable.defenseSkill(v, a) - MeleeTable.weaponSkill(a, v, false));
+        assertEquals(MeleeTable.Outcome.DODGE, table(0.052).rollOne(a, v, 2, 2).outcome());
+    }
+
+    /** TP-SL12-003 — player defense skill below cap raises creature miss vs that player. */
+    @Test
+    void tpSl12DefenseSkillValueShouldAffectMissFromCreature() {
+        Creature a = new Creature();
+        a.level = 1;
+        a.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        Player v = new Player();
+        v.level = 1;
+        v.setHealth(100);
+        v.learnSkill(WeaponSkills.SKILL_DEFENSE, 1, 5, 0);
+        // defense 1 − creature skill 5 = −4 → miss 5 − 0.16 = 4.84%; roll 0.048 is miss
+        assertEquals(MeleeTable.Outcome.MISS, table(0.048).rollOne(a, v, 2, 2).outcome());
+        v.learnSkill(WeaponSkills.SKILL_DEFENSE, 5, 5, 0);
+        // At cap: miss 5%; roll 0.051 clears miss → creature 5% crit
+        assertEquals(MeleeTable.Outcome.CRIT, table(0.051).rollOne(a, v, 2, 2).outcome());
+    }
+
+    /** Unlearned combat skills still use level×5 so create-time defaults match prior table. */
+    @Test
+    void weaponSkillWhenUnlearnedShouldFallBackToLevelTimesFive() {
+        Player a = new Player();
+        a.level = 11;
+        Creature v = new Creature();
+        v.level = 11;
+        assertEquals(55, MeleeTable.weaponSkill(a, v, false));
+        assertEquals(55, MeleeTable.defenseSkill(a, v));
+    }
+
+    /** PvP uses max(skill, skillMax) for both weapon and defense. */
+    @Test
+    void weaponSkillWhenVsPlayerShouldUseSkillMax() {
+        Player a = new Player();
+        a.level = 1;
+        a.learnSkill(WeaponSkills.SKILL_UNARMED, 1, 5, 0);
+        Player v = new Player();
+        v.level = 1;
+        v.learnSkill(WeaponSkills.SKILL_DEFENSE, 2, 5, 0);
+        assertEquals(5, MeleeTable.weaponSkill(a, v, false));
+        assertEquals(5, MeleeTable.defenseSkill(v, a));
     }
 
     private static MeleeTable table(double r) {

@@ -39,6 +39,10 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_PREVENT_ANIM = 0x20000000;
     /** Unit.h UNIT_FLAG2_FEIGN_DEATH. */
     public static final int UNIT_FLAG2_FEIGN_DEATH = 0x00000001;
+    /** SharedDefines.h POWER_MANA — UNIT_FIELD_BYTES_0 power byte / POWER1. */
+    public static final int POWER_MANA = 0;
+    /** ChrClasses.dbc CLASS_MAGE — creature UnitClass that uses mana. */
+    public static final int CLASS_MAGE = 8;
     /** SharedDefines.h UNIT_DYNFLAG_DEAD. */
     public static final int UNIT_DYNFLAG_DEAD = 0x0020;
     /** SharedDefines.h UNIT_DYNFLAG_TRACK_UNIT — Hunter's Mark. */

@@ -162,6 +162,12 @@ public final class EventAi {
                     Action.cast(spellId, TARGET_SELF), Action.none(), Action.none());
         }
 
+        /** EVENT_T_SPAWNED → ACTION_T_CAST (e.g. Permanent Feign Death 29266). */
+        public static Script spawnedCast(int spellId, int castFlags) {
+            return new Script(EVENT_SPAWNED, 0, 100, 0, 0, 0, 0, 0,
+                    Action.cast(spellId, TARGET_SELF, castFlags), Action.none(), Action.none());
+        }
+
         public static Script timerInCombat(int initMin, int repeatMin, int spellId, int target) {
             return new Script(EVENT_TIMER_IN_COMBAT, 0, 100, EFLAG_REPEATABLE,
                     initMin, initMin, repeatMin, repeatMin,

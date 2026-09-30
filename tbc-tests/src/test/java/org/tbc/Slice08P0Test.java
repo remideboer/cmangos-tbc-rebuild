@@ -5,6 +5,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.ReputationMgr;
@@ -380,6 +381,43 @@ class Slice08P0Test {
         assertTrue(client.saw(Opcodes.SMSG_ITEM_PUSH_RESULT));
         assertTrue(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_MILITIA_HAMMER && it.count == 1));
         assertFalse(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_MILITIA_DAGGER));
+    }
+
+    /**
+     * TP-SL08-030 — Player::RewardQuest DestroyItemCount(ReqItemId, ReqItemCount).
+     * Brotherhood of Thieves 18 / Red Burlap Bandana 752 × 12 must leave the bag on turn-in.
+     */
+    @Test
+    void tpSl08RewardQuestDestroysReqItems() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "BandanaTurnIn", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(willem);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(willem.guid);
+        accept.putU32(Content.QUEST_BROTHERHOOD_OF_THIEVES);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        p.questLogItemCount[0][0] = 12;
+        Item bandanas = new Item(world.nextItemGuid(), Content.ITEM_RED_BURLAP_BANDANA);
+        bandanas.ownerGuid = Guid.low(p.guid);
+        bandanas.bag = 0;
+        bandanas.slot = Content.BACKPACK_START + 2;
+        bandanas.count = 12;
+        p.items.put((int) bandanas.guid, bandanas);
+        p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bandanas.slot * 2, UpdateBuilder.itemGuid(bandanas));
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(willem.guid);
+        choose.putU32(Content.QUEST_BROTHERHOOD_OF_THIEVES);
+        choose.putU32(1);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        assertFalse(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_RED_BURLAP_BANDANA));
+        assertEquals(0L, p.getGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bandanas.slot * 2));
     }
 
     /**

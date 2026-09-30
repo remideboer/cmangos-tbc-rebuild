@@ -13,6 +13,10 @@ public final class GameObject extends Entity {
     /** MO transport path progress ms (movement.md); period from DB when loaded. */
     public int pathProgress;
     public int periodMs;
+    /** Chest / interactable loot (FillLoot for gameobject_loot_template). */
+    public int lootGold;
+    public boolean lootable;
+    public final java.util.List<org.tbc.world.loot.LootSlot> lootItems = new java.util.ArrayList<>();
 
     public GameObject() {
         super(UpdateFields.GAMEOBJECT_END, TYPEID_GAMEOBJECT);

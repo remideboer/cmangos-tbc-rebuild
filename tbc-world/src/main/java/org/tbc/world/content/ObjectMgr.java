@@ -249,7 +249,12 @@ public final class ObjectMgr {
             slots = eight;
         }
     }
-    public record LootRow(int item, float chance, int minCount, int maxCount) {}
+    public record LootRow(int item, float chance, int minCount, int maxCount, boolean needsQuest) {
+        /** Non-quest loot row. */
+        public LootRow(int item, float chance, int minCount, int maxCount) {
+            this(item, chance, minCount, maxCount, false);
+        }
+    }
 
     public static final class GameObjectTemplate {
         public final int entry;
@@ -1340,6 +1345,39 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Tough Hunk of Bread — item 4540, stackable 20 (item_template). */
+        public static ItemTemplate toughHunkOfBread() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_TOUGH_HUNK_OF_BREAD;
+            t.name = "Tough Hunk of Bread";
+            t.itemClass = 0;
+            t.subClass = 0;
+            t.displayId = 6399;
+            t.quality = 1;
+            t.buyPrice = 25;
+            t.sellPrice = 1;
+            t.stackable = 20;
+            t.requiredDisenchantSkill = -1;
+            t.spellId[0] = SpellEngine.SPELL_FOOD;
+            t.spellTrigger[0] = 0;
+            t.spellCharges[0] = -1;
+            return t;
+        }
+
+        /** Red Burlap Bandana — item 752, quest 18 objective, stackable 20. */
+        public static ItemTemplate redBurlapBandana() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_RED_BURLAP_BANDANA;
+            t.name = "Red Burlap Bandana";
+            t.itemClass = 4;
+            t.subClass = 0;
+            t.displayId = 16815;
+            t.quality = 1;
+            t.stackable = 20;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Refreshing Spring Water — item 159 ON_USE Drink 430, expendable charges −1. */
         public static ItemTemplate refreshingSpringWater() {
             ItemTemplate t = new ItemTemplate();
@@ -1357,12 +1395,27 @@ public final class ObjectMgr {
         }
     }
 
+    /**
+     * One placement from {@link #storeNewItem}: either a new bag object ({@code created}) or an
+     * existing stack that absorbed {@code added} units.
+     */
+    public record StoredItem(Item item, int added, boolean created) {}
+
     public final Map<Long, CreateInfo> createInfo = new HashMap<>();
     public final EventAiStore eventAiStore = new EventAiStore();
     public final DbScriptStore dbScriptStore = new DbScriptStore();
+    /** Applies EventAI spawn casts (Permanent Feign Death, etc.) without a live World session. */
+    private final SpellEngine eventAiSpells = new SpellEngine();
+    /**
+     * creature_template MinLevelMana (and seeds). Entry → mana pool before PowerMultiplier.
+     * Mana Wyrm 15274 and other caster NPCs need this for the client mana bar / Mana Tap.
+     */
+    public final Map<Integer, Integer> creatureMana = new HashMap<>();
     public final Map<Integer, List<Integer>> createSpells = new HashMap<>();
     /** player_classlevelstats / player_levelstats (create-self.md "Stats (level 1)"). */
     public final LevelStats levelStats = new LevelStats();
+    /** SkillLineAbility.dbc — craft skill-up bands by spell id. */
+    public final SkillLineAbility skillLineAbilities = SkillLineAbility.seeded();
     /** Packed like {@code SMSG_ACTION_BUTTONS}: action in low 24 bits, {@code ActionButtonType} in high 8. */
     public final Map<Integer, int[]> createActions = new HashMap<>();
     public final Map<Integer, List<CreateItem>> createItems = new HashMap<>();
@@ -1371,6 +1424,8 @@ public final class ObjectMgr {
     public final Map<Integer, CreatureTemplate> creatures = new HashMap<>();
     public Factions factions;
     public final Map<Integer, List<LootRow>> creatureLoot = new HashMap<>();
+    /** gameobject_loot_template keyed by chest loot id (gameobject_template.data[1]). */
+    public final Map<Integer, List<LootRow>> gameObjectLoot = new HashMap<>();
     public final Map<Integer, Float> modelCombatReach = new HashMap<>();
     public final Map<Integer, QuestTemplate> quests = new HashMap<>();
     public final Map<Integer, ItemTemplate> items = new HashMap<>();
@@ -1550,6 +1605,7 @@ public final class ObjectMgr {
             loadTalents(dataDir);
             levelStats.loadGt(dataDir);
             DurabilityCosts.load(dataDir);
+            skillLineAbilities.loadFromDataDir(dataDir);
             return;
         }
         try (Connection c = world.get()) {
@@ -1560,8 +1616,10 @@ public final class ObjectMgr {
             }
             levelStats.load(c);
             loadCreatures(c);
+            loadCreatureMana(c);
             loadModelInfo(c);
             loadCreatureLoot(c);
+            loadGameObjectLoot(c);
             eventAiStore.load(c);
             dbScriptStore.load(c);
             try {
@@ -1652,6 +1710,7 @@ public final class ObjectMgr {
         loadTalents(dataDir);
         levelStats.loadGt(dataDir);
         DurabilityCosts.load(dataDir);
+        skillLineAbilities.loadFromDataDir(dataDir);
     }
 
     private void loadCreate(Connection c) throws Exception {
@@ -1886,6 +1945,31 @@ public final class ObjectMgr {
         log.warn("creature_template column mismatch, using seed templates");
     }
 
+    /** creature_template MinLevelMana → {@link #creatureMana} (CMaNGOS SelectLevel). */
+    private void loadCreatureMana(Connection c) {
+        String[] sqls = {
+                "SELECT Entry, MinLevelMana FROM creature_template WHERE MinLevelMana > 0",
+                "SELECT entry, minmana FROM creature_template WHERE minmana > 0",
+                "SELECT Entry, MinLevelMana FROM creature_template WHERE MinLevelMana > 0"
+        };
+        for (String sql : sqls) {
+            try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+                int n = 0;
+                while (rs.next()) {
+                    int mana = rs.getInt(2);
+                    if (mana > 0) {
+                        creatureMana.put(rs.getInt(1), mana);
+                        n++;
+                    }
+                }
+                log.info("loaded MinLevelMana for {} creatures", n);
+                return;
+            } catch (Exception e) {
+                log.debug("creature mana query skipped: {}", e.getMessage());
+            }
+        }
+    }
+
     private boolean loadCreaturesSql(Connection c, String sql, boolean full, boolean combat) {
         try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -1940,17 +2024,43 @@ public final class ObjectMgr {
             int n = 0;
             while (rs.next()) {
                 int minCount = rs.getInt(4);
-                float chance = rs.getFloat(3);
-                if (minCount < 0 || chance < 0f) {
+                if (minCount < 0) {
+                    // Reference rows are not expanded yet.
                     continue;
                 }
+                float chanceRaw = rs.getFloat(3);
+                boolean needsQuest = chanceRaw < 0f;
+                float chance = Math.abs(chanceRaw);
                 creatureLoot.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>())
-                        .add(new LootRow(rs.getInt(2), chance, minCount, Math.max(minCount, rs.getInt(5))));
+                        .add(new LootRow(rs.getInt(2), chance, minCount, Math.max(minCount, rs.getInt(5)), needsQuest));
                 n++;
             }
             log.info("loaded {} creature_loot_template rows", n);
         } catch (Exception e) {
             log.debug("creature_loot_template load skipped: {}", e.getMessage());
+        }
+    }
+
+    private void loadGameObjectLoot(Connection c) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT entry, item, ChanceOrQuestChance, mincountOrRef, maxcount FROM gameobject_loot_template");
+             ResultSet rs = ps.executeQuery()) {
+            int n = 0;
+            while (rs.next()) {
+                int minCount = rs.getInt(4);
+                if (minCount < 0) {
+                    continue;
+                }
+                float chanceRaw = rs.getFloat(3);
+                boolean needsQuest = chanceRaw < 0f;
+                float chance = Math.abs(chanceRaw);
+                gameObjectLoot.computeIfAbsent(rs.getInt(1), k -> new ArrayList<>())
+                        .add(new LootRow(rs.getInt(2), chance, minCount, Math.max(minCount, rs.getInt(5)), needsQuest));
+                n++;
+            }
+            log.info("loaded {} gameobject_loot_template rows", n);
+        } catch (Exception e) {
+            log.debug("gameobject_loot_template load skipped: {}", e.getMessage());
         }
     }
 
@@ -3025,6 +3135,9 @@ public final class ObjectMgr {
 
     private void seedQueryDefaults() {
         creatures.putIfAbsent(6, seedKoboldVermin());
+        // Mana Wyrm — Eversong; MinLevelMana for Mana Tap 28734 / client mana bar.
+        creatures.putIfAbsent(15274, new CreatureTemplate(15274, "Mana Wyrm", 15404, 7, 55, 1, 0, "", "", 0));
+        creatureMana.putIfAbsent(15274, 65);
         // battlemaster_entry: Kurak (2302) → BATTLEGROUND_WS = 2
         battleMasterBg.putIfAbsent(2302, 2);
         creatures.putIfAbsent(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
@@ -3066,11 +3179,19 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
         items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
         items.putIfAbsent(Content.ITEM_TOUGH_JERKY, ItemTemplate.toughJerky());
+        items.putIfAbsent(Content.ITEM_TOUGH_HUNK_OF_BREAD, ItemTemplate.toughHunkOfBread());
+        items.putIfAbsent(Content.ITEM_RED_BURLAP_BANDANA, ItemTemplate.redBurlapBandana());
         items.putIfAbsent(Content.ITEM_REFRESHING_SPRING_WATER, ItemTemplate.refreshingSpringWater());
         // SQL load may have created empty spell rows; force usable-item spells from seeds.
         mergeUsableItemSpells(ItemTemplate.hearthstone());
         mergeUsableItemSpells(ItemTemplate.toughJerky());
+        mergeUsableItemSpells(ItemTemplate.toughHunkOfBread());
         mergeUsableItemSpells(ItemTemplate.refreshingSpringWater());
+        // Keep consumable max-stack for 8606 client even if a thin SQL row set stackable=1.
+        ensureStackable(Content.ITEM_TOUGH_JERKY, 20);
+        ensureStackable(Content.ITEM_TOUGH_HUNK_OF_BREAD, 20);
+        ensureStackable(Content.ITEM_RED_BURLAP_BANDANA, 20);
+        ensureStackable(Content.ITEM_REFRESHING_SPRING_WATER, 20);
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
                 0, "Speak with Marshal McBride.", "Speak with Marshal McBride.", 0, 0, 0, 0, 1, 24, 0, 0));
         quests.putIfAbsent(Content.QUEST_REST_AND_RELAXATION, new QuestTemplate(Content.QUEST_REST_AND_RELAXATION,
@@ -3684,6 +3805,68 @@ public final class ObjectMgr {
         applyEquippedMelee(p);
     }
 
+    /**
+     * CMaNGOS CanStoreNewItem / StoreNewItem: fill existing stacks up to {@code stackable}, then
+     * new backpack slots. Returns each touched stack (merged or created). Missing templates are
+     * treated as non-stackable (loot rows may reference entries before a seed exists).
+     */
+    public List<StoredItem> storeNewItem(Player p, int itemId, int count, LongSupplier nextGuid) {
+        List<StoredItem> out = new ArrayList<>();
+        if (p == null || nextGuid == null || count <= 0) {
+            return out;
+        }
+        ItemTemplate t = items.get(itemId);
+        int left = count;
+        int maxStack = t == null ? 1 : Math.max(1, t.stackable);
+        if (maxStack > 1) {
+            for (int slot = Player.INVENTORY_SLOT_ITEM_START; slot < Player.INVENTORY_SLOT_ITEM_END && left > 0; slot++) {
+                Item existing = p.itemAt(0, slot);
+                if (existing == null || existing.entry != itemId || existing.count >= maxStack) {
+                    continue;
+                }
+                int room = maxStack - existing.count;
+                int add = Math.min(room, left);
+                existing.count += add;
+                left -= add;
+                out.add(new StoredItem(existing, add, false));
+            }
+        }
+        while (left > 0) {
+            int bagSlot = firstFreeBackpack(p);
+            if (bagSlot < 0) {
+                break;
+            }
+            int stack = Math.min(left, maxStack);
+            Item it = new Item(nextGuid.getAsLong(), itemId);
+            it.ownerGuid = Guid.low(p.guid);
+            it.bag = 0;
+            it.slot = bagSlot;
+            it.count = stack;
+            if (t != null) {
+                it.displayId = t.displayId;
+                it.quality = t.quality;
+                applyWeaponProto(it, t);
+                it.durability = t.maxDurability;
+            }
+            p.items.put(Guid.low(it.guid), it);
+            p.setGuid(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bagSlot * 2,
+                    Guid.HIGH_ITEM | (Guid.low(it.guid) & 0xFFFFFFFFL));
+            out.add(new StoredItem(it, stack, true));
+            left -= stack;
+        }
+        if (!out.isEmpty()) {
+            p.dirty = true;
+        }
+        return out;
+    }
+
+    private void ensureStackable(int entry, int minStack) {
+        ItemTemplate t = items.get(entry);
+        if (t != null && t.stackable < minStack) {
+            t.stackable = minStack;
+        }
+    }
+
     private void storeCreateItem(Player p, int itemId, int amount, LongSupplier nextGuid) {
         ItemTemplate t = items.get(itemId);
         if (t == null || amount <= 0) {
@@ -3698,14 +3881,9 @@ public final class ObjectMgr {
             addCreateItem(p, t, 1, slot, nextGuid);
             left--;
         }
-        if (left <= 0) {
-            return;
+        if (left > 0) {
+            storeNewItem(p, itemId, left, nextGuid);
         }
-        int bagSlot = firstFreeBackpack(p);
-        if (bagSlot < 0) {
-            return;
-        }
-        addCreateItem(p, t, left, bagSlot, nextGuid);
     }
 
     /** First free viable equipment slot, else the first viable slot (swap). */
@@ -3799,6 +3977,8 @@ public final class ObjectMgr {
         c.spawnDist = s.spawnDist();
         c.movementType = s.movementType();
         c.respawnDelayMs = s.randomRespawnSecs() * 1000;
+        c.corpseDelayMs = Math.min(c.respawnDelayMs * 9 / 10,
+                org.tbc.world.combat.Combat.corpseDelayForRank(c.rank));
         c.startOocMotion();
         return c;
     }
@@ -3839,8 +4019,11 @@ public final class ObjectMgr {
         c.extraFlags = t.extraFlags();
         c.applyTemplate(entry, t.name(), t.display(), t.faction(), t.hp(), t.level());
         c.applyCombatStats(t.minMeleeDmg(), t.maxMeleeDmg(), t.meleeAttackTime(), combatReach(t));
+        applyCreatureMana(c, t);
         c.npcFlags = t.npcFlags();
         c.rank = t.rank();
+        c.corpseDelayMs = Math.min(c.respawnDelayMs * 9 / 10,
+                org.tbc.world.combat.Combat.corpseDelayForRank(c.rank));
         c.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_NPC_FLAGS, t.npcFlags());
         if (factions != null) {
             org.tbc.world.combat.FactionTemplate ft = factions.template(c);
@@ -3858,8 +4041,49 @@ public final class ObjectMgr {
                 c.eventAi = new org.tbc.world.ai.EventAi();
             }
             c.eventAi.load(java.util.List.of(org.tbc.world.ai.EventAi.Script.aggroCast(7164)));
+        } else if (entry == 17849) {
+            // ACID Slain Outrunner — Permanent Feign Death on spawn (in-memory / missing SQL row).
+            if (c.eventAi == null) {
+                c.eventAi = new org.tbc.world.ai.EventAi();
+            }
+            c.eventAi.load(java.util.List.of(org.tbc.world.ai.EventAi.Script.spawnedCast(
+                    SpellEngine.PERMANENT_FEIGN_DEATH,
+                    org.tbc.world.ai.EventAi.CAST_FORCE_TARGET_SELF
+                            | org.tbc.world.ai.EventAi.CAST_AURA_NOT_PRESENT)));
         }
+        fireEventAiSpawned(c);
         return c;
+    }
+
+    /** CreatureEventAI EVENT_T_SPAWNED — must run before the first CREATE so corpse flags are on the wire. */
+    public void fireEventAiSpawned(Creature c) {
+        if (c == null || c.eventAi == null) {
+            return;
+        }
+        c.eventAi.onSpawned(c, (cr, t, spellId) -> {
+            SpellEngine.SpellInfo info = eventAiSpells.info(spellId);
+            if (info != null) {
+                eventAiSpells.apply(cr, t == null ? cr : t, info, 0L);
+            }
+        });
+    }
+
+    /**
+     * CMaNGOS SelectLevel mana: MinLevelMana × PowerMultiplier, UnitClass mage → POWER_MANA.
+     */
+    void applyCreatureMana(Creature c, CreatureTemplate t) {
+        if (c == null) {
+            return;
+        }
+        int mana = creatureMana.getOrDefault(c.entry, 0);
+        if (mana <= 0) {
+            return;
+        }
+        float mult = t == null ? 1f : t.powerMultiplier();
+        if (mult > 0f && mult != 1f) {
+            mana = Math.max(1, Math.round(mana * mult));
+        }
+        c.applyMana(mana);
     }
 
     private float combatReach(CreatureTemplate t) {
@@ -3873,8 +4097,15 @@ public final class ObjectMgr {
         return 1.5f;
     }
 
-    /** CMaNGOS Loot::FillLoot for a corpse. SQL in ObjectMgr; Combat only encodes. */
+    /**
+     * CMaNGOS Loot::FillLoot for a corpse. Negative ChanceOrQuestChance rows are quest-only
+     * (LootStoreItem::needs_quest) and require {@link #hasQuestForItem}.
+     */
     public void fillCorpseLoot(Creature c) {
+        fillCorpseLoot(c, null);
+    }
+
+    public void fillCorpseLoot(Creature c, Player lootOwner) {
         if (c == null) {
             return;
         }
@@ -3897,14 +4128,42 @@ public final class ObjectMgr {
         if (maxG > 0) {
             c.lootGold = minG + java.util.concurrent.ThreadLocalRandom.current().nextInt(maxG - minG + 1);
         }
-        List<LootRow> rows = creatureLoot.get(lootId);
+        fillLootSlots(creatureLoot.get(lootId), lootOwner, c.lootItems);
+    }
+
+    /**
+     * Fill a gameobject chest loot window from gameobject_loot_template (data[1] loot id).
+     * Quest-only rows use the same HasQuestForItem gate as creature loot.
+     */
+    public void fillGameObjectLoot(GameObject go, Player lootOwner) {
+        if (go == null) {
+            return;
+        }
+        go.lootGold = 0;
+        go.lootItems.clear();
+        GameObjectTemplate t = gameObjects.get(go.entry);
+        int lootId = go.entry;
+        if (t != null && t.data.length > 1 && t.data[1] != 0) {
+            lootId = t.data[1];
+        }
+        fillLootSlots(gameObjectLoot.get(lootId), lootOwner, go.lootItems);
+        go.lootable = !go.lootItems.isEmpty() || go.lootGold > 0;
+    }
+
+    private void fillLootSlots(List<LootRow> rows, Player lootOwner,
+                               List<org.tbc.world.loot.LootSlot> into) {
         if (rows == null) {
             return;
         }
         int slot = 0;
         for (LootRow row : rows) {
-            if (row.minCount() < 0 || row.chance() < 0f) {
+            if (row.minCount() < 0) {
                 continue;
+            }
+            if (row.needsQuest()) {
+                if (lootOwner == null || !hasQuestForItem(lootOwner, row.item())) {
+                    continue;
+                }
             }
             if (row.chance() < 100f
                     && java.util.concurrent.ThreadLocalRandom.current().nextFloat() * 100f >= row.chance()) {
@@ -3916,9 +4175,34 @@ public final class ObjectMgr {
             }
             ItemTemplate it = items.get(row.item());
             int display = it != null ? it.displayId : 0;
-            c.lootItems.add(new org.tbc.world.loot.LootSlot(slot, row.item(), Math.max(1, count), display));
+            into.add(new org.tbc.world.loot.LootSlot(slot, row.item(), Math.max(1, count), display));
             slot++;
         }
+    }
+
+    /**
+     * CMaNGOS Player::HasQuestForItem — incomplete quest still needs this ReqItemId.
+     */
+    public boolean hasQuestForItem(Player p, int itemId) {
+        if (p == null || itemId <= 0) {
+            return false;
+        }
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            int questId = p.questLogId[slot];
+            if (questId == 0 || p.questLogState[slot] == Content.QUEST_STATE_COMPLETE) {
+                continue;
+            }
+            QuestTemplate q = quests.get(questId);
+            if (q == null) {
+                continue;
+            }
+            for (int i = 0; i < 4; i++) {
+                if (q.reqItemId(i) == itemId && p.questLogItemCount[slot][i] < q.reqItemCount(i)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** ItemPrototype.h ITEM_SPELLTRIGGER_ON_EQUIP. */

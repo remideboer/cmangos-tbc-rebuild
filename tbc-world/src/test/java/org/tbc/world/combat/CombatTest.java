@@ -132,12 +132,76 @@ class CombatTest {
     void creatureDiedWhenUntaggedSpellKillShouldTagLootAndScheduleRespawn() {
         c.setHealth(0);
         c.respawnDelayMs = 120_000;
+        c.corpseDelayMs = 300_000;
         combat.creatureDied(c, p, 5_000, null);
         assertEquals(p.guid, c.taggedBy);
         assertTrue(c.lootable);
         assertEquals(125_000, c.respawnAtMs);
+        // Cap corpse at 90% of respawn (CMaNGOS LoadFromDB), not the full 300s rank default.
+        assertEquals(5_000 + 108_000, c.corpseExpireAtMs);
         assertFalse(c.inCombat);
         assertNotNull(combat.lootResponse(p, c));
+    }
+
+    /**
+     * TP-SL06-026 — Creature::SetDeathState JUST_DIED schedules m_corpseExpirationTime separately from respawn.
+     */
+    @Test
+    void creatureDiedWhenNormalRankShouldScheduleCorpseExpireAtCorpseDelay() {
+        c.setHealth(0);
+        c.respawnDelayMs = 600_000;
+        c.corpseDelayMs = Combat.CORPSE_DECAY_NORMAL_MS;
+        combat.creatureDied(c, p, 1_000, null);
+        assertEquals(1_000 + Combat.CORPSE_DECAY_NORMAL_MS, c.corpseExpireAtMs);
+        assertEquals(601_000, c.respawnAtMs);
+        assertTrue(c.corpseExpireAtMs < c.respawnAtMs);
+    }
+
+    /** TP-SL06-026 — SetLootStatus LOOTED → ReduceCorpseDecayTimer (MINIMUM_LOOTING_TIME = 2 min). */
+    @Test
+    void reduceCorpseDecayWhenLootEmptyShouldAccelerateToTwoMinutes() {
+        c.setHealth(0);
+        c.corpseExpireAtMs = 1_000 + 300_000;
+        combat.reduceCorpseDecayTimer(c, 1_000);
+        assertEquals(1_000 + Combat.MINIMUM_LOOTING_TIME_MS, c.corpseExpireAtMs);
+        combat.reduceCorpseDecayTimer(c, 1_000);
+        assertEquals(1_000 + Combat.MINIMUM_LOOTING_TIME_MS, c.corpseExpireAtMs);
+        combat.reduceCorpseDecayTimer(null, 1_000);
+        c.corpseRemoved = true;
+        c.corpseExpireAtMs = 999_999;
+        combat.reduceCorpseDecayTimer(c, 1_000);
+        assertEquals(999_999, c.corpseExpireAtMs);
+    }
+
+    @Test
+    void corpseDelayForRankWhenEachEliteTypeShouldMatchConfigDefaults() {
+        assertEquals(Combat.CORPSE_DECAY_NORMAL_MS, Combat.corpseDelayForRank(0));
+        assertEquals(Combat.CORPSE_DECAY_ELITE_MS, Combat.corpseDelayForRank(1));
+        assertEquals(Combat.CORPSE_DECAY_RAREELITE_MS, Combat.corpseDelayForRank(2));
+        assertEquals(Combat.CORPSE_DECAY_WORLDBOSS_MS, Combat.corpseDelayForRank(3));
+        assertEquals(Combat.CORPSE_DECAY_RARE_MS, Combat.corpseDelayForRank(4));
+        assertEquals(Combat.CORPSE_DECAY_NORMAL_MS, Combat.corpseDelayForRank(99));
+    }
+
+    /** TP-SL06-026 — Creature::RemoveCorpse: DEAD wait, loot cleared, relocated to spawn (client DESTROY elsewhere). */
+    @Test
+    void removeCorpseWhenExpiredShouldClearLootAndMarkRemoved() {
+        c.setHealth(0);
+        c.lootable = true;
+        c.lootGold = 5;
+        c.lootItems.add(new LootSlot(0, 25, 1, 1));
+        c.relocate(40, 40, 0, 0);
+        c.corpseExpireAtMs = 50;
+        combat.removeCorpse(c);
+        assertTrue(c.corpseRemoved);
+        assertEquals(0, c.corpseExpireAtMs);
+        assertFalse(c.lootable);
+        assertEquals(0, c.lootGold);
+        assertTrue(c.lootItems.isEmpty());
+        assertEquals(0f, c.x, 0.01f);
+        assertEquals(0f, c.y, 0.01f);
+        combat.removeCorpse(c);
+        combat.removeCorpse(null);
     }
 
     /** TP-SL06-015 — BuildValuesUpdate: LOOTABLE only on a corpse and only for a viewer who may loot it. */
@@ -593,6 +657,66 @@ class CombatTest {
             p.items.put(2000 + s, filler);
         }
         assertNull(combat.takeItem(p, c, 0, 99));
+        assertEquals(1, c.lootItems.size());
+    }
+
+    @Test
+    void takeItemWhenMgrShouldMergeStackableLootOntoExistingStack() {
+        org.tbc.world.content.ObjectMgr mgr = new org.tbc.world.content.ObjectMgr();
+        mgr.load(null, null);
+        c.lootable = true;
+        c.taggedBy = p.guid;
+        c.lootItems.add(new LootSlot(0, org.tbc.world.content.Content.ITEM_TOUGH_HUNK_OF_BREAD, 3, 1));
+        long[] guids = {50};
+        List<org.tbc.world.content.ObjectMgr.StoredItem> first =
+                combat.takeItem(p, c, 0, () -> guids[0]++, mgr);
+        assertEquals(1, first.size());
+        assertTrue(first.get(0).created());
+        assertEquals(3, first.get(0).item().count);
+        c.lootable = true;
+        c.lootItems.add(new LootSlot(0, org.tbc.world.content.Content.ITEM_TOUGH_HUNK_OF_BREAD, 2, 1));
+        List<org.tbc.world.content.ObjectMgr.StoredItem> second =
+                combat.takeItem(p, c, 0, () -> guids[0]++, mgr);
+        assertEquals(1, second.size());
+        assertFalse(second.get(0).created());
+        assertEquals(5, second.get(0).item().count);
+        assertEquals(1, p.items.size());
+    }
+
+    @Test
+    void takeItemWhenMgrAndBagFullShouldLeaveLoot() {
+        org.tbc.world.content.ObjectMgr mgr = new org.tbc.world.content.ObjectMgr();
+        mgr.load(null, null);
+        c.lootable = true;
+        c.taggedBy = p.guid;
+        c.lootItems.add(new LootSlot(0, org.tbc.world.content.Content.ITEM_TOUGH_HUNK_OF_BREAD, 1, 1));
+        for (int s = Player.INVENTORY_SLOT_ITEM_START; s < Player.INVENTORY_SLOT_ITEM_END; s++) {
+            Item filler = new Item(1000 + s, org.tbc.world.content.Content.ITEM_WORN_SHORTSWORD);
+            filler.slot = s;
+            filler.count = 1;
+            p.items.put((int) filler.guid, filler);
+        }
+        assertTrue(combat.takeItem(p, c, 0, () -> 9L, mgr).isEmpty());
+        assertEquals(1, c.lootItems.size());
+    }
+
+    @Test
+    void takeItemWhenMgrNullSupplierShouldNoOp() {
+        org.tbc.world.content.ObjectMgr mgr = new org.tbc.world.content.ObjectMgr();
+        c.lootable = true;
+        c.taggedBy = p.guid;
+        c.lootItems.add(new LootSlot(0, org.tbc.world.content.Content.ITEM_TOUGH_HUNK_OF_BREAD, 1, 1));
+        assertTrue(combat.takeItem(p, c, 0, null, mgr).isEmpty());
+        assertEquals(1, c.lootItems.size());
+    }
+
+    @Test
+    void takeItemWhenMgrAndCannotLootShouldNoOp() {
+        org.tbc.world.content.ObjectMgr mgr = new org.tbc.world.content.ObjectMgr();
+        mgr.load(null, null);
+        c.lootable = false;
+        c.lootItems.add(new LootSlot(0, org.tbc.world.content.Content.ITEM_TOUGH_HUNK_OF_BREAD, 1, 1));
+        assertTrue(combat.takeItem(p, c, 0, () -> 9L, mgr).isEmpty());
         assertEquals(1, c.lootItems.size());
     }
 

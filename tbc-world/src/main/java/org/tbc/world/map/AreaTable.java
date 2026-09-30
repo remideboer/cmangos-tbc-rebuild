@@ -22,6 +22,10 @@ public final class AreaTable {
     public static final int ELWYNN_FOREST = 12;
     /** AreaTable.dbc Dun Morogh. */
     public static final int DUN_MOROGH = 1;
+    /** AreaTable.dbc Eversong Woods (Blood Elf continent zone). */
+    public static final int EVERSONG_WOODS = 3430;
+    /** AreaTable.dbc Sunstrider Isle — playercreateinfo zone for race 10; parent Eversong. */
+    public static final int SUNSTRIDER_ISLE = 3431;
 
     public record Entry(int id, int parentZone, int exploreFlag) {
         int zoneOrSelf() {
@@ -34,9 +38,12 @@ public final class AreaTable {
 
     public static AreaTable seeded() {
         AreaTable t = new AreaTable();
-        t.add(ELWYNN_FOREST, 0, 0);
-        t.add(GOLDSHIRE, ELWYNN_FOREST, 0);
-        t.add(DUN_MOROGH, 0, 0);
+        // exploreFlag placeholders until AreaTable.dbc loads (m_AreaBit); enable ZONEUPDATE uncover.
+        t.add(ELWYNN_FOREST, 0, 10);
+        t.add(GOLDSHIRE, ELWYNN_FOREST, 11);
+        t.add(DUN_MOROGH, 0, 1);
+        t.add(EVERSONG_WOODS, 0, 0);
+        t.add(SUNSTRIDER_ISLE, EVERSONG_WOODS, 0);
         return t;
     }
 
@@ -51,6 +58,15 @@ public final class AreaTable {
     public int areaId(int flagOrId) {
         Entry e = lookup(flagOrId);
         return e == null ? 0 : e.id;
+    }
+
+    /** AreaTable.dbc exploreFlag (m_AreaBit) for an area id — 0 if unknown. */
+    public int exploreFlag(int areaId) {
+        if (areaId == 0) {
+            return 0;
+        }
+        Entry e = byId.get(areaId);
+        return e == null ? 0 : e.exploreFlag;
     }
 
     public int zoneId(int flagOrId) {

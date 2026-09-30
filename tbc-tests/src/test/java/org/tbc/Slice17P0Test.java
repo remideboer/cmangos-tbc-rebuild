@@ -110,6 +110,37 @@ class Slice17P0Test {
         assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
     }
 
+    /**
+     * TP-SL17-019 — Die on Sunstrider Isle (createinfo zone 3431): resolve parent Eversong 3430
+     * → world_safe_locs 912, not Horde continent default / void.
+     */
+    @Test
+    void tpSl17RepopWhenSunstriderIsleShouldUseNearestEversongSpiritHealer() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "SinThoren");
+        Player p = client.session().player();
+        world.map(p.mapId, p.instanceId).remove(p);
+        p.mapId = 530;
+        p.zoneId = 3431;
+        p.zoneClient = 0;
+        p.team = org.tbc.world.map.GraveyardManager.HORDE;
+        p.relocate(10349.6f, -6357.29f, 33.4026f, 5.31605f);
+        world.map(530, 0).add(p);
+        p.setHealth(0);
+        client.clear();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
+        assertEquals(530, WowClientDouble.u32le(loc, 0));
+        assertEquals(10458.5f, WowClientDouble.floatle(loc, 4), 0.5f);
+        assertEquals(-6364.61f, WowClientDouble.floatle(loc, 8), 0.5f);
+        assertEquals(530, p.mapId);
+        assertEquals(10458.5f, p.x, 0.5f);
+        assertTrue(p.ghost);
+        assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
+    }
+
     @Test
     void tpSl17RepopWhenDunMoroghShouldUseClosestGraveyard() {
         World world = World.inMemory();

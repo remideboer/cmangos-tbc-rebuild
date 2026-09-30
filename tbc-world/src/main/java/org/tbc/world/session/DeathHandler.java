@@ -133,8 +133,18 @@ public final class DeathHandler {
             areaId = world.areas.areaId(p.zoneClient);
             zoneId = world.areas.zoneId(p.zoneClient);
         }
-        if (zoneId == 0) {
-            zoneId = p.zoneId;
+        // createinfo.zone is often a sub-area (Sunstrider 3431); resolve parent for AREALINK.
+        if (zoneId == 0 && p.zoneId != 0) {
+            zoneId = world.areas.zoneId(p.zoneId);
+            if (zoneId == 0) {
+                zoneId = p.zoneId;
+            }
+            if (areaId == 0) {
+                areaId = world.areas.areaId(p.zoneId);
+                if (areaId == 0) {
+                    areaId = p.zoneId;
+                }
+            }
         }
         GraveyardManager.Loc gy = world.graveyards.closest(p.mapId, deathX, deathY, deathZ, p.team,
                 areaId, zoneId);

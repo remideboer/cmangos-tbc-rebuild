@@ -155,4 +155,15 @@ class PlayerPersistTest {
         Player d = PlayerPersist.copy(src);
         assertEquals(0x07, (d.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_BYTES) >>> 16) & 0xFF);
     }
+
+    @Test
+    void copyWhenExploredZonesSetShouldKeepFogBits() {
+        Player src = new Player();
+        src.guid = 17;
+        src.applyCreateFields();
+        int field = src.exploreAreaFlag(44);
+        assertTrue(field >= 0);
+        Player d = PlayerPersist.copy(src);
+        assertEquals(src.getInt(field), d.getInt(field));
+    }
 }

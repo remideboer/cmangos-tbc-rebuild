@@ -50,13 +50,13 @@ public final class TrainerService {
                 }
             }
         }
-        if (t.primaryProfessionFirstRank() && primaryProfessionCount(p) >= Player.MAX_PRIMARY_TRADE_SKILL) {
+        if (t.primaryProfessionFirstRank() && primaryProfessionCount(p) >= PRIMARY_PROFESSIONS.length) {
             return TrainerHandler.TRAINER_SPELL_RED;
         }
         return TrainerHandler.TRAINER_SPELL_GREEN;
     }
 
-    /** CMaNGOS GetFreePrimaryProfessionPoints — occupied primary trade skills. */
+    /** Occupied primary trade skills (SharedDefines profession category). */
     public static int primaryProfessionCount(Player p) {
         int n = 0;
         for (int skill : PRIMARY_PROFESSIONS) {

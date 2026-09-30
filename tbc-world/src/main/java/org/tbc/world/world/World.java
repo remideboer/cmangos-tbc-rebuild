@@ -128,7 +128,10 @@ public final class World implements Runnable {
 
     public World(Conf conf, DbPool login, DbPool worldDb, DbPool charsDb) {
         this.conf = conf;
-        this.combat = conf == null ? new Combat(MeleeTable.alwaysHit()) : new Combat();
+        // In-memory: always-hit melee + skill chance always succeeds (deterministic skill-ups in tests).
+        this.combat = conf == null
+                ? new Combat(MeleeTable.alwaysHit(), () -> 0.0)
+                : new Combat();
         this.spells = conf == null ? SpellEngine.alwaysHit() : new SpellEngine();
         this.login = login;
         this.worldDb = worldDb;
@@ -141,6 +144,7 @@ public final class World implements Runnable {
         this.areas.loadFromDataDir(dataDir);
         this.graveyards = GraveyardManager.seeded();
         this.objectMgr.load(worldDb, scripts, dataDir);
+        this.spells.skillLineAbilities = this.objectMgr.skillLineAbilities;
         SpellTemplateLoader.load(worldDb, dataDir, spells);
         this.factions = Factions.seeded();
         this.factions.loadFromDataDir(dataDir);
@@ -537,6 +541,22 @@ public final class World implements Runnable {
         loser.completeDuel();
     }
 
+    private void sendDirtySkillValues(Player p) {
+        if (p.session == null) {
+            return;
+        }
+        List<Integer> fields = p.takeDirtySkillFields();
+        if (fields.isEmpty()) {
+            return;
+        }
+        int[] arr = new int[fields.size()];
+        for (int i = 0; i < fields.size(); i++) {
+            arr[i] = fields.get(i);
+        }
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, arr));
+        p.session.send(pkt.opcode(), pkt.payload());
+    }
+
     private void applyMeleeHit(Player p, Creature c, boolean offhand) {
         GameMap hitMap = map(p.mapId, p.instanceId);
         boolean nextMeleeSpell = !offhand && p.hasNextMeleeSpellQueued();
@@ -565,6 +585,7 @@ public final class World implements Runnable {
             } else {
                 p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(p, c, r, false, offhand));
             }
+            sendDirtySkillValues(p);
             if (c.alive()) {
                 var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
                 p.session.send(hp.opcode(), hp.payload());
@@ -596,7 +617,7 @@ public final class World implements Runnable {
         } else {
             content.killedMonsterCredit(tapper, m, c, (op, b) -> { });
         }
-        objectMgr.fillCorpseLoot(c);
+        objectMgr.fillCorpseLoot(c, tapper);
         byte[] stop = c.motion.stop(c);
         if (stop != null) {
             if (p.session != null) {
@@ -778,6 +799,7 @@ public final class World implements Runnable {
                 pl.session.send(Opcodes.SMSG_ATTACKSTOP, stop);
             }
         }
+        sendDirtySkillValues(p);
         // Unit::Kill → SetDeathState(JUST_DIED) → Player::Update KillPlayer.
         // Creatures that hated the victim EnterEvadeMode / MoveTargetedHome (not idle on the corpse).
         if (wasAlive && !p.alive() && p.session != null) {
@@ -843,13 +865,23 @@ public final class World implements Runnable {
             // CMaNGOS Map::Update → VisitNearbyCellsOf(player), not every continent spawn.
             for (Creature c : m.creaturesNearPlayers(GameMap.VISIBILITY)) {
                 if (!c.alive()) {
+                    if (!c.corpseRemoved && c.corpseExpireAtMs > 0 && nowMs() >= c.corpseExpireAtMs) {
+                        combat.removeCorpse(c);
+                        destroyCreatureObject(m, c);
+                    }
                     if (c.respawnAtMs > 0 && nowMs() >= c.respawnAtMs) {
+                        boolean wasRemoved = c.corpseRemoved;
                         combat.respawn(c);
-                        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
-                            if (pl.session != null) {
-                                var hp = UpdateBuilder.maybeCompress(
-                                        UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
-                                pl.session.send(hp.opcode(), hp.payload());
+                        objectMgr.fireEventAiSpawned(c);
+                        if (wasRemoved) {
+                            createCreatureObject(m, c);
+                        } else {
+                            for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+                                if (pl.session != null) {
+                                    var hp = UpdateBuilder.maybeCompress(
+                                            UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
+                                    pl.session.send(hp.opcode(), hp.payload());
+                                }
                             }
                         }
                     }
@@ -1118,6 +1150,28 @@ public final class World implements Runnable {
     private void sendDbScriptCast(GameMap m, Unit src, Unit t, int spell) {
         if (src instanceof Creature cr) {
             sendEventAiCast(m, cr, t, spell);
+        }
+    }
+
+    /** Creature::RemoveCorpse client path — SMSG_DESTROY_OBJECT and drop from seen. */
+    private void destroyCreatureObject(GameMap m, Creature c) {
+        WowBuffer d = new WowBuffer(8);
+        d.putU64(c.guid);
+        byte[] pkt = d.array();
+        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+            if (pl.session != null) {
+                pl.session.destroyObject(c.guid, pkt);
+            }
+        }
+    }
+
+    /** After respawn from DEAD — CREATE_OBJECT for nearby (was destroyed on corpse expire). */
+    private void createCreatureObject(GameMap m, Creature c) {
+        int t = (int) nowMs();
+        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
+            if (pl.session != null) {
+                pl.session.revealCreature(c, t);
+            }
         }
     }
 

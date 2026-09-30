@@ -76,6 +76,11 @@ public final class EventAiStore {
         return List.copyOf(entryRows);
     }
 
+    /** Test / in-memory seed when creature_ai_scripts is not loaded from MySQL. */
+    public void put(int entry, EventAi.Script... scripts) {
+        byEntry.put(entry, List.of(scripts));
+    }
+
     private static EventAi.Action mapAction(int type, int p1, int p2, int p3) {
         return switch (type) {
             case EventAi.ACTION_NONE,

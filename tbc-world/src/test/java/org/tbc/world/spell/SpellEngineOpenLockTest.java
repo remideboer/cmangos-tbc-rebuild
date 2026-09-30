@@ -35,6 +35,30 @@ class SpellEngineOpenLockTest {
     }
 
     @Test
+    void applyOpenLockWhenHerbalismLockTypeShouldRaiseHerbalism() {
+        SpellEngine eng = SpellEngine.alwaysHit();
+        Player caster = new Player();
+        caster.learnSkill(Content.SKILL_HERBALISM, 1, 75, 1);
+        Item herb = new Item(9, Content.ITEM_DENTED_CRATE);
+        caster.items.put(9, herb);
+        caster.setSpellItemTarget(herb);
+        SpellEngine.SpellInfo opening = new SpellEngine.SpellInfo(
+                2366, SpellEngine.EFFECT_OPEN_LOCK, 0, 0, 0, 0, 0, 0f, SpellEngine.LOCKTYPE_HERBALISM);
+        eng.apply(caster, new Creature(), opening);
+        assertEquals(2, caster.skillValue(Content.SKILL_HERBALISM));
+        assertEquals(Content.ITEM_DYNFLAG_UNLOCKED, herb.flags & Content.ITEM_DYNFLAG_UNLOCKED);
+    }
+
+    @Test
+    void skillForLockTypeShouldMapPickMineFishAndUnknown() {
+        assertEquals(Content.SKILL_LOCKPICKING, SpellEngine.skillForLockType(SpellEngine.LOCKTYPE_PICKLOCK));
+        assertEquals(Content.SKILL_MINING, SpellEngine.skillForLockType(SpellEngine.LOCKTYPE_MINING));
+        assertEquals(Content.SKILL_FISHING, SpellEngine.skillForLockType(SpellEngine.LOCKTYPE_FISHING));
+        assertEquals(0, SpellEngine.skillForLockType(0));
+        assertEquals(0, SpellEngine.skillForLockType(99));
+    }
+
+    @Test
     void applyOpenLockWhenMissingItemOrNonPlayerShouldNoOp() {
         SpellEngine eng = new SpellEngine();
         Player caster = new Player();

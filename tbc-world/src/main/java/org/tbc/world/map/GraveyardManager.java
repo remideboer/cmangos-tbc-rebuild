@@ -50,6 +50,16 @@ public final class GraveyardManager {
         g.addLink(105, AreaTable.ELWYNN_FOREST, AREALINK, ALLIANCE);
         g.addLink(106, AreaTable.ELWYNN_FOREST, AREALINK, ALLIANCE);
         g.addLink(854, AreaTable.ELWYNN_FOREST, AREALINK, TEAM_BOTH);
+        // tbc-db Eversong Woods (3430): Sunstrider Isle GY 912 is nearest for createinfo zone 3431.
+        g.addLoc(new Loc(912, 530, 10458.5f, -6364.61f, 39.7907f, 5.49779f));
+        g.addLoc(new Loc(914, 530, 8936.56f, -7439.9f, 82.0856f, 5.49779f));
+        g.addLoc(new Loc(921, 530, 9407f, -6847.67f, 16f, 5.70723f));
+        g.addLoc(new Loc(922, 530, 8709.46f, -6671.76f, 70.336f, 3.14159f));
+        g.addLink(912, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
+        g.addLink(914, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
+        g.addLink(921, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
+        g.addLink(921, 3487, AREALINK, TEAM_BOTH); // Silvermoon City
+        g.addLink(922, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
         return g;
     }
 

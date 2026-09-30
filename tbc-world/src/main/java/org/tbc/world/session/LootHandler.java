@@ -2,6 +2,7 @@ package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
+import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -10,6 +11,8 @@ import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
+
+import java.util.List;
 
 /** Corpse loot take, group loot method and rolls. Layout: spec/03-protocol/packets/loot.md */
 public final class LootHandler {
@@ -46,24 +49,42 @@ public final class LootHandler {
         int slot = in.getU8();
         Player p = s.player();
         Creature c = world.map(p.mapId, p.instanceId).creatures.get(p.lootGuid);
-        Item it = world.combat.takeItem(p, c, slot, world.nextItemGuid());
-        if (it == null) {
+        List<ObjectMgr.StoredItem> stored =
+                world.combat.takeItem(p, c, slot, world::nextItemGuid, world.objectMgr);
+        if (stored.isEmpty()) {
             return;
         }
+        Item it = stored.get(0).item();
+        int added = 0;
         int total = 0;
+        for (ObjectMgr.StoredItem st : stored) {
+            added += st.added();
+        }
         for (Item x : p.items.values()) {
             if (x.entry == it.entry) {
                 total += x.count;
             }
         }
-        int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
-        var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(it, p.guid));
-        s.send(created.opcode(), created.payload());
-        var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
-        s.send(inv.opcode(), inv.payload());
+        boolean anyCreated = false;
+        for (ObjectMgr.StoredItem st : stored) {
+            if (st.created()) {
+                anyCreated = true;
+                var created = UpdateBuilder.maybeCompress(UpdateBuilder.createItem(st.item(), p.guid));
+                s.send(created.opcode(), created.payload());
+                int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + st.item().slot * 2;
+                var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
+                s.send(inv.opcode(), inv.payload());
+            } else {
+                var stack = UpdateBuilder.maybeCompress(
+                        UpdateBuilder.valuesItem(st.item(), UpdateFields.ITEM_FIELD_STACK_COUNT));
+                s.send(stack.opcode(), stack.payload());
+            }
+        }
         s.send(Opcodes.SMSG_LOOT_REMOVED, world.combat.encodeLootRemoved(slot));
-        s.send(Opcodes.SMSG_ITEM_PUSH_RESULT, Content.encodeLootPush(p, it, total));
-        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId), it.entry, it.count, s::send);
+        int pushSlot = anyCreated ? stored.get(stored.size() - 1).item().slot : 0xFFFFFFFF;
+        s.send(Opcodes.SMSG_ITEM_PUSH_RESULT,
+                Content.encodePush(p, it, added, 0, total, pushSlot));
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId), it.entry, added, s::send);
         maybeReleaseEmptyCorpse(s, world, p, c);
     }
 
@@ -88,6 +109,8 @@ public final class LootHandler {
         p.lootGuid = 0;
         s.send(Opcodes.SMSG_LOOT_RELEASE_RESPONSE, world.combat.encodeLootRelease(c.guid));
         world.sendLootableFlags(c, p.instanceId);
+        // SetLootStatus(LOOTED) without skinning → ReduceCorpseDecayTimer (2 min).
+        world.combat.reduceCorpseDecayTimer(c, world.nowMs());
     }
 
     public static void maybeStartRoll(Player p, Creature c, long guid) {

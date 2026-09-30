@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.tbc.common.Codes;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
+import org.tbc.world.content.SkillLineAbility;
 import org.tbc.world.combat.MainhandWeaponStats;
 import org.tbc.world.entity.Corpse;
 import org.tbc.world.entity.Creature;
@@ -32,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
+import java.util.function.IntSupplier;
 
 /** CMSG_CAST_SPELL + SMSG_CAST_RESULT 0x130. SPELL_CAST_OK 0xFF is never sent. */
 public final class SpellEngine {
@@ -237,6 +239,8 @@ public final class SpellEngine {
     public static final int SAFE_FALL = 1860;
     /** Feign Death — Spell.dbc 5384; APPLY_AURA FEIGN_DEATH. */
     public static final int FEIGN_DEATH = 5384;
+    /** Permanent Feign Death — Spell.dbc 29266; corpse NPCs (Slain Outrunner, etc.). */
+    public static final int PERMANENT_FEIGN_DEATH = 29266;
     /** Sayge's Dark Fortune of Strength — Spell.dbc 23735; MOD_PERCENT_STAT +10% strength. */
     public static final int SAYGES_STRENGTH = 23735;
     /** Recklessness — Spell.dbc 1719 Effect 1; MOD_CRIT_PERCENT +100% (EquippedItemClass −1). */
@@ -431,6 +435,12 @@ public final class SpellEngine {
     private final Map<Integer, SpellInfo> spells = new HashMap<>();
     private final DoubleSupplier missRoll;
     private final AuraEngine auras = new AuraEngine();
+    /** SkillLineAbility bands for UpdateCraftSkill after CREATE_ITEM. */
+    public SkillLineAbility skillLineAbilities = SkillLineAbility.seeded();
+    /** irand(1,1000) for UpdateSkillPro; in-memory World forces success. */
+    public IntSupplier craftSkillRoll = () -> ThreadLocalRandom.current().nextInt(1, 1001);
+    /** Same roll for UpdateGatherSkill after skinning / open-lock gather. */
+    public IntSupplier gatherSkillRoll = () -> ThreadLocalRandom.current().nextInt(1, 1001);
 
     public SpellEngine() {
         this(() -> ThreadLocalRandom.current().nextDouble());
@@ -503,6 +513,8 @@ public final class SpellEngine {
         spells.put(SAFE_FALL, new SpellInfo(SAFE_FALL, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_SAFE_FALL, 0, 0, 17, 17, 0f));
         spells.put(FEIGN_DEATH, new SpellInfo(FEIGN_DEATH, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_FEIGN_DEATH, 0, 0, 0, 0, 0f));
+        spells.put(PERMANENT_FEIGN_DEATH, new SpellInfo(PERMANENT_FEIGN_DEATH, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_FEIGN_DEATH, 0, 0, 0, 0, 0f));
         spells.put(SAYGES_STRENGTH, new SpellInfo(SAYGES_STRENGTH, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_PERCENT_STAT, 0, 0, 10, 10, 0f, 0));
@@ -605,7 +617,10 @@ public final class SpellEngine {
     }
 
     public static SpellEngine alwaysHit() {
-        return new SpellEngine(() -> 1.0);
+        SpellEngine eng = new SpellEngine(() -> 1.0);
+        eng.craftSkillRoll = () -> 1;
+        eng.gatherSkillRoll = () -> 1;
+        return eng;
     }
 
     public SpellInfo info(int id) {
@@ -1400,12 +1415,12 @@ public final class SpellEngine {
         }
         if (sp.effect == EFFECT_OPEN_LOCK) {
             Item item = caster instanceof Player p ? p.spellItemTarget() : null;
-            openLock(caster, item);
+            openLock(caster, item, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_OPEN_LOCK_ITEM) {
             Item item = caster instanceof Player p ? p.spellItemTarget() : null;
-            openLock(caster, item);
+            openLock(caster, item, sp.misc());
             return 0;
         }
         if (sp.effect == EFFECT_SUMMON_CHANGE_ITEM) {
@@ -1611,7 +1626,10 @@ public final class SpellEngine {
         if (sp.effect == EFFECT_CREATE_ITEM) {
             int count = Math.max(0, (sp.minDmg + sp.maxDmg) / 2);
             long guid = target instanceof Player p ? p.items.size() + 1L : 0;
-            createItem(target, sp.misc(), count, guid);
+            Item created = createItem(target, sp.misc(), count, guid);
+            if (created != null && caster instanceof Player p) {
+                p.updateCraftSkill(sp.id, skillLineAbilities, craftSkillRoll);
+            }
             return 0;
         }
         if (sp.effect == EFFECT_TRIGGER_SPELL) {
@@ -2174,13 +2192,39 @@ public final class SpellEngine {
     /**
      * Effect 33 / 59 — SPELL_EFFECT_OPEN_LOCK / OPEN_LOCK_ITEM. CMaNGOS player caster, itemTarget.
      * Opening 3365 / 3366. ITEM_DYNFLAG_UNLOCKED; loot.md clientLootType PICKPOCKETING (2).
+     * {@code lockType} is EffectMiscValue (SharedDefines LockType) for gather skill-up.
      */
     public void openLock(Unit caster, Item item) {
+        openLock(caster, item, 0);
+    }
+
+    public void openLock(Unit caster, Item item, int lockType) {
         if (!(caster instanceof Player p) || item == null) {
             return;
         }
         item.flags |= Content.ITEM_DYNFLAG_UNLOCKED;
+        int skillId = skillForLockType(lockType);
+        int pure = skillId == 0 ? 0 : p.skillValue(skillId);
+        if (pure > 0) {
+            p.updateGatherSkill(skillId, pure, 1, 1, gatherSkillRoll);
+        }
         p.showOpenLockLoot(item.guid);
+    }
+
+    /** SharedDefines.h SkillByLockType. */
+    public static final int LOCKTYPE_PICKLOCK = 1;
+    public static final int LOCKTYPE_HERBALISM = 2;
+    public static final int LOCKTYPE_MINING = 3;
+    public static final int LOCKTYPE_FISHING = 19;
+
+    static int skillForLockType(int lockType) {
+        return switch (lockType) {
+            case LOCKTYPE_PICKLOCK -> Content.SKILL_LOCKPICKING;
+            case LOCKTYPE_HERBALISM -> Content.SKILL_HERBALISM;
+            case LOCKTYPE_MINING -> Content.SKILL_MINING;
+            case LOCKTYPE_FISHING -> Content.SKILL_FISHING;
+            default -> 0;
+        };
     }
 
     /**
@@ -2352,12 +2396,20 @@ public final class SpellEngine {
     /**
      * Effect 95 — SPELL_EFFECT_SKINNING. CMaNGOS player caster, creature target.
      * Skinning 8613. loot.md clientLootType PICKPOCKETING (2). Clears UNIT_FLAG_SKINNABLE.
+     * UpdateGatherSkill once when loot is first opened (skill known).
      */
     public void skinning(Unit caster, Unit target) {
         if (!(caster instanceof Player p) || !(target instanceof Creature c)) {
             return;
         }
         c.clearSkinnableFlag();
+        int skill = Content.SKILL_SKINNING;
+        int pure = p.skillValue(skill);
+        if (pure > 0) {
+            int reqValue = c.level < 10 ? 0 : c.level < 20 ? (c.level - 10) * 10 : c.level * 5;
+            int mult = c.rank > 0 ? 2 : 1;
+            p.updateGatherSkill(skill, pure, reqValue, mult, gatherSkillRoll);
+        }
         p.showSkinningLoot(c.guid);
     }
 

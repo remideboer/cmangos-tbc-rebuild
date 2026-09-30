@@ -432,7 +432,10 @@ public final class WorldSession {
             case Opcodes.CMSG_WHOIS -> QueryHandler.whois(this, world, in);
             case Opcodes.CMSG_TIME_SYNC_RESP -> in.skip(Math.min(8, in.remaining()));
             case Opcodes.CMSG_SET_ACTIVE_MOVER -> in.getU64();
-            case Opcodes.CMSG_ZONEUPDATE -> player.zoneClient = in.getU32();
+            case Opcodes.CMSG_ZONEUPDATE -> {
+                player.zoneClient = in.getU32();
+                maybeExplore(world);
+            }
             case Opcodes.CMSG_CONTACT_LIST -> SocialHandler.contactList(this, world);
             case Opcodes.CMSG_SET_ACTION_BUTTON -> {
                 int button = in.getU8();
@@ -981,6 +984,7 @@ public final class WorldSession {
         p.nextSaveMs = world.jitteredFirstSaveMs();
         p.nextTimeSyncMs = world.nowMs() + 5_000;
         WeatherHandler.sendSnapshot(this, world, p.zoneId);
+        maybeExplore(world);
     }
 
     private void handleMove(World world, int opcode, WowBuffer in, boolean ack) {
@@ -1003,7 +1007,31 @@ public final class WorldSession {
         if (player.duelOpponent != null && player.distance2d(player.duelOpponent) > 50) {
             send(Opcodes.SMSG_DUEL_OUTOFBOUNDS, new byte[0]);
         }
+        maybeExplore(world);
         revealNearby(world);
+    }
+
+    /**
+     * CMaNGOS CheckAreaExploreAndOutdoor — uncover map fog via PLAYER_EXPLORED_ZONES VALUES.
+     * Prefer Terrain grid area flag; fall back to AreaTable.exploreFlag for CMSG_ZONEUPDATE area id.
+     */
+    private void maybeExplore(World world) {
+        if (player == null || !player.alive() || player.ghost) {
+            return;
+        }
+        int flag = world.terrain.area(player.mapId, player.x, player.y);
+        if (flag == 0) {
+            flag = world.areas.exploreFlag(player.zoneClient);
+        }
+        if (flag == 0) {
+            flag = world.areas.exploreFlag(player.areaId);
+        }
+        int field = player.exploreAreaFlag(flag);
+        if (field < 0) {
+            return;
+        }
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, field));
+        send(upd.opcode(), upd.payload());
     }
 
     private void handleWorldportAck(World world) {
@@ -1025,6 +1053,21 @@ public final class WorldSession {
 
     public void forgetSeen() {
         seen.clear();
+    }
+
+    /** Creature::RemoveCorpse — out of client view until respawn CREATE. */
+    public void destroyObject(long guid, byte[] destroyPayload) {
+        seen.remove(guid);
+        send(Opcodes.SMSG_DESTROY_OBJECT, destroyPayload);
+    }
+
+    /** Map add / respawn after RemoveCorpse. */
+    public void revealCreature(Creature c, int serverTime) {
+        if (c == null || c.corpseRemoved || !seen.add(c.guid)) {
+            return;
+        }
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(c, false, serverTime));
+        send(pkt.opcode(), pkt.payload());
     }
 
     /** Unit::isSpiritService — healer or guide. */
@@ -1056,6 +1099,9 @@ public final class WorldSession {
         GameMap map = world.map(player.mapId, player.instanceId);
         int t = (int) world.nowMs();
         for (Creature c : map.nearbyCreatures(player, GameMap.VISIBILITY)) {
+            if (c.corpseRemoved) {
+                continue;
+            }
             if (isSpiritService(c) && player.alive() && !player.ghost) {
                 continue;
             }
@@ -1938,11 +1984,11 @@ public final class WorldSession {
     }
 
     private void handleBuy(World world, WowBuffer in) {
-        world.content.buy(player, world.map(player.mapId, player.instanceId), in, false, world.nextItemGuid(), this::send);
+        world.content.buy(player, world.map(player.mapId, player.instanceId), in, false, world::nextItemGuid, this::send);
     }
 
     private void handleBuyInSlot(World world, WowBuffer in) {
-        world.content.buy(player, world.map(player.mapId, player.instanceId), in, true, world.nextItemGuid(), this::send);
+        world.content.buy(player, world.map(player.mapId, player.instanceId), in, true, world::nextItemGuid, this::send);
     }
 
     private void handleTrainer(World world, WowBuffer in) {

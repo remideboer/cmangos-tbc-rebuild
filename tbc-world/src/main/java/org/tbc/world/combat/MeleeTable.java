@@ -4,6 +4,7 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.content.WeaponSkills;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.DoubleSupplier;
@@ -122,7 +123,7 @@ public final class MeleeTable {
         if (attacker instanceof Player p && p.hasOffhandWeapon() && !p.hasNextMeleeSwingQueued()) {
             pct += 19.0;
         }
-        int difference = victim.level * 5 - attacker.level * 5;
+        int difference = defenseSkill(victim, attacker) - weaponSkill(attacker, victim, offhand);
         if (victim instanceof Creature) {
             if (difference > 10) {
                 pct += 1.0;
@@ -149,15 +150,15 @@ public final class MeleeTable {
     }
 
     static double dodgeChance(Unit attacker, Unit victim, boolean offhand) {
-        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.1, 0.1), attacker, offhand);
+        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.1, 0.1, offhand), attacker, offhand);
     }
 
     static double parryChance(Unit attacker, Unit victim, boolean offhand) {
-        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6), attacker, offhand);
+        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6, offhand), attacker, offhand);
     }
 
     static double blockChance(Unit attacker, Unit victim) {
-        return skillAvoid(attacker, victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE, 0.0, 0.0);
+        return skillAvoid(attacker, victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE, 0.0, 0.0, false);
     }
 
     /** PLAYER_EXPERTISE / 4 percent; offhand uses PLAYER_OFFHAND_EXPERTISE. spec/03-protocol/update-fields.yaml */
@@ -174,12 +175,12 @@ public final class MeleeTable {
     }
 
     /** Base then (defense − skill) × factor. NPC positive difference: dodge 0.1; parry 0.1 or 0.6 if > 10. */
-    static double skillAvoid(Unit attacker, Unit victim, int playerField, double npcPos, double npcHigh) {
+    static double skillAvoid(Unit attacker, Unit victim, int playerField, double npcPos, double npcHigh, boolean offhand) {
         double pct = victim instanceof Player ? victim.getFloat(playerField) : 5.0;
         if (pct < 0.005) {
             return 0;
         }
-        int difference = victim.level * 5 - attacker.level * 5;
+        int difference = defenseSkill(victim, attacker) - weaponSkill(attacker, victim, offhand);
         double factor = 0.04;
         if (victim instanceof Creature && difference > 0) {
             factor = difference > 10 ? npcHigh : npcPos;
@@ -200,8 +201,11 @@ public final class MeleeTable {
                         ? UpdateFields.PLAYER_OFFHAND_CRIT_PERCENTAGE
                         : UpdateFields.PLAYER_CRIT_PERCENTAGE)
                 : 5.0;
-        int skill = attacker.level * 5;
-        int defense = victim.level * 5;
+        // Vs NPC: GetSkillMaxForLevel (weapon skill does not raise crit). Vs player: weapon skill (PvP max).
+        int skill = victim instanceof Creature
+                ? attacker.level * 5
+                : weaponSkill(attacker, victim, offhand);
+        int defense = defenseSkill(victim, attacker);
         if (victim instanceof Creature) {
             pct += 0.2 * (skill - defense);
         } else {
@@ -227,8 +231,8 @@ public final class MeleeTable {
         if (victim.level <= 10) {
             return 0;
         }
-        int skill = p.level * 5;
-        int defense = victim.level * 5;
+        int skill = weaponSkill(attacker, victim, false);
+        int defense = defenseSkill(victim, attacker);
         double pct = p.isWandUser() && p.level < 30
                 ? p.level + (defense - skill)
                 : 10.0 + (defense - skill);
@@ -243,7 +247,7 @@ public final class MeleeTable {
 
     /** Glance: roll multiplier between lowEnd and highEnd. Casters 0.9/0.6; others 1.2/1.3. */
     int glanceDamage(int raw, Unit attacker, Unit victim) {
-        int difference = victim.level * 5 - attacker.level * 5;
+        int difference = defenseSkill(victim, attacker) - weaponSkill(attacker, victim, false);
         if (difference < 0) {
             return raw;
         }
@@ -263,10 +267,52 @@ public final class MeleeTable {
         if (!(attacker instanceof Creature) || !(victim instanceof Player)) {
             return 0;
         }
-        int deficit = attacker.level * 5 - victim.level * 5;
+        int deficit = weaponSkill(attacker, victim, false) - defenseSkill(victim, attacker);
         if (deficit < 15) {
             return 0;
         }
         return (2.0 * deficit - 15) / 100.0;
+    }
+
+    /**
+     * CMaNGOS GetWeaponSkillValue — players use skillValue (PvP: max(skill, skillMax));
+     * creatures use level×5. Unlearned player skill falls back to level×5 (create default).
+     */
+    static int weaponSkill(Unit attacker, Unit victim, boolean offhand) {
+        if (!(attacker instanceof Player p)) {
+            return attacker.level * 5;
+        }
+        int skillId = p.weaponSkillIdForAttack(offhand);
+        if (skillId == 0) {
+            return p.level * 5;
+        }
+        int max = p.skillMax(skillId);
+        if (max == 0) {
+            return p.level * 5;
+        }
+        int value = p.skillValue(skillId);
+        if (victim instanceof Player) {
+            return Math.max(max, value);
+        }
+        return value;
+    }
+
+    /**
+     * CMaNGOS GetDefenseSkillValue — players use defense skillValue (PvP max);
+     * creatures use level×5. Unlearned falls back to level×5.
+     */
+    static int defenseSkill(Unit defender, Unit attacker) {
+        if (!(defender instanceof Player p)) {
+            return defender.level * 5;
+        }
+        int max = p.skillMax(WeaponSkills.SKILL_DEFENSE);
+        if (max == 0) {
+            return p.level * 5;
+        }
+        int value = p.skillValue(WeaponSkills.SKILL_DEFENSE);
+        if (attacker instanceof Player) {
+            return Math.max(max, value);
+        }
+        return value;
     }
 }

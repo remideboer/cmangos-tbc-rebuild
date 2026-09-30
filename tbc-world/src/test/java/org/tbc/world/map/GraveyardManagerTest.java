@@ -35,4 +35,19 @@ class GraveyardManagerTest {
         assertEquals(-9339.46f, loc.x(), 0.05f);
         assertEquals(171.408f, loc.y(), 0.05f);
     }
+
+    /**
+     * TP-SL17-019 — Sunstrider Isle (area 3431) has no AREALINK; Eversong zone 3430 links
+     * world_safe_locs 912 (Sunstrider Isle GY), not Horde default / void.
+     */
+    @Test
+    void closestWhenSunstriderAreaShouldUseEversongSunstriderIsleGy() {
+        GraveyardManager g = GraveyardManager.seeded();
+        GraveyardManager.Loc loc = g.closest(530, 10349.6f, -6357.29f, 33.4f,
+                GraveyardManager.HORDE, AreaTable.SUNSTRIDER_ISLE, AreaTable.EVERSONG_WOODS);
+        assertEquals(912, loc.id());
+        assertEquals(530, loc.map());
+        assertEquals(10458.5f, loc.x(), 0.5f);
+        assertEquals(-6364.61f, loc.y(), 0.5f);
+    }
 }

@@ -371,6 +371,103 @@ class ContentTest {
         assertTrue(sentUpdate());
     }
 
+    /**
+     * TP-SL08-030 — Player::RewardQuest DestroyItemCount(ReqItemId, ReqItemCount):
+     * Brotherhood of Thieves turn-in must remove Red Burlap Bandana 752 × 12 from bags.
+     */
+    @Test
+    void completeQuestWhenReqItemsInBagShouldDestroyRequiredCount() {
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
+        mgr.questInvolved.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_BROTHERHOOD_OF_THIEVES)));
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        p.questLogItemCount[0][0] = 12;
+        Item bandanas = new Item(5001, Content.ITEM_RED_BURLAP_BANDANA);
+        bandanas.bag = 0;
+        bandanas.slot = Content.BACKPACK_START + 3;
+        bandanas.count = 12;
+        p.items.put(5001, bandanas);
+        p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bandanas.slot * 2, UpdateBuilder.itemGuid(bandanas));
+        int bandanaSlot = bandanas.slot;
+        ops.clear();
+        last.clear();
+        content.completeQuest(p, map, chooseReward(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES, 1),
+                () -> nextItem++, this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        assertFalse(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_RED_BURLAP_BANDANA),
+                "ReqItem must leave inventory on RewardQuest");
+        assertEquals(0L, p.getGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + bandanaSlot * 2));
+        assertTrue(ops.contains(Opcodes.SMSG_DESTROY_OBJECT));
+        assertTrue(sentUpdate());
+    }
+
+    @Test
+    void completeQuestWhenExtraReqItemsShouldOnlyDestroyRequiredCount() {
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM, 0, 0);
+        mgr.questInvolved.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_BROTHERHOOD_OF_THIEVES)));
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES), this::capture);
+        p.questLogItemCount[0][0] = 12;
+        Item bandanas = new Item(5002, Content.ITEM_RED_BURLAP_BANDANA);
+        bandanas.bag = 0;
+        bandanas.slot = Content.BACKPACK_START;
+        bandanas.count = 15;
+        p.items.put(5002, bandanas);
+        content.completeQuest(p, map, chooseReward(willem.guid, Content.QUEST_BROTHERHOOD_OF_THIEVES, 0),
+                () -> nextItem++, this::capture);
+        Item left = p.items.values().stream()
+                .filter(it -> it.entry == Content.ITEM_RED_BURLAP_BANDANA)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(3, left.count);
+    }
+
+    @Test
+    void destroyItemCountWhenInvalidOrInContainerShouldNoOpOrSkip() {
+        content.destroyItemCount(p, 0, 5, this::capture);
+        content.destroyItemCount(p, Content.ITEM_RED_BURLAP_BANDANA, 0, this::capture);
+        Item inBag = new Item(5010, Content.ITEM_RED_BURLAP_BANDANA);
+        inBag.bag = 1;
+        inBag.slot = 0;
+        inBag.count = 5;
+        p.items.put(5010, inBag);
+        content.destroyItemCount(p, Content.ITEM_RED_BURLAP_BANDANA, 5, this::capture);
+        assertEquals(5, inBag.count, "bank/container stacks are not taken by RewardQuest backpack walk");
+    }
+
+    @Test
+    void destroyItemCountWhenMultipleStacksShouldStopAfterRequired() {
+        Item a = new Item(5011, Content.ITEM_RED_BURLAP_BANDANA);
+        a.bag = 0;
+        a.slot = Content.BACKPACK_START;
+        a.count = 12;
+        Item b = new Item(5012, Content.ITEM_RED_BURLAP_BANDANA);
+        b.bag = 0;
+        b.slot = Content.BACKPACK_START + 1;
+        b.count = 5;
+        p.items.put(5011, a);
+        p.items.put(5012, b);
+        content.destroyItemCount(p, Content.ITEM_RED_BURLAP_BANDANA, 12, this::capture);
+        assertFalse(p.items.containsKey(5011));
+        assertEquals(5, p.items.get(5012).count);
+        assertTrue(ops.contains(Opcodes.SMSG_DESTROY_OBJECT));
+    }
+
+    @Test
+    void destroyItemCountWhenSplitAcrossStacksShouldConsumeInOrder() {
+        Item a = new Item(5013, Content.ITEM_RED_BURLAP_BANDANA);
+        a.bag = 0;
+        a.slot = Content.BACKPACK_START;
+        a.count = 5;
+        Item b = new Item(5014, Content.ITEM_RED_BURLAP_BANDANA);
+        b.bag = 0;
+        b.slot = Content.BACKPACK_START + 1;
+        b.count = 10;
+        p.items.put(5013, a);
+        p.items.put(5014, b);
+        content.destroyItemCount(p, Content.ITEM_RED_BURLAP_BANDANA, 12, this::capture);
+        assertFalse(p.items.containsKey(5013));
+        assertEquals(3, p.items.get(5014).count);
+    }
+
     @Test
     void requestRewardWhenQuestInLogShouldSendOfferReward() {
         Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE, 0, 0);
@@ -883,7 +980,7 @@ class ContentTest {
         content.listInventory(p, map, u64(vendor.guid), this::capture);
         assertTrue(ops.contains(Opcodes.SMSG_LIST_INVENTORY));
         ops.clear();
-        content.buy(p, map, buy(vendor.guid, Content.ITEM_WORN_SHORTSWORD, 1), false, nextItem++, this::capture);
+        content.buy(p, map, buy(vendor.guid, Content.ITEM_WORN_SHORTSWORD, 1), false, () -> nextItem++, this::capture);
         assertEquals(35, p.money);
         assertEquals(1, p.items.size());
         assertTrue(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
@@ -894,7 +991,7 @@ class ContentTest {
         assertEquals(0xFFFFFFFFL, bought.getU32() & 0xFFFFFFFFL);
         assertEquals(1, bought.getU32());
         ops.clear();
-        content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_WORN_SHORTSWORD, p.guid, 23, 1), true, nextItem++, this::capture);
+        content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_WORN_SHORTSWORD, p.guid, 23, 1), true, () -> nextItem++, this::capture);
         assertEquals(0, p.money);
         assertEquals(2, p.items.size());
         assertTrue(ops.contains(Opcodes.SMSG_BUY_ITEM));
@@ -904,17 +1001,87 @@ class ContentTest {
     void vendorBuyInSlotWhenFreeOrPastBackpackEndShouldHonorOrFallBack() {
         Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
         p.setMoney(200);
-        content.buy(p, map, buy(vendor.guid, Content.ITEM_WORN_SHORTSWORD, 1), false, nextItem++, this::capture);
+        content.buy(p, map, buy(vendor.guid, Content.ITEM_WORN_SHORTSWORD, 1), false, () -> nextItem++, this::capture);
         assertEquals(1, p.items.size());
         assertEquals(Content.BACKPACK_START, p.items.values().iterator().next().slot);
         ops.clear();
-        content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_WORN_SHORTSWORD, p.guid, 24, 1), true, nextItem++, this::capture);
+        content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_WORN_SHORTSWORD, p.guid, 24, 1), true, () -> nextItem++, this::capture);
         assertEquals(2, p.items.size());
         assertTrue(p.items.values().stream().anyMatch(it -> it.slot == 24));
         content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_WORN_SHORTSWORD, p.guid, Content.BACKPACK_END, 1),
-                true, nextItem++, this::capture);
+                true, () -> nextItem++, this::capture);
         assertEquals(3, p.items.size());
         assertTrue(p.items.values().stream().anyMatch(it -> it.slot == 25));
+    }
+
+    @Test
+    void vendorBuyStackableBreadShouldMergeOntoExistingStack() {
+        Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
+        mgr.vendorItems.put(Content.NPC_CORINA_STEELE,
+                new ArrayList<>(List.of(Content.ITEM_TOUGH_HUNK_OF_BREAD)));
+        mgr.items.putIfAbsent(Content.ITEM_TOUGH_HUNK_OF_BREAD,
+                ObjectMgr.ItemTemplate.toughHunkOfBread());
+        p.setMoney(1000);
+        content.buy(p, map, buy(vendor.guid, Content.ITEM_TOUGH_HUNK_OF_BREAD, 5), false,
+                () -> nextItem++, this::capture);
+        assertEquals(1, p.items.size());
+        assertEquals(5, p.items.values().iterator().next().count);
+        ops.clear();
+        content.buy(p, map, buy(vendor.guid, Content.ITEM_TOUGH_HUNK_OF_BREAD, 3), false,
+                () -> nextItem++, this::capture);
+        assertEquals(1, p.items.size(), "second buy must merge");
+        assertEquals(8, p.items.values().iterator().next().count);
+        assertTrue(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
+    }
+
+    @Test
+    void vendorBuyStackableInSlotWhenFreeShouldMergeNotForceSlot() {
+        Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
+        mgr.vendorItems.put(Content.NPC_CORINA_STEELE,
+                new ArrayList<>(List.of(Content.ITEM_TOUGH_HUNK_OF_BREAD)));
+        mgr.items.putIfAbsent(Content.ITEM_TOUGH_HUNK_OF_BREAD,
+                ObjectMgr.ItemTemplate.toughHunkOfBread());
+        p.setMoney(1000);
+        content.buy(p, map, buy(vendor.guid, Content.ITEM_TOUGH_HUNK_OF_BREAD, 4), false,
+                () -> nextItem++, this::capture);
+        int stackSlot = p.items.values().iterator().next().slot;
+        ops.clear();
+        content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_TOUGH_HUNK_OF_BREAD, p.guid, 24, 2),
+                true, () -> nextItem++, this::capture);
+        assertEquals(1, p.items.size(), "in-slot buy of stackable must merge, not occupy 24");
+        assertEquals(6, p.items.values().iterator().next().count);
+        assertEquals(stackSlot, p.items.values().iterator().next().slot);
+        assertFalse(p.items.values().stream().anyMatch(it -> it.slot == 24));
+    }
+
+    @Test
+    void vendorBuyWhenOtherEntryInBagShouldStillTallyBoughtItemOnly() {
+        Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
+        Item other = new Item(9001, Content.ITEM_TOUGH_HUNK_OF_BREAD);
+        other.bag = 0;
+        other.slot = Content.BACKPACK_START;
+        other.count = 2;
+        p.items.put(9001, other);
+        // bag!=0 row so slotOccupied walks the false bag==0 arm
+        Item inContainer = new Item(9002, Content.ITEM_REFRESHING_SPRING_WATER);
+        inContainer.bag = 1;
+        inContainer.slot = 0;
+        inContainer.count = 1;
+        p.items.put(9002, inContainer);
+        p.setMoney(100);
+        content.buy(p, map, buyInSlot(vendor.guid, Content.ITEM_WORN_SHORTSWORD, p.guid, 24, 1),
+                true, () -> nextItem++, this::capture);
+        assertEquals(1, p.items.values().stream().filter(it -> it.entry == Content.ITEM_WORN_SHORTSWORD).count());
+        assertEquals(24, p.items.values().stream()
+                .filter(it -> it.entry == Content.ITEM_WORN_SHORTSWORD).findFirst().orElseThrow().slot);
+    }
+
+    @Test
+    void vendorBuyWhenNullGuidSupplierShouldNoOp() {
+        Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
+        p.setMoney(100);
+        content.buy(p, map, buy(vendor.guid, Content.ITEM_WORN_SHORTSWORD, 1), false, null, this::capture);
+        assertEquals(0, p.items.size());
     }
 
     @Test
@@ -973,7 +1140,7 @@ class ContentTest {
         content.gossipHello(p, map, new WowBuffer(3), this::capture);
         content.gossipSelect(p, map, new WowBuffer(3), this::capture);
         content.listInventory(p, map, new WowBuffer(3), this::capture);
-        content.buy(p, map, new WowBuffer(8), false, nextItem++, this::capture);
+        content.buy(p, map, new WowBuffer(8), false, () -> nextItem++, this::capture);
         content.queryQuest(p, map, new WowBuffer(8), this::capture);
         content.requestReward(p, map, new WowBuffer(8), this::capture);
         content.acceptQuest(p, map, new WowBuffer(8), this::capture);
@@ -992,15 +1159,15 @@ class ContentTest {
         p.relocate(20, 0, 0, 0);
         content.gossipHello(p, map, u64(vendor.guid), this::capture);
         content.listInventory(p, map, u64(vendor.guid), this::capture);
-        content.buy(p, map, buy(vendor.guid, 25, 1), false, nextItem++, this::capture);
+        content.buy(p, map, buy(vendor.guid, 25, 1), false, () -> nextItem++, this::capture);
         content.queryQuest(p, map, quest(giver.guid, 783), this::capture);
         content.acceptQuest(p, map, quest(giver.guid, 783), this::capture);
         content.completeQuest(p, map, quest(turn.guid, 783), () -> nextItem++, this::capture);
         content.requestReward(p, map, quest(turn.guid, 783), this::capture);
         p.relocate(0, 0, 0, 0);
         content.listInventory(p, map, u64(kobold.guid), this::capture);
-        content.buy(p, map, buy(kobold.guid, 25, 1), false, nextItem++, this::capture);
-        content.buy(p, map, buy(99, 25, 1), false, nextItem++, this::capture);
+        content.buy(p, map, buy(kobold.guid, 25, 1), false, () -> nextItem++, this::capture);
+        content.buy(p, map, buy(99, 25, 1), false, () -> nextItem++, this::capture);
         content.queryQuest(p, map, quest(kobold.guid, 783), this::capture);
         content.acceptQuest(p, map, quest(turn.guid, 783), this::capture);
         content.completeQuest(p, map, quest(giver.guid, 783), () -> nextItem++, this::capture);
@@ -1014,16 +1181,16 @@ class ContentTest {
     void buyFailuresAndSlotSkip() {
         Creature vendor = spawn(Content.NPC_CORINA_STEELE, 0, 0);
         p.setMoney(50);
-        content.buy(p, map, buy(vendor.guid, 26, 1), false, nextItem++, this::capture);
+        content.buy(p, map, buy(vendor.guid, 26, 1), false, () -> nextItem++, this::capture);
         mgr.vendorItems.put(Content.NPC_CORINA_STEELE, new ArrayList<>(List.of(25, 99999)));
-        content.buy(p, map, buy(vendor.guid, 99999, 1), false, nextItem++, this::capture);
+        content.buy(p, map, buy(vendor.guid, 99999, 1), false, () -> nextItem++, this::capture);
         p.setMoney(0);
-        content.buy(p, map, buy(vendor.guid, 25, 1), false, nextItem++, this::capture);
+        content.buy(p, map, buy(vendor.guid, 25, 1), false, () -> nextItem++, this::capture);
         assertEquals(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE, ops.get(ops.size() - 1).intValue());
         assertEquals(Content.EQUIP_ERR_NOT_ENOUGH_MONEY, last.get(Opcodes.SMSG_INVENTORY_CHANGE_FAILURE)[0] & 0xFF);
         p.setMoney(100);
         fillBackpack();
-        content.buy(p, map, buy(vendor.guid, 25, 1), false, nextItem++, this::capture);
+        content.buy(p, map, buy(vendor.guid, 25, 1), false, () -> nextItem++, this::capture);
         assertEquals(16, p.items.size());
         p.items.clear();
         Item otherBag = new Item(50, 25);
@@ -1031,14 +1198,14 @@ class ContentTest {
         otherBag.slot = 23;
         p.items.put(50, otherBag);
         ops.clear();
-        content.buy(p, map, buyExact12(vendor.guid, 25), false, nextItem++, this::capture);
+        content.buy(p, map, buyExact12(vendor.guid, 25), false, () -> nextItem++, this::capture);
         assertEquals(2, p.items.size());
         ops.clear();
         p.setMoney(100);
-        content.buy(p, map, buyCount(vendor.guid, 25, 0), false, nextItem++, this::capture);
-        content.buy(p, map, buyShortInSlot(vendor.guid, 25), true, nextItem++, this::capture);
+        content.buy(p, map, buyCount(vendor.guid, 25, 0), false, () -> nextItem++, this::capture);
+        content.buy(p, map, buyShortInSlot(vendor.guid, 25), true, () -> nextItem++, this::capture);
         mgr.vendorItems.remove(Content.NPC_CORINA_STEELE);
-        content.buy(p, map, buy(vendor.guid, 25, 1), false, nextItem++, this::capture);
+        content.buy(p, map, buy(vendor.guid, 25, 1), false, () -> nextItem++, this::capture);
     }
 
     @Test

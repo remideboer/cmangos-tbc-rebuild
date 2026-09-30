@@ -17,6 +17,15 @@ public final class Creature extends Unit {
     public int spawnId;
     public int respawnDelayMs = 300_000;
     public long respawnAtMs;
+    /**
+     * CMaNGOS m_corpseDelay (ms). Rank defaults from CONFIG_UINT32_CORPSE_DECAY_*; capped to 90% of
+     * respawn on spawn load.
+     */
+    public int corpseDelayMs = 300_000;
+    /** CMaNGOS m_corpseExpirationTime — when the corpse leaves client view (RemoveCorpse). */
+    public long corpseExpireAtMs;
+    /** After RemoveCorpse / DEAD: waiting for respawn, not shown to clients. */
+    public boolean corpseRemoved;
     public float spawnX, spawnY, spawnZ, spawnO;
     public int npcFlags;
     /** creature_template.Rank (CreatureEliteType); elites double kill XP. */
@@ -106,6 +115,22 @@ public final class Creature extends Unit {
         setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, maxDmg);
         setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, attackTime);
         setFloat(UpdateFields.UNIT_FIELD_COMBATREACH, reach);
+    }
+
+    /**
+     * CMaNGOS Creature::SelectLevel mana + UnitClass CLASS_MAGE/PALADIN → SetPowerType(POWER_MANA).
+     * Exposes UNIT_FIELD_MAXPOWER1 so the client draws a mana bar (Mana Wyrm, etc.).
+     */
+    public void applyMana(int mana) {
+        if (mana <= 0) {
+            return;
+        }
+        int bytes0 = getInt(UpdateFields.UNIT_FIELD_BYTES_0);
+        bytes0 = (bytes0 & ~0xFF00) | ((Unit.CLASS_MAGE & 0xFF) << 8);
+        bytes0 = (bytes0 & 0x00FFFFFF) | ((Unit.POWER_MANA & 0xFF) << 24);
+        setInt(UpdateFields.UNIT_FIELD_BYTES_0, bytes0);
+        setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, mana);
+        setInt(UpdateFields.UNIT_FIELD_POWER1, mana);
     }
 
     public double spawnDistance2d(float px, float py) {
