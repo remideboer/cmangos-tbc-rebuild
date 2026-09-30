@@ -119,6 +119,8 @@ public final class Content {
     public static final int NPC_MARSHAL_DUGHAN = 240;
     public static final int NPC_DEPUTY_WILLEM = 823;
     public static final int NPC_LLANE_BESHERE = 911;
+    /** Goldshire blacksmith trainer. */
+    public static final int NPC_DANE_LINDGREN = 1103;
     public static final int NPC_DUNGAR_LONGDRINK = 352;
     public static final int NPC_INNKEEPER_FARLEY = 295;
     /** creature_template GossipMenuId for Farley 295. */
@@ -231,7 +233,12 @@ public final class Content {
     /** Item.h ITEM_DYNFLAG_WRAPPED; named in inventory.md. */
     public static final int ITEM_DYNFLAG_WRAPPED = 0x00000008;
     public static final int SPELL_BATTLE_SHOUT = 6673;
+    /** Next Battle Shout rank for trainer reqAbility chain (Spell.dbc 5242). */
+    public static final int SPELL_BATTLE_SHOUT_RANK2 = 5242;
     public static final int TRAINER_SPELL_BATTLE_SHOUT_COST = 200;
+    public static final int SPELL_APPRENTICE_BLACKSMITH = 2020;
+    public static final int TRAINER_SPELL_APPRENTICE_BLACKSMITH_COST = 10;
+    public static final int SKILL_BLACKSMITHING = 164;
     public static final int TAXI_STORMWIND = 2;
     public static final int TAXI_IRONFORGE = 6;
     public static final int ERR_TAXIOK = 0;

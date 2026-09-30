@@ -1431,7 +1431,17 @@ public final class ObjectMgr {
             return (questFlags & DAILY) != 0;
         }
     }
-    public record TrainerSpell(int spell, int cost, int reqLevel) {}
+    public record TrainerSpell(int spell, int cost, int reqLevel, int reqSkill, int reqSkillValue,
+                               int reqAbility0, int reqAbility1, int reqAbility2,
+                               boolean primaryProfessionFirstRank) {
+        public TrainerSpell(int spell, int cost, int reqLevel) {
+            this(spell, cost, reqLevel, 0, 0, 0, 0, 0, false);
+        }
+
+        public TrainerSpell(int spell, int cost, int reqLevel, int reqSkill, int reqSkillValue) {
+            this(spell, cost, reqLevel, reqSkill, reqSkillValue, 0, 0, 0, false);
+        }
+    }
     public record TaxiHop(int from, int to, int cost, float x, float y, float z) {}
     /** TaxiNodes.dbc row used by GetNearestTaxiNode. Mount flags = MountCreatureID != 0. */
     public record TaxiNode(int id, int mapId, float x, float y, float z, boolean alliance, boolean horde) {}
@@ -1577,6 +1587,11 @@ public final class ObjectMgr {
             } catch (Exception e) {
                 log.debug("battlemaster_entry load skipped: {}", e.getMessage());
             }
+            try {
+                loadTrainers(c);
+            } catch (Exception e) {
+                log.debug("npc_trainer load skipped: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.warn("ObjectMgr SQL load failed, using defaults: {}", e.getMessage());
             seedDefaults();
@@ -1655,6 +1670,45 @@ public final class ObjectMgr {
             }
         } catch (Exception ignored) {
         }
+    }
+
+    /** CMaNGOS ObjectMgr::LoadTrainers — npc_trainer then npc_trainer_template keyed by entry. */
+    private void loadTrainers(Connection c) throws Exception {
+        loadTrainerTable(c, "npc_trainer", false);
+        loadTrainerTable(c, "npc_trainer_template", true);
+        log.info("loaded trainer spell lists for {} entries", trainerSpells.size());
+    }
+
+    private void loadTrainerTable(Connection c, String table, boolean template) throws Exception {
+        PreparedStatement ps = c.prepareStatement(
+                "SELECT entry, spell, spellcost, reqskill, reqskillvalue, reqlevel, "
+                        + "ReqAbility1, ReqAbility2, ReqAbility3 FROM " + table);
+        ResultSet rs = ps.executeQuery();
+        int n = 0;
+        while (rs.next()) {
+            int entry = rs.getInt(1);
+            int spell = rs.getInt(2);
+            if (spell <= 0) {
+                continue;
+            }
+            int cost = rs.getInt(3);
+            int reqSkill = rs.getInt(4);
+            int reqSkillValue = rs.getInt(5);
+            int reqLevel = rs.getInt(6);
+            int a0 = rs.getObject(7) == null ? 0 : rs.getInt(7);
+            int a1 = rs.getObject(8) == null ? 0 : rs.getInt(8);
+            int a2 = rs.getObject(9) == null ? 0 : rs.getInt(9);
+            boolean firstProf = spell == Content.SPELL_APPRENTICE_BLACKSMITH;
+            TrainerSpell row = new TrainerSpell(spell, cost, reqLevel, reqSkill, reqSkillValue, a0, a1, a2, firstProf);
+            if (template) {
+                // Template id is the entry; creature.TrainerTemplateId points here — merge under template key.
+                trainerSpells.computeIfAbsent(entry, k -> new ArrayList<>()).add(row);
+            } else {
+                trainerSpells.computeIfAbsent(entry, k -> new ArrayList<>()).add(row);
+            }
+            n++;
+        }
+        log.info("loaded {} rows from {}", n, table);
     }
 
     private void loadCreatures(Connection c) {
@@ -2720,7 +2774,15 @@ public final class ObjectMgr {
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         trainerClass.put(Content.NPC_LLANE_BESHERE, 1);
         trainerSpells.put(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
-                new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1))));
+                new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
+                new TrainerSpell(Content.SPELL_BATTLE_SHOUT_RANK2, 500, 12, 0, 0,
+                        Content.SPELL_BATTLE_SHOUT, 0, 0, false))));
+        creatures.put(Content.NPC_DANE_LINDGREN, new CreatureTemplate(Content.NPC_DANE_LINDGREN, "Dane Lindgren", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_TRAINER, "", "",
+                org.tbc.world.session.TrainerHandler.TRAINER_TYPE_TRADESKILLS));
+        trainerSpells.put(Content.NPC_DANE_LINDGREN, new ArrayList<>(List.of(
+                new TrainerSpell(Content.SPELL_APPRENTICE_BLACKSMITH, Content.TRAINER_SPELL_APPRENTICE_BLACKSMITH_COST, 1,
+                        0, 0, 0, 0, 0, true))));
         creatures.put(Content.NPC_DUNGAR_LONGDRINK, new CreatureTemplate(Content.NPC_DUNGAR_LONGDRINK, "Dungar Longdrink", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_FLIGHTMASTER, "", "", 0));
         creatures.put(Content.NPC_INNKEEPER_FARLEY, new CreatureTemplate(Content.NPC_INNKEEPER_FARLEY, "Innkeeper Farley", 0, 12, 100, 5,
@@ -2767,6 +2829,7 @@ public final class ObjectMgr {
             spawns.add(new Spawn(5, Content.NPC_MARSHAL_MCBRIDE, 0, -8908f, -130f, 80f, 0f));
             spawns.add(new Spawn(6, 103, 0, -8910f, -125f, 80f, 0f));
             spawns.add(new Spawn(7, Content.NPC_LLANE_BESHERE, 0, -8918.36f, -208.411f, 82.309f, 0f));
+            spawns.add(new Spawn(14, Content.NPC_DANE_LINDGREN, 0, -8910f, -200f, 82f, 0f));
             spawns.add(new Spawn(8, Content.NPC_DUNGAR_LONGDRINK, 0, -8835.76f, 490.084f, 109.699f, 0f));
             spawns.add(new Spawn(9, Content.NPC_AUCTIONEER_CHILTON, 0, -8912f, -122f, 80f, 0f));
             spawns.add(new Spawn(10, Content.NPC_OLIVIA_BURNSIDE, 0, -8914f, -124f, 80f, 0f));
@@ -2868,7 +2931,15 @@ public final class ObjectMgr {
         }
         trainerClass.putIfAbsent(Content.NPC_LLANE_BESHERE, 1);
         trainerSpells.putIfAbsent(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
-                new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1))));
+                new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
+                new TrainerSpell(Content.SPELL_BATTLE_SHOUT_RANK2, 500, 12, 0, 0,
+                        Content.SPELL_BATTLE_SHOUT, 0, 0, false))));
+        creatures.putIfAbsent(Content.NPC_DANE_LINDGREN, new CreatureTemplate(Content.NPC_DANE_LINDGREN, "Dane Lindgren", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_TRAINER, "", "",
+                org.tbc.world.session.TrainerHandler.TRAINER_TYPE_TRADESKILLS));
+        trainerSpells.putIfAbsent(Content.NPC_DANE_LINDGREN, new ArrayList<>(List.of(
+                new TrainerSpell(Content.SPELL_APPRENTICE_BLACKSMITH, Content.TRAINER_SPELL_APPRENTICE_BLACKSMITH_COST, 1,
+                        0, 0, 0, 0, 0, true))));
         creatures.putIfAbsent(Content.NPC_DUNGAR_LONGDRINK, new CreatureTemplate(Content.NPC_DUNGAR_LONGDRINK, "Dungar Longdrink", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_FLIGHTMASTER, "", "", 0));
         creatures.putIfAbsent(Content.NPC_INNKEEPER_FARLEY, new CreatureTemplate(Content.NPC_INNKEEPER_FARLEY, "Innkeeper Farley", 0, 12, 100, 5,

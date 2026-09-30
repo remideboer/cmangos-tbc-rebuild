@@ -4239,6 +4239,57 @@ class Slice14P0Test {
         assertEquals(Content.SPELL_BATTLE_SHOUT, ok.getU32());
         assertEquals(Content.SPELL_BATTLE_SHOUT, WowClientDouble.u32le(lastPayload(client, Opcodes.SMSG_LEARNED_SPELL), 0));
         assertEquals(0, p.money);
+        assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+    }
+
+    /** TP-SL14-019 — profession trainer buy Apprentice Blacksmith grants skill 164. */
+    @Test
+    void tpSl14ProfessionTrainerBuyApprenticeBlacksmith() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Smith", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, Content.NPC_DANE_LINDGREN);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        p.setMoney(Content.TRAINER_SPELL_APPRENTICE_BLACKSMITH_COST);
+        client.clear();
+        WowBuffer buy = new WowBuffer(12);
+        buy.putU64(trainer.guid);
+        buy.putU32(Content.SPELL_APPRENTICE_BLACKSMITH);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertTrue(p.spells.contains(Content.SPELL_APPRENTICE_BLACKSMITH));
+        assertTrue(p.hasSkill(Content.SKILL_BLACKSMITHING));
+        assertEquals(1, p.skillValue(Content.SKILL_BLACKSMITHING));
+        assertEquals(75, p.skillMax(Content.SKILL_BLACKSMITHING));
+    }
+
+    /** TP-SL14-018 — buy with missing reqAbility is ignored (stays red). */
+    @Test
+    void tpSl14TrainerBuyWhenMissingReqAbilityShouldIgnore() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Noreq", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        p.setMoney(10_000);
+        client.clear();
+        WowBuffer buy = new WowBuffer(12);
+        buy.putU64(trainer.guid);
+        buy.putU32(Content.SPELL_BATTLE_SHOUT_RANK2);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
+
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertFalse(p.spells.contains(Content.SPELL_BATTLE_SHOUT_RANK2));
+        assertEquals(10_000, p.money);
     }
 
     @Test
