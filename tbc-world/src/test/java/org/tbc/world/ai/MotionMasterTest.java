@@ -113,16 +113,18 @@ class MotionMasterTest {
     }
 
     @Test
-    void chaseWhenInMeleeVictimCirclesShouldKeepFacingOnWire() {
+    void chaseWhenInMeleeVictimCirclesShouldFaceWithAngleNotTargetGuid() {
         Creature c = new Creature();
         c.guid = 2;
-        c.relocate(5, 0, 0, 0);
+        c.relocate(0, 0, 0, 0);
         Player p = new Player();
         p.guid = 1;
-        p.relocate(0, 0, 0, 0);
+        p.relocate(2, 0, 0, 0);
         c.motion.moveChase(p);
         assertNotNull(c.motion.update(c, 50));
-        p.relocate(0, 5, 0, 0);
+        assertTrue(c.distance2d(p) <= Combat.meleeRange(c, p) + 0.05f);
+        p.relocate(0, 2, 0, 0);
+        assertTrue(c.distance2d(p) <= Combat.meleeRange(c, p) + 0.05f);
         byte[] face = c.motion.update(c, MotionMaster.CHASE_REACTION_MS);
         assertNotNull(face);
         WowBuffer pkt = new WowBuffer(face);
@@ -131,9 +133,71 @@ class MotionMasterTest {
         pkt.getFloat();
         pkt.getFloat();
         pkt.getU32();
-        assertEquals(TaxiHandler.MONSTER_MOVE_FACING_TARGET, pkt.getU8());
-        assertEquals(p.guid, pkt.getU64());
-        assertEquals((float) Math.atan2(5, -5), c.o, 0.05f);
+        assertEquals(TaxiHandler.MONSTER_MOVE_FACING_ANGLE, pkt.getU8());
+        float expected = (float) Math.atan2(2, 0);
+        assertEquals(expected, pkt.getFloat(), 0.05f);
+        assertEquals(expected, c.o, 0.05f);
+    }
+
+    /**
+     * Chase run binds FACING_TARGET on 8606; arriving in melee must MonsterMoveStop first
+     * (CMaNGOS HandleFinalizedMovement StopMoving) or the corpse keeps tracking the player.
+     */
+    @Test
+    void chaseWhenArrivingInMeleeShouldMonsterMoveStopToDropFacingTarget() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.relocate(20, 0, 0, 0);
+        Player p = new Player();
+        p.guid = 1;
+        p.relocate(0, 0, 0, 0);
+        c.motion.moveChase(p);
+        assertNotNull(c.motion.update(c, 50));
+        byte[] arrive = null;
+        for (int i = 0; i < 40 && arrive == null; i++) {
+            byte[] pkt = c.motion.update(c, MotionMaster.CHASE_REACTION_MS);
+            if (pkt != null && moveType(pkt) == TaxiHandler.MONSTER_MOVE_STOP) {
+                arrive = pkt;
+            }
+        }
+        assertNotNull(arrive, "melee arrive must MonsterMoveStop to clear chase FACING_TARGET");
+        assertTrue(c.distance2d(p) <= Combat.meleeRange(c, p) + 0.05f);
+    }
+
+    /** After StopMoving, circling the (would-be) corpse must not change orientation. */
+    @Test
+    void chaseWhenStoppedShouldNotRotateWhenVictimCircles() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.relocate(5, 0, 0, 0);
+        Player p = new Player();
+        p.guid = 1;
+        p.relocate(0, 0, 0, 0);
+        c.motion.moveChase(p);
+        c.motion.update(c, 50);
+        c.motion.update(c, MotionMaster.CHASE_REACTION_MS);
+        byte[] stop = c.motion.stop(c);
+        assertNotNull(stop);
+        assertEquals(TaxiHandler.MONSTER_MOVE_STOP, moveType(stop));
+        float o = c.o;
+        p.relocate(0, 5, 0, 0);
+        assertEquals(null, c.motion.update(c, MotionMaster.CHASE_REACTION_MS));
+        p.relocate(5, 5, 0, 0);
+        assertEquals(null, c.motion.update(c, MotionMaster.CHASE_REACTION_MS));
+        p.relocate(5, 0, 0, 0);
+        assertEquals(null, c.motion.update(c, MotionMaster.CHASE_REACTION_MS));
+        assertEquals(o, c.o, 0.001f);
+        assertEquals(MotionMaster.IDLE, c.motion.type());
+    }
+
+    private static int moveType(byte[] payload) {
+        WowBuffer pkt = new WowBuffer(payload);
+        pkt.getPackedGuid();
+        pkt.getFloat();
+        pkt.getFloat();
+        pkt.getFloat();
+        pkt.getU32();
+        return pkt.getU8();
     }
 
     @Test

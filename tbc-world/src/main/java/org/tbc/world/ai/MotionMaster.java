@@ -43,6 +43,8 @@ public final class MotionMaster {
     private boolean hasDest;
     private boolean splineSent;
     private boolean faceSent;
+    /** Client still has FACING_TARGET from a chase launch until MonsterMoveStop (8606). */
+    private boolean facingTargetBound;
     private boolean sentPacket;
     private int sincePacketMs;
     private int nextSplineId = 1;
@@ -70,6 +72,7 @@ public final class MotionMaster {
         hasDest = false;
         splineSent = false;
         faceSent = false;
+        facingTargetBound = false;
         sentPacket = false;
         sincePacketMs = CHASE_REACTION_MS;
         clearSpline();
@@ -82,6 +85,7 @@ public final class MotionMaster {
         hasDest = false;
         splineSent = false;
         faceSent = false;
+        facingTargetBound = false;
         sentPacket = false;
         sincePacketMs = CHASE_REACTION_MS;
         clearSpline();
@@ -93,6 +97,7 @@ public final class MotionMaster {
         hasDest = false;
         splineSent = false;
         faceSent = false;
+        facingTargetBound = false;
         sentPacket = false;
         sincePacketMs = CHASE_REACTION_MS;
         clearSpline();
@@ -104,6 +109,7 @@ public final class MotionMaster {
         hasDest = false;
         splineSent = false;
         faceSent = false;
+        facingTargetBound = false;
         sentPacket = false;
         sincePacketMs = CHASE_REACTION_MS;
         clearSpline();
@@ -162,7 +168,16 @@ public final class MotionMaster {
             hasDest = false;
             splineSent = false;
             clearSpline();
-            return faceOnWire(c, target);
+            // CMaNGOS HandleFinalizedMovement: StopMoving clears FACING_TARGET; SetInFront is
+            // orientation only. Continuous FACING_TARGET here left corpses tracking the looter.
+            if (facingTargetBound) {
+                face(c, target);
+                facingTargetBound = false;
+                faceSent = false;
+                lastFaceO = c.o;
+                return emitStopPacket(c);
+            }
+            return faceAngleOnWire(c, target);
         }
         double nx = target.x - c.x;
         double ny = target.y - c.y;
@@ -189,6 +204,7 @@ public final class MotionMaster {
             spline = emit(c, destX, destY, destZ, UpdateBuilder.RUN, target.guid);
             splineSent = true;
             faceSent = true;
+            facingTargetBound = true;
             lastFaceO = angleTo(c, target);
         }
         if (splineActive) {
@@ -303,7 +319,11 @@ public final class MotionMaster {
         c.relocate(nx, ny, g.at(c.mapId, nx, ny, hintZ), o);
     }
 
-    private byte[] faceOnWire(Creature c, Unit t) {
+    /**
+     * In-melee turn: MonsterMoveFacingAngle (not FACING_TARGET). A one-shot angle does not keep
+     * tracking the player after death the way FACING_TARGET does on 8606.
+     */
+    private byte[] faceAngleOnWire(Creature c, Unit t) {
         float o = angleTo(c, t);
         c.relocate(c.x, c.y, c.z, o);
         if (faceSent && (!readyToSend() || angleDelta(lastFaceO, o) < FACE_RESEND_RAD)) {
@@ -311,7 +331,22 @@ public final class MotionMaster {
         }
         lastFaceO = o;
         faceSent = true;
-        return emit(c, c.x, c.y, c.z, UpdateBuilder.RUN, t.guid);
+        sincePacketMs = 0;
+        sentPacket = true;
+        return monsterMoveFacingAngle(c, o, nextSplineId++);
+    }
+
+    private byte[] emitStopPacket(Creature c) {
+        sincePacketMs = 0;
+        sentPacket = true;
+        WowBuffer b = new WowBuffer(32);
+        b.putPackedGuid(c.guid);
+        b.putFloat(c.x);
+        b.putFloat(c.y);
+        b.putFloat(c.z);
+        b.putU32(nextSplineId++);
+        b.putU8(TaxiHandler.MONSTER_MOVE_STOP);
+        return b.array();
     }
 
     private boolean readyToSend() {
@@ -391,6 +426,25 @@ public final class MotionMaster {
         b.putFloat(destX);
         b.putFloat(destY);
         b.putFloat(destZ);
+        return b.array();
+    }
+
+    /** In-place orientation — CMaNGOS MoveSplineInit::SetFacing(angle) + Launch. */
+    static byte[] monsterMoveFacingAngle(Creature c, float angle, int splineId) {
+        WowBuffer b = new WowBuffer(48);
+        b.putPackedGuid(c.guid);
+        b.putFloat(c.x);
+        b.putFloat(c.y);
+        b.putFloat(c.z);
+        b.putU32(splineId);
+        b.putU8(TaxiHandler.MONSTER_MOVE_FACING_ANGLE);
+        b.putFloat(angle);
+        b.putU32(TaxiHandler.SPLINE_FLAG_RUNMODE);
+        b.putU32(0);
+        b.putU32(1);
+        b.putFloat(c.x);
+        b.putFloat(c.y);
+        b.putFloat(c.z);
         return b.array();
     }
 }

@@ -723,6 +723,7 @@ class Slice06P0Test {
     /**
      * Unit::SetDeathState(JUST_DIED) StopMoving: SMSG_MONSTER_MOVE MonsterMoveStop so the client
      * drops FACING_TARGET (otherwise the corpse keeps turning toward the looter).
+     * Also clears UNIT_FIELD_TARGET; corpse orientation must stay frozen when the player circles.
      */
     @Test
     void tpSl06DeadCreatureShouldStopFacingOnWire() {
@@ -748,14 +749,27 @@ class Slice06P0Test {
         assertTrue(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_STOP));
         assertEquals(0, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_TARGET));
         assertEquals(0, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_TARGET + 1));
+        float corpseO = c.o;
         client.clear();
-        ox = p.x;
-        oy = p.y;
-        p.relocate(c.x + 4, c.y, c.z, c.o);
-        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
-        world.tick(200);
+        // Circle the corpse — FACING_TARGET / live chase would keep turning it toward the player.
+        float[][] ring = {
+                {c.x + 4, c.y},
+                {c.x, c.y + 4},
+                {c.x - 4, c.y},
+                {c.x, c.y - 4},
+                {c.x + 4, c.y + 4}
+        };
+        for (float[] pos : ring) {
+            ox = p.x;
+            oy = p.y;
+            p.relocate(pos[0], pos[1], c.z, c.o);
+            world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+            world.tick(200);
+        }
         assertFalse(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_TARGET));
+        assertFalse(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_ANGLE));
         assertEquals(org.tbc.world.ai.MotionMaster.IDLE, c.motion.type());
+        assertEquals(corpseO, c.o, 0.001f, "corpse orientation must not track the looter");
     }
 
     private static final int UNIT_DYNFLAG_LOOTABLE = 0x0001;
