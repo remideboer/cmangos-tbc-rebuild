@@ -55,12 +55,32 @@ public final class ClientLauncher {
         if (!Files.isRegularFile(clientPath)) {
             throw new LauncherException("Client not found: " + clientPath);
         }
+        Path launch = resolveLaunchExecutable(clientPath);
+        if (!Files.isRegularFile(launch)) {
+            throw new LauncherException("Client not found: " + launch);
+        }
         Path log = settings.getParent().getParent().resolve("logs").resolve("client.log");
         try {
-            starter.start(List.of(clientPath.toString()), clientPath.getParent(), log, false);
+            starter.start(List.of(launch.toString()), launch.getParent(), log, false);
         } catch (IOException e) {
             throw new LauncherException("Could not start client: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Prefer sibling {@code wowme.exe} (unsigned 8606) when present; leave stock {@code Wow.exe}
+     * as the configured path. Custom DBC patches need the unsigned binary.
+     */
+    public static Path resolveLaunchExecutable(Path configured) {
+        Path abs = configured.toAbsolutePath().normalize();
+        Path parent = abs.getParent();
+        if (parent != null) {
+            Path wowme = parent.resolve("wowme.exe");
+            if (Files.isRegularFile(wowme)) {
+                return wowme.toAbsolutePath().normalize();
+            }
+        }
+        return abs;
     }
 
     private Path load() {

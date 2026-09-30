@@ -33,9 +33,16 @@ public final class InventoryHandler {
     /** Slot 0 is Battle Stance on warriors; ON_EQUIP / unequip must push later slots and attack-power mods. */
     private static int[] withAuras(Player p, int... fields) {
         int[] extra = AuraSlots.paperDollAuraFields(p);
-        int[] all = Arrays.copyOf(fields, fields.length + extra.length + 1);
+        // POS/NEG schools 1..6 (holy..arcane) — createUnit omits zeros; VALUES must clear $SPH after unequip.
+        int spellDone = 12;
+        int[] all = Arrays.copyOf(fields, fields.length + extra.length + 1 + spellDone);
         System.arraycopy(extra, 0, all, fields.length, extra.length);
-        all[all.length - 1] = UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS;
+        int i = fields.length + extra.length;
+        all[i++] = UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS;
+        for (int school = 1; school <= 6; school++) {
+            all[i++] = UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + school;
+            all[i++] = UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + school;
+        }
         return all;
     }
 

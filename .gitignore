@@ -11,3 +11,5 @@ conf/local-*.conf
 .classpath
 .project
 .settings/
+content/out/
+

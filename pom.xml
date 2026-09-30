@@ -21,6 +21,7 @@
     <module>tbc-admin</module>
     <module>tbc-editor</module>
     <module>tbc-launcher</module>
+    <module>tbc-content</module>
     <module>tbc-tests</module>
   </modules>
   <properties>

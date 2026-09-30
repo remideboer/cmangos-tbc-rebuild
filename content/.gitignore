@@ -1,0 +1,5 @@
+/out/
+**/*.bak.*
+_sor_*.txt
+_sor_*.json
+_gen_*.py

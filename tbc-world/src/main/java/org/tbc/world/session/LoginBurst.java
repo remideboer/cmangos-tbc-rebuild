@@ -132,7 +132,7 @@ public final class LoginBurst {
         }
         p.applyCreateFields();
         DeathHandler.restoreGhostOnLogin(s);
-        // Weapon UNIT_FIELD must be set before create-self (SoR buff/action-bar $mw / $MWS).
+        // Weapon UNIT_FIELD must be set before create-self (melee / display damage).
         world.objectMgr.applyEquippedMelee(p);
         sendInventory(s, p, world);
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, true, (int) world.nowMs()));
@@ -201,8 +201,7 @@ public final class LoginBurst {
 
     /**
      * Create-item blocks for bag contents, then {@code SMSG_ITEM_QUERY_SINGLE_RESPONSE} for each
-     * unique entry so the client SoR tooltip ($MW/$mw/$MWS) uses live item_template — not a stale
-     * WDB row or empty proto.
+     * unique entry so client item tips use live item_template — not a stale WDB row or empty proto.
      */
     public static void sendInventory(WorldSession s, Player p, World world) {
         for (Item it : p.items.values()) {
@@ -213,8 +212,9 @@ public final class LoginBurst {
     }
 
     /**
-     * Re-sync UNIT_FIELD weapon line and push MH/OH item query so the client SoR buff
-     * (${$cond($eq($HND,1),…)}) evaluates claymore 3–5 @ 2.9s → ~5, not a stale 3.5s/avg90 → 9.
+     * Re-sync UNIT_FIELD weapon line and MH/OH item query (melee display / item tips).
+     * SoR buff text is plain (no $MW formula); combat log remains authority — see
+     * {@code content/sor-tip-combat-align.md}.
      */
     public static void pushWeaponClientStats(WorldSession s, Player p, World world) {
         if (s == null || p == null || world == null || world.objectMgr == null) {
@@ -231,7 +231,19 @@ public final class LoginBurst {
         }
         var atk = UpdateBuilder.maybeCompress(UpdateBuilder.values(p,
                 UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
-                UpdateFields.UNIT_FIELD_BASEATTACKTIME));
+                UpdateFields.UNIT_FIELD_BASEATTACKTIME,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 1,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 2,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 3,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 4,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 5,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 6,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 1,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 2,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 3,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 4,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 5,
+                UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 6));
         s.send(atk.opcode(), atk.payload());
     }
 

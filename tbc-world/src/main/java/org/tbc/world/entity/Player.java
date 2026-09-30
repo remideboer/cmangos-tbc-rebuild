@@ -709,11 +709,31 @@ public final class Player extends Unit {
         setInt(UpdateFields.PLAYER_NEXT_LEVEL_XP, nextLevelXp);
         setInt(UpdateFields.PLAYER_XP, xp);
         setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, manaRegenPerSecond);
-        // InitStatsForLevel: SetFloatValue(PLAYER_FIELD_MOD_DAMAGE_DONE_PCT + i, 1.00f)
-        // for MAX_SPELL_SCHOOL. Zero bits make PaperDollFrame UnitDamage() divide by 0.
+        // InitStatsForLevel: zero POS/NEG, PCT=1.00 for MAX_SPELL_SCHOOL (client $SPH / PaperDoll).
         for (int i = 0; i < 7; i++) {
+            setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + i, 0);
+            setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + i, 0);
             setFloat(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_PCT + i, 1.0f);
         }
+    }
+
+    /**
+     * CMaNGOS Player::UpdateSpellDamageBonus — advertised spell damage for client tip tokens
+     * ({@code $SPH} = holy = school 1). Combat SoR reads {@link #holySpellPower()}.
+     */
+    public void updateSpellDamageBonusDone(int holy, int fire, int nature, int frost, int shadow, int arcane) {
+        setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 1, holy);
+        setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 2, fire);
+        setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 3, nature);
+        setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 4, frost);
+        setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 5, shadow);
+        setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 6, arcane);
+    }
+
+    /** Holy school advertised bonus ({@code $SPH} / SoR coeff). */
+    public int holySpellPower() {
+        return getInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 1)
+                - getInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 1);
     }
 
     /**

@@ -137,4 +137,52 @@ class ObjectMgrEquippedMeleeTest {
         ObjectMgr.applyWeaponProto(it, null);
         assertEquals(0, it.delay);
     }
+
+    @Test
+    void applyEquippedMeleeWhenOnEquipSpellDamageRegisteredShouldSetHolySpellPower() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        int entry = 900_360;
+        int spellId = 900_361;
+        ObjectMgr.ItemTemplate t = new ObjectMgr.ItemTemplate();
+        t.entry = entry;
+        t.inventoryType = 11; // finger
+        t.spellId[0] = spellId;
+        t.spellTrigger[0] = 1; // ON_EQUIP
+        mgr.items.put(entry, t);
+        mgr.registerOnEquipSpellDamageDone(spellId, 1, 14);
+
+        Player p = new Player();
+        p.guid = 1;
+        Item ring = new Item(20, entry);
+        ring.slot = 10; // finger1
+        p.items.put(20, ring);
+        p.updateSpellDamageBonusDone(99, 0, 0, 0, 0, 0);
+
+        mgr.applyEquippedMelee(p);
+
+        assertEquals(14, p.holySpellPower());
+    }
+
+    @Test
+    void applyEquippedMeleeWhenNoSpellDamageGearShouldClearHolySpellPower() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = new Player();
+        p.guid = 1;
+        p.updateSpellDamageBonusDone(14, 0, 0, 0, 0, 0);
+        mgr.applyEquippedMelee(p);
+        assertEquals(0, p.holySpellPower());
+    }
+
+    @Test
+    void registerOnEquipSpellDamageDoneWhenSchoolOutOfRangeShouldIgnore() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.registerOnEquipSpellDamageDone(1, 0, 10);
+        mgr.registerOnEquipSpellDamageDone(0, 1, 10);
+        mgr.registerOnEquipSpellDamageDone(1, 7, 10);
+        Player p = new Player();
+        mgr.applyEquippedMelee(p);
+        assertEquals(0, p.holySpellPower());
+    }
 }

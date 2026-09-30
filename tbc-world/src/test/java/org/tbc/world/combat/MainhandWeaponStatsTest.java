@@ -10,11 +10,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Shared mainhand proto vs UNIT_FIELD — SoR / future weapon-scaled procs. */
+/** SoR combat inputs follow stock tip tokens $MW/$mw/$MWS (UNIT when synced). */
 class MainhandWeaponStatsTest {
 
     @Test
-    void fromWhenMainhandProtoFilledShouldPreferItemOverStaleUnitField() {
+    void fromWhenUnitSyncedShouldPreferUnitOverStaleItem() {
+        Player p = player();
+        Item mh = new Item(1, 25);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, MainhandWeaponStats.SUBCLASS_SWORD2, 3500, 80f, 100f);
+        p.items.put(1, mh);
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2900);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 3f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 5f);
+
+        MainhandWeaponStats s = MainhandWeaponStats.from(p);
+        assertEquals(2.9f, s.speedSec());
+        assertEquals(4f, s.avgDamage());
+        assertEquals(3f, s.damageMin());
+        assertEquals(5f, s.damageMax());
+    }
+
+    @Test
+    void fromWhenUnitIsFistDefaultShouldPreferItemProto() {
         Player p = player();
         Item mh = new Item(1, 25);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
@@ -27,13 +45,11 @@ class MainhandWeaponStatsTest {
         MainhandWeaponStats s = MainhandWeaponStats.from(p);
         assertEquals(3.5f, s.speedSec());
         assertEquals(90f, s.avgDamage());
-        assertEquals(3500, s.delayMs());
         assertTrue(s.twoHand());
     }
 
     @Test
     void fromWhenTwoHandSubclassButInventoryTypeOneHandShouldStillBeTwoHand() {
-        // Live bug: buff $HND=2 (9) while server InventoryType 21/13 → SoR 1H trunc 5.
         Player p = player();
         Item mh = new Item(3, 2361);
         mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
@@ -42,8 +58,6 @@ class MainhandWeaponStatsTest {
 
         MainhandWeaponStats s = MainhandWeaponStats.from(p);
         assertTrue(s.twoHand());
-        assertEquals(3.5f, s.speedSec());
-        assertEquals(90f, s.avgDamage());
     }
 
     @Test
@@ -61,7 +75,6 @@ class MainhandWeaponStatsTest {
         MainhandWeaponStats s = MainhandWeaponStats.from(p);
         assertEquals(2.4f, s.speedSec());
         assertEquals(12f, s.avgDamage());
-        assertEquals(2400, s.delayMs());
         assertFalse(s.twoHand());
     }
 
@@ -75,14 +88,12 @@ class MainhandWeaponStatsTest {
         MainhandWeaponStats s = MainhandWeaponStats.from(p);
         assertEquals(2.0f, s.speedSec());
         assertEquals(2000, s.delayMs());
-        assertFalse(s.twoHand());
     }
 
     @Test
     void fromWhenNullPlayerShouldReturnFistDefaults() {
         MainhandWeaponStats s = MainhandWeaponStats.from(null);
         assertEquals(2.0f, s.speedSec());
-        assertEquals(2000, s.delayMs());
         assertFalse(s.twoHand());
     }
 

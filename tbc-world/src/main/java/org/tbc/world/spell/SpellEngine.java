@@ -3171,26 +3171,37 @@ public final class SpellEngine {
         return SEAL_OF_RIGHTEOUSNESS_TRIGGERS.getOrDefault(auraId, 0);
     }
 
-    /** True for Seal of Righteousness aura ranks (client buff tooltip uses $HND/$MW/$mw/$MWS). */
+    /** True for Seal of Righteousness aura ranks (client tip uses $m1/$MW/$mw/$MWS one-formula). */
     public static boolean isSealOfRighteousness(int spellId) {
         return sealOfRighteousnessTrigger(spellId) != 0;
     }
 
     /**
+     * Client one-formula tip base (no holy SP):
+     * {@code 1.2*($m1*1.2*1.03*$MWS/100)+0.03*($MW+$mw)/2+1} — trunc toward zero.
+     */
+    static int sealOfRighteousnessTipBase(int m1, float mwsSec, float mwbMax, float mwbMin) {
+        float damage = 1.2f * (m1 * 1.2f * 1.03f * mwsSec / 100.0f)
+                + 0.03f * (mwbMax + mwbMin) / 2f
+                + 1f;
+        return Math.max(0, (int) damage);
+    }
+
+    /**
      * Seal of Righteousness holy damage — single formula for every mainhand (no 1H/2H / $HND
-     * branch; user-requested divergence from CMaNGOS HandleDummyAuraProc 1H path). Matches the
-     * former 8606 2H buff tooltip + one holy SP coeff. Weapon speed/avg via
-     * {@link MainhandWeaponStats} (item proto first).
+     * branch; user-requested divergence from CMaNGOS HandleDummyAuraProc 1H path). Tip base from
+     * {@link #sealOfRighteousnessTipBase} using {@link MainhandWeaponStats} (synced UNIT fields for
+     * stock tip tokens {@code $MW}/{@code $mw}/{@code $MWS}) plus holy SP from
+     * {@link Player#holySpellPower()} when non-zero (tip omits {@code $SPH} until gear SP is on the wire).
      */
     static int sealOfRighteousnessDamage(Player attacker, SpellInfo seal) {
-        int amount = (seal.minDmg + seal.maxDmg) / 2;
+        int m1 = (seal.minDmg + seal.maxDmg) / 2;
         MainhandWeaponStats w = MainhandWeaponStats.from(attacker);
         float speed = w.speedSec();
-        float weapon = w.avgDamage();
-        // Same expr for all weapons: 1.2 * (amount * 1.2 * 1.03 * MWS / 100) + 0.03 * avg + 1
-        float damage = 1.2f * amount * 1.2f * 1.03f * speed / 100.0f + 0.03f * weapon + 1f;
-        int holySp = attacker.getInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 1)
-                - attacker.getInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + 1);
+        float damage = 1.2f * (m1 * 1.2f * 1.03f * speed / 100.0f)
+                + 0.03f * (w.damageMax() + w.damageMin()) / 2f
+                + 1f;
+        int holySp = attacker.holySpellPower();
         if (holySp != 0) {
             damage += holySp * (0.108f * speed);
         }

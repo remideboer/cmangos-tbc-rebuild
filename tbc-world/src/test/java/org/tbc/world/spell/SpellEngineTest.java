@@ -757,6 +757,14 @@ class SpellEngineTest {
     }
 
     @Test
+    void sealOfRighteousnessTipBaseWhenClaymoreInputsShouldMatchOneFormulaTruncation() {
+        // YAML: ${1.2*($m1*1.2*1.03*$MWS/100)+0.03*($MW+$mw)/2+1+…} @ 108 / 2.9s / 3–5 → trunc 5
+        assertEquals(5, SpellEngine.sealOfRighteousnessTipBase(108, 2.9f, 5f, 3f));
+        assertEquals(9, SpellEngine.sealOfRighteousnessTipBase(108, 3.5f, 100f, 80f));
+        assertEquals(0, SpellEngine.sealOfRighteousnessTipBase(-10_000, 1f, 0f, 0f));
+    }
+
+    @Test
     void sealOfRighteousnessDamageWhenBattlewornClaymoreShouldMatchServerTemplate() {
         // Mila DB: item 23346 delay 2900 dmg 3–5 → unified formula trunc 5 (not buff-stale 9).
         Item mh = new Item(10, 23346);
@@ -764,6 +772,34 @@ class SpellEngineTest {
         mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, 2900, 3f, 5f);
         p.items.put(10, mh);
         assertEquals(5, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenUnitTipTokensDifferFromItemShouldFollowUnit() {
+        // Stock tip $MW/$mw/$MWS — synced UNIT claymore wins over stale item.
+        Item mh = new Item(11, 23346);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, 3500, 80f, 100f);
+        p.items.put(11, mh);
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2900);
+        p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 3f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 5f);
+        assertEquals(5, SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
+        assertEquals(SpellEngine.sealOfRighteousnessTipBase(108, 2.9f, 5f, 3f),
+                SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS)));
+    }
+
+    @Test
+    void sealOfRighteousnessDamageWhenHolySpellPowerFieldSetShouldMatchTipWithSph() {
+        Item mh = new Item(12, 23346);
+        mh.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        mh.applyWeaponLine(SpellEngine.INVTYPE_2HWEAPON, 2900, 3f, 5f);
+        p.items.put(12, mh);
+        p.updateSpellDamageBonusDone(14, 0, 0, 0, 0, 0);
+        int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+        // tipBase 5.765 + 14 * 0.108 * 2.9 ≈ 10.15 → trunc 10
+        assertEquals(10, dmg);
+        assertEquals(14, p.holySpellPower());
     }
 
     @Test
@@ -913,8 +949,9 @@ class SpellEngineTest {
         p.items.put(4, mh);
         p.setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + 1, 50);
         int dmg = SpellEngine.sealOfRighteousnessDamage(p, engine.info(SpellEngine.SEAL_OF_RIGHTEOUSNESS));
-        // Single formula base trunc 4 + 50 * 0.108 * 2.0 → trunc 15
+        // Single formula float + 50 * 0.108 * 2.0 → trunc 15 (SP applied before trunc)
         assertEquals(15, dmg);
+        assertEquals(4, SpellEngine.sealOfRighteousnessTipBase(108, 2.0f, 10f, 10f));
     }
 
     @Test

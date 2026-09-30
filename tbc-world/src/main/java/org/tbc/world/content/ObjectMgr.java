@@ -3850,6 +3850,57 @@ public final class ObjectMgr {
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_SHIELD_BLOCK, shieldBlock);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS, onEquipAttackPower(p));
         applyEquippedItemSpells(p);
+        applySpellDamageDoneFields(p);
+    }
+
+    /**
+     * CMaNGOS UpdateSpellDamageBonus (flat ON_EQUIP contributions). Registers known
+     * {@code SPELL_AURA_MOD_DAMAGE_DONE} item spells; unknown ids contribute 0 so POS stays cleared.
+     */
+    private void applySpellDamageDoneFields(Player p) {
+        int holy = 0;
+        int fire = 0;
+        int nature = 0;
+        int frost = 0;
+        int shadow = 0;
+        int arcane = 0;
+        for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
+            ItemTemplate t = equippedTemplate(p, slot);
+            if (t == null) {
+                continue;
+            }
+            for (int i = 0; i < t.spellId.length; i++) {
+                if (t.spellTrigger[i] != ITEM_SPELLTRIGGER_ON_EQUIP || t.spellId[i] == 0) {
+                    continue;
+                }
+                int[] bySchool = onEquipSpellDamageDone.get(t.spellId[i]);
+                if (bySchool == null) {
+                    continue;
+                }
+                holy += bySchool[1];
+                fire += bySchool[2];
+                nature += bySchool[3];
+                frost += bySchool[4];
+                shadow += bySchool[5];
+                arcane += bySchool[6];
+            }
+        }
+        p.updateSpellDamageBonusDone(holy, fire, nature, frost, shadow, arcane);
+    }
+
+    /**
+     * ON_EQUIP spell id → damage done per school index 1..6 (index 0 unused).
+     * Extend when cataloguing item spells with SPELL_AURA_MOD_DAMAGE_DONE.
+     */
+    private final Map<Integer, int[]> onEquipSpellDamageDone = new HashMap<>();
+
+    /** Test / content hook — register flat school bonus for an ON_EQUIP spell. */
+    public void registerOnEquipSpellDamageDone(int spellId, int school, int amount) {
+        if (spellId == 0 || school < 1 || school > 6) {
+            return;
+        }
+        int[] row = onEquipSpellDamageDone.computeIfAbsent(spellId, id -> new int[7]);
+        row[school] = amount;
     }
 
     /** Aura 99 on ON_EQUIP spell 14052 — positive half of UNIT_FIELD_ATTACK_POWER_MODS. */

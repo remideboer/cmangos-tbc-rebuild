@@ -22,7 +22,7 @@ public interface ClientPathDialogs {
             @Override
             public Optional<Path> browse() {
                 JFileChooser fc = new JFileChooser();
-                fc.setDialogTitle("Select the WoW 2.4.3 client (Wow.exe)");
+                fc.setDialogTitle("Select Wow.exe (launcher prefers sibling wowme.exe when present)");
                 fc.setFileFilter(new FileNameExtensionFilter("Executable (*.exe)", "exe"));
                 if (fc.showOpenDialog(parent) != JFileChooser.APPROVE_OPTION || fc.getSelectedFile() == null) {
                     return Optional.empty();

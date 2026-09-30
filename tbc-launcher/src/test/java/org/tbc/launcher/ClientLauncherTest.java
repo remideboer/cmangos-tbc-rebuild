@@ -47,14 +47,38 @@ class ClientLauncherTest {
     }
 
     @Test
-    void startClientWhenPathSetShouldSpawnExeInItsFolder() {
+    void startClientWhenWowmeBesideWowShouldLaunchWowmeNotStock() throws Exception {
+        Path wowme = exe.getParent().resolve("wowme.exe");
+        Files.writeString(wowme, "wowme");
+        ClientLauncher cl = new ClientLauncher(settings, starter);
+        cl.setClientPath(exe); // still remember stock Wow.exe
+        cl.startClient();
+        assertEquals(1, starter.calls.size());
+        assertEquals(List.of(wowme.toAbsolutePath().normalize().toString()), starter.calls.get(0));
+        assertEquals(exe.getParent().toAbsolutePath().normalize(), starter.workDirs.get(0));
+        assertEquals(exe.toAbsolutePath().normalize(), cl.clientPath().orElseThrow());
+    }
+
+    @Test
+    void startClientWhenNoWowmeShouldLaunchConfiguredWow() {
         ClientLauncher cl = new ClientLauncher(settings, starter);
         cl.setClientPath(exe);
         cl.startClient();
-        assertEquals(1, starter.calls.size());
         assertEquals(List.of(exe.toAbsolutePath().normalize().toString()), starter.calls.get(0));
-        assertEquals(exe.getParent().toAbsolutePath().normalize(), starter.workDirs.get(0));
     }
+
+    @Test
+    void resolveLaunchExecutableWhenWowmePresentShouldPreferIt() throws Exception {
+        Path wowme = exe.getParent().resolve("wowme.exe");
+        Files.writeString(wowme, "wowme");
+        assertEquals(wowme.toAbsolutePath().normalize(), ClientLauncher.resolveLaunchExecutable(exe));
+    }
+
+    @Test
+    void resolveLaunchExecutableWhenWowmeMissingShouldKeepConfigured() {
+        assertEquals(exe.toAbsolutePath().normalize(), ClientLauncher.resolveLaunchExecutable(exe));
+    }
+
 
     @Test
     void setClientPathWhenFileMissingShouldThrowAndStayUnset() {

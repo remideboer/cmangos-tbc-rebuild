@@ -1,0 +1,112 @@
+# Seal of Righteousness — tip text without live weapon-token math.
+# 8606 $MW/$mw/$MWS tip eval (Item.dbc / AP) does not match server combat inputs;
+# numeric tip was showing 6/10 while combat correctly dealt 5. Combat log is authority.
+# Marker "see combat log" proves patch-enUS-3.MPQ Spell.dbc is loaded.
+---
+kind: spell
+id: 20154
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: >-
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+---
+kind: spell
+id: 21084
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: |
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+      
+      Unleashing this Seal's energy will cause $20187s1 Holy damage to an enemy.
+---
+kind: spell
+id: 20287
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: |
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+      
+      Unleashing this Seal's energy will cause $20280s1 Holy damage to an enemy.
+---
+kind: spell
+id: 20288
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: |
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+      
+      Unleashing this Seal's energy will cause $20281s1 Holy damage to an enemy.
+---
+kind: spell
+id: 20289
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: |
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+      
+      Unleashing this Seal's energy will cause $20282s1 Holy damage to an enemy.
+---
+kind: spell
+id: 20290
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: |
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+      
+      Unleashing this Seal's energy will cause $20283s1 Holy damage to an enemy.
+---
+kind: spell
+id: 20291
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: |
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+      
+      Unleashing this Seal's energy will cause $20284s1 Holy damage to an enemy.
+---
+kind: spell
+id: 20292
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: |
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+      
+      Unleashing this Seal's energy will cause $20285s1 Holy damage to an enemy.
+---
+kind: spell
+id: 20293
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: |
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+      
+      Unleashing this Seal's energy will cause $20286s1 Holy damage to an enemy.
+---
+kind: spell
+id: 27155
+client:
+  Spell:
+    AuraDescription_lang_enUS: >-
+      Melee attacks cause additional Holy damage based on your weapon (see combat log).
+    Description_lang_enUS: |
+      Fills the Paladin with holy spirit for $d, granting each melee attack additional Holy damage based on your weapon (see combat log).  Only one Seal can be active on the Paladin at any one time.
+      
+      Unleashing this Seal's energy will cause $27157s1 Holy damage to an enemy.
