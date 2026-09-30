@@ -78,6 +78,9 @@ class BinderHandlerTest {
         BinderHandler.activate(p, map, new Terrain(null), guid(inn.guid), this::capture, nextItem::getAndIncrement, mgr);
         assertEquals(1, countEntry(Content.ITEM_HEARTHSTONE));
         assertTrue(ops.contains(Opcodes.SMSG_ITEM_PUSH_RESULT));
+        assertTrue(ops.contains(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE));
+        WowBuffer query = new WowBuffer(last.get(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE));
+        assertEquals(Content.ITEM_HEARTHSTONE, query.getU32());
         WowBuffer push = new WowBuffer(last.get(Opcodes.SMSG_ITEM_PUSH_RESULT));
         assertEquals(p.guid, push.getU64());
         push.getU32();

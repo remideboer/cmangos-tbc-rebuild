@@ -1309,10 +1309,14 @@ public final class ObjectMgr {
         public static ItemTemplate hearthstone() {
             ItemTemplate t = new ItemTemplate();
             t.entry = Content.ITEM_HEARTHSTONE;
+            t.itemClass = 15;
             t.name = "Hearthstone";
+            t.displayId = 6418;
             t.quality = 1;
+            t.flags = 64;
             t.stackable = 1;
             t.maxCount = 1;
+            t.bonding = 1;
             t.requiredDisenchantSkill = -1;
             t.spellId[0] = SpellEngine.HEARTHSTONE;
             t.spellTrigger[0] = 0;

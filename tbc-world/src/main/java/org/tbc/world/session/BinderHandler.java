@@ -115,6 +115,13 @@ public final class BinderHandler {
         int field = UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + it.slot * 2;
         var inv = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, field, field + 1));
         send.accept(inv.opcode(), inv.payload());
+        // Push proto with ON_USE 8690 — same as LoginBurst.sendInventory item-query sync.
+        if (mgr != null) {
+            ObjectMgr.ItemTemplate proto = mgr.items.get(Content.ITEM_HEARTHSTONE);
+            if (proto != null) {
+                send.accept(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, QueryHandler.encodeItemQuery(proto));
+            }
+        }
         send.accept(Opcodes.SMSG_ITEM_PUSH_RESULT, encodeCreateItemPush(p, it));
     }
 

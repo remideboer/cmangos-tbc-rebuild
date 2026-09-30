@@ -268,6 +268,12 @@ public final class CharacterStore {
         p.applyCreateFields();
         int flags = col(rs, "playerFlags", 0);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FLAGS, flags);
+        // CMaNGOS LoadFromDB fields[59] → SetByteValue(PLAYER_FIELD_BYTES, ACTION_BAR_TOGGLES).
+        int actionBars = col(rs, "actionBars", 0) & 0xFF;
+        int shift = Player.PLAYER_FIELD_BYTES_OFFSET_ACTION_BAR_TOGGLES * 8;
+        int fieldBytes = p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_BYTES);
+        fieldBytes = (fieldBytes & ~(0xFF << shift)) | (actionBars << shift);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_BYTES, fieldBytes);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, col(rs, "health", 50)));
         if ((flags & Player.PLAYER_FLAGS_GHOST) != 0) {
             p.setGhost(true);
@@ -608,8 +614,8 @@ public final class CharacterStore {
 
     private Player loadRow(Connection c, int accountId, int g, ObjectMgr mgr, boolean withRest) throws Exception {
         String sql = withRest
-                ? "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,is_logout_resting,rest_bonus FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL"
-                : "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4 FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL";
+                ? "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,is_logout_resting,rest_bonus,actionBars FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL"
+                : "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,actionBars FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL";
         PreparedStatement ps = c.prepareStatement(sql);
         ps.setInt(1, g);
         ps.setInt(2, accountId);
@@ -772,7 +778,7 @@ public final class CharacterStore {
         del.setInt(1, Guid.low(p.guid));
         del.executeUpdate();
         PreparedStatement ins = c.prepareStatement(
-                "INSERT INTO characters (guid,account,name,race,class,gender,level,xp,money,playerBytes,playerBytes2,playerFlags,position_x,position_y,position_z,map,dungeon_difficulty,orientation,online,cinematic,totaltime,leveltime,logout_time,is_logout_resting,rest_bonus,zone,at_login,health,power1,power2,power3,power4,power5,watchedFaction) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                "INSERT INTO characters (guid,account,name,race,class,gender,level,xp,money,playerBytes,playerBytes2,playerFlags,position_x,position_y,position_z,map,dungeon_difficulty,orientation,online,cinematic,totaltime,leveltime,logout_time,is_logout_resting,rest_bonus,zone,at_login,health,power1,power2,power3,power4,power5,watchedFaction,actionBars) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
         int i = 1;
         ins.setInt(i++, Guid.low(p.guid));
         ins.setInt(i++, p.accountId);
@@ -809,6 +815,8 @@ public final class CharacterStore {
         ins.setInt(i++, p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER4));
         ins.setInt(i++, 0);
         ins.setLong(i++, Integer.toUnsignedLong(p.watchedFaction));
+        // CMaNGOS SaveToDB actionBars = GetByteValue(PLAYER_FIELD_BYTES, 2).
+        ins.setInt(i++, (p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_BYTES) >>> 16) & 0xFF);
         ins.executeUpdate();
     }
 

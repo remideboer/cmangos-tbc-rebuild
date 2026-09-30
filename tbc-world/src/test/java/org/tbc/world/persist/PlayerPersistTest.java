@@ -145,4 +145,14 @@ class PlayerPersistTest {
         src.learnSkill(164, 50, 75, 1);
         assertEquals(1, d.skillValue(164), "clone is independent");
     }
+
+    @Test
+    void copyWhenActionBarTogglesSetShouldKeepByte() {
+        Player src = new Player();
+        src.guid = 16;
+        int shift = Player.PLAYER_FIELD_BYTES_OFFSET_ACTION_BAR_TOGGLES * 8;
+        src.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_BYTES, 0x07 << shift);
+        Player d = PlayerPersist.copy(src);
+        assertEquals(0x07, (d.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_BYTES) >>> 16) & 0xFF);
+    }
 }

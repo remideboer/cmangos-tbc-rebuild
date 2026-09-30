@@ -181,6 +181,28 @@ class Slice04MiscOpcodesTest {
     }
 
     /**
+     * TP-SL04-022 — action-bar toggles survive logout/relog (characters.actionBars /
+     * PLAYER_FIELD_BYTES byte 2 on create-self).
+     */
+    @Test
+    void tpSl04ActionBarTogglesSurviveRelog() {
+        World world = World.inMemory();
+        WowClientDouble client = enter(world, ACC, "BarRelog");
+        long guid = client.session().player().guid;
+        client.clear();
+        WowBuffer in = new WowBuffer(1);
+        in.putU8(0x07);
+        client.handle(world, Opcodes.CMSG_SET_ACTIONBAR_TOGGLES, in.array());
+        client.session().logout(world, true);
+
+        WowClientDouble relog = new WowClientDouble();
+        relog.connect(ACC);
+        relog.login(world, guid);
+        Integer bytes = relog.selfCreateValues().get(UpdateFields.PLAYER_FIELD_BYTES);
+        assertEquals(0x07, ((bytes != null ? bytes : 0) >>> 16) & 0xFF);
+    }
+
+    /**
      * CMSG_TUTORIAL_CLEAR — SetTutorialInt all 0xFFFFFFFF; next login SMSG_TUTORIAL_FLAGS.
      */
     @Test

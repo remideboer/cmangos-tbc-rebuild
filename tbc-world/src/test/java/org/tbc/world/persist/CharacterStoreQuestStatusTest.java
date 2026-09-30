@@ -57,7 +57,7 @@ class CharacterStoreQuestStatusTest {
                           orientation FLOAT, online INT, cinematic INT, totaltime INT, leveltime INT,
                           logout_time BIGINT, is_logout_resting INT, rest_bonus FLOAT, zone INT, at_login INT,
                           health INT, power1 INT, power2 INT, power3 INT, power4 INT, power5 INT,
-                          watchedFaction BIGINT, deleteDate BIGINT)
+                          watchedFaction BIGINT, actionBars TINYINT, deleteDate BIGINT)
                         """);
                 st.execute("""
                         CREATE TABLE character_queststatus (

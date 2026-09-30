@@ -69,6 +69,8 @@ public final class PlayerPersist {
         d.applyCreateFields();
         Content.syncQuestLogFields(d);
         d.setInt(UpdateFields.PLAYER_FLAGS, src.getInt(UpdateFields.PLAYER_FLAGS));
+        // CMaNGOS characters.actionBars — PLAYER_FIELD_BYTES byte 2 (action-bar toggles).
+        d.setInt(UpdateFields.PLAYER_FIELD_BYTES, src.getInt(UpdateFields.PLAYER_FIELD_BYTES));
         if (src.ghost) {
             d.setGhost(true);
             d.setInt(UpdateFields.UNIT_FIELD_HEALTH, Math.max(1, src.health()));

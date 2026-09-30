@@ -83,7 +83,7 @@ public final class QueryHandler {
             session.send(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, fail(itemId));
             return;
         }
-        session.send(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, writeItem(t));
+        session.send(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, encodeItemQuery(t));
     }
 
     /** Login/inventory refresh — push proto so client SoR $MW/$mw match item_template. */
@@ -91,7 +91,12 @@ public final class QueryHandler {
         if (session == null || t == null) {
             return;
         }
-        session.send(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, writeItem(t));
+        session.send(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, encodeItemQuery(t));
+    }
+
+    /** Wire bytes for {@link Opcodes#SMSG_ITEM_QUERY_SINGLE_RESPONSE} (queries.md). */
+    public static byte[] encodeItemQuery(ObjectMgr.ItemTemplate t) {
+        return writeItem(t);
     }
 
     public static void quest(WorldSession session, World world, WowBuffer in) {
@@ -373,13 +378,25 @@ public final class QueryHandler {
         out.putU32(t.delay);
         out.putU32(t.ammoType);
         out.putFloat(t.rangedModRange);
+        // ItemHandler.cpp — 5 × (spellId, trigger, charges, cooldown, category, categoryCooldown).
+        // Empty slots stay 0/−1; non-empty must carry ON_USE ids or login item-query wipes client use.
         for (int i = 0; i < 5; i++) {
-            out.putU32(0);
-            out.putU32(0);
-            out.putU32(0);
-            out.putU32(-1);
-            out.putU32(0);
-            out.putU32(-1);
+            int spellId = t.spellId[i];
+            if (spellId != 0) {
+                out.putU32(spellId);
+                out.putU32(t.spellTrigger[i]);
+                out.putU32(t.spellCharges[i]);
+                out.putU32(-1);
+                out.putU32(0);
+                out.putU32(-1);
+            } else {
+                out.putU32(0);
+                out.putU32(0);
+                out.putU32(0);
+                out.putU32(-1);
+                out.putU32(0);
+                out.putU32(-1);
+            }
         }
         out.putU32(t.bonding);
         out.putCString(nz(t.description));

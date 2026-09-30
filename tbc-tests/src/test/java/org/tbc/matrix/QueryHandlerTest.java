@@ -77,6 +77,50 @@ class QueryHandlerTest {
         assertTrue(cstring(ok, 16).contains("Worn Shortsword"));
     }
 
+    /**
+     * TP-SL08-029 / TP-SL07-010 — login {@code SMSG_ITEM_QUERY_SINGLE_RESPONSE} must carry
+     * Hearthstone 6948 ON_USE spell 8690. Zeroed spell slots make the client treat the stone
+     * as non-usable after inventory item-query push.
+     */
+    @Test
+    void itemQueryWhenHearthstoneShouldIncludeOnUseSpell8690() {
+        World w = World.inMemory();
+        Capture sink = new Capture();
+        WorldSession s = loggedIn(w, sink, "HsQuery", 0);
+        sink.opcodes.clear();
+        s.handle(w, Opcodes.CMSG_ITEM_QUERY_SINGLE, u32buf(Content.ITEM_HEARTHSTONE));
+        WowBuffer b = new WowBuffer(sink.last.get(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE));
+        assertEquals(Content.ITEM_HEARTHSTONE, b.getU32());
+        b.getU32();
+        b.getU32();
+        b.getU32();
+        b.getCString();
+        b.getU8();
+        b.getU8();
+        b.getU8();
+        for (int i = 0; i < 20; i++) {
+            b.getU32();
+        }
+        for (int i = 0; i < 10; i++) {
+            b.getU32();
+            b.getU32();
+        }
+        for (int i = 0; i < 5; i++) {
+            b.getFloat();
+            b.getFloat();
+            b.getU32();
+        }
+        for (int i = 0; i < 7; i++) {
+            b.getU32();
+        }
+        b.getU32();
+        b.getU32();
+        b.getFloat();
+        assertEquals(org.tbc.world.spell.SpellEngine.HEARTHSTONE, b.getU32());
+        assertEquals(0, b.getU32());
+        assertEquals(0, b.getU32());
+    }
+
     @Test
     void pageMissingTextPetUnknownGuildEmpty() {
         World w = World.inMemory();

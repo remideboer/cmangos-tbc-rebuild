@@ -3,6 +3,7 @@ package org.tbc.world.persist;
 import org.tbc.common.DbPool;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
@@ -10,37 +11,31 @@ import java.sql.Statement;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * TP-SL14-016 — character_spell + character_skills survive save/load (trainer learn stick).
+ * TP-SL04-022 — PLAYER_FIELD_BYTES action-bar toggles survive cold SQL load
+ * (CMaNGOS characters.actionBars / HandleSetActionBarTogglesOpcode).
  */
-class CharacterStoreSpellSkillTest {
-    private static final int SPELL_BATTLE_SHOUT = 6673;
-    private static final int SKILL_BLACKSMITHING = 164;
+class CharacterStoreActionBarsTest {
+    private static final int TOGGLES = 0x07;
 
     @Test
-    void saveWhenTrainedSpellAndSkillShouldReloadFromMemory() {
+    void saveWhenActionBarTogglesSetShouldReloadFromMemory() {
         CharacterStore store = new CharacterStore(null);
         ObjectMgr mgr = new ObjectMgr();
         mgr.load(null, null);
-        Player p = store.create(1, "Trained", 1, 1, 0, 1, 1, 1, 1, 0, mgr);
-        p.spells.add(SPELL_BATTLE_SHOUT);
-        p.learnSkill(SKILL_BLACKSMITHING, 1, 75, 1);
+        Player p = store.create(1, "BarsMem", 1, 1, 0, 1, 1, 1, 1, 0, mgr);
+        setActionBarToggles(p, TOGGLES);
         store.save(p);
         Player loaded = store.load(1, p.guid, mgr);
-        assertTrue(loaded.spells.contains(SPELL_BATTLE_SHOUT));
-        assertTrue(loaded.hasSkill(SKILL_BLACKSMITHING));
-        assertEquals(1, loaded.skillValue(SKILL_BLACKSMITHING));
-        assertEquals(75, loaded.skillMax(SKILL_BLACKSMITHING));
-        assertEquals(1, loaded.skillStep(SKILL_BLACKSMITHING));
+        assertEquals(TOGGLES, actionBarToggles(loaded));
     }
 
     @Test
-    void saveWhenDatabaseConnectedShouldReloadSpellAndSkillFromSql() throws Exception {
-        String url = "jdbc:h2:mem:spellskill_" + UUID.randomUUID().toString().replace("-", "")
+    void saveWhenDatabaseConnectedShouldReloadActionBarsFromSql() throws Exception {
+        String url = "jdbc:h2:mem:actionbars_" + UUID.randomUUID().toString().replace("-", "")
                 + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
-        try (DbPool chars = new DbPool(url, "sa", "", "spell-skill-test")) {
+        try (DbPool chars = new DbPool(url, "sa", "", "action-bars-test")) {
             try (Connection c = chars.get(); Statement st = c.createStatement()) {
                 st.execute("""
                         CREATE TABLE characters (
@@ -51,16 +46,6 @@ class CharacterStoreSpellSkillTest {
                           logout_time BIGINT, is_logout_resting INT, rest_bonus FLOAT, zone INT, at_login INT,
                           health INT, power1 INT, power2 INT, power3 INT, power4 INT, power5 INT,
                           watchedFaction BIGINT, actionBars TINYINT, deleteDate BIGINT)
-                        """);
-                st.execute("""
-                        CREATE TABLE character_spell (
-                          guid INT, spell INT, active TINYINT, disabled TINYINT,
-                          PRIMARY KEY (guid, spell))
-                        """);
-                st.execute("""
-                        CREATE TABLE character_skills (
-                          guid INT, skill INT, `value` INT, `max` INT,
-                          PRIMARY KEY (guid, skill))
                         """);
                 st.execute("CREATE TABLE item_instance (guid INT PRIMARY KEY)");
                 st.execute("""
@@ -75,6 +60,16 @@ class CharacterStoreSpellSkillTest {
                           PRIMARY KEY (guid, quest))
                         """);
                 st.execute("""
+                        CREATE TABLE character_spell (
+                          guid INT, spell INT, active TINYINT, disabled TINYINT,
+                          PRIMARY KEY (guid, spell))
+                        """);
+                st.execute("""
+                        CREATE TABLE character_skills (
+                          guid INT, skill INT, `value` INT, `max` INT,
+                          PRIMARY KEY (guid, skill))
+                        """);
+                st.execute("""
                         CREATE TABLE character_spell_cooldown (
                           guid INT, SpellId INT, SpellExpireTime BIGINT, Category INT,
                           CategoryExpireTime BIGINT, ItemId INT, PRIMARY KEY (guid, SpellId))
@@ -83,16 +78,23 @@ class CharacterStoreSpellSkillTest {
             ObjectMgr mgr = new ObjectMgr();
             mgr.load(null, null);
             CharacterStore store = new CharacterStore(chars);
-            Player p = store.create(1, "Sqltrain", 1, 1, 0, 1, 1, 1, 1, 0, mgr);
-            p.spells.add(SPELL_BATTLE_SHOUT);
-            p.learnSkill(SKILL_BLACKSMITHING, 1, 75, 1);
+            Player p = store.create(1, "BarsSql", 1, 1, 0, 1, 1, 1, 1, 0, mgr);
+            setActionBarToggles(p, TOGGLES);
             store.save(p);
             CharacterStore again = new CharacterStore(chars);
             Player loaded = again.load(1, p.guid, mgr);
-            assertTrue(loaded.spells.contains(SPELL_BATTLE_SHOUT));
-            assertTrue(loaded.hasSkill(SKILL_BLACKSMITHING));
-            assertEquals(1, loaded.skillValue(SKILL_BLACKSMITHING));
-            assertEquals(75, loaded.skillMax(SKILL_BLACKSMITHING));
+            assertEquals(TOGGLES, actionBarToggles(loaded));
         }
+    }
+
+    private static void setActionBarToggles(Player p, int bar) {
+        int shift = Player.PLAYER_FIELD_BYTES_OFFSET_ACTION_BAR_TOGGLES * 8;
+        int bytes = p.getInt(UpdateFields.PLAYER_FIELD_BYTES);
+        bytes = (bytes & ~(0xFF << shift)) | ((bar & 0xFF) << shift);
+        p.setInt(UpdateFields.PLAYER_FIELD_BYTES, bytes);
+    }
+
+    private static int actionBarToggles(Player p) {
+        return (p.getInt(UpdateFields.PLAYER_FIELD_BYTES) >>> 16) & 0xFF;
     }
 }
