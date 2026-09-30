@@ -2,6 +2,7 @@
 # 8606 $MW/$mw/$MWS tip eval (Item.dbc / AP) does not match server combat inputs;
 # numeric tip was showing 6/10 while combat correctly dealt 5. Combat log is authority.
 # Marker "see combat log" proves patch-enUS-3.MPQ Spell.dbc is loaded.
+# After edit: compile + install MPQ — see content/README.md.
 ---
 kind: spell
 id: 20154

@@ -1,6 +1,7 @@
 # Paladin seal auras: DurationIndex 30 = SpellDuration 1_800_000 ms (30 min).
 # Stock was index 9 (30 s). Client tip $d and spell_template both use this index.
 # Seal of Vengeance 31801 included (missing from older CMaNGOS seal group dump).
+# After edit: compile + install MPQ (+ apply spell_template_patch.sql) — see content/README.md.
 kind: spell
 id: 20154
 client:

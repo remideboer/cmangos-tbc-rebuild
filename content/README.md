@@ -2,6 +2,30 @@
 
 Author **deltas** here; `tbc-content` compiles them into server SQL + client DBC + an overlay patch MPQ.
 
+## Modify a spell (checklist)
+
+YAML under `content/spells/` is **not** live until you compile and install. A green JUnit on the YAML (or a `server:` SQL row alone) does **not** update the 8606 tip/`$d` duration — that comes from client `Spell.dbc` in the overlay MPQ.
+
+| Step | What | Where |
+|------|------|--------|
+| 1 | Add/edit delta | `content/spells/*.yaml` — `client.Spell.*` and/or `server.*` |
+| 2 | Assert the delta | `tbc-content` JUnit (e.g. `PaladinBlessingsDurationYamlTest`) |
+| 3 | Compile | `build.bat` **or** `java -jar tbc-content\…jar compile --content content --base-dbc <DataDir>\dbc --out content\out --mpq-name patch-tbc-custom.MPQ` |
+| 4 | Install overlay | `build.bat` does this when lab `Data` exists; else `content\install-client-patch.bat` → `WoW-2.4.3-client\Data\enUS\patch-enUS-3.MPQ` |
+| 5 | Apply SQL (if `server:`) | `content\out\spell_template_patch.sql` → world DB from `conf\local-mangosd.conf` `WorldDatabaseInfo` (e.g. `mysql … tbcmangos < content\out\spell_template_patch.sql`). **Required for buff timers / aura length** — client tip alone is not enough. Restart world after apply. |
+| 6 | Restart client | Fully quit **wowme.exe**, clear done by install (`Cache`/`WDB`), relaunch unsigned client |
+
+**Do not skip step 4–6** after changing `client.Spell` (DurationIndex, descriptions, …). Do not skip **step 5** when the delta has `server:` — otherwise the spellbook tip can say 30 min while the buff bar still ticks 10 min (stock `DurationIndex` 6). Examples: `paladin-seals-duration.yaml`, `paladin-blessings-duration.yaml`.
+
+```bat
+rem Example (credentials from conf\local-mangosd.conf WorldDatabaseInfo):
+mysql -h127.0.0.1 -P3306 -uroot -p tbcmangos < content\out\spell_template_patch.sql
+```
+
+**Locked MPQ:** quit the client before install (`patch-enUS-3.MPQ` in use → copy fails). **#131 File Corrupt:** stock `Wow.exe` rejects custom `Spell.dbc` — use `wowme.exe` ([unsigned-client-8606.md](unsigned-client-8606.md)).
+
+Commit **YAML + tests** only (`content/out/` and client MPQs are gitignored / not committed).
+
 ## Layout
 
 | Path | Role |
