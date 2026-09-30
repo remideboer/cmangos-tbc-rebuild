@@ -252,6 +252,8 @@ public final class SpellEngine {
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
     public static final int FROST_ARMOR = 168;
     public static final int FROST_ARMOR_DURATION_MS = 1_800_000;
+    /** Devotion Aura — Spell.dbc 465; APPLY_AREA_AURA_PARTY + MOD_RESISTANCE, permanent. */
+    public static final int DEVOTION_AURA = 465;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     /** SpellAuraNames SPELL_AURA_DUMMY — Seal of Righteousness rank 1. */
     public static final int SPELL_AURA_DUMMY = 4;
@@ -486,6 +488,9 @@ public final class SpellEngine {
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
+        // Spell.dbc 465: +55 armor (EffectBasePoints+1), school mask bit 0, DurationIndex permanent (−1).
+        spells.put(DEVOTION_AURA, new SpellInfo(DEVOTION_AURA, EFFECT_APPLY_AREA_AURA_PARTY, SPELL_AURA_MOD_RESISTANCE,
+                0, 0, 55, 55, 0f, 1).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(2050, new SpellInfo(2050, EFFECT_HEAL, 0, 1, 20, 10, 14, 0f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(ClassScripts.SPELL_EXECUTE, new SpellInfo(ClassScripts.SPELL_EXECUTE, EFFECT_DUMMY, 0, 0, 0, 0, 0, 5f)
@@ -983,8 +988,8 @@ public final class SpellEngine {
                 var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
                 send.accept(hp.opcode(), hp.payload());
             }
-            if (sp.effect == EFFECT_APPLY_AURA) {
-                int dur = auraDurationMs(sp);
+            if (sp.effect == EFFECT_APPLY_AURA || APPLY_AREA_AURA_EFFECTS.contains(sp.effect)) {
+                int dur = areaAuraPermanent(sp) ? 0 : auraDurationMs(sp);
                 AuraSlots.sendApply(target, caster, sp.id, dur, dur, send);
                 sendResistanceStatValues(target, sp, send);
                 List<SpellInfo> extras = extraEffects.get(sp.id);
@@ -1038,10 +1043,12 @@ public final class SpellEngine {
     /**
      * SpellAuraHolder: one timed entry per spell id. Extra effects from {@link #putTemplate}
      * (durationMs 0) only attach modifiers. Re-cast of the primary refreshes expire/nextTick.
+     * Area auras with DBC permanent (durationMs 0) keep expireAtMs 0 — no 30 s fallback.
      */
     private void addOrRefreshAuraHolder(Unit target, Unit caster, SpellInfo sp, long nowMs) {
-        int duration = auraDurationMs(sp);
-        long expireAt = nowMs > 0 ? nowMs + duration : 0;
+        boolean permanent = areaAuraPermanent(sp);
+        int duration = permanent ? 0 : auraDurationMs(sp);
+        long expireAt = permanent || nowMs <= 0 ? 0 : nowMs + duration;
         int amp = sp.amplitudeMs();
         long nextTick = amp > 0 && nowMs > 0 ? nowMs + amp : 0;
         long casterGuid = caster == null ? 0 : caster.guid;
@@ -1051,7 +1058,7 @@ public final class SpellEngine {
                 continue;
             }
             // Extra APPLY_AURA rows are SpellInfo without duration/amplitude — do not clobber.
-            if (sp.durationMs() > 0 || sp.amplitudeMs() > 0) {
+            if (sp.durationMs() > 0 || sp.amplitudeMs() > 0 || permanent) {
                 target.auras.set(i, new Unit.Aura(sp.id, duration, a.stacks(), a.mechanic(),
                         expireAt, amp > 0 ? amp : a.amplitudeMs(), nextTick, casterGuid));
             }
@@ -1060,6 +1067,12 @@ public final class SpellEngine {
         target.auras.add(new Unit.Aura(sp.id, duration, 1, 0, expireAt, amp, nextTick, casterGuid));
         int level = caster == null ? target.level : caster.level;
         AuraSlots.applyVisible(target, sp.id, level, 1);
+    }
+
+    /** DurationIndex −1 area auras (Devotion Aura 465): permanent until cancel. */
+    static boolean areaAuraPermanent(SpellInfo sp) {
+        return sp != null && APPLY_AREA_AURA_EFFECTS.contains(sp.effect)
+                && sp.durationMs() <= 0 && sp.amplitudeMs() <= 0;
     }
 
     /**
@@ -1528,7 +1541,12 @@ public final class SpellEngine {
             return 0;
         }
         if (APPLY_AREA_AURA_EFFECTS.contains(sp.effect)) {
-            applyAreaAuraParty(target, sp.id);
+            if (!target.alive()) {
+                return 0;
+            }
+            // EffectApplyAreaAura → CreateAura (holder + ApplyModifier); party radius later.
+            addOrRefreshAuraHolder(target, caster, sp, nowMs);
+            auras.apply(target, sp);
             return 0;
         }
         if (sp.effect == EFFECT_ENERGIZE) {
@@ -2178,6 +2196,7 @@ public final class SpellEngine {
      * Effects 35/119/128/129/143 — SPELL_EFFECT_APPLY_AREA_AURA_PARTY/PET/FRIEND/ENEMY/OWNER.
      * CMaNGOS EffectApplyAreaAura: living unitTarget CreateAura.
      * Devotion Aura 465. Spirit Bond 19579. Strength of Earth 31634. Alluring Aura 29485. Soul Link 25228.
+     * Prefer {@link #apply} with full SpellInfo; this overload is for guard/no-op cases.
      */
     public void applyAreaAuraParty(Unit target, int spellId) {
         if (target == null) {
@@ -2189,7 +2208,12 @@ public final class SpellEngine {
         if (spellId <= 0) {
             return;
         }
-        target.auras.add(new Unit.Aura(spellId, 30_000, 1));
+        SpellInfo sp = info(spellId);
+        if (sp == null || !APPLY_AREA_AURA_EFFECTS.contains(sp.effect)) {
+            return;
+        }
+        addOrRefreshAuraHolder(target, null, sp, 0);
+        auras.apply(target, sp);
     }
 
     /**
