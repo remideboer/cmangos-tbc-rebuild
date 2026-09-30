@@ -38,6 +38,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_HIT_CHANCE = 54;
     public static final int SPELL_AURA_MOD_SPELL_HIT_CHANCE = 55;
     public static final int SPELL_AURA_MOD_SPELL_CRIT_CHANCE = 57;
+    public static final int SPELL_AURA_MOD_STALKED = 68;
     public static final int SPELL_AURA_MOD_SCALE = 61;
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_FEIGN_DEATH = 66;
@@ -69,7 +70,7 @@ public final class AuraEngine {
             SPELL_AURA_TRACK_CREATURES, SPELL_AURA_TRACK_RESOURCES,
             SPELL_AURA_MOD_CRIT_PERCENT, SPELL_AURA_MOD_DODGE_PERCENT, SPELL_AURA_MOD_PARRY_PERCENT,
             SPELL_AURA_MOD_BLOCK_PERCENT, SPELL_AURA_MOD_HIT_CHANCE, SPELL_AURA_MOD_SPELL_HIT_CHANCE,
-            SPELL_AURA_MOD_SPELL_CRIT_CHANCE,
+            SPELL_AURA_MOD_SPELL_CRIT_CHANCE, SPELL_AURA_MOD_STALKED,
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
@@ -103,6 +104,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_DISARM) {
             target.setDisarmed(true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_STALKED) {
+            modStalked(target, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_STEALTH) {
             modStealth(target, true);
@@ -279,6 +283,9 @@ public final class AuraEngine {
             // HandleAuraModDisarm(false); stacking other MOD_DISARM later.
             target.setDisarmed(false);
         }
+        if (sp.aura() == SPELL_AURA_MOD_STALKED) {
+            modStalked(target, false);
+        }
         if (sp.aura() == SPELL_AURA_MOD_STEALTH) {
             modStealth(target, false);
         }
@@ -411,6 +418,18 @@ public final class AuraEngine {
                     : UpdateFields.UNIT_FIELD_NEGSTAT0;
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
+        }
+    }
+
+    /**
+     * Aura 68 — CMaNGOS HandleAuraModStalked → UNIT_DYNFLAG_TRACK_UNIT.
+     */
+    private static void modStalked(Unit target, boolean apply) {
+        int dyn = target.getInt(UpdateFields.UNIT_DYNAMIC_FLAGS);
+        if (apply) {
+            target.setInt(UpdateFields.UNIT_DYNAMIC_FLAGS, dyn | Unit.UNIT_DYNFLAG_TRACK_UNIT);
+        } else {
+            target.setInt(UpdateFields.UNIT_DYNAMIC_FLAGS, dyn & ~Unit.UNIT_DYNFLAG_TRACK_UNIT);
         }
     }
 
