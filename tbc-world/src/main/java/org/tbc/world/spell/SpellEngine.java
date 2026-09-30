@@ -45,7 +45,7 @@ public final class SpellEngine {
     public static final int SPELL_FAILED_ERROR = 0x1E;
     /** Holy Light rank 1. TBC: 35 mana, 2.5 s, heal 42–51, 40 yd. */
     public static final int HOLY_LIGHT = 635;
-    /** Seal of Righteousness rank 1. TBC: 20 mana, instant, 30 s dummy aura. */
+    /** Seal of Righteousness rank 1. TBC stock 30 s; lab DurationIndex 30 → 30 min dummy aura. */
     public static final int SEAL_OF_RIGHTEOUSNESS = 20154;
     public static final int SPELL_CAST_OK = 0xFF;
     public static final int EFFECT_INSTAKILL = 1;
@@ -517,7 +517,7 @@ public final class SpellEngine {
                 .withCastTime(2500).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(SEAL_OF_RIGHTEOUSNESS, new SpellInfo(SEAL_OF_RIGHTEOUSNESS, EFFECT_APPLY_AURA,
                 SPELL_AURA_DUMMY, 2, 20, 108, 108, 0f)
-                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(30_000));
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
         spells.put(585, new SpellInfo(585, EFFECT_SCHOOL_DAMAGE, 0, 2, 20, 13, 17, 30f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(1752, new SpellInfo(1752, EFFECT_WEAPON_DAMAGE, 0, 0, 45, 3, 3, 5f)

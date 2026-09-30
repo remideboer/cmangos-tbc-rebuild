@@ -1,0 +1,290 @@
+# Paladin seal auras: DurationIndex 30 = SpellDuration 1_800_000 ms (30 min).
+# Stock was index 9 (30 s). Client tip $d and spell_template both use this index.
+# Seal of Vengeance 31801 included (missing from older CMaNGOS seal group dump).
+kind: spell
+id: 20154
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 21084
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20287
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20288
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20289
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20290
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20291
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20292
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20293
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 27155
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 21082
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20162
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20305
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20306
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20307
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20308
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 27158
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20164
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 31895
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20165
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20347
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20348
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20349
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 27160
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20166
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20356
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20357
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 27166
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20375
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20915
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20918
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20919
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20920
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 27170
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 31892
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 31801
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30

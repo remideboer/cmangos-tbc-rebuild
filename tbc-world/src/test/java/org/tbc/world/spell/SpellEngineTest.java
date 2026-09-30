@@ -694,7 +694,7 @@ class SpellEngineTest {
         assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
         assertEquals(80, p.power());
         assertEquals(1, sealCount());
-        assertEquals(30_000, p.auras.get(p.auras.size() - 1).durationMs());
+        assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, p.auras.get(p.auras.size() - 1).durationMs());
         assertTrue(ops.contains(Opcodes.SMSG_UPDATE_AURA_DURATION));
 
         engine.apply(p, p, engine.info(SpellEngine.FROST_ARMOR), 1000);
