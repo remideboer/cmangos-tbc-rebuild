@@ -259,6 +259,8 @@ public final class SpellEngine {
     public static final int HOLY_POWER = 5923;
     /** Spell.dbc 12292 Death Wish — SPELL_AURA_MOD_DAMAGE_PERCENT_DONE +20% physical. */
     public static final int DEATH_WISH = 12292;
+    /** Spell.dbc 11068 Frost Focus — SPELL_AURA_MOD_POWER_COST_SCHOOL −1 frost mana. */
+    public static final int FROST_FOCUS = 11068;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -524,6 +526,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, 0, 0, 1, 1, 0f, 2));
         spells.put(DEATH_WISH, new SpellInfo(DEATH_WISH, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, 0, 0, 20, 20, 0f, 1));
+        spells.put(FROST_FOCUS, new SpellInfo(FROST_FOCUS, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_POWER_COST_SCHOOL, 0, 0, -1, -1, 0f, 16));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

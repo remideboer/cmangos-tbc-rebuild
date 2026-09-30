@@ -41,6 +41,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_STALKED = 68;
     public static final int SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL = 71;
     public static final int SPELL_AURA_MOD_DAMAGE_PERCENT_DONE = 79;
+    public static final int SPELL_AURA_MOD_POWER_COST_SCHOOL = 73;
     public static final int SPELL_AURA_MOD_SCALE = 61;
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_FEIGN_DEATH = 66;
@@ -74,6 +75,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_BLOCK_PERCENT, SPELL_AURA_MOD_HIT_CHANCE, SPELL_AURA_MOD_SPELL_HIT_CHANCE,
             SPELL_AURA_MOD_SPELL_CRIT_CHANCE, SPELL_AURA_MOD_STALKED,
             SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, SPELL_AURA_MOD_DAMAGE_PERCENT_DONE,
+            SPELL_AURA_MOD_POWER_COST_SCHOOL,
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
@@ -224,6 +226,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_DAMAGE_PERCENT_DONE) {
             modDamagePercentDone(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_POWER_COST_SCHOOL) {
+            modPowerCostSchool(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, true);
         }
@@ -272,6 +277,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_DAMAGE_PERCENT_DONE) {
             modDamagePercentDone(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_POWER_COST_SCHOOL) {
+            modPowerCostSchool(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, false);
@@ -433,6 +441,29 @@ public final class AuraEngine {
                     : UpdateFields.UNIT_FIELD_NEGSTAT0;
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
+        }
+    }
+
+    /**
+     * Aura 73 — CMaNGOS HandleModPowerCost: misc school mask →
+     * UNIT_FIELD_POWER_COST_MODIFIER + school += amount.
+     */
+    private static void modPowerCostSchool(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int mask = sp.misc();
+        if (mask == 0) {
+            return;
+        }
+        int delta = apply ? amount : -amount;
+        for (int i = 0; i < MAX_SPELL_SCHOOL; i++) {
+            if ((mask & (1 << i)) == 0) {
+                continue;
+            }
+            int field = UpdateFields.UNIT_FIELD_POWER_COST_MODIFIER + i;
+            target.setInt(field, target.getInt(field) + delta);
         }
     }
 
