@@ -251,6 +251,8 @@ public final class SpellEngine {
     public static final int HEROIC_PRESENCE = 6562;
     /** Spell.dbc 28878 Inspiring Presence — SPELL_AURA_MOD_SPELL_HIT_CHANCE +1% (EffectBasePoints 0 + 1). */
     public static final int INSPIRING_PRESENCE = 28878;
+    /** Spell.dbc 24907 Moonkin Aura — SPELL_AURA_MOD_SPELL_CRIT_CHANCE +5% (EffectBasePoints 4 + 1). */
+    public static final int MOONKIN_AURA = 24907;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -508,6 +510,8 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_HIT_CHANCE, 0, 0, 1, 1, 0f));
         spells.put(INSPIRING_PRESENCE, new SpellInfo(INSPIRING_PRESENCE, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_SPELL_HIT_CHANCE, 0, 0, 1, 1, 0f));
+        spells.put(MOONKIN_AURA, new SpellInfo(MOONKIN_AURA, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_SPELL_CRIT_CHANCE, 0, 0, 5, 5, 0f));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

@@ -75,6 +75,8 @@ public class Unit extends Entity {
     private final float[] modWeaponHitChance = new float[MAX_ATTACK];
     /** CMaNGOS m_modSpellHitChance — SPELL_AURA_MOD_SPELL_HIT_CHANCE + CR_HIT_SPELL. */
     private float modSpellHitChance;
+    /** CMaNGOS m_modSpellCritChance[MAX_SPELL_SCHOOL] — SPELL_AURA_MOD_SPELL_CRIT_CHANCE. */
+    private final float[] modSpellCritChance = new float[7];
     private boolean rooted;
     /** CMaNGOS GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED); 0 = none. */
     private int decreaseSpeedPct;
@@ -206,6 +208,16 @@ public class Unit extends Entity {
     /** CMaNGOS HandleModSpellHitChance creature path / UpdateSpellHitChances aura sum. */
     public void adjustSpellHitChance(float delta) {
         modSpellHitChance += delta;
+    }
+
+    /** CMaNGOS m_modSpellCritChance[school]. */
+    public float spellCritChance(int school) {
+        return modSpellCritChance[school];
+    }
+
+    /** CMaNGOS HandleModSpellCritChance creature path. */
+    public void adjustSpellCritChance(int school, float delta) {
+        modSpellCritChance[school] += delta;
     }
 
     /**
