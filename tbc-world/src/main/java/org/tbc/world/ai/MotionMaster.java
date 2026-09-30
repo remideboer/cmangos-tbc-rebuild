@@ -165,12 +165,13 @@ public final class MotionMaster {
         double dist = c.distance2d(target);
         float stop = Combat.meleeRange(c, target);
         if (dist <= stop) {
+            // StopMoving when the run spline finalizes (CMaNGOS HandleFinalizedMovement).
+            // Never leave FACING_TARGET bound — 8606 keeps turning the corpse toward the looter.
+            boolean needStop = splineActive || facingTargetBound;
             hasDest = false;
             splineSent = false;
             clearSpline();
-            // CMaNGOS HandleFinalizedMovement: StopMoving clears FACING_TARGET; SetInFront is
-            // orientation only. Continuous FACING_TARGET here left corpses tracking the looter.
-            if (facingTargetBound) {
+            if (needStop) {
                 face(c, target);
                 facingTargetBound = false;
                 faceSent = false;
@@ -201,10 +202,13 @@ public final class MotionMaster {
         byte[] spline = null;
         if (!splineSent && readyToSend()) {
             beginSpline(c, destX, destY, destZ, UpdateBuilder.RUN);
-            spline = emit(c, destX, destY, destZ, UpdateBuilder.RUN, target.guid);
+            // NORMAL run (not FACING_TARGET): 8606 FACING_TARGET tracks the guid until
+            // MonsterMoveStop; a missed death-stop left corpses spinning toward the looter.
+            // Path already aims at the melee point; in-melee uses MonsterMoveFacingAngle.
+            spline = emit(c, destX, destY, destZ, UpdateBuilder.RUN, 0);
             splineSent = true;
             faceSent = true;
-            facingTargetBound = true;
+            facingTargetBound = false;
             lastFaceO = angleTo(c, target);
         }
         if (splineActive) {

@@ -89,7 +89,6 @@ public final class LoginBurst {
         s.send(Opcodes.SMSG_INSTANCE_DIFFICULTY, u32(p.difficulty, 0));
         sent.add(Opcodes.SMSG_INSTANCE_DIFFICULTY);
         p.applyCreateFields();
-        world.spells.applyDefaultWarriorStance(p);
         var remaining = p.cooldowns.remainingSpells(world.nowMs());
         WowBuffer spells = new WowBuffer(8 + p.spells.size() * 4 + remaining.size() * 14);
         spells.putU8(0);
@@ -132,8 +131,10 @@ public final class LoginBurst {
         }
         p.applyCreateFields();
         DeathHandler.restoreGhostOnLogin(s);
-        // Weapon UNIT_FIELD must be set before create-self (melee / display damage).
+        // Weapon / gear UNIT_FIELD before aura restore (gear bonuses overwrite RESISTANCES).
         world.objectMgr.applyEquippedMelee(p);
+        world.spells.restorePersistedAuras(p, world.nowMs());
+        world.spells.applyDefaultWarriorStance(p);
         sendInventory(s, p, world);
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, true, (int) world.nowMs()));
         s.send(upd.opcode(), upd.payload());

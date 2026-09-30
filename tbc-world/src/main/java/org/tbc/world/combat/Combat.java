@@ -270,6 +270,59 @@ public final class Combat {
         return stopMove;
     }
 
+    /**
+     * CMaNGOS AttackStart between two creatures (guard DetectOrAttack a hostile NPC).
+     * @return MonsterMoveStop for the attacker when RANDOM/HOME was interrupted
+     */
+    public byte[] startAttack(Creature attacker, Creature victim, long nowMs) {
+        if (attacker == null || victim == null) {
+            return null;
+        }
+        attacker.inCombat = true;
+        victim.inCombat = true;
+        attacker.victim = victim.guid;
+        victim.victim = attacker.guid;
+        attacker.setGuid(UpdateFields.UNIT_FIELD_TARGET, victim.guid);
+        victim.setGuid(UpdateFields.UNIT_FIELD_TARGET, attacker.guid);
+        attacker.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                attacker.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
+        victim.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                victim.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
+        attacker.lastMeleeMs = nowMs;
+        refreshCombatTimer(attacker, nowMs);
+        refreshCombatTimer(victim, nowMs);
+        attacker.meleeCooldownMs = swingMs(attacker);
+        victim.meleeCooldownMs = swingMs(victim);
+        byte[] stopMove = null;
+        int motion = attacker.motion.type();
+        if (motion == org.tbc.world.ai.MotionMaster.RANDOM || motion == org.tbc.world.ai.MotionMaster.HOME) {
+            stopMove = attacker.motion.stop(attacker);
+        }
+        if (attacker.combatStartMs == 0) {
+            attacker.combatStartMs = nowMs;
+            attacker.combatStartX = attacker.x;
+            attacker.combatStartY = attacker.y;
+        }
+        if (victim.combatStartMs == 0) {
+            victim.combatStartMs = nowMs;
+            victim.combatStartX = victim.x;
+            victim.combatStartY = victim.y;
+        }
+        attacker.motion.moveChase(victim);
+        if (victim.combatMovement) {
+            victim.motion.moveChase(attacker);
+        }
+        return stopMove;
+    }
+
+    private static int swingMs(Creature c) {
+        int swing = c.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
+        if (swing > 0) {
+            return swing;
+        }
+        return 2000;
+    }
+
     public void stopAttack(Player p) {
         p.inCombat = false;
         p.victim = 0;
@@ -353,8 +406,12 @@ public final class Combat {
 
     /** Unit::Kill for a creature victim (any damage type): combat stop, lootable, respawn timer, EventAI death. */
     public void creatureDied(Creature c, Player killer, long nowMs, EventAi.SpellCast deathCast) {
-        if (c.taggedBy == 0) {
-            c.taggedBy = killer.guid;
+        creatureDied(c, (Unit) killer, nowMs, deathCast);
+    }
+
+    public void creatureDied(Creature c, Unit killer, long nowMs, EventAi.SpellCast deathCast) {
+        if (killer instanceof Player p && c.taggedBy == 0) {
+            c.taggedBy = p.guid;
         }
         c.inCombat = false;
         c.lootable = true;
@@ -364,11 +421,21 @@ public final class Combat {
         int corpseMs = Math.min(Math.max(1, c.corpseDelayMs), capped);
         c.corpseExpireAtMs = nowMs + corpseMs;
         c.respawnAtMs = nowMs + Math.max(1, c.respawnDelayMs);
-        c.motion.moveIdle();
+        // SetDeathState JUST_DIED → StopMoving (sync spline, idle). World re-sends the
+        // MonsterMoveStop bytes to the set in onCreatureKilled.
+        c.motion.stop(c);
         clearCombatVisual(c);
-        stopAttack(killer);
+        if (killer instanceof Player p) {
+            stopAttack(p);
+        } else if (killer instanceof Creature k && k.victim == c.guid) {
+            k.inCombat = false;
+            k.victim = 0;
+            clearCombatVisual(k);
+            k.motion.moveIdle();
+        }
         if (c.eventAi != null) {
-            c.eventAi.onDeath(c, killer, deathCast == null ? EventAi.NOOP : deathCast);
+            EventAi.SpellCast cast = deathCast != null ? deathCast : EventAi.NOOP;
+            c.eventAi.onDeath(c, killer, cast);
         }
     }
 
@@ -440,6 +507,32 @@ public final class Combat {
         return r;
     }
 
+    /** Creature→creature white swing (guard / faction NPC vs hostile). */
+    public MeleeTable.Result swing(Creature attacker, Creature victim, long nowMs) {
+        return swing(attacker, victim, nowMs, EventAi.NOOP);
+    }
+
+    public MeleeTable.Result swing(Creature attacker, Creature victim, long nowMs, EventAi.SpellCast deathCast) {
+        if (attacker == null || victim == null || !victim.alive() || attacker.evading) {
+            return new MeleeTable.Result(MeleeTable.Outcome.MISS, 0, 0);
+        }
+        MeleeTable.Result r = table.rollOne(attacker, victim, meleeMin(attacker), meleeMax(attacker));
+        if (r.damage() > 0) {
+            victim.setHealth(victim.health() - r.damage());
+            victim.threatManager.add(attacker, r.threat());
+            refreshCombatTimer(attacker, nowMs);
+            refreshCombatTimer(victim, nowMs);
+        }
+        if (!victim.alive()) {
+            EventAi.SpellCast cast = deathCast != null ? deathCast : EventAi.NOOP;
+            creatureDied(victim, attacker, nowMs, cast);
+            if (attacker.eventAi != null) {
+                attacker.eventAi.onKill(attacker, victim, cast);
+            }
+        }
+        return r;
+    }
+
     private static void clearCombatVisual(Unit u) {
         u.setGuid(UpdateFields.UNIT_FIELD_TARGET, 0);
         u.setInt(UpdateFields.UNIT_FIELD_FLAGS, u.getInt(UpdateFields.UNIT_FIELD_FLAGS) & ~Unit.UNIT_FLAG_IN_COMBAT);
@@ -461,7 +554,7 @@ public final class Combat {
         return Math.round(attacker.getFloat(UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE));
     }
 
-    public boolean shouldEvade(Creature c, Player victim, long nowMs) {
+    public boolean shouldEvade(Creature c, Unit victim, long nowMs) {
         if (!c.inCombat || !c.alive()) {
             return false;
         }
@@ -506,7 +599,7 @@ public final class Combat {
      * CMaNGOS SelectHostileTarget + CombatManager evade timer: unreachable starts 10 s,
      * reachable StopEvade, expiry EvadeTimerExpired.
      */
-    public boolean tickUnreachableEvade(Creature c, Player victim, int diff) {
+    public boolean tickUnreachableEvade(Creature c, Unit victim, int diff) {
         if (!c.inCombat || !c.alive()) {
             c.evadeTimerMs = 0;
             return false;
@@ -531,7 +624,7 @@ public final class Combat {
         return false;
     }
 
-    static boolean canReachVictim(Creature c, Player victim) {
+    static boolean canReachVictim(Creature c, Unit victim) {
         if (c.chaseUnreachable) {
             return false;
         }

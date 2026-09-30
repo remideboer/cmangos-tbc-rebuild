@@ -93,6 +93,7 @@ class MeleeTableTest {
         a.level = 1;
         Item off = new Item(1, 25);
         off.slot = Player.EQUIPMENT_SLOT_OFFHAND;
+        off.itemClass = Player.ITEM_CLASS_WEAPON;
         a.items.put(1, off);
         Creature v = new Creature();
         v.level = 1;
@@ -107,6 +108,7 @@ class MeleeTableTest {
         a.level = 1;
         Item off = new Item(1, 25);
         off.slot = Player.EQUIPMENT_SLOT_OFFHAND;
+        off.itemClass = Player.ITEM_CLASS_WEAPON;
         a.items.put(1, off);
         a.queueNextMeleeSwing();
         Creature v = new Creature();

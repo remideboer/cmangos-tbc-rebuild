@@ -4238,8 +4238,43 @@ class Slice14P0Test {
         assertEquals(trainer.guid, ok.getU64());
         assertEquals(Content.SPELL_BATTLE_SHOUT, ok.getU32());
         assertEquals(Content.SPELL_BATTLE_SHOUT, WowClientDouble.u32le(lastPayload(client, Opcodes.SMSG_LEARNED_SPELL), 0));
+        // CMaNGOS HandleTrainerBuySpellOpcode — learn VFX/SFX kits (SpellVisualKit.dbc).
+        byte[] visual = lastPayload(client, Opcodes.SMSG_PLAY_SPELL_VISUAL);
+        assertEquals(trainer.guid, WowClientDouble.u64le(visual, 0), "visual on trainer");
+        assertEquals(0xB3, WowClientDouble.u32le(visual, 8));
+        byte[] impact = lastPayload(client, Opcodes.SMSG_PLAY_SPELL_IMPACT);
+        assertEquals(p.guid, WowClientDouble.u64le(impact, 0), "impact on player");
+        assertEquals(0x016A, WowClientDouble.u32le(impact, 8));
         assertEquals(0, p.money);
         assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+    }
+
+    /**
+     * TP-SL14-020 — HandleTrainerBuySpellOpcode ModifyMoney: client bag copper must
+     * see PLAYER_FIELD_COINAGE VALUES after a successful buy (same as vendor buy).
+     */
+    @Test
+    void tpSl14TrainerBuyShouldSendCoinageValues() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Purse", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        int cost = Content.TRAINER_SPELL_BATTLE_SHOUT_COST;
+        p.setMoney(cost * 2);
+        client.clear();
+        WowBuffer buy = new WowBuffer(12);
+        buy.putU64(trainer.guid);
+        buy.putU32(Content.SPELL_BATTLE_SHOUT);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
+
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertEquals(cost, p.money);
+        assertEquals(cost, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COINAGE));
     }
 
     /** TP-SL14-019 — profession trainer buy Apprentice Blacksmith grants skill 164. */

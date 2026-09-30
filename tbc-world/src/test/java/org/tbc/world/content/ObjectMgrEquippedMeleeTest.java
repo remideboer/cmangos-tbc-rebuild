@@ -185,4 +185,53 @@ class ObjectMgrEquippedMeleeTest {
         mgr.applyEquippedMelee(p);
         assertEquals(0, p.holySpellPower());
     }
+
+    /** Shield is armor — must not keep dual-wield OH damage / LEFTSWING swings. */
+    @Test
+    void applyEquippedMeleeWhenShieldInOffhandShouldClearOffhandDamageFields() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = new Player();
+        p.guid = 1;
+        p.setFloat(UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE, 7f);
+        p.setFloat(UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE, 7f);
+        p.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, 1600);
+        Item shield = new Item(8, Content.ITEM_WORN_WOODEN_SHIELD);
+        shield.bag = 0;
+        shield.slot = Player.EQUIPMENT_SLOT_OFFHAND;
+        p.items.put(8, shield);
+
+        mgr.applyEquippedMelee(p);
+
+        assertEquals(0f, p.getFloat(UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE));
+        assertEquals(0f, p.getFloat(UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE));
+    }
+
+    @Test
+    void applyEquippedMeleeWhenOffhandWeaponShouldSetOffhandDamageFields() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        int entry = 900_370;
+        ObjectMgr.ItemTemplate t = new ObjectMgr.ItemTemplate();
+        t.entry = entry;
+        t.itemClass = Player.ITEM_CLASS_WEAPON;
+        t.inventoryType = 13;
+        t.delay = 1800;
+        t.dmgMin[0] = 4f;
+        t.dmgMax[0] = 6f;
+        mgr.items.put(entry, t);
+
+        Player p = new Player();
+        p.guid = 1;
+        Item oh = new Item(9, entry);
+        oh.bag = 0;
+        oh.slot = Player.EQUIPMENT_SLOT_OFFHAND;
+        p.items.put(9, oh);
+
+        mgr.applyEquippedMelee(p);
+
+        assertEquals(4f, p.getFloat(UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE));
+        assertEquals(6f, p.getFloat(UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE));
+        assertEquals(1800, p.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1));
+    }
 }

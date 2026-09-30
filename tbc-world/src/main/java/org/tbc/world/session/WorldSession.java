@@ -1680,6 +1680,8 @@ public final class WorldSession {
         }
         int bytes2 = player.getInt(UpdateFields.UNIT_FIELD_BYTES_2);
         player.setInt(UpdateFields.UNIT_FIELD_BYTES_2, (bytes2 & ~0xFF) | (sheath & 0xFF));
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, UpdateFields.UNIT_FIELD_BYTES_2));
+        send(upd.opcode(), upd.payload());
     }
 
     /** movement.md — all CMSG_FORCE_*_SPEED_CHANGE_ACK share packed guid + counter + MovementInfo + float. */

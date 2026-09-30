@@ -6,12 +6,15 @@ import org.tbc.world.content.Content;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -456,6 +459,46 @@ class Slice07P0Test {
         byte[] res = again.payload(Opcodes.SMSG_CAST_RESULT);
         assertEquals(FROST_NOVA, WowClientDouble.u32le(res, 0));
         assertEquals(SPELL_FAILED_NOT_READY, res[4] & 0xFF);
+    }
+
+    /**
+     * TP-SL07-017 — Player::_SaveAuras / _LoadAuras: persistable buffs (Frost Armor 168)
+     * survive LogoutPlayer save and the next create-self (character_aura / PlayerPersist).
+     */
+    @Test
+    void tpSl07AuraSurvivesRelog() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(FROST_ARMOR);
+        int armorBefore = p.getInt(UpdateFields.UNIT_FIELD_RESISTANCES);
+        client.castSpell(world, FROST_ARMOR, 1, p.guid);
+        assertEquals(FROST_ARMOR, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_AURA));
+        assertEquals(armorBefore + 30, p.getInt(UpdateFields.UNIT_FIELD_RESISTANCES));
+        long expireBefore = p.auras.stream()
+                .filter(a -> a.spellId() == FROST_ARMOR)
+                .mapToLong(Unit.Aura::expireAtMs)
+                .findFirst()
+                .orElse(0L);
+        assertTrue(expireBefore > world.nowMs());
+        long guid = p.guid;
+        client.session().logout(world, true);
+
+        WowClientDouble again = new WowClientDouble();
+        again.connect(ACC);
+        again.login(world, guid);
+        Player loaded = again.session().player();
+        Map<Integer, Integer> self = again.selfCreateValues();
+        assertEquals(FROST_ARMOR, self.getOrDefault(UpdateFields.UNIT_FIELD_AURA, 0).intValue(),
+                "create-self still shows Frost Armor");
+        assertTrue(loaded.hasAura(FROST_ARMOR));
+        assertEquals(armorBefore + 30, loaded.getInt(UpdateFields.UNIT_FIELD_RESISTANCES));
+        long expireAfter = loaded.auras.stream()
+                .filter(a -> a.spellId() == FROST_ARMOR)
+                .mapToLong(Unit.Aura::expireAtMs)
+                .findFirst()
+                .orElse(0L);
+        assertEquals(expireBefore, expireAfter, "remaintime preserved across save/load");
     }
 
     private static final int FROST_ARMOR = 168;

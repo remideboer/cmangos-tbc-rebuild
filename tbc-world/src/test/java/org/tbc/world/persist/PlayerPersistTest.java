@@ -166,4 +166,18 @@ class PlayerPersistTest {
         Player d = PlayerPersist.copy(src);
         assertEquals(src.getInt(field), d.getInt(field));
     }
+
+    @Test
+    void copyWhenAuraActiveShouldCloneHolderAndExpire() {
+        Player src = new Player();
+        src.guid = 18;
+        src.auras.add(new org.tbc.world.entity.Unit.Aura(168, 1_800_000, 1, 0, 50_000L, 0, 0, src.guid));
+        Player d = PlayerPersist.copy(src);
+        assertEquals(1, d.auras.size());
+        assertEquals(168, d.auras.get(0).spellId());
+        assertEquals(50_000L, d.auras.get(0).expireAtMs());
+        assertEquals(src.guid, d.auras.get(0).casterGuid());
+        src.auras.clear();
+        assertEquals(1, d.auras.size(), "clone is independent");
+    }
 }

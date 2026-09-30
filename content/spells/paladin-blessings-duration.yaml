@@ -1,0 +1,202 @@
+# Paladin blessing auras: DurationIndex 30 = SpellDuration 1_800_000 ms (30 min).
+# Stock was 10 min. Client tip $d and spell_template both use this index.
+# Same lab approach as paladin-seals-duration.yaml / SoR.
+kind: spell
+id: 19740
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19834
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19835
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19836
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19837
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19838
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 25291
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 27140
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19742
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19850
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19852
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19853
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19854
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 25290
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 27142
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19977
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19978
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 19979
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 27144
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20217
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20911
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20912
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20913
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 20914
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30
+---
+kind: spell
+id: 27168
+client:
+  Spell:
+    DurationIndex: 30
+server:
+  DurationIndex: 30

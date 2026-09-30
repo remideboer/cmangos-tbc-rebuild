@@ -140,6 +140,8 @@ class Slice11EventAiTest {
         World world = World.inMemory();
         WowClientDouble client = login(world, "Chase");
         Player p = client.session().player();
+        // Away from abbey faction NPCs — they DetectOrAttack hostiles in range.
+        relocateFar(world, p);
         Creature c = world.objectMgr.spawnCreature(6, 0, p.x + 20, p.y, p.z, p.o, world.scripts);
         c.detectionRange = 25f;
         world.map(p.mapId, p.instanceId).add(c);
@@ -160,6 +162,7 @@ class Slice11EventAiTest {
         World world = World.inMemory();
         WowClientDouble client = login(world, "Los");
         Player p = client.session().player();
+        relocateFar(world, p);
         Creature c = world.objectMgr.spawnCreature(6, 0, p.x + 25, p.y, p.z, p.o, world.scripts);
         c.eventAi = new EventAi();
         c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_OOC_LOS, 0, 100, 0, 0, 10, 0, 0,
@@ -169,10 +172,20 @@ class Slice11EventAiTest {
         client.clear();
         world.tick(50);
         assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
+        float ox = p.x;
+        float oy = p.y;
         p.relocate(c.x + 5, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
         world.tick(Creature.IDLE_UPDATE_MS);
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
         assertEquals(7164, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
+    }
+
+    private static void relocateFar(World world, Player p) {
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(20_000f, 20_000f, 80f, 0);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
     }
 
     @Test

@@ -853,9 +853,10 @@ public final class Player extends Unit {
         int pb2 = (facialHair & 0xFF) | (REST_STATE_NORMAL << 24);
         setInt(UpdateFields.PLAYER_BYTES_2, pb2);
         setInt(UpdateFields.PLAYER_BYTES_3, gender & 0xFF);
-        int sheath = itemAt(0, 15) != null ? 1 : 0;
+        // SHEATH_STATE_UNARMED (0): client draws equipped weapons/shield on back/hip until CMSG_SETSHEATHED.
         int shapeshift = shapeshiftForm();
-        setInt(UpdateFields.UNIT_FIELD_BYTES_2, sheath | (PLAYER_CONTROLLED_DEBUFF_LIMIT << 8) | (shapeshift << 24));
+        setInt(UpdateFields.UNIT_FIELD_BYTES_2,
+                (PLAYER_CONTROLLED_DEBUFF_LIMIT << 8) | (shapeshift << 24));
         setInt(UpdateFields.UNIT_FIELD_FACTIONTEMPLATE, faction);
         setInt(UpdateFields.UNIT_FIELD_DISPLAYID, displayId);
         setInt(UpdateFields.UNIT_FIELD_NATIVEDISPLAYID, displayId);
@@ -985,10 +986,14 @@ public final class Player extends Unit {
         return clazz == CLASS_PRIEST || clazz == CLASS_MAGE || clazz == CLASS_WARLOCK;
     }
 
+    /**
+     * CMaNGOS Player::GetWeaponForAttack(OFF_ATTACK) — only ITEM_CLASS_WEAPON.
+     * Shields/holdables in the offhand slot must not drive auto-attack LEFTSWING.
+     */
     public boolean hasOffhandWeapon() {
         for (Item it : items.values()) {
             if (it.bag == 0 && it.slot == EQUIPMENT_SLOT_OFFHAND) {
-                return true;
+                return it.itemClass == ITEM_CLASS_WEAPON;
             }
         }
         return false;
@@ -1068,9 +1073,18 @@ public final class Player extends Unit {
         setInt(base, item != null ? item.entry : 0);
     }
 
-    /** UNIT_FIELD_BYTES_2 sheath byte: 1 when mainhand equipped, else 0. */
+    /**
+     * UNIT_FIELD_BYTES_2 sheath byte after equip change.
+     * Do not auto-draw (SHEATH_STATE_MELEE): CMaNGOS leaves UNARMED until CMSG_SETSHEATHED.
+     * Clear to UNARMED when no weapon slots are equipped.
+     */
     public void refreshSheath() {
-        int sheath = itemAt(0, EQUIPMENT_SLOT_MAINHAND) != null ? 1 : 0;
+        int sheath = getInt(UpdateFields.UNIT_FIELD_BYTES_2) & 0xFF;
+        if (itemAt(0, EQUIPMENT_SLOT_MAINHAND) == null
+                && itemAt(0, EQUIPMENT_SLOT_OFFHAND) == null
+                && itemAt(0, EQUIPMENT_SLOT_RANGED) == null) {
+            sheath = 0;
+        }
         int shapeshift = shapeshiftForm();
         setInt(UpdateFields.UNIT_FIELD_BYTES_2,
                 sheath | (PLAYER_CONTROLLED_DEBUFF_LIMIT << 8) | (shapeshift << 24));

@@ -64,6 +64,7 @@ public class CombatSteps {
         Player p = client.session().player();
         Item off = new Item(world.nextItemGuid(), 25);
         off.slot = Player.EQUIPMENT_SLOT_OFFHAND;
+        off.itemClass = Player.ITEM_CLASS_WEAPON;
         p.items.put((int) off.guid, off);
         assertTrue(p.hasOffhandWeapon());
     }

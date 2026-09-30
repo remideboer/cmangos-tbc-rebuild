@@ -124,7 +124,8 @@ public final class Factions {
 
     private void allianceNpc(int templateId, int factionId) {
         put(templateId, factionId, 0, FactionTemplate.GROUP_ALLIANCE,
-                FactionTemplate.GROUP_PLAYER | FactionTemplate.GROUP_ALLIANCE, FactionTemplate.GROUP_HORDE);
+                FactionTemplate.GROUP_PLAYER | FactionTemplate.GROUP_ALLIANCE,
+                FactionTemplate.GROUP_HORDE | FactionTemplate.GROUP_MONSTER);
     }
 
     private void put(int id, int faction, int flags, int group, int friendGroup, int enemyGroup) {

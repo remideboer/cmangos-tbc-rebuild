@@ -1080,6 +1080,288 @@ class CombatTest {
     }
 
     @Test
+    void canAggroOnSightWhenAllianceNpcVsMonsterShouldBeTrue() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        setFaction(guard, 12);
+        guard.level = 1;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.relocate(0, 0, 0, 0);
+        guard.extraFlags = Creature.CREATURE_EXTRA_FLAG_GUARD;
+        org.tbc.world.ai.FactorySelector.selectAI(guard, null);
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        setFaction(hostile, 7);
+        hostile.level = 1;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 50);
+        hostile.setHealth(50);
+        hostile.relocate(10, 0, 0, 0);
+        assertTrue(Combat.canAggroOnSight(guard, hostile, Factions.seeded()));
+    }
+
+    @Test
+    void startAttackWhenCreatureHomeShouldStopSpline() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.spawnX = 0;
+        guard.spawnY = 0;
+        guard.relocate(5, 0, 0, 0);
+        guard.motion.moveHome();
+        guard.combatStartMs = 99;
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 40);
+        hostile.setHealth(40);
+        hostile.combatStartMs = 88;
+        hostile.combatMovement = false;
+        hostile.relocate(3, 0, 0, 0);
+        guard.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 0);
+        hostile.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 0);
+        byte[] stop = combat.startAttack(guard, hostile, 50);
+        assertNotNull(stop);
+        assertEquals(99, guard.combatStartMs);
+        assertEquals(88, hostile.combatStartMs);
+        assertEquals(2000, guard.meleeCooldownMs);
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, guard.motion.type());
+        assertEquals(org.tbc.world.ai.MotionMaster.IDLE, hostile.motion.type());
+    }
+
+    @Test
+    void swingWhenCreatureVsCreatureMissOrAlreadyDeadShouldNotKill() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 1);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 1);
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 40);
+        hostile.setHealth(0);
+        assertEquals(0, combat.swing(guard, hostile, 1).damage());
+        hostile.setHealth(40);
+        Combat miss = new Combat(new MeleeTable(() -> 0.0d, (min, max) -> min));
+        assertEquals(0, miss.swing(guard, hostile, 2).damage());
+        assertTrue(hostile.alive());
+    }
+
+    @Test
+    void creatureDiedWhenPlayerKillerShouldTagAndStopAttack() {
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 50);
+        p.setHealth(50);
+        p.inCombat = true;
+        c.setHealth(0);
+        c.taggedBy = 0;
+        combat.creatureDied(c, p, 1000, null);
+        assertEquals(p.guid, c.taggedBy);
+        assertFalse(p.inCombat);
+    }
+
+    @Test
+    void creatureDiedWhenCreatureKillerNotOnVictimShouldLeaveKillerCombat() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.inCombat = true;
+        guard.victim = 999;
+        c.setHealth(0);
+        combat.creatureDied(c, guard, 1000, null);
+        assertTrue(guard.inCombat);
+        assertEquals(999, guard.victim);
+    }
+
+    @Test
+    void swingWhenCreatureDamagesWithoutKillShouldKeepBothAlive() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 5);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 5);
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 40);
+        hostile.setHealth(40);
+        combat.startAttack(guard, hostile, 1);
+        MeleeTable.Result r = combat.swing(guard, hostile, 2);
+        assertEquals(5, r.damage());
+        assertTrue(hostile.alive());
+        assertTrue(guard.inCombat);
+    }
+
+    @Test
+    void swingWhenCreatureKillWithNullCastAndNoEventAiShouldStillDie() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 50);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 50);
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 20);
+        hostile.setHealth(20);
+        combat.swing(guard, hostile, 1, null);
+        assertFalse(hostile.alive());
+    }
+
+    @Test
+    void creatureDiedWhenEventAiAndCastSinkShouldInvokeOnDeath() {
+        c.setHealth(0);
+        c.eventAi = new EventAi();
+        List<Integer> seen = new ArrayList<>();
+        combat.creatureDied(c, (Unit) null, 1000, (cr, t, id) -> seen.add(id));
+        assertFalse(c.inCombat);
+    }
+
+    @Test
+    void creatureDiedWhenAlreadyTaggedShouldNotRetag() {
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 50);
+        p.setHealth(50);
+        c.setHealth(0);
+        c.taggedBy = 42;
+        c.eventAi = new EventAi();
+        combat.creatureDied(c, p, 1000, null);
+        assertEquals(42, c.taggedBy);
+    }
+
+    @Test
+    void startAttackWhenCreaturePositiveSwingTimeShouldUseTemplate() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 1500);
+        guard.combatMovement = false;
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 40);
+        hostile.setHealth(40);
+        hostile.setInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME, 1800);
+        hostile.combatMovement = true;
+        combat.startAttack(guard, hostile, 10);
+        assertEquals(1500, guard.meleeCooldownMs);
+        assertEquals(1800, hostile.meleeCooldownMs);
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, guard.motion.type());
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, hostile.motion.type());
+    }
+
+    @Test
+    void startAttackWhenCreatureVsCreatureShouldChaseAndFlagCombat() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.relocate(0, 0, 0, 0);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 5);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 5);
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 40);
+        hostile.setHealth(40);
+        hostile.relocate(5, 0, 0, 0);
+        assertNull(combat.startAttack((Creature) null, hostile, 1));
+        assertNull(combat.startAttack(guard, (Creature) null, 1));
+        assertNull(combat.startAttack(guard, hostile, 100));
+        assertTrue(guard.inCombat);
+        assertTrue(hostile.inCombat);
+        assertEquals(hostile.guid, guard.victim);
+        assertEquals(guard.guid, hostile.victim);
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, guard.motion.type());
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, hostile.motion.type());
+    }
+
+    @Test
+    void startAttackWhenCreatureRandomShouldStopSplineBeforeChase() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.spawnX = 0;
+        guard.spawnY = 0;
+        guard.relocate(7, 0, 0, 0);
+        guard.motion.moveRandom(10f);
+        guard.motion.update(guard, 1);
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 40);
+        hostile.setHealth(40);
+        hostile.relocate(5, 0, 0, 0);
+        byte[] stop = combat.startAttack(guard, hostile, 50);
+        assertNotNull(stop);
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, guard.motion.type());
+    }
+
+    @Test
+    void startAttackWhenCreatureCombatMovementOffShouldStillChaseAttacker() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.combatMovement = false;
+        guard.relocate(0, 0, 0, 0);
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 40);
+        hostile.setHealth(40);
+        hostile.combatMovement = false;
+        hostile.relocate(3, 0, 0, 0);
+        combat.startAttack(guard, hostile, 10);
+        assertEquals(org.tbc.world.ai.MotionMaster.CHASE, guard.motion.type());
+        assertEquals(org.tbc.world.ai.MotionMaster.IDLE, hostile.motion.type());
+    }
+
+    @Test
+    void swingWhenCreatureVsCreatureShouldDamageAndKill() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 50);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 50);
+        guard.relocate(0, 0, 0, 0);
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 40);
+        hostile.setHealth(40);
+        hostile.relocate(1, 0, 0, 0);
+        combat.startAttack(guard, hostile, 1);
+        assertEquals(0, combat.swing((Creature) null, hostile, 1).damage());
+        assertEquals(0, combat.swing(guard, (Creature) null, 1).damage());
+        guard.evading = true;
+        assertEquals(0, combat.swing(guard, hostile, 1).damage());
+        guard.evading = false;
+        MeleeTable.Result r = combat.swing(guard, hostile, 2);
+        assertTrue(r.damage() > 0);
+        assertFalse(hostile.alive());
+        assertFalse(guard.inCombat);
+        assertEquals(0, guard.victim);
+        assertEquals(org.tbc.world.ai.MotionMaster.IDLE, guard.motion.type());
+    }
+
+    @Test
+    void swingWhenCreatureKillWithEventAiShouldFireOnKill() {
+        Creature guard = new Creature();
+        guard.guid = 10;
+        guard.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        guard.setHealth(100);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 50);
+        guard.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 50);
+        guard.eventAi = new EventAi();
+        Creature hostile = new Creature();
+        hostile.guid = 11;
+        hostile.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 20);
+        hostile.setHealth(20);
+        List<Integer> kills = new ArrayList<>();
+        combat.swing(guard, hostile, 1, (cr, t, id) -> kills.add(id));
+        assertFalse(hostile.alive());
+    }
+
+    @Test
     void canAggroOnSightWhenHostileInsideDetectionShouldBeTrue() {
         setFaction(p, 1);
         p.level = 1;

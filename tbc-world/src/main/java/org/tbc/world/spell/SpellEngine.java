@@ -708,6 +708,45 @@ public final class SpellEngine {
         apply(p, p, info(SPELL_BATTLE_STANCE), 0L);
     }
 
+    /**
+     * Player::_LoadAuras after character_aura / PlayerPersist copy: drop holders that expired while
+     * offline, re-apply modifiers and visible slots so create-self shows buffs/stances.
+     * Does not clear unrelated slots (ON_EQUIP from applyCreateFields).
+     */
+    public void restorePersistedAuras(Unit target, long nowMs) {
+        if (target == null) {
+            return;
+        }
+        ArrayList<Unit.Aura> kept = new ArrayList<>();
+        for (Unit.Aura a : target.auras) {
+            if (a.expireAtMs() > 0 && nowMs > 0 && a.expireAtMs() <= nowMs) {
+                int slot = AuraSlots.slotOf(target, a.spellId());
+                if (slot >= 0) {
+                    AuraSlots.clearVisible(target, slot);
+                }
+                continue;
+            }
+            kept.add(a);
+        }
+        target.auras.clear();
+        for (Unit.Aura a : kept) {
+            target.auras.add(a);
+            SpellInfo sp = info(a.spellId());
+            if (sp != null) {
+                auras.apply(target, sp);
+                List<SpellInfo> extras = extraEffects.get(a.spellId());
+                if (extras != null) {
+                    for (SpellInfo e : extras) {
+                        auras.apply(target, e);
+                    }
+                }
+            }
+            if (AuraSlots.slotOf(target, a.spellId()) < 0) {
+                AuraSlots.applyVisible(target, a.spellId(), Math.max(1, target.level), a.stacks());
+            }
+        }
+    }
+
     public void catalogDummy(int effectId) {
         log.debug("spell effect {} dummy/script has no plugin", effectId);
     }

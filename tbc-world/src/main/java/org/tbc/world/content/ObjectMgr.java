@@ -3103,12 +3103,14 @@ public final class ObjectMgr {
                 Content.QUEST_A_THREAT_WITHIN, Content.QUEST_KOBOLD_CAMP_CLEANUP)));
         questInvolved.put(Content.NPC_DEPUTY_WILLEM, new ArrayList<>(List.of(Content.QUEST_BROTHERHOOD_OF_THIEVES)));
         if (spawns.isEmpty()) {
-            spawns.add(new Spawn(1, 6, 0, -8900f, -120f, 80f, 0f));
+            // Hostiles stay outside abbey NPC attack distance — otherwise faction NPCs
+            // DetectOrAttack them on every World.tick (GuardAI / UnitAI MoveInLineOfSight).
+            spawns.add(new Spawn(1, 6, 0, -8550f, -150f, 80f, 0f));
             spawns.add(new Spawn(2, Content.NPC_MARSHAL_DUGHAN, 0, Content.GOLDSHIRE_X, Content.GOLDSHIRE_Y, Content.GOLDSHIRE_Z, 0f));
             spawns.add(new Spawn(3, Content.NPC_CORINA_STEELE, 0, -8903f, -125f, 80f, 0f));
             spawns.add(new Spawn(4, Content.NPC_DEPUTY_WILLEM, 0, -8906f, -128f, 80f, 0f));
             spawns.add(new Spawn(5, Content.NPC_MARSHAL_MCBRIDE, 0, -8908f, -130f, 80f, 0f));
-            spawns.add(new Spawn(6, 103, 0, -8910f, -125f, 80f, 0f));
+            spawns.add(new Spawn(6, 103, 0, -8600f, -180f, 80f, 0f));
             spawns.add(new Spawn(7, Content.NPC_LLANE_BESHERE, 0, -8918.36f, -208.411f, 82.309f, 0f));
             spawns.add(new Spawn(14, Content.NPC_DANE_LINDGREN, 0, -8910f, -200f, 82f, 0f));
             spawns.add(new Spawn(8, Content.NPC_DUNGAR_LONGDRINK, 0, -8835.76f, 490.084f, 109.699f, 0f));
@@ -4259,11 +4261,19 @@ public final class ObjectMgr {
             p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_COMBATREACH, 1.5f);
         }
         syncEquippedWeaponAttack(p);
+        Item offItem = p.itemAt(0, Player.EQUIPMENT_SLOT_OFFHAND);
         ItemTemplate off = equippedTemplate(p, Player.EQUIPMENT_SLOT_OFFHAND);
-        if (off != null && off.dmgMax[0] > 0f) {
+        if (offItem != null && off != null) {
+            offItem.itemClass = off.itemClass;
+        }
+        // GetWeaponForAttack: Class == ITEM_CLASS_WEAPON only — shields must not keep OH swing fields.
+        if (off != null && off.itemClass == Player.ITEM_CLASS_WEAPON && off.dmgMax[0] > 0f) {
             p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE, off.dmgMin[0]);
             p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE, off.dmgMax[0]);
             p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, off.delay > 0 ? off.delay : 2000);
+        } else {
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE, 0f);
+            p.setFloat(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE, 0f);
         }
         int stamina = 0;
         int itemHealth = 0;
@@ -4505,6 +4515,7 @@ public final class ObjectMgr {
         if (it == null || t == null) {
             return;
         }
+        it.itemClass = t.itemClass;
         it.subClass = t.subClass;
         it.inventoryType = t.inventoryType;
         it.delay = t.delay;

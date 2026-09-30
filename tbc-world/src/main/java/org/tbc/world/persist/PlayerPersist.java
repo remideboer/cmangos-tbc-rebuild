@@ -84,6 +84,7 @@ public final class PlayerPersist {
         d.setInt(UpdateFields.UNIT_FIELD_POWER4, src.getInt(UpdateFields.UNIT_FIELD_POWER4));
         copySkills(src, d);
         copyExploredZones(src, d);
+        copyAuras(src, d);
         return d;
     }
 
@@ -100,6 +101,15 @@ public final class PlayerPersist {
         int base = UpdateFields.PLAYER_EXPLORED_ZONES_1;
         for (int i = 0; i < Player.PLAYER_EXPLORED_ZONES_SIZE; i++) {
             d.setInt(base + i, src.getInt(base + i));
+        }
+    }
+
+    /** character_aura holders — spell, remaintime (expireAtMs), stacks, amplitude, caster. */
+    static void copyAuras(Player src, Player d) {
+        for (org.tbc.world.entity.Unit.Aura a : src.auras) {
+            d.auras.add(new org.tbc.world.entity.Unit.Aura(
+                    a.spellId(), a.durationMs(), a.stacks(), a.mechanic(),
+                    a.expireAtMs(), a.amplitudeMs(), a.nextTickAtMs(), a.casterGuid()));
         }
     }
 

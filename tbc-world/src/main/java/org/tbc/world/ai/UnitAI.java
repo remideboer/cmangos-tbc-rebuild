@@ -1,7 +1,13 @@
 package org.tbc.world.ai;
 
+import org.tbc.world.combat.Combat;
+import org.tbc.world.combat.Factions;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
+
+import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 
 /** Per-creature brain. spec/05-domain/scripting-plugin-contract.md UnitAI. */
 public interface UnitAI {
@@ -20,18 +26,31 @@ public interface UnitAI {
     }
 
     /**
-     * CMaNGOS UnitAI::MoveInLineOfSight. Tick calls this so World does not grow an inline pull loop.
+     * CMaNGOS UnitAI::MoveInLineOfSight. Players first, then hostile creatures
+     * (guards / faction NPCs DetectOrAttack — GuardAI.cpp else branch).
      */
-    default void updateOoc(Creature c, Iterable<Player> nearby, org.tbc.world.combat.Factions factions,
-            java.util.function.BiPredicate<Creature, Player> los, java.util.function.Consumer<Player> engage) {
-        if (!aggroOnSight() || nearby == null || engage == null) {
+    default void updateOoc(Creature c, Iterable<Player> nearbyPlayers, Iterable<Creature> nearbyCreatures,
+            Factions factions, BiPredicate<Creature, Unit> los, Consumer<Unit> engage) {
+        if (!aggroOnSight() || engage == null) {
             return;
         }
-        for (Player pl : nearby) {
-            if (org.tbc.world.combat.Combat.canAggroOnSight(c, pl, factions)
-                    && (los == null || los.test(c, pl))) {
-                engage.accept(pl);
-                return;
+        if (nearbyPlayers != null) {
+            for (Player pl : nearbyPlayers) {
+                if (Combat.canAggroOnSight(c, pl, factions) && (los == null || los.test(c, pl))) {
+                    engage.accept(pl);
+                    return;
+                }
+            }
+        }
+        if (nearbyCreatures != null) {
+            for (Creature other : nearbyCreatures) {
+                if (other == null || other == c) {
+                    continue;
+                }
+                if (Combat.canAggroOnSight(c, other, factions) && (los == null || los.test(c, other))) {
+                    engage.accept(other);
+                    return;
+                }
             }
         }
     }

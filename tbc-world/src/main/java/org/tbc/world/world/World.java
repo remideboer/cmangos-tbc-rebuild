@@ -736,6 +736,63 @@ public final class World implements Runnable {
         }
     }
 
+    /** Guard / faction NPC DetectOrAttack a hostile creature (CMaNGOS AttackStart). */
+    public void engage(Creature attacker, Creature victim) {
+        if (attacker == null || victim == null || attacker == victim || !attacker.alive() || !victim.alive()) {
+            return;
+        }
+        if (attacker.inCombat && attacker.victim == victim.guid) {
+            return;
+        }
+        boolean fresh = !attacker.inCombat;
+        GameMap m = mapContaining(attacker);
+        float ox = attacker.x;
+        float oy = attacker.y;
+        byte[] stopMove = combat.startAttack(attacker, victim, nowMs());
+        if (attacker.x != ox || attacker.y != oy) {
+            m.reindex(attacker, ox, oy);
+        }
+        if (stopMove != null) {
+            for (Player pl : m.nearbyPlayers(attacker, GameMap.VISIBILITY)) {
+                if (pl.session != null) {
+                    pl.session.send(Opcodes.SMSG_MONSTER_MOVE, stopMove);
+                }
+            }
+        }
+        if (!fresh) {
+            return;
+        }
+        if (attacker.eventAi != null) {
+            attacker.eventAi.onAggro(attacker, victim, (cr, t, spell) -> sendEventAiCast(m, cr, t, spell));
+        }
+        byte[] atk = combat.encodeAttackStart(attacker.guid, victim.guid);
+        byte[] def = combat.encodeAttackStart(victim.guid, attacker.guid);
+        var visAtk = UpdateBuilder.maybeCompress(UpdateBuilder.values(attacker,
+                UpdateFields.UNIT_FIELD_TARGET, UpdateFields.UNIT_FIELD_TARGET + 1, UpdateFields.UNIT_FIELD_FLAGS));
+        var visVic = UpdateBuilder.maybeCompress(UpdateBuilder.values(victim,
+                UpdateFields.UNIT_FIELD_TARGET, UpdateFields.UNIT_FIELD_TARGET + 1, UpdateFields.UNIT_FIELD_FLAGS));
+        for (Player pl : m.nearbyPlayers(attacker, GameMap.VISIBILITY)) {
+            if (pl.session != null) {
+                pl.session.send(Opcodes.SMSG_ATTACKSTART, atk);
+                pl.session.send(Opcodes.SMSG_ATTACKSTART, def);
+                pl.session.send(visAtk.opcode(), visAtk.payload());
+                pl.session.send(visVic.opcode(), visVic.payload());
+            }
+        }
+    }
+
+    private GameMap mapContaining(Creature c) {
+        if (c == null) {
+            return map(0, 0);
+        }
+        for (GameMap m : maps.values()) {
+            if (m.mapId == c.mapId && m.creatures.containsKey(c.guid)) {
+                return m;
+            }
+        }
+        return map(c.mapId, 0);
+    }
+
     /**
      * Unit::AttackedBy + HandleDamageDealt threat after a hostile spell lands.
      * Misses (no HP lost while still alive) do not pull; a killing blow still tags via onCreatureKilledBySpell.
@@ -817,7 +874,50 @@ public final class World implements Runnable {
         }
     }
 
-    private void creatureMeleeIfReady(Creature c, Player victim, int diff) {
+    /** Guard / faction NPC melee vs another creature. */
+    public void creatureMeleeHit(Creature c, Creature foe) {
+        GameMap hitMap = mapContaining(c);
+        boolean wasAlive = foe.alive();
+        MeleeTable.Result r = combat.swing(c, foe, nowMs(),
+                (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
+        byte[] log = combat.encodeAttack(c, foe, r);
+        var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(foe, UpdateFields.UNIT_FIELD_HEALTH));
+        for (Player pl : hitMap.nearbyPlayers(foe, GameMap.VISIBILITY)) {
+            if (pl.session == null) {
+                continue;
+            }
+            pl.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, log);
+            if (foe.alive()) {
+                pl.session.send(hp.opcode(), hp.payload());
+            }
+        }
+        if (wasAlive && !foe.alive()) {
+            onCreatureKilledByNpc(c, foe, hitMap);
+        }
+    }
+
+    /** Creature::Kill without a player tapper — StopMoving + corpse VALUES, no XP. */
+    private void onCreatureKilledByNpc(Creature killer, Creature victim, GameMap m) {
+        byte[] stop = victim.motion.stop(victim);
+        if (stop != null) {
+            for (Player pl : m.nearbyPlayers(victim, GameMap.VISIBILITY)) {
+                if (pl.session != null) {
+                    pl.session.send(Opcodes.SMSG_MONSTER_MOVE, stop);
+                }
+            }
+        }
+        byte[] atkStop = combat.encodeAttackStop(killer.guid, victim.guid, false);
+        for (Player pl : m.nearbyPlayers(victim, GameMap.VISIBILITY)) {
+            if (pl.session != null) {
+                pl.session.send(Opcodes.SMSG_ATTACKSTOP, atkStop);
+            }
+        }
+        sendCorpseValues(m, victim);
+        m.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, victim.entry, victim, null,
+                (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
+    }
+
+    private void creatureMeleeIfReady(Creature c, Unit victim, int diff) {
         if (c.ai == null || !c.ai.meleeEnabled() || victim == null || !victim.alive() || !c.alive() || c.evading) {
             return;
         }
@@ -835,7 +935,22 @@ public final class World implements Runnable {
         }
         int swing = c.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
         c.meleeCooldownMs = swing > 0 ? swing : 2000;
-        creatureMeleeHit(c, victim);
+        if (victim instanceof Player p) {
+            creatureMeleeHit(c, p);
+        } else if (victim instanceof Creature foe) {
+            creatureMeleeHit(c, foe);
+        }
+    }
+
+    private Unit unitByGuid(GameMap m, long guid) {
+        if (guid == 0 || m == null) {
+            return null;
+        }
+        Player p = m.players.get(guid);
+        if (p != null) {
+            return p;
+        }
+        return m.creatures.get(guid);
     }
 
     public void tick(int diff) {
@@ -904,18 +1019,25 @@ public final class World implements Runnable {
                 }
                 EventAi.SpellCast sink = (cr, t, spell) -> sendEventAiCast(m, cr, t, spell);
                 if (!c.inCombat && !c.evading && c.ai != null) {
-                    c.ai.updateOoc(c, m.nearbyPlayers(c, GameMap.VISIBILITY), factions, LineOfSight::clear,
-                            pl -> engage(c, pl));
+                    c.ai.updateOoc(c, m.nearbyPlayers(c, GameMap.VISIBILITY),
+                            m.nearbyCreatures(c, GameMap.VISIBILITY), factions, LineOfSight::clear, target -> {
+                                if (target instanceof Player pl) {
+                                    engage(c, pl);
+                                } else if (target instanceof Creature foe) {
+                                    engage(c, foe);
+                                }
+                            });
                 }
                 if (c.inCombat) {
-                    Player leashVictim = m.players.get(c.victim);
+                    Unit leashVictim = unitByGuid(m, c.victim);
                     if (combat.shouldEvade(c, leashVictim, nowMs())) {
                         enterEvadeMode(m, c, sink);
                     } else if (combat.tickUnreachableEvade(c, leashVictim, diff)) {
                         enterEvadeMode(m, c, sink);
                     }
                 }
-                Player victim = m.players.get(c.victim);
+                Unit victimUnit = unitByGuid(m, c.victim);
+                Player victim = victimUnit instanceof Player pl ? pl : null;
                 if (c.ai != null) {
                     c.ai.update(c, victim, diff, sink, () -> enterEvadeMode(m, c, sink));
                 } else if (c.eventAi != null) {
@@ -947,7 +1069,7 @@ public final class World implements Runnable {
                     }
                 }
                 if (c.inCombat) {
-                    creatureMeleeIfReady(c, victim, diff);
+                    creatureMeleeIfReady(c, victimUnit, diff);
                 }
                 if (!c.inCombat && c.eventAi != null && c.eventAi.hasOocLos()) {
                     for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {

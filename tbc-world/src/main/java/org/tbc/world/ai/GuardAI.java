@@ -1,6 +1,6 @@
 package org.tbc.world.ai;
 
-/** C++ GuardAI. Melee in combat; no MoveInLineOfSight. */
+/** C++ GuardAI. Melee; MoveInLineOfSight via {@link UnitAI#updateOoc}. */
 public final class GuardAI implements UnitAI {
     @Override
     public String aiName() {

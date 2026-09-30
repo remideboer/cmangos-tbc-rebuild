@@ -2,6 +2,7 @@ package org.tbc;
 
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
@@ -162,6 +163,51 @@ class Slice06P0Test {
         }
         assertTrue(sawCreatureStart);
         assertTrue(c.inCombat);
+    }
+
+    /**
+     * TP-SL06-027 — GuardAI / UnitAI MoveInLineOfSight DetectOrAttack: alliance guard
+     * (and faction NPCs) AttackStart a hostile creature that enters attack distance.
+     */
+    @Test
+    void tpSl06GuardWhenHostileCreatureInRangeShouldAttackStart() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Witness", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature guard = world.objectMgr.spawnCreature(Content.NPC_MARSHAL_MCBRIDE, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        guard.extraFlags |= Creature.CREATURE_EXTRA_FLAG_GUARD;
+        org.tbc.world.ai.FactorySelector.selectAI(guard, world.scripts);
+        world.map(p.mapId, p.instanceId).add(guard);
+        Creature hostile = world.objectMgr.spawnCreature(6, 0, guard.x + 8f, guard.y, guard.z, guard.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(hostile);
+        client.clear();
+        world.tick(50);
+        assertTrue(guard.inCombat, "guard must DetectOrAttack the hostile");
+        assertEquals(hostile.guid, guard.victim);
+        boolean sawGuardStart = false;
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_ATTACKSTART) {
+                continue;
+            }
+            byte[] payload = client.payloads.get(i);
+            long attacker = WowClientDouble.u64le(payload, 0);
+            long victim = WowClientDouble.u64le(payload, 8);
+            if (attacker == guard.guid && victim == hostile.guid) {
+                sawGuardStart = true;
+            }
+        }
+        assertTrue(sawGuardStart, "SMSG_ATTACKSTART guard→hostile");
+        int n = 0;
+        while (hostile.alive() && n++ < 200) {
+            world.tick(500);
+        }
+        assertFalse(hostile.alive(), "guard melee should kill the hostile");
+        assertTrue(sawMonsterMoveType(client, hostile.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_STOP));
     }
 
     @Test
@@ -344,7 +390,7 @@ class Slice06P0Test {
         assertTrue(c.inCombat);
         assertEquals(org.tbc.world.combat.Combat.SWING_ERROR_RETRY_MS, c.meleeCooldownMs);
         assertFalse(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
-        assertTrue(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_TARGET));
+        assertTrue(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_NORMAL));
         ox = p.x;
         oy = p.y;
         p.relocate(c.x, c.y, c.z, c.o);
@@ -723,9 +769,9 @@ class Slice06P0Test {
     }
 
     /**
-     * Unit::SetDeathState(JUST_DIED) StopMoving: SMSG_MONSTER_MOVE MonsterMoveStop so the client
-     * drops FACING_TARGET (otherwise the corpse keeps turning toward the looter).
-     * Also clears UNIT_FIELD_TARGET; corpse orientation must stay frozen when the player circles.
+     * Unit::SetDeathState(JUST_DIED) StopMoving: SMSG_MONSTER_MOVE MonsterMoveStop.
+     * Chase must not use FACING_TARGET (8606 tracks the guid until stop — corpses spun).
+     * After death, circling must not emit face/chase moves; orientation stays frozen.
      */
     @Test
     void tpSl06DeadCreatureShouldStopFacingOnWire() {
@@ -735,14 +781,23 @@ class Slice06P0Test {
         Player created = world.characters.create(ACC.id(), "Corpse", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         Player p = client.session().player();
-        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
-        world.map(p.mapId, p.instanceId).add(c);
         float ox = p.x;
         float oy = p.y;
-        p.relocate(c.x, c.y, c.z, c.o);
+        // Spawn far so the creature launches a chase run before the killing blow.
+        p.relocate(20_000f, 20_000f, 80f, 0);
         world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x + 12f, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
         client.attackSwing(world, c.guid);
         world.tick(50);
+        assertTrue(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_NORMAL),
+                "chase run must be NORMAL (not FACING_TARGET)");
+        assertFalse(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_TARGET),
+                "FACING_TARGET chase left corpses tracking the looter on 8606");
+        ox = p.x;
+        oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
         int n = 0;
         while (c.alive() && n++ < 80) {
             world.meleeHit(p, c);
@@ -752,8 +807,9 @@ class Slice06P0Test {
         assertEquals(0, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_TARGET));
         assertEquals(0, client.valuesField(c.guid, UpdateFields.UNIT_FIELD_TARGET + 1));
         float corpseO = c.o;
+        float corpseX = c.x;
+        float corpseY = c.y;
         client.clear();
-        // Circle the corpse — FACING_TARGET / live chase would keep turning it toward the player.
         float[][] ring = {
                 {c.x + 4, c.y},
                 {c.x, c.y + 4},
@@ -768,10 +824,11 @@ class Slice06P0Test {
             world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
             world.tick(200);
         }
-        assertFalse(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_TARGET));
-        assertFalse(sawMonsterMoveType(client, c.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_ANGLE));
+        assertFalse(client.saw(Opcodes.SMSG_MONSTER_MOVE), "corpse must not move or rotate after death");
         assertEquals(org.tbc.world.ai.MotionMaster.IDLE, c.motion.type());
         assertEquals(corpseO, c.o, 0.001f, "corpse orientation must not track the looter");
+        assertEquals(corpseX, c.x, 0.001f, "corpse must not slide after death");
+        assertEquals(corpseY, c.y, 0.001f, "corpse must not slide after death");
     }
 
     private static final int UNIT_DYNFLAG_LOOTABLE = 0x0001;
@@ -830,7 +887,7 @@ class Slice06P0Test {
         return false;
     }
 
-    /** True when the first MonsterMove for guid after pull is STOP (before any FACING_TARGET chase). */
+    /** True when the first MonsterMove for guid after pull is STOP (before any chase run). */
     private static boolean stopBeforeChase(WowClientDouble client, long guid) {
         boolean sawStop = false;
         for (int i = 0; i < client.opcodes.size(); i++) {
@@ -850,7 +907,8 @@ class Slice06P0Test {
                 sawStop = true;
                 continue;
             }
-            if (moveType == org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_TARGET) {
+            if (moveType == org.tbc.world.session.TaxiHandler.MONSTER_MOVE_NORMAL
+                    || moveType == org.tbc.world.session.TaxiHandler.MONSTER_MOVE_FACING_TARGET) {
                 return sawStop;
             }
         }

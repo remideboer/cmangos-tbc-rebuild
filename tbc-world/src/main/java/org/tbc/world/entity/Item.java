@@ -10,6 +10,8 @@ public final class Item {
     public int maxDurability;
     public int ownerGuid;
     public int displayId;
+    /** ItemPrototype Class — ITEM_CLASS_WEAPON / ARMOR; offhand swing requires WEAPON. */
+    public int itemClass;
     public int inventoryType;
     /** ItemPrototype SubClass — 2H axe/mace/sword/polearm/staff/spear for SoR handedness. */
     public int subClass;

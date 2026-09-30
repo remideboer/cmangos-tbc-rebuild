@@ -6,6 +6,8 @@ import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 
 import java.util.List;
@@ -32,6 +34,10 @@ public final class TrainerHandler {
     /** Spell.dbc Apprentice Blacksmith — EFFECT_SKILL_STEP skill 164. */
     public static final int SPELL_APPRENTICE_BLACKSMITH = 2020;
     public static final int SKILL_BLACKSMITHING = 164;
+    /** SpellVisualKit.dbc — trainer cast-on-self VFX when a spell/skill is bought. */
+    public static final int TRAINER_LEARN_VISUAL_KIT = 0xB3;
+    /** SpellVisualKit.dbc — player learn impact (8606 learn SFX). */
+    public static final int PLAYER_LEARN_IMPACT_KIT = 0x016A;
 
     private TrainerHandler() {}
 
@@ -125,6 +131,18 @@ public final class TrainerHandler {
             return;
         }
         p.setMoney(p.money - row.cost());
+        // ModifyMoney → client bag copper (vendor buy / bank slot same pattern).
+        var coin = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+        s.send(coin.opcode(), coin.payload());
+        // CMaNGOS HandleTrainerBuySpellOpcode — learn VFX before teach / SUCCEEDED.
+        WowBuffer visual = new WowBuffer(12);
+        visual.putU64(guid);
+        visual.putU32(TRAINER_LEARN_VISUAL_KIT);
+        s.send(Opcodes.SMSG_PLAY_SPELL_VISUAL, visual.array());
+        WowBuffer impact = new WowBuffer(12);
+        impact.putU64(p.guid);
+        impact.putU32(PLAYER_LEARN_IMPACT_KIT);
+        s.send(Opcodes.SMSG_PLAY_SPELL_IMPACT, impact.array());
         teach(p, world, spell, row);
         WowBuffer ok = new WowBuffer(12);
         ok.putU64(guid);

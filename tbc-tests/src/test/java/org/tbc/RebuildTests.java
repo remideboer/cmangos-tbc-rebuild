@@ -313,7 +313,7 @@ class SliceTests {
         assertEquals(1542, sword.displayId);
         assertEquals(21, sword.inventoryType);
         assertEquals(25, p.getInt(UpdateFields.PLAYER_VISIBLE_ITEM_1_0 + 15 * Player.MAX_VISIBLE_ITEM_OFFSET));
-        assertEquals(1, p.getInt(UpdateFields.UNIT_FIELD_BYTES_2) & 0xFF);
+        assertEquals(0, p.getInt(UpdateFields.UNIT_FIELD_BYTES_2) & 0xFF, "SHEATH_STATE_UNARMED — weapon on back");
         assertEquals(Player.POWER_RAGE, p.powerType);
         assertEquals(Player.POWER_RAGE_MAX, p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER2));
         s.handle(w, Opcodes.CMSG_CHAR_ENUM, new byte[0]);
@@ -704,8 +704,18 @@ class SliceTests {
         CaptureSink sink = new CaptureSink();
         WorldSession s = loggedIn(w, sink, "Fighter");
         Player p = s.player();
-        Creature mob = w.map(0, 0).creatures.values().iterator().next();
+        Creature mob = null;
+        for (Creature c : w.map(0, 0).creatures.values()) {
+            if (c.entry == Content.NPC_KOBOLD_VERMIN) {
+                mob = c;
+                break;
+            }
+        }
+        assertNotNull(mob);
+        float ox = p.x;
+        float oy = p.y;
         p.relocate(mob.x, mob.y, mob.z, mob.o);
+        w.map(p.mapId, p.instanceId).reindex(p, ox, oy);
         WowBuffer atk = new WowBuffer(8);
         atk.putU64(mob.guid);
         sink.opcodes.clear();

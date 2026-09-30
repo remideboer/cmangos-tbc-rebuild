@@ -30,7 +30,7 @@ class MotionMasterTest {
     }
 
     @Test
-    void chaseWhenLaunchingShouldFaceVictimGuid() {
+    void chaseWhenLaunchingShouldEmitNormalRunNotFacingTarget() {
         Creature c = new Creature();
         c.guid = 2;
         c.relocate(20, 0, 0, 0);
@@ -46,8 +46,7 @@ class MotionMasterTest {
         pkt.getFloat();
         pkt.getFloat();
         pkt.getU32();
-        assertEquals(TaxiHandler.MONSTER_MOVE_FACING_TARGET, pkt.getU8());
-        assertEquals(p.guid, pkt.getU64());
+        assertEquals(TaxiHandler.MONSTER_MOVE_NORMAL, pkt.getU8());
         pkt.getU32();
         pkt.getU32();
         assertEquals(1, pkt.getU32());
@@ -140,8 +139,8 @@ class MotionMasterTest {
     }
 
     /**
-     * Chase run binds FACING_TARGET on 8606; arriving in melee must MonsterMoveStop first
-     * (CMaNGOS HandleFinalizedMovement StopMoving) or the corpse keeps tracking the player.
+     * Chase run arrives with MonsterMoveStop (CMaNGOS HandleFinalizedMovement StopMoving)
+     * before in-melee FacingAngle — otherwise the client keeps the run spline live.
      */
     @Test
     void chaseWhenArrivingInMeleeShouldMonsterMoveStopToDropFacingTarget() {
@@ -160,22 +159,24 @@ class MotionMasterTest {
                 arrive = pkt;
             }
         }
-        assertNotNull(arrive, "melee arrive must MonsterMoveStop to clear chase FACING_TARGET");
+        assertNotNull(arrive, "melee arrive must MonsterMoveStop to finalize the chase run");
         assertTrue(c.distance2d(p) <= Combat.meleeRange(c, p) + 0.05f);
     }
 
-    /** After StopMoving, circling the (would-be) corpse must not change orientation. */
+    /**
+     * Death StopMoving while a chase run is live: after stop, circling must not rotate.
+     * (FACING_TARGET chase used to keep the corpse tracking the looter on 8606.)
+     */
     @Test
-    void chaseWhenStoppedShouldNotRotateWhenVictimCircles() {
+    void chaseWhenStoppedMidRunShouldNotRotateWhenVictimCircles() {
         Creature c = new Creature();
         c.guid = 2;
-        c.relocate(5, 0, 0, 0);
+        c.relocate(20, 0, 0, 0);
         Player p = new Player();
         p.guid = 1;
         p.relocate(0, 0, 0, 0);
         c.motion.moveChase(p);
-        c.motion.update(c, 50);
-        c.motion.update(c, MotionMaster.CHASE_REACTION_MS);
+        assertNotNull(c.motion.update(c, 50));
         byte[] stop = c.motion.stop(c);
         assertNotNull(stop);
         assertEquals(TaxiHandler.MONSTER_MOVE_STOP, moveType(stop));
@@ -299,8 +300,7 @@ class MotionMasterTest {
         pkt.getFloat();
         pkt.getFloat();
         pkt.getU32();
-        assertEquals(TaxiHandler.MONSTER_MOVE_FACING_TARGET, pkt.getU8());
-        assertEquals(p.guid, pkt.getU64());
+        assertEquals(TaxiHandler.MONSTER_MOVE_NORMAL, pkt.getU8());
         assertTrue(c.x > 5f);
     }
 
