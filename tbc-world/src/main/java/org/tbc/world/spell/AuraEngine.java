@@ -188,7 +188,7 @@ public final class AuraEngine {
             modIncreaseSwimSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_SHAPESHIFT) {
-            target.setShapeshiftForm(sp.misc());
+            modShapeshift(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_RESISTANCE) {
             modResistance(target, sp, true);
@@ -385,6 +385,23 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SWIM_SPEED) {
             modIncreaseSwimSpeed(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SHAPESHIFT) {
+            // HandleAuraModShapeshift(false) → SetShapeshiftForm(FORM_NONE). Apply removes other
+            // shapeshift auras first, so only one form is active at a time.
+            modShapeshift(target, sp, false);
+        }
+    }
+
+    /**
+     * Aura 36 — CMaNGOS HandleAuraModShapeshift: misc = ShapeshiftForm → UNIT_FIELD_BYTES_2 byte 3.
+     * Display / power-type / stance-rage stay later; form byte is the player-visible contract.
+     */
+    private static void modShapeshift(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (apply) {
+            target.setShapeshiftForm(sp.misc());
+        } else {
+            target.setShapeshiftForm(Unit.FORM_NONE);
         }
     }
 
