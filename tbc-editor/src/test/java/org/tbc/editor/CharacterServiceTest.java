@@ -110,8 +110,14 @@ class CharacterServiceTest {
         svc.create(1, "ABCDEFGHIJKL", 1, 1, 0, 0, 0, 0, 0, 0);
         assertMsg("Race and class are not a playable combination.",
                 () -> svc.create(1, "BadRace", 9, 1, 0, 0, 0, 0, 0, 0));
-        assertMsg("Race and class are not a playable combination.",
-                () -> svc.create(1, "DkClass", 1, 6, 0, 0, 0, 0, 0, 0));
+        org.tbc.world.classless.ClasslessConfig.set(
+                org.tbc.world.classless.ClasslessConfig.defaults().withEnabled(false));
+        try {
+            assertMsg("Race and class are not a playable combination.",
+                    () -> svc.create(1, "DkClass", 1, 6, 0, 0, 0, 0, 0, 0));
+        } finally {
+            org.tbc.world.classless.ClasslessConfig.reset();
+        }
         assertMsg("Race and class are not a playable combination.",
                 () -> svc.create(1, "NoClass", 1, 10, 0, 0, 0, 0, 0, 0));
         assertMsg("Account expansion is too low for that race.",

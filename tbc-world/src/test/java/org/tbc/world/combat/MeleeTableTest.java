@@ -493,6 +493,26 @@ class MeleeTableTest {
         assertEquals(5, MeleeTable.defenseSkill(v, a));
     }
 
+    @Test
+    void missChanceWhenClasslessUntrainedWeaponShouldAddConfiguredPenalty() {
+        org.tbc.world.classless.ClasslessConfig.reset();
+        Player a = new Player();
+        a.clazz = org.tbc.world.classless.ClasslessConfig.CLASS_CLASSLESS;
+        a.level = 1;
+        Item sword = new Item(1, 25);
+        sword.itemClass = Player.ITEM_CLASS_WEAPON;
+        sword.subClass = 7;
+        sword.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        a.items.put(1, sword);
+        Creature v = new Creature();
+        v.level = 1;
+        double untrained = MeleeTable.missChance(a, v, false);
+        a.addWeaponProficiency(1 << 7);
+        double trained = MeleeTable.missChance(a, v, false);
+        assertTrue(untrained >= trained + 0.049);
+        org.tbc.world.classless.ClasslessConfig.reset();
+    }
+
     private static MeleeTable table(double r) {
         return new MeleeTable(() -> r, (min, max) -> min >= max ? min : min);
     }

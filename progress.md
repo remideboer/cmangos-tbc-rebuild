@@ -52,6 +52,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 32 TBC 5-mans | p0_junit | Spec file existence for HFC/CF/Auch/TK/CoT |
 | 33 Classic raids | p0_junit | MC/BWL/AQ/Naxx/ZG/Onyxia + `world-remaining.md` |
 | 34 Class scripts | p0_junit | Execute **5308→20647**; UA **30108**; spec grep |
+| 35 Classless | p0_client | Optional class id **6**: blank Auto Attack **6603**, trainer catalog, mana+rage+energy, per-item armor / untrained-weapon penalties (`org.tbc.world.classless`). Overlay: ChrClasses id 6 `filename=WARRIOR` + CharBaseInfo race×6; wowme create shows Classless. |
 
 ## Loop B — official 8606 two-client lab
 

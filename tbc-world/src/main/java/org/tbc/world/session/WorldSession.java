@@ -842,6 +842,10 @@ public final class WorldSession {
         if (in.remaining() > 0) {
             in.getU8();
         }
+        if (!ChrStatic.playable(race, clazz)) {
+            send(Opcodes.SMSG_CHAR_CREATE, new byte[]{(byte) Codes.CHAR_CREATE_ERROR});
+            return;
+        }
         if (world.characters.nameInUse(name)) {
             send(Opcodes.SMSG_CHAR_CREATE, new byte[]{(byte) Codes.CHAR_CREATE_NAME_IN_USE});
             return;
@@ -853,7 +857,7 @@ public final class WorldSession {
         }
         Player p = world.characters.create(account.id(), name, race, clazz, gender, skin, face, hair, hairColor, facial, world.objectMgr);
         if (p == null) {
-            send(Opcodes.SMSG_CHAR_CREATE, new byte[]{(byte) Codes.CHAR_CREATE_NAME_IN_USE});
+            send(Opcodes.SMSG_CHAR_CREATE, new byte[]{(byte) Codes.CHAR_CREATE_ERROR});
             return;
         }
         send(Opcodes.SMSG_CHAR_CREATE, new byte[]{(byte) Codes.CHAR_CREATE_SUCCESS});

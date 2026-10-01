@@ -109,6 +109,19 @@ public final class ChrStatic {
     }
 
     public static boolean playable(int race, int clazz) {
-        return race(race) != null && clazz >= 1 && clazz <= 11 && clazz != 6 && clazz != 10;
+        boolean knownRace = false;
+        for (Race r : RACES) {
+            if (r.id == race) {
+                knownRace = true;
+                break;
+            }
+        }
+        if (!knownRace) {
+            return false;
+        }
+        if (org.tbc.world.classless.ClasslessConfig.isClasslessId(clazz)) {
+            return org.tbc.world.classless.ClasslessConfig.get().enabled();
+        }
+        return clazz >= 1 && clazz <= 11 && clazz != 6 && clazz != 10;
     }
 }

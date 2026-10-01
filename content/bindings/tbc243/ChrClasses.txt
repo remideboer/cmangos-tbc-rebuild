@@ -1,0 +1,61 @@
+# ChrClasses.dbc — subset used by classless overlay (2.4.3)
+# Full stock row width must match the base DBC; unused columns stay as uint placeholders
+# so cloneRecord can copy Warrior → Classless without inventing layout.
+uint ClassID
+uint Unused1
+int powerType
+uint Unused3
+uint name_lang_enUS string
+uint name_lang_enGB string
+uint name_lang_koKR string
+uint name_lang_frFR string
+uint name_lang_deDE string
+uint name_lang_enCN string
+uint name_lang_zhCN string
+uint name_lang_enTW string
+uint name_lang_zhTW string
+uint name_lang_esES string
+uint name_lang_esMX string
+uint name_lang_ruRU string
+uint name_lang_ptPT string
+uint name_lang_ptBR string
+uint name_lang_itIT string
+uint name_lang_Unk string
+uint nameFlags
+uint Unused21
+uint Unused22
+uint Unused23
+uint Unused24
+uint Unused25
+uint Unused26
+uint Unused27
+uint Unused28
+uint Unused29
+uint Unused30
+uint Unused31
+uint Unused32
+uint Unused33
+uint Unused34
+uint Unused35
+uint Unused36
+uint Unused37
+uint Unused38
+uint Unused39
+uint Unused40
+uint Unused41
+uint Unused42
+uint Unused43
+uint Unused44
+uint Unused45
+uint Unused46
+uint Unused47
+uint Unused48
+uint Unused49
+uint Unused50
+uint Unused51
+uint Unused52
+uint Unused53
+uint Unused54
+uint filename string
+int spellfamily
+uint Unused57

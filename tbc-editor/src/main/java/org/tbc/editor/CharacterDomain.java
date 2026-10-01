@@ -39,7 +39,7 @@ public final class CharacterDomain implements EditorDomain {
     private static final String[] COLS = {
             "Guid", "Account", "Name", "Race", "Class", "Level", "Map", "Online"
     };
-    private static final int[] PLAYABLE_CLASSES = {1, 2, 3, 4, 5, 7, 8, 9, 11};
+    private static final int[] PLAYABLE_CLASSES = {1, 2, 3, 4, 5, 6, 7, 8, 9, 11};
 
     private final CharacterService service;
     private final Consumer<String> status;

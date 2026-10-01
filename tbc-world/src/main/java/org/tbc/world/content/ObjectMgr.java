@@ -3405,6 +3405,9 @@ public final class ObjectMgr {
         if (spells.isEmpty()) {
             return false;
         }
+        if (org.tbc.world.classless.ClasslessTrainerPolicy.isTrainerOf(p, c, this)) {
+            return true;
+        }
         int type = trainerType(c.entry);
         int reqClass = trainerClass.getOrDefault(c.entry, 0);
         return switch (type) {
@@ -3824,6 +3827,17 @@ public final class ObjectMgr {
             for (CreateItem ci : extra) {
                 storeCreateItem(p, ci.itemId(), ci.amount(), nextGuid);
             }
+        }
+        applyEquippedMelee(p);
+    }
+
+    /** Classless / custom start kits — equip or backpack listed item ids then recalc melee. */
+    public void giveNamedStartItems(Player p, int[] itemIds, LongSupplier nextGuid) {
+        if (p == null || nextGuid == null || itemIds == null) {
+            return;
+        }
+        for (int itemId : itemIds) {
+            storeCreateItem(p, itemId, 1, nextGuid);
         }
         applyEquippedMelee(p);
     }
@@ -4327,9 +4341,71 @@ public final class ObjectMgr {
         int spellHasteRating = 0;
         int expertiseRating = 0;
         int shieldBlock = 0;
+        float classlessSpeedPenalty = 0f;
+        boolean classless = org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p);
         for (int slot = 0; slot < Player.EQUIPMENT_SLOT_END; slot++) {
             ItemTemplate t = equippedTemplate(p, slot);
             if (t == null) {
+                continue;
+            }
+            if (classless && t.itemClass == Player.ITEM_CLASS_ARMOR) {
+                var mods = org.tbc.world.classless.ArmorPenaltyPolicy.forPiece(p, t);
+                armor += mods.armor();
+                strength += mods.strength();
+                agility += mods.agility();
+                classlessSpeedPenalty -= mods.speedPenaltyPct() * 100f;
+                shieldBlock += t.block;
+                holy += t.holyRes;
+                fire += t.fireRes;
+                nature += t.natureRes;
+                frost += t.frostRes;
+                shadow += t.shadowRes;
+                arcane += t.arcaneRes;
+                for (int i = 0; i < t.statType.length; i++) {
+                    if (t.statType[i] == ITEM_MOD_STAMINA) {
+                        stamina += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_HEALTH) {
+                        itemHealth += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_MANA) {
+                        itemMana += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_INTELLECT) {
+                        intellect += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_SPIRIT) {
+                        spirit += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_HIT_RATING) {
+                        hitRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_HIT_MELEE_RATING) {
+                        hitMeleeRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_HIT_RANGED_RATING) {
+                        hitRangedRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_HIT_SPELL_RATING) {
+                        spellHitRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_CRIT_SPELL_RATING) {
+                        spellCritRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_HASTE_SPELL_RATING) {
+                        spellHasteRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_DEFENSE_SKILL_RATING) {
+                        defenseRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_DODGE_RATING) {
+                        dodgeRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_PARRY_RATING) {
+                        parryRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_BLOCK_RATING) {
+                        blockRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_CRIT_RATING) {
+                        critRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_CRIT_MELEE_RATING) {
+                        critMeleeRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_CRIT_RANGED_RATING) {
+                        critRangedRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_RESILIENCE_RATING) {
+                        resilienceRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_HASTE_RATING) {
+                        hasteRating += t.statValue[i];
+                    } else if (t.statType[i] == ITEM_MOD_EXPERTISE_RATING) {
+                        expertiseRating += t.statValue[i];
+                    }
+                }
                 continue;
             }
             armor += t.armor;
@@ -4391,6 +4467,7 @@ public final class ObjectMgr {
             }
         }
         p.applyGearBonuses(stamina, armor, agility, strength, intellect, spirit, itemHealth, itemMana);
+        p.setEquipmentSpeedPenaltyPct(classless ? classlessSpeedPenalty : 0f);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 1, holy);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 2, fire);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCES + 3, nature);

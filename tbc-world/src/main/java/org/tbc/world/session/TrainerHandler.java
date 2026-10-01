@@ -59,12 +59,21 @@ public final class TrainerHandler {
         if (rows.isEmpty()) {
             return null;
         }
+        java.util.ArrayList<ObjectMgr.TrainerSpell> listed = new java.util.ArrayList<>();
+        for (ObjectMgr.TrainerSpell s : rows) {
+            if (org.tbc.world.classless.ClasslessTrainerPolicy.listIncludes(p, s.spell())) {
+                listed.add(s);
+            }
+        }
+        if (listed.isEmpty()) {
+            return null;
+        }
         int trainerType = mgr.trainerType(c.entry);
-        WowBuffer b = new WowBuffer(16 + rows.size() * 38 + DEFAULT_GREETING.length() + 1);
+        WowBuffer b = new WowBuffer(16 + listed.size() * 38 + DEFAULT_GREETING.length() + 1);
         b.putU64(c.guid);
         b.putU32(trainerType);
-        b.putU32(rows.size());
-        for (ObjectMgr.TrainerSpell s : rows) {
+        b.putU32(listed.size());
+        for (ObjectMgr.TrainerSpell s : listed) {
             int state = TrainerService.state(p, s, mgr);
             int reqAb0 = s.reqAbility0();
             int reqAb1 = s.reqAbility1();
@@ -125,6 +134,9 @@ public final class TrainerHandler {
             }
         }
         if (row == null || p.money < row.cost()) {
+            return;
+        }
+        if (!org.tbc.world.classless.ClasslessTrainerPolicy.listIncludes(p, spell)) {
             return;
         }
         if (TrainerService.state(p, row, world.objectMgr) != TRAINER_SPELL_GREEN) {

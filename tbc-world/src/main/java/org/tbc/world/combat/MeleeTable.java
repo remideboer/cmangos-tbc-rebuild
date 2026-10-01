@@ -140,6 +140,9 @@ public final class MeleeTable {
         }
         // chance -= GetHitChance(attType); Unit.cpp CalculateEffectiveMissChance.
         pct -= attacker.weaponHitChance(offhand ? Unit.OFF_ATTACK : Unit.BASE_ATTACK);
+        if (attacker instanceof Player player) {
+            pct += org.tbc.world.classless.WeaponPenaltyPolicy.missAddPercent(player, offhand);
+        }
         if (pct < 0) {
             pct = 0;
         }

@@ -47,11 +47,14 @@ public final class Player extends Unit {
     public static final int BANK_SLOT_BAG_START = 67;
     public static final int BANK_SLOT_BAG_END = 74;
     public static final int MAX_VISIBLE_ITEM_OFFSET = 16;
+    public static final int POWER_MANA = 0;
     public static final int POWER_RAGE = 1;
     public static final int POWER_RAGE_MAX = 1000;
     /** SharedDefines.h POWER_ENERGY / POWER_ENERGY_DEFAULT (Unit::GetCreatePowers for players). */
     public static final int POWER_ENERGY = 3;
     public static final int POWER_ENERGY_MAX = 100;
+    /** ChrClasses unused TBC id — classless mode when ClasslessConfig.enabled. */
+    public static final int CLASS_CLASSLESS = 6;
     /** ChrClasses.dbc. CLASSMASK_WAND_USERS in SharedDefines.h. spec/03-protocol/enums.md */
     public static final int CLASS_HUNTER = 3;
     public static final int CLASS_PRIEST = 5;
@@ -694,6 +697,28 @@ public final class Player extends Unit {
         setInt(UpdateFields.UNIT_FIELD_POWER2, Math.max(0, Math.min(rage10, POWER_RAGE_MAX)));
     }
 
+    /**
+     * Classless create stats from {@code ClasslessConfig} (not a warrior/mage fallback).
+     * Opens mana + rage + energy pools; primary power type stays mana.
+     */
+    public void applyClasslessCreateStats(int hp, int mana, int str, int agi, int sta, int inte, int spi) {
+        createHealth = hp;
+        createMana = mana;
+        createStats[0] = str;
+        createStats[1] = agi;
+        createStats[2] = sta;
+        createStats[3] = inte;
+        createStats[4] = spi;
+        powerType = POWER_MANA;
+        applyLevelStats();
+        setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, POWER_RAGE_MAX);
+        setInt(UpdateFields.UNIT_FIELD_POWER2, 0);
+        setInt(UpdateFields.UNIT_FIELD_MAXPOWER4, POWER_ENERGY_MAX);
+        setInt(UpdateFields.UNIT_FIELD_POWER4, POWER_ENERGY_MAX);
+        setInt(UpdateFields.UNIT_FIELD_HEALTH, maxHealth());
+        setInt(UpdateFields.UNIT_FIELD_POWER1, getInt(UpdateFields.UNIT_FIELD_MAXPOWER1));
+    }
+
     /** Re-writes the level-stat fields from the remembered create values (also after a persist copy). */
     private void applyLevelStats() {
         if (createHealth == 0) {
@@ -714,6 +739,10 @@ public final class Player extends Unit {
             setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, POWER_RAGE_MAX);
         }
         if (powerType == POWER_ENERGY) {
+            setInt(UpdateFields.UNIT_FIELD_MAXPOWER4, POWER_ENERGY_MAX);
+        }
+        if (clazz == CLASS_CLASSLESS) {
+            setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, POWER_RAGE_MAX);
             setInt(UpdateFields.UNIT_FIELD_MAXPOWER4, POWER_ENERGY_MAX);
         }
         setInt(UpdateFields.PLAYER_NEXT_LEVEL_XP, nextLevelXp);

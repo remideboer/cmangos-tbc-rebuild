@@ -2,6 +2,8 @@ package org.tbc.content.compile;
 
 import org.tbc.content.dbc.DbcBinding;
 import org.tbc.content.dbc.WdbcFile;
+import org.tbc.content.domain.CharBaseInfoDomain;
+import org.tbc.content.domain.ChrClassesDomain;
 import org.tbc.content.domain.ContentDomain;
 import org.tbc.content.domain.SpellDomain;
 import org.tbc.content.mpq.MpqWriter;
@@ -23,6 +25,8 @@ public final class ContentCompiler {
     public ContentCompiler() {
         this.domains = new LinkedHashMap<>();
         register(new SpellDomain());
+        register(new ChrClassesDomain());
+        register(new CharBaseInfoDomain());
     }
 
     public void register(ContentDomain domain) {
@@ -51,6 +55,7 @@ public final class ContentCompiler {
             domain.apply(d, ctx);
         }
         SpellDomain.finish(ctx);
+        ChrClassesDomain.finish(ctx);
 
         Path dbcOut = outDir.resolve("dbc");
         Files.createDirectories(dbcOut);

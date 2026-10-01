@@ -31,6 +31,7 @@ Commit **YAML + tests** only (`content/out/` and client MPQs are gitignored / no
 | Path | Role |
 |------|------|
 | `spells/*.yaml` | Spell deltas (`kind: spell`) |
+| `classes/*.yaml` | ChrClasses / CharBaseInfo deltas (`kind: chrclasses`, `kind: charbaseinfo`) — e.g. Classless id 6 |
 | `items/`, `quests/`, `talents/` | Reserved for later domains (empty for now) |
 | `bindings/tbc243/` | DBC field layouts (from WoW-Spell-Editor Bindings_243_tbc) |
 | `out/` | Generated artifacts (**gitignored**) |
@@ -118,3 +119,30 @@ Fully quit and restart the **unsigned** 8606 client after install.
 Optional SQL: `content\out\spell_template_patch.sql` (empty unless a delta has `server:`).
 
 Re-running compile backs up existing `content\out` files before overwrite; the install script backs up any prior client `patch-enUS-3.MPQ`.
+
+## Classless character (ChrClasses id 6)
+
+Creates the unused Death Knight slot as **Classless** on the 8606 create screen (warrior icon).
+
+### Author
+
+1. [`classes/classless.yaml`](classes/classless.yaml) — `kind: chrclasses`, id **6**, `filename: WARRIOR` (stock `CLASS_ICON_TCOORDS["WARRIOR"]`; no GlueXML).
+2. [`classes/classless-charbaseinfo.yaml`](classes/classless-charbaseinfo.yaml) — `kind: charbaseinfo` race×6 rows for playable races `1–8, 10, 11` (without these, `GetAvailableClasses` hides the class).
+3. Bindings: `ChrClasses.txt` col **filename** (string); `CharBaseInfo.txt` packed `RaceID`/`ClassID`.
+
+### Install
+
+1. Base DBC tree must include `ChrClasses.dbc` and `CharBaseInfo.dbc` (`CONTENT_BASE_DBC` / DataDir).
+2. Compile + install overlay (`build.bat`, or `java -jar tbc-content… compile` then [`install-client-patch.bat`](install-client-patch.bat)).
+3. Install backs up any prior `Data\enUS\patch-enUS-3.MPQ` as `patch-enUS-3.MPQ.bak.<timestamp>` and clears Cache/WDB.
+4. Fully quit the client, start **wowme.exe**, open character create — Classless with warrior icon; create submits class byte **6**.
+5. Server: `ClasslessConfig.enabled` (default true).
+
+### Rollback
+
+1. Fully quit **wowme.exe** / Wow.
+2. Restore the newest `Data\enUS\patch-enUS-3.MPQ.bak.*` over `patch-enUS-3.MPQ`, **or** delete `patch-enUS-3.MPQ` to drop the overlay entirely.
+3. Delete `Cache\` and `WDB\` under the lab client (or re-run install which clears them).
+4. Restart. YAML/bindings in git are unchanged by rollback — only the client MPQ reverts.
+
+LUA multi-power bars (mana+rage+energy) remain a follow-up; the server already writes MAXPOWER1/2/4. No GlueXML in this pass.

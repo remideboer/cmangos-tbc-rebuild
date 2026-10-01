@@ -47,6 +47,11 @@ public final class WdbcFile {
         return strings;
     }
 
+    /** True when each field is one byte (e.g. CharBaseInfo race×class). */
+    public boolean packedBytes() {
+        return recordSize == fieldCount && fieldCount > 0;
+    }
+
     public static WdbcFile load(Path path) throws IOException {
         byte[] all = Files.readAllBytes(path);
         ByteBuffer buf = ByteBuffer.wrap(all).order(ByteOrder.LITTLE_ENDIAN);
@@ -58,21 +63,29 @@ public final class WdbcFile {
         int fieldCount = buf.getInt();
         int recordSize = buf.getInt();
         int stringSize = buf.getInt();
-        if (recordSize != fieldCount * 4) {
-            throw new IOException("recordSize != fieldCount*4 in " + path);
+        boolean packed = recordSize == fieldCount && fieldCount > 0;
+        if (!packed && recordSize != fieldCount * 4) {
+            throw new IOException("recordSize " + recordSize + " incompatible with fieldCount "
+                    + fieldCount + " in " + path);
         }
-        int ints = fieldCount;
         List<int[]> rows = new ArrayList<>(recordCount);
         for (int r = 0; r < recordCount; r++) {
-            int[] row = new int[ints];
-            for (int i = 0; i < ints; i++) {
-                row[i] = buf.getInt();
+            int[] row = new int[fieldCount];
+            if (packed) {
+                for (int i = 0; i < fieldCount; i++) {
+                    row[i] = buf.get() & 0xFF;
+                }
+            } else {
+                for (int i = 0; i < fieldCount; i++) {
+                    row[i] = buf.getInt();
+                }
             }
             rows.add(row);
         }
         byte[] strings = new byte[Math.max(1, stringSize)];
-        buf.get(strings, 0, stringSize);
-        if (stringSize == 0) {
+        if (stringSize > 0) {
+            buf.get(strings, 0, stringSize);
+        } else {
             strings = new byte[]{0};
         }
         return new WdbcFile(fieldCount, recordSize, rows, strings);
@@ -89,9 +102,16 @@ public final class WdbcFile {
         buf.putInt(fieldCount);
         buf.putInt(recordSize);
         buf.putInt(stringSize);
+        boolean packed = packedBytes();
         for (int[] row : records) {
-            for (int i = 0; i < fieldCount; i++) {
-                buf.putInt(row[i]);
+            if (packed) {
+                for (int i = 0; i < fieldCount; i++) {
+                    buf.put((byte) (row[i] & 0xFF));
+                }
+            } else {
+                for (int i = 0; i < fieldCount; i++) {
+                    buf.putInt(row[i]);
+                }
             }
         }
         buf.put(strings);
@@ -117,6 +137,35 @@ public final class WdbcFile {
             }
         }
         return -1;
+    }
+
+    /** Index of first row matching all field values, or -1. */
+    public int findRecordIndex(int... values) {
+        if (values == null || values.length != fieldCount) {
+            return -1;
+        }
+        outer:
+        for (int i = 0; i < records.size(); i++) {
+            int[] row = records.get(i);
+            for (int f = 0; f < fieldCount; f++) {
+                if (row[f] != values[f]) {
+                    continue outer;
+                }
+            }
+            return i;
+        }
+        return -1;
+    }
+
+    /** Append a row when no identical row exists. */
+    public void appendUniqueRecord(int... values) {
+        if (values == null || values.length != fieldCount) {
+            throw new IllegalArgumentException("expected " + fieldCount + " fields");
+        }
+        if (findRecordIndex(values) >= 0) {
+            return;
+        }
+        records.add(Arrays.copyOf(values, fieldCount));
     }
 
     /**
@@ -199,6 +248,23 @@ public final class WdbcFile {
 
     private void rebuildStringBlockIfNeeded(DbcBinding binding) {
         // no-op for raw save; callers rebuild explicitly when binding known
+    }
+
+    /**
+     * Clone an existing record and assign a new id (column 0). Used to insert Classless id 6
+     * from a Warrior template row without inventing full DBC column defaults.
+     */
+    public void cloneRecord(int templateId, int newId) {
+        int src = findRecordIndexById(templateId);
+        if (src < 0) {
+            throw new IllegalArgumentException("no template id=" + templateId);
+        }
+        if (findRecordIndexById(newId) >= 0) {
+            return;
+        }
+        int[] copy = Arrays.copyOf(records.get(src), records.get(src).length);
+        copy[0] = newId;
+        records.add(copy);
     }
 
     /** Tiny in-memory fixture for tests (id + one string field). */

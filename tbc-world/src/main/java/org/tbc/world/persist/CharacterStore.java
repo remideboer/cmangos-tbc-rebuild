@@ -251,7 +251,7 @@ public final class CharacterStore {
         fillRace(p);
         if (mgr != null) {
             var ci = mgr.create(p.race, p.clazz);
-            if (p.spells.isEmpty()) {
+            if (p.spells.isEmpty() && !org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
                 List<Integer> sp = mgr.createSpells.get((int) ObjectMgr.key(p.race, p.clazz));
                 if (sp != null) {
                     p.spells.addAll(sp);
@@ -266,8 +266,15 @@ public final class CharacterStore {
             }
             // Skills loaded from character_skills after row; create defaults only if empty.
         }
-        initStatsForLevel(p, mgr);
+        if (org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
+            org.tbc.world.classless.ClasslessCharacterPolicy.applyStartingStats(p);
+        } else {
+            initStatsForLevel(p, mgr);
+        }
         p.applyCreateFields();
+        if (org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
+            org.tbc.world.classless.ClasslessCharacterPolicy.applyPowers(p);
+        }
         int flags = col(rs, "playerFlags", 0);
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FLAGS, flags);
         // CMaNGOS LoadFromDB fields[59] → SetByteValue(PLAYER_FIELD_BYTES, ACTION_BAR_TOGGLES).
@@ -284,6 +291,10 @@ public final class CharacterStore {
                 Math.min(col(rs, "power1", 0), p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER1)));
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER4,
                 Math.min(col(rs, "power4", 0), p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER4)));
+        if (org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
+            org.tbc.world.classless.ClasslessCharacterPolicy.applyPowers(p);
+            org.tbc.world.classless.ClasslessCharacterPolicy.ensureStartingProficiencies(p);
+        }
         return p;
     }
 
@@ -321,6 +332,7 @@ public final class CharacterStore {
         if (nameInUse(name)) {
             return null;
         }
+        boolean classless = org.tbc.world.classless.ClasslessCharacterPolicy.isClasslessClass(clazz);
         Player p = new Player();
         p.guid = Guid.player(nextGuid.getAndIncrement());
         p.accountId = accountId;
@@ -338,26 +350,33 @@ public final class CharacterStore {
         p.cinematic = 0;
         fillRace(p);
         p.reputations.seedCreateDefaults(p.team);
-        var ci = mgr.create(race, clazz);
-        p.mapId = ci.map();
-        p.zoneId = ci.zone();
-        p.relocate(ci.x(), ci.y(), ci.z(), ci.o());
-        p.bindMap = ci.map();
-        p.bindZone = ci.zone();
-        p.bindX = ci.x();
-        p.bindY = ci.y();
-        p.bindZ = ci.z();
-        List<Integer> sp = mgr.createSpells.get((int) ObjectMgr.key(race, clazz));
-        if (sp != null) {
-            p.spells.addAll(sp);
+        if (classless) {
+            org.tbc.world.classless.ClasslessCharacterPolicy.applyCreate(p, mgr, this::nextItemGuid);
+        } else {
+            var ci = mgr.create(race, clazz);
+            p.mapId = ci.map();
+            p.zoneId = ci.zone();
+            p.relocate(ci.x(), ci.y(), ci.z(), ci.o());
+            p.bindMap = ci.map();
+            p.bindZone = ci.zone();
+            p.bindX = ci.x();
+            p.bindY = ci.y();
+            p.bindZ = ci.z();
+            List<Integer> sp = mgr.createSpells.get((int) ObjectMgr.key(race, clazz));
+            if (sp != null) {
+                p.spells.addAll(sp);
+            }
+            applyCreateActions(p, mgr);
+            if (mgr != null) {
+                mgr.giveStartItems(p, this::nextItemGuid);
+                mgr.applyCreateSkills(p);
+            }
+            initStatsForLevel(p, mgr);
         }
-        applyCreateActions(p, mgr);
-        if (mgr != null) {
-            mgr.giveStartItems(p, this::nextItemGuid);
-            mgr.applyCreateSkills(p);
-        }
-        initStatsForLevel(p, mgr);
         p.applyCreateFields();
+        if (classless) {
+            org.tbc.world.classless.ClasslessCharacterPolicy.applyPowers(p);
+        }
         persistNew(p);
         byAccount.computeIfAbsent(accountId, a -> new ArrayList<>()).add(p);
         return p;

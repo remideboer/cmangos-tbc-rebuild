@@ -1,0 +1,4 @@
+# CharBaseInfo.dbc — race × class create matrix (2.4.3)
+# Stock layout: uint8 RaceID + uint8 ClassID per record (recordSize=2).
+uint RaceID
+uint ClassID
