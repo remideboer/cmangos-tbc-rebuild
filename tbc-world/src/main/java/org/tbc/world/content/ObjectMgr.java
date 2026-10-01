@@ -1000,6 +1000,7 @@ public final class ObjectMgr {
             t.stackable = 1;
             t.armor = 5;
             t.block = 1;
+            t.sheath = 4;
             t.maxDurability = 20;
             t.requiredDisenchantSkill = -1;
             return t;
@@ -1648,6 +1649,7 @@ public final class ObjectMgr {
             loadAreaTriggers(c);
             loadItems(c);
             loadItemSpells(c);
+            loadItemSheath(c);
             loadNpcVendors(c);
             try {
                 loadVendorMeta(c);
@@ -2438,6 +2440,25 @@ public final class ObjectMgr {
             }
         } catch (Exception e) {
             log.warn("item_template spell columns load failed: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * item_template.sheath — not in the base SELECT. Client uses this for sheathed
+     * attachment points (back/hip/shield); 0 = SHEATHETYPE_NONE (models despawn).
+     */
+    private void loadItemSheath(Connection c) {
+        String sql = "SELECT entry, sheath FROM item_template";
+        try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                ItemTemplate t = items.get(rs.getInt(1));
+                if (t == null) {
+                    continue;
+                }
+                t.sheath = rs.getInt(2);
+            }
+        } catch (Exception e) {
+            log.warn("item_template sheath load failed: {}", e.getMessage());
         }
     }
 

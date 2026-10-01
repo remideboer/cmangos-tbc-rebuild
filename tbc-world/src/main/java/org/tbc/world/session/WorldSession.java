@@ -475,7 +475,7 @@ public final class WorldSession {
             case Opcodes.CMSG_SET_SELECTION -> player.selection = in.remaining() >= 8 ? in.getU64() : 0;
             case Opcodes.CMSG_ATTACKSWING -> handleAttack(world, in);
             case Opcodes.CMSG_ATTACKSTOP -> handleAttackStop(world);
-            case Opcodes.CMSG_SETSHEATHED -> handleSheath(in);
+            case Opcodes.CMSG_SETSHEATHED -> handleSheath(world, in);
             case Opcodes.CMSG_STANDSTATECHANGE -> handleStandStateChange(in);
             case Opcodes.CMSG_UNLEARN_SKILL -> handleUnlearnSkill(in);
             case Opcodes.CMSG_GET_MIRRORIMAGE_DATA -> handleGetMirrorImageData(world, in);
@@ -1670,7 +1670,7 @@ public final class WorldSession {
         send(Opcodes.SMSG_REALM_SPLIT, out.array());
     }
 
-    private void handleSheath(WowBuffer in) {
+    private void handleSheath(World world, WowBuffer in) {
         if (in.remaining() < 4) {
             return;
         }
@@ -1682,6 +1682,12 @@ public final class WorldSession {
         player.setInt(UpdateFields.UNIT_FIELD_BYTES_2, (bytes2 & ~0xFF) | (sheath & 0xFF));
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, UpdateFields.UNIT_FIELD_BYTES_2));
         send(upd.opcode(), upd.payload());
+        // Unit::SetSheath — visualize sheath change for other players.
+        for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
+            if (o != player && o.session != null) {
+                o.session.send(upd.opcode(), upd.payload());
+            }
+        }
     }
 
     /** movement.md — all CMSG_FORCE_*_SPEED_CHANGE_ACK share packed guid + counter + MovementInfo + float. */
