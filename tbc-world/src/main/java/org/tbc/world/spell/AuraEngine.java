@@ -820,22 +820,59 @@ public final class AuraEngine {
     }
 
     /**
-     * Aura 16 — CMaNGOS HandleModStealth → player PLAYER_FIELD_BYTES2 stealth byte.
-     * Visibility group / UNIT_VIS_FLAG_CREEP later.
+     * Aura 16 — CMaNGOS HandleModStealth → PLAYER_FIELD_BYTES2 stealth + UNIT_VIS_FLAG_CREEP
+     * + VISIBILITY_GROUP_STEALTH (UpdateVisibilityAndView via SpellEngine.visibilityUpdater).
      */
     private static void modStealth(Unit target, boolean apply) {
+        if (apply) {
+            target.addStealthAura();
+            if (target instanceof Player player) {
+                player.setStealthByte(true);
+            }
+            target.setVisFlagCreep(true);
+            // CMaNGOS: SetVisibility(NO_DETECT) then STEALTH so the first grid pass hides.
+            target.setVisibility(Unit.Visibility.GROUP_NO_DETECT);
+            target.setVisibility(Unit.Visibility.GROUP_STEALTH);
+            return;
+        }
+        if (!target.removeStealthAura()) {
+            return;
+        }
+        target.setVisFlagCreep(false);
         if (target instanceof Player player) {
-            player.setStealthByte(apply);
+            player.setStealthByte(false);
+        }
+        if (target.invisAuraCount() > 0) {
+            target.setVisibility(Unit.Visibility.GROUP_INVISIBILITY);
+        } else {
+            target.setVisibility(Unit.Visibility.ON);
         }
     }
 
     /**
-     * Aura 18 — CMaNGOS HandleInvisibility → player PLAYER_FIELD_BYTES2 invisibility glow.
-     * Visibility group later.
+     * Aura 18 — CMaNGOS HandleInvisibility → glow byte + VISIBILITY_GROUP_INVISIBILITY when not stealthed.
      */
     private static void modInvisibility(Unit target, boolean apply) {
+        if (apply) {
+            target.addInvisAura();
+            if (target instanceof Player player) {
+                player.setInvisibilityGlow(true);
+            }
+            if (target.visibility() == Unit.Visibility.ON) {
+                target.setVisibility(Unit.Visibility.GROUP_INVISIBILITY);
+            }
+            return;
+        }
+        if (!target.removeInvisAura()) {
+            return;
+        }
         if (target instanceof Player player) {
-            player.setInvisibilityGlow(apply);
+            player.setInvisibilityGlow(false);
+        }
+        if (target.stealthAuraCount() > 0) {
+            target.setVisibility(Unit.Visibility.GROUP_STEALTH);
+        } else {
+            target.setVisibility(Unit.Visibility.ON);
         }
     }
 

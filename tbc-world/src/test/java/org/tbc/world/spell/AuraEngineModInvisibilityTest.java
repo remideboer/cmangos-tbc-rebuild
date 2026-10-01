@@ -2,6 +2,7 @@ package org.tbc.world.spell;
 
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.junit.jupiter.api.Test;
 
@@ -26,6 +27,7 @@ class AuraEngineModInvisibilityTest {
         assertTrue(player.hasAura(SpellEngine.SPELL_INVISIBILITY));
         int glowMask = Player.PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW << 8;
         assertEquals(glowMask, player.getInt(UpdateFields.PLAYER_FIELD_BYTES2) & glowMask);
+        assertEquals(Unit.Visibility.GROUP_INVISIBILITY, player.visibility());
     }
 
     @Test

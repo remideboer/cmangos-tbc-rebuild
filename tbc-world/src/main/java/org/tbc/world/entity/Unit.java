@@ -88,6 +88,15 @@ public class Unit extends Entity {
     private int rootAuraCount;
     /** Active SPELL_AURA_MOD_STUN holders — HasAuraType stacking before SetStunned(false). */
     private int stunAuraCount;
+    /** Active SPELL_AURA_MOD_STEALTH holders — HasAuraType before clearing visibility. */
+    private int stealthAuraCount;
+    /** Active SPELL_AURA_MOD_INVISIBILITY holders. */
+    private int invisAuraCount;
+    /**
+     * CMaNGOS UnitVisibility — stealth/invis adjust who sees this unit (UpdateVisibilityAndView).
+     * Default VISIBILITY_ON.
+     */
+    private Visibility visibility = Visibility.ON;
     /** CMaNGOS GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED); 0 = none. */
     private int decreaseSpeedPct;
     /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SPEED); 0 = none. */
@@ -156,6 +165,93 @@ public class Unit extends Entity {
             stunAuraCount--;
         }
         return stunAuraCount == 0;
+    }
+
+    /**
+     * CMaNGOS UnitVisibility (Unit.h). Values match the C++ enum.
+     */
+    public enum Visibility {
+        OFF(0),
+        ON(1),
+        GROUP_STEALTH(2),
+        GROUP_INVISIBILITY(3),
+        GROUP_NO_DETECT(4);
+
+        public final int code;
+
+        Visibility(int code) {
+            this.code = code;
+        }
+    }
+
+    /** UNIT_FIELD_BYTES_1 byte 2 — UNIT_VIS_FLAG_CREEP (Unit.h). */
+    public static final int UNIT_VIS_FLAG_CREEP = 0x02;
+
+    public Visibility visibility() {
+        return visibility;
+    }
+
+    public void setVisibility(Visibility v) {
+        if (v != null) {
+            visibility = v;
+        }
+    }
+
+    /** Set/clear UNIT_VIS_FLAG_CREEP on UNIT_FIELD_BYTES_1 offset 2. */
+    public void setVisFlagCreep(boolean apply) {
+        int bytes = getInt(UpdateFields.UNIT_FIELD_BYTES_1);
+        int mask = UNIT_VIS_FLAG_CREEP << 16;
+        setInt(UpdateFields.UNIT_FIELD_BYTES_1, apply ? bytes | mask : bytes & ~mask);
+    }
+
+    public boolean hasVisFlagCreep() {
+        return ((getInt(UpdateFields.UNIT_FIELD_BYTES_1) >>> 16) & 0xFF & UNIT_VIS_FLAG_CREEP) != 0;
+    }
+
+    public int stealthAuraCount() {
+        return stealthAuraCount;
+    }
+
+    public boolean addStealthAura() {
+        stealthAuraCount++;
+        return stealthAuraCount == 1;
+    }
+
+    public boolean removeStealthAura() {
+        if (stealthAuraCount > 0) {
+            stealthAuraCount--;
+        }
+        return stealthAuraCount == 0;
+    }
+
+    public int invisAuraCount() {
+        return invisAuraCount;
+    }
+
+    public boolean addInvisAura() {
+        invisAuraCount++;
+        return invisAuraCount == 1;
+    }
+
+    public boolean removeInvisAura() {
+        if (invisAuraCount > 0) {
+            invisAuraCount--;
+        }
+        return invisAuraCount == 0;
+    }
+
+    /**
+     * CMaNGOS isVisibleForOrDetect (simplified): self always; stealth/invis/no-detect hidden
+     * from others until detect/group (later).
+     */
+    public boolean isVisibleTo(Unit observer) {
+        if (observer == null || observer.guid == guid) {
+            return true;
+        }
+        return switch (visibility) {
+            case GROUP_STEALTH, GROUP_NO_DETECT, GROUP_INVISIBILITY, OFF -> false;
+            case ON -> true;
+        };
     }
 
     /**

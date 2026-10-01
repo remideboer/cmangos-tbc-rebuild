@@ -133,6 +133,7 @@ public final class World implements Runnable {
                 ? new Combat(MeleeTable.alwaysHit(), () -> 0.0)
                 : new Combat();
         this.spells = conf == null ? SpellEngine.alwaysHit() : new SpellEngine();
+        this.spells.visibilityUpdater = this::updateObjectVisibility;
         this.login = login;
         this.worldDb = worldDb;
         this.charsDb = charsDb;
@@ -1213,6 +1214,34 @@ public final class World implements Runnable {
             }
             for (Creature c : m.creaturesNearPlayers(GameMap.VISIBILITY)) {
                 expireUnitAuras(m, c, now);
+            }
+        }
+    }
+
+    /**
+     * CMaNGOS WorldObject::UpdateVisibilityAndView — hide/show {@code u} for nearby players
+     * after stealth/invis visibility group changes.
+     */
+    public void updateObjectVisibility(Unit u) {
+        if (u == null) {
+            return;
+        }
+        GameMap m = map(u.mapId, u instanceof Player p ? p.instanceId : 0);
+        if (m == null) {
+            return;
+        }
+        int t = (int) nowMs();
+        for (Player pl : m.nearbyPlayers(u, GameMap.VISIBILITY)) {
+            if (pl.session == null) {
+                continue;
+            }
+            boolean visible = u.isVisibleTo(pl);
+            if (!visible && pl.session.hasSeen(u.guid)) {
+                WowBuffer d = new WowBuffer(8);
+                d.putU64(u.guid);
+                pl.session.destroyObject(u.guid, d.array());
+            } else if (visible && !pl.session.hasSeen(u.guid)) {
+                pl.session.revealUnit(u, t);
             }
         }
     }

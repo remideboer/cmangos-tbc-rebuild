@@ -972,8 +972,14 @@ public final class WorldSession {
         seen.clear();
         seen.add(p.guid);
         for (Player o : world.map(p.mapId, p.instanceId).nearbyPlayers(p, GameMap.VISIBILITY)) {
-            var self = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, false, (int) world.nowMs()));
-            o.session.send(self.opcode(), self.payload());
+            if (p.isVisibleTo(o) && o.session != null) {
+                var self = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, false, (int) world.nowMs()));
+                o.session.send(self.opcode(), self.payload());
+                o.session.markSeen(p.guid);
+            }
+            if (!o.isVisibleTo(p)) {
+                continue;
+            }
             var other = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(o, false, (int) world.nowMs()));
             send(other.opcode(), other.payload());
             seen.add(o.guid);
@@ -1055,6 +1061,14 @@ public final class WorldSession {
         seen.clear();
     }
 
+    public boolean hasSeen(long guid) {
+        return seen.contains(guid);
+    }
+
+    public void markSeen(long guid) {
+        seen.add(guid);
+    }
+
     /** Creature::RemoveCorpse — out of client view until respawn CREATE. */
     public void destroyObject(long guid, byte[] destroyPayload) {
         seen.remove(guid);
@@ -1067,6 +1081,15 @@ public final class WorldSession {
             return;
         }
         var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(c, false, serverTime));
+        send(pkt.opcode(), pkt.payload());
+    }
+
+    /** Stealth drop / enter range — CREATE for a previously unseen unit. */
+    public void revealUnit(Unit u, int serverTime) {
+        if (u == null || !seen.add(u.guid)) {
+            return;
+        }
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(u, false, serverTime));
         send(pkt.opcode(), pkt.payload());
     }
 
@@ -1115,6 +1138,9 @@ public final class WorldSession {
             }
         }
         for (Player o : map.nearbyPlayers(player, GameMap.VISIBILITY)) {
+            if (!o.isVisibleTo(player)) {
+                continue;
+            }
             if (!seen.add(o.guid)) {
                 continue;
             }

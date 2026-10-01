@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.IntSupplier;
 
@@ -443,6 +444,11 @@ public final class SpellEngine {
     private final AuraEngine auras = new AuraEngine();
     /** Wire sink while {@link #finishCast} runs effects (dispel VALUES). Null outside cast. */
     private BiConsumer<Integer, byte[]> effectSend;
+    /**
+     * After MOD_STEALTH / MOD_INVISIBILITY apply or unapply — World.updateObjectVisibility
+     * (CMaNGOS UpdateVisibilityAndView). Default no-op for domain unit tests.
+     */
+    public Consumer<Unit> visibilityUpdater = u -> { };
     /** SkillLineAbility bands for UpdateCraftSkill after CREATE_ITEM. */
     public SkillLineAbility skillLineAbilities = SkillLineAbility.seeded();
     /** irand(1,1000) for UpdateSkillPro; in-memory World forces success. */
@@ -1283,15 +1289,29 @@ public final class SpellEngine {
             return;
         }
         SpellInfo sp = info(spellId);
+        boolean vis = false;
         if (sp != null) {
             auras.unapply(target, sp);
+            vis = affectsVisibility(sp);
         }
         List<SpellInfo> extras = extraEffects.get(spellId);
         if (extras != null) {
             for (SpellInfo e : extras) {
                 auras.unapply(target, e);
+                vis = vis || affectsVisibility(e);
             }
         }
+        if (vis) {
+            visibilityUpdater.accept(target);
+        }
+    }
+
+    static boolean affectsVisibility(SpellInfo sp) {
+        if (sp == null) {
+            return false;
+        }
+        int a = sp.aura();
+        return a == AuraEngine.SPELL_AURA_MOD_STEALTH || a == AuraEngine.SPELL_AURA_MOD_INVISIBILITY;
     }
 
     /**
@@ -1706,6 +1726,9 @@ public final class SpellEngine {
             // a second holder would get auraDurationMs's 30s fallback and expire the whole buff.
             addOrRefreshAuraHolder(target, caster, sp, nowMs);
             auras.apply(target, sp);
+            if (affectsVisibility(sp)) {
+                visibilityUpdater.accept(target);
+            }
             return 0;
         }
         if (APPLY_AREA_AURA_EFFECTS.contains(sp.effect)) {
@@ -1715,6 +1738,9 @@ public final class SpellEngine {
             // EffectApplyAreaAura → CreateAura (holder + ApplyModifier); party radius later.
             addOrRefreshAuraHolder(target, caster, sp, nowMs);
             auras.apply(target, sp);
+            if (affectsVisibility(sp)) {
+                visibilityUpdater.accept(target);
+            }
             return 0;
         }
         if (sp.effect == EFFECT_ENERGIZE) {

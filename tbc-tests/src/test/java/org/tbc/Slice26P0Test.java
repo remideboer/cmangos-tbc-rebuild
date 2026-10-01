@@ -215,10 +215,45 @@ class Slice26P0Test {
         assertEquals(0L, p.cameraViewGuid());
     }
 
+    /**
+     * TP-SL26-173 — Stealth ApplyModifier → UpdateVisibilityAndView: nearby observer loses
+     * the stealther via SMSG_DESTROY_OBJECT (raw guid).
+     */
+    @Test
+    void tpSl26StealthHidesFromNearbyPlayer() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Stealther");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player stealther = a.session().player();
+        Player watcher = b.session().player();
+        watcher.relocate(stealther.x, stealther.y, stealther.z, stealther.o);
+        world.map(stealther.mapId, stealther.instanceId).reindex(watcher, watcher.x, watcher.y);
+        b.session().forgetSeen();
+        a.session().forgetSeen();
+        b.session().revealNearby(world);
+        a.session().revealNearby(world);
+        assertTrue(b.session().hasSeen(stealther.guid));
+        stealther.spells.add(org.tbc.world.spell.SpellEngine.SPELL_STEALTH);
+        b.clear();
+        a.castSpell(world, org.tbc.world.spell.SpellEngine.SPELL_STEALTH, 1, stealther.guid);
+        assertEquals(org.tbc.world.entity.Unit.Visibility.GROUP_STEALTH, stealther.visibility());
+        assertEquals(stealther.guid, WowClientDouble.u64le(lastPayload(b, Opcodes.SMSG_DESTROY_OBJECT), 0));
+        assertFalse(b.session().hasSeen(stealther.guid));
+    }
+
+    private static final World.Account ACC_A =
+            new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
+    private static final World.Account ACC_B =
+            new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86");
+
     private static WowClientDouble login(World world, String name) {
+        return login(world, ACC, name);
+    }
+
+    private static WowClientDouble login(World world, World.Account acc, String name) {
         WowClientDouble client = new WowClientDouble();
-        client.connect(ACC);
-        Player created = world.characters.create(ACC.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.connect(acc);
+        Player created = world.characters.create(acc.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         return client;
     }
