@@ -20,8 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * SPELL_AURA_MOD_RESISTANCE wire + expire — Frost Armor raises armor and SMSG_UPDATEOBJECT values.
- * JaCoCo: every branch of {@link SpellEngine#sendResistanceStatValues} / {@link SpellEngine#unapplyAura}.
+ * SPELL_AURA_MOD_RESISTANCE / MOD_ATTACK_POWER sheet VALUES — Frost Armor, Battle Shout.
+ * JaCoCo: every branch of {@link SpellEngine#sendAuraStatValues} / {@link SpellEngine#unapplyAura}.
  */
 class SpellEngineModResistanceTest {
     private SpellEngine engine;
@@ -137,31 +137,49 @@ class SpellEngineModResistanceTest {
     }
 
     @Test
-    void sendResistanceStatValuesWhenGuardsShouldNoOp() {
+    void sendAuraStatValuesWhenGuardsShouldNoOp() {
         SpellEngine.SpellInfo frost = engine.info(SpellEngine.FROST_ARMOR);
-        SpellEngine.sendResistanceStatValues(null, frost, this::capture);
-        SpellEngine.sendResistanceStatValues(p, null, this::capture);
-        SpellEngine.sendResistanceStatValues(p, frost, null);
-        SpellEngine.sendResistanceStatValues(p, engine.info(SpellEngine.FIREBALL), this::capture);
-        SpellEngine.sendResistanceStatValues(p,
+        SpellEngine.sendAuraStatValues(null, frost, this::capture);
+        SpellEngine.sendAuraStatValues(p, null, this::capture);
+        SpellEngine.sendAuraStatValues(p, frost, null);
+        SpellEngine.sendAuraStatValues(p, engine.info(SpellEngine.FIREBALL), this::capture);
+        SpellEngine.sendAuraStatValues(p,
                 new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_MOD_RESISTANCE,
                         0, 0, 10, 10, 0f, 0), this::capture);
-        SpellEngine.sendResistanceStatValues(p,
+        SpellEngine.sendAuraStatValues(p,
                 new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_MOD_RESISTANCE,
                         0, 0, 10, 10, 0f, 1 << 7), this::capture);
         assertTrue(valuesPayloads.isEmpty());
     }
 
     @Test
-    void sendResistanceStatValuesWhenNegativeAmountShouldUseNegativeBuffMod() {
+    void sendAuraStatValuesWhenNegativeAmountShouldUseNegativeBuffMod() {
         Unit u = new Player();
         SpellEngine.SpellInfo debuff = new SpellEngine.SpellInfo(
                 1, SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_MOD_RESISTANCE,
                 0, 0, -10, -10, 0f, 1);
         engine.auras().apply(u, debuff);
-        SpellEngine.sendResistanceStatValues(u, debuff, this::capture);
+        SpellEngine.sendAuraStatValues(u, debuff, this::capture);
         assertEquals(-10, u.getInt(UpdateFields.UNIT_FIELD_RESISTANCES));
         assertEquals(-10, u.getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE));
+        assertTrue(valuesPayloads.size() >= 1);
+    }
+
+    @Test
+    void sendAuraStatValuesWhenAttackPowerShouldPushModsField() {
+        SpellEngine.SpellInfo shout = engine.info(SpellEngine.BATTLE_SHOUT);
+        engine.auras().apply(p, shout);
+        assertEquals(305, p.getInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS));
+        SpellEngine.sendAuraStatValues(p, shout, this::capture);
+        assertTrue(valuesPayloads.size() >= 1);
+    }
+
+    @Test
+    void sendAuraStatValuesWhenRangedAttackPowerShouldPushModsField() {
+        SpellEngine.SpellInfo rap = engine.info(SpellEngine.ATTACK_POWER_RANGED_60);
+        engine.auras().apply(p, rap);
+        assertEquals(60, p.getInt(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS));
+        SpellEngine.sendAuraStatValues(p, rap, this::capture);
         assertTrue(valuesPayloads.size() >= 1);
     }
 

@@ -439,6 +439,8 @@ public final class SpellEngine {
     private final Map<Integer, SpellInfo> spells = new HashMap<>();
     private final DoubleSupplier missRoll;
     private final AuraEngine auras = new AuraEngine();
+    /** Wire sink while {@link #finishCast} runs effects (dispel VALUES). Null outside cast. */
+    private BiConsumer<Integer, byte[]> effectSend;
     /** SkillLineAbility bands for UpdateCraftSkill after CREATE_ITEM. */
     public SkillLineAbility skillLineAbilities = SkillLineAbility.seeded();
     /** irand(1,1000) for UpdateSkillPro; in-memory World forces success. */
@@ -1094,12 +1096,18 @@ public final class SpellEngine {
         }
         int hpBefore = target.health();
         int dmg = 0;
-        dmg = apply(caster, target, sp, nowMs);
-        List<SpellInfo> extra = extraEffects.get(sp.id);
-        if (extra != null) {
-            for (SpellInfo e : extra) {
-                apply(caster, target, e, nowMs);
+        BiConsumer<Integer, byte[]> prevSend = effectSend;
+        effectSend = send;
+        try {
+            dmg = apply(caster, target, sp, nowMs);
+            List<SpellInfo> extra = extraEffects.get(sp.id);
+            if (extra != null) {
+                for (SpellInfo e : extra) {
+                    apply(caster, target, e, nowMs);
+                }
             }
+        } finally {
+            effectSend = prevSend;
         }
         boolean schoolMiss = sp.effect == EFFECT_SCHOOL_DAMAGE && dmg == 0;
         if (schoolMiss) {
@@ -1123,11 +1131,11 @@ public final class SpellEngine {
             if (sp.effect == EFFECT_APPLY_AURA || APPLY_AREA_AURA_EFFECTS.contains(sp.effect)) {
                 int dur = areaAuraPermanent(sp) ? 0 : auraDurationMs(sp);
                 AuraSlots.sendApply(target, caster, sp.id, dur, dur, send);
-                sendResistanceStatValues(target, sp, send);
+                sendAuraStatValues(target, sp, send);
                 List<SpellInfo> extras = extraEffects.get(sp.id);
                 if (extras != null) {
                     for (SpellInfo e : extras) {
-                        sendResistanceStatValues(target, e, send);
+                        sendAuraStatValues(target, e, send);
                     }
                 }
             }
@@ -1208,13 +1216,36 @@ public final class SpellEngine {
     }
 
     /**
-     * After EFFECT_APPLY_AURA MOD_RESISTANCE — push UNIT_FIELD_RESISTANCES (+ buff-mod columns)
-     * so the character sheet updates (CMaNGOS HandleStatModifier / ApplyResistanceBuffModsMod).
+     * After EFFECT_APPLY_AURA / unapply — push sheet UNIT_FIELD_* the aura mutator touched
+     * (CMaNGOS ApplyModifier → HandleStatModifier; Frost Armor resist, Battle Shout AP, …).
      */
-    public static void sendResistanceStatValues(Unit target, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
-        if (target == null || sp == null || send == null || sp.aura() != SPELL_AURA_MOD_RESISTANCE) {
+    public static void sendAuraStatValues(Unit target, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
+        if (target == null || sp == null || send == null) {
             return;
         }
+        int aura = sp.aura();
+        if (aura == SPELL_AURA_MOD_RESISTANCE) {
+            sendResistanceStatValues(target, sp, send);
+            return;
+        }
+        if (aura == AuraEngine.SPELL_AURA_MOD_ATTACK_POWER) {
+            var upd = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS));
+            send.accept(upd.opcode(), upd.payload());
+            return;
+        }
+        if (aura == AuraEngine.SPELL_AURA_MOD_RANGED_ATTACK_POWER) {
+            var upd = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS));
+            send.accept(upd.opcode(), upd.payload());
+        }
+    }
+
+    /**
+     * MOD_RESISTANCE — UNIT_FIELD_RESISTANCES (+ buff-mod columns).
+     * Called only from {@link #sendAuraStatValues}.
+     */
+    static void sendResistanceStatValues(Unit target, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
         int mask = sp.misc();
         if (mask == 0) {
             return;
@@ -1259,8 +1290,8 @@ public final class SpellEngine {
     }
 
     /**
-     * After {@link #unapplyAura}: push resistance sheet fields so the client drops buffed armor
-     * (CMSG_CANCEL_AURA / AURA_REMOVE_BY_EXPIRE). Same fields as apply via {@link #sendResistanceStatValues}.
+     * After {@link #unapplyAura}: push sheet fields so the client drops buffed stats
+     * (CMSG_CANCEL_AURA / AURA_REMOVE_BY_EXPIRE / dispel). Same fields as apply via {@link #sendAuraStatValues}.
      */
     public void sendUnapplyAuraValues(Unit target, int spellId, BiConsumer<Integer, byte[]> send) {
         if (target == null || send == null || spellId <= 0) {
@@ -1268,12 +1299,12 @@ public final class SpellEngine {
         }
         SpellInfo sp = info(spellId);
         if (sp != null) {
-            sendResistanceStatValues(target, sp, send);
+            sendAuraStatValues(target, sp, send);
         }
         List<SpellInfo> extras = extraEffects.get(spellId);
         if (extras != null) {
             for (SpellInfo e : extras) {
-                sendResistanceStatValues(target, e, send);
+                sendAuraStatValues(target, e, send);
             }
         }
     }
@@ -1369,7 +1400,7 @@ public final class SpellEngine {
             return environmentalDamage(caster, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
         }
         if (sp.effect == EFFECT_DISPEL) {
-            dispel(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
+            dispel(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), effectSend);
             return 0;
         }
         if (sp.effect == EFFECT_POWER_BURN) {
@@ -1988,10 +2019,39 @@ public final class SpellEngine {
 
     /** Effect 38 — SPELL_EFFECT_DISPEL. CMaNGOS: damage is max count; 0 means 1. */
     public int dispel(Unit target, int max) {
+        return dispel(target, max, null);
+    }
+
+    /**
+     * ProcessDispelList — remove up to max holders; reverse modifiers and push sheet VALUES
+     * (same path as CMSG_CANCEL_AURA). {@code send} may be null (domain apply without wire).
+     */
+    public int dispel(Unit target, int max, BiConsumer<Integer, byte[]> send) {
         if (target == null) {
             return 0;
         }
-        return target.dispelAuras(max);
+        int n = Math.max(1, max);
+        int removed = 0;
+        while (removed < n && !target.auras.isEmpty()) {
+            Unit.Aura a = target.auras.remove(target.auras.size() - 1);
+            int spellId = a.spellId();
+            unapplyAura(target, spellId);
+            sendUnapplyAuraValues(target, spellId, send);
+            int slot = AuraSlots.slotOf(target, spellId);
+            if (slot >= 0) {
+                AuraSlots.clearVisible(target, slot);
+                if (send != null) {
+                    var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(target,
+                            UpdateFields.UNIT_FIELD_AURA + slot,
+                            UpdateFields.UNIT_FIELD_AURAFLAGS + slot / 4,
+                            UpdateFields.UNIT_FIELD_AURALEVELS + slot / 4,
+                            UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + slot / 4));
+                    send.accept(upd.opcode(), upd.payload());
+                }
+            }
+            removed++;
+        }
+        return removed;
     }
 
     /**

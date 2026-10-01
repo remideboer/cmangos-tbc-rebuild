@@ -613,6 +613,32 @@ class Slice07P0Test {
                 "client sheet must receive VALUES clearing the armor buff");
     }
 
+    /**
+     * TP-SL07-021 — Cancel Battle Shout (MOD_ATTACK_POWER): reverse AP mods on the wire.
+     * Same general path as Frost Armor cancel — sendAuraStatValues, not resistance-only.
+     */
+    @Test
+    void tpSl07CancelAuraRemovesBattleShoutAttackPowerMods() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(SpellEngine.BATTLE_SHOUT);
+        int apBefore = p.getInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS);
+        client.castSpell(world, SpellEngine.BATTLE_SHOUT, 1, p.guid);
+        assertEquals(apBefore + 305, p.getInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS));
+        assertEquals(apBefore + 305, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS),
+                "cast must push ATTACK_POWER_MODS VALUES");
+        client.clear();
+        WowBuffer cancel = new WowBuffer(4);
+        cancel.putU32(SpellEngine.BATTLE_SHOUT);
+        client.handle(world, Opcodes.CMSG_CANCEL_AURA, cancel.array());
+        assertFalse(p.hasAura(SpellEngine.BATTLE_SHOUT));
+        assertEquals(apBefore, p.getInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS),
+                "server AP mods must reverse on cancel");
+        assertEquals(apBefore, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS),
+                "client sheet must receive VALUES clearing AP buff");
+    }
+
     private static final int FROSTBOLT = 116;
     /** SpellDuration fallback when DurationIndex unset — matches SpellEngine.auraDurationMs. */
     private static final int DEBUFF_DURATION_FALLBACK_MS = 30_000;
