@@ -295,11 +295,15 @@ public final class AuraEngine {
             modIncreaseEnergy(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_STUN) {
-            // HandleAuraModStun(false) → SetStunned(false) → clear flag + SetImmobilizedState(false).
-            // Stacking other MOD_STUN auras later (HasAuraType check).
-            target.setStunned(false);
-            target.setRooted(false);
-            target.sendMoveRoot(false);
+            // HandleAuraModStun(false) → SetStunned(false) only when no MOD_STUN remain.
+            if (target.removeStunAura()) {
+                target.setStunned(false);
+                // SetImmobilizedState(false): keep rooted while MOD_ROOT still active.
+                if (target.rootAuraCount() == 0) {
+                    target.setRooted(false);
+                    target.sendMoveRoot(false);
+                }
+            }
         }
         if (sp.aura() == SPELL_AURA_MOD_FEAR) {
             // HandleModFear(false) → SetFleeing(false); stacking other MOD_FEAR later.
@@ -1020,7 +1024,6 @@ public final class AuraEngine {
         target.setFloat(UpdateFields.OBJECT_FIELD_SCALE_X, scale);
     }
 
-    /** Aura 12 — CMaNGOS SetStunned: SetImmobilizedState(stun=true) then UNIT_FLAG_STUNNED. */
     /**
      * Aura 26 — CMaNGOS HandleAuraModRoot / SetImmobilizedState with HasAuraType stacking.
      * Apply always SendMoveRoot (order counter); unapply clears only when no MOD_ROOT remain.
@@ -1034,7 +1037,9 @@ public final class AuraEngine {
         }
     }
 
+    /** Aura 12 — CMaNGOS HandleAuraModStun / SetStunned with HasAuraType stacking. */
     private static void modStun(Unit target) {
+        target.addStunAura();
         immobilize(target);
         target.setStunned(true);
     }

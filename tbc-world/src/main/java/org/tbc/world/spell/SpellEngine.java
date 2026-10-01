@@ -185,6 +185,8 @@ public final class SpellEngine {
     public static final int ENTANGLING_ROOTS = 339;
     /** Hammer of Justice — Spell.dbc 853; EFFECT_APPLY_AURA + SPELL_AURA_MOD_STUN. */
     public static final int HAMMER_OF_JUSTICE = 853;
+    /** Cheap Shot — Spell.dbc 1833; EFFECT_APPLY_AURA + SPELL_AURA_MOD_STUN (stack with HoJ). */
+    public static final int CHEAP_SHOT = 1833;
     /** Counterspell — Spell.dbc 2139; EFFECT_APPLY_AURA + SPELL_AURA_MOD_SILENCE. */
     public static final int COUNTERSPELL = 2139;
     /** Pacify — Spell.dbc 10730; EFFECT_APPLY_AURA + SPELL_AURA_MOD_PACIFY. */
@@ -466,6 +468,9 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(HAMMER_OF_JUSTICE, new SpellInfo(HAMMER_OF_JUSTICE, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_STUN, 2, 0, 0, 0, 0f));
+        // Spell.dbc 1833 Cheap Shot — MOD_STUN (stacking with Hammer of Justice).
+        spells.put(CHEAP_SHOT, new SpellInfo(CHEAP_SHOT, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_STUN, 0, 0, 0, 0, 0f));
         spells.put(COUNTERSPELL, new SpellInfo(COUNTERSPELL, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_SILENCE, 6, 0, 0, 0, 0f));
         spells.put(SPELL_PACIFY, new SpellInfo(SPELL_PACIFY, EFFECT_APPLY_AURA,

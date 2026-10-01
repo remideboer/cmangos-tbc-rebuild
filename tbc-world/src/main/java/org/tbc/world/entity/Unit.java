@@ -86,6 +86,8 @@ public class Unit extends Entity {
     private boolean rooted;
     /** Active SPELL_AURA_MOD_ROOT holders — SetImmobilizedState stacking. */
     private int rootAuraCount;
+    /** Active SPELL_AURA_MOD_STUN holders — HasAuraType stacking before SetStunned(false). */
+    private int stunAuraCount;
     /** CMaNGOS GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED); 0 = none. */
     private int decreaseSpeedPct;
     /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SPEED); 0 = none. */
@@ -135,6 +137,25 @@ public class Unit extends Entity {
             return true;
         }
         return false;
+    }
+
+    /** Stacking SPELL_AURA_MOD_STUN — CMaNGOS HasAuraType before SetStunned(false). */
+    public int stunAuraCount() {
+        return stunAuraCount;
+    }
+
+    /** @return true if this was the first stun. */
+    public boolean addStunAura() {
+        stunAuraCount++;
+        return stunAuraCount == 1;
+    }
+
+    /** @return true if no MOD_STUN remain (should SetStunned(false) + maybe unroot). */
+    public boolean removeStunAura() {
+        if (stunAuraCount > 0) {
+            stunAuraCount--;
+        }
+        return stunAuraCount == 0;
     }
 
     /**

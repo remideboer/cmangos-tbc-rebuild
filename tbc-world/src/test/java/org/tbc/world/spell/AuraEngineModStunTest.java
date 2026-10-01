@@ -120,6 +120,53 @@ class AuraEngineModStunTest {
         new AuraEngine().unapply(null, HAMMER_OF_JUSTICE);
     }
 
+    /**
+     * TP-SL26-172 — HandleAuraModStun(false) keeps stunned while another MOD_STUN remains.
+     * Hammer of Justice 853 + Cheap Shot 1833; unapply HoJ → still stunned until Cheap Shot cleared.
+     */
+    @Test
+    void unapplyWhenOtherModStunRemainsShouldKeepStunned() {
+        SpellEngine eng = new SpellEngine();
+        Player target = new Player();
+        SpellEngine.SpellInfo cheapShot = eng.info(SpellEngine.CHEAP_SHOT);
+
+        eng.apply(new Player(), target, HAMMER_OF_JUSTICE);
+        eng.apply(new Player(), target, cheapShot);
+        assertEquals(Unit.UNIT_FLAG_STUNNED,
+                target.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_STUNNED);
+        assertTrue(target.rooted());
+        assertEquals(2, target.stunAuraCount());
+
+        eng.unapplyAura(target, SpellEngine.HAMMER_OF_JUSTICE);
+        assertEquals(Unit.UNIT_FLAG_STUNNED,
+                target.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_STUNNED);
+        assertTrue(target.rooted());
+        assertEquals(1, target.stunAuraCount());
+
+        eng.unapplyAura(target, SpellEngine.CHEAP_SHOT);
+        assertEquals(0, target.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_STUNNED);
+        assertFalse(target.rooted());
+        assertEquals(0, target.stunAuraCount());
+    }
+
+    /** Last MOD_STUN clears while MOD_ROOT remains — keep rooted (IsImmobilizedState). */
+    @Test
+    void unapplyWhenLastStunButModRootRemainsShouldKeepRooted() {
+        SpellEngine eng = new SpellEngine();
+        Player target = new Player();
+        eng.apply(new Player(), target, eng.info(SpellEngine.FROST_NOVA));
+        eng.apply(new Player(), target, HAMMER_OF_JUSTICE);
+        assertTrue(target.rooted());
+        assertEquals(1, target.rootAuraCount());
+        assertEquals(1, target.stunAuraCount());
+
+        eng.unapplyAura(target, SpellEngine.HAMMER_OF_JUSTICE);
+        assertEquals(0, target.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_STUNNED);
+        assertTrue(target.rooted());
+        assertEquals(1, target.rootAuraCount());
+        assertEquals(0, target.stunAuraCount());
+    }
+
     private static Sink login(World world, String name) {
         Sink sink = new Sink();
         WorldSession s = new WorldSession(sink, 1);
