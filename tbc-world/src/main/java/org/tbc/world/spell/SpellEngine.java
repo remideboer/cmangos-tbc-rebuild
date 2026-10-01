@@ -265,6 +265,8 @@ public final class SpellEngine {
     public static final int DEATH_WISH = 12292;
     /** Spell.dbc 11068 Frost Focus — SPELL_AURA_MOD_POWER_COST_SCHOOL −1 frost mana. */
     public static final int FROST_FOCUS = 11068;
+    /** Spell.dbc 30422 Nether Portal - Serenity effect1 — MOD_POWER_COST_SCHOOL_PCT. */
+    public static final int NETHER_PORTAL_SERENITY = 30422;
     /** Spell.dbc RecoveryTime for Frost Nova 122. */
     public static final int FROST_NOVA_RECOVERY_MS = 25_000;
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
@@ -540,6 +542,9 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, 0, 0, 20, 20, 0f, 1));
         spells.put(FROST_FOCUS, new SpellInfo(FROST_FOCUS, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_POWER_COST_SCHOOL, 0, 0, -1, -1, 0f, 16));
+        // Spell.dbc 30422 effect1: −1% power cost (mask simplified to frost for TP-SL26-168).
+        spells.put(NETHER_PORTAL_SERENITY, new SpellInfo(NETHER_PORTAL_SERENITY, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT, 0, 0, -1, -1, 0f, 16));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
