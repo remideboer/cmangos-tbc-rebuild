@@ -15,6 +15,18 @@ public final class ClasslessConfig {
     public static final int AUTO_ATTACK = 6603;
     /** Worn Shortsword — starter weapon without sword proficiency. */
     public static final int STARTER_WEAPON = 25;
+    /** Recruit's Shirt — human warrior CharStartOutfit. */
+    public static final int ITEM_RECRUIT_SHIRT = 38;
+    /** Recruit's Pants. */
+    public static final int ITEM_RECRUIT_PANTS = 39;
+    /** Recruit's Boots. */
+    public static final int ITEM_RECRUIT_BOOTS = 40;
+    /** 3 silver in copper. */
+    public static final int STARTING_MONEY_COPPER = 300;
+    /** Classless create kit: cloth recruit pieces + Worn Shortsword. */
+    public static final int[] STARTING_ITEMS = {
+            ITEM_RECRUIT_SHIRT, ITEM_RECRUIT_PANTS, ITEM_RECRUIT_BOOTS, STARTER_WEAPON
+    };
     /** Cloth armor proficiency mask (1 &lt;&lt; ITEM_SUBCLASS_ARMOR_CLOTH). */
     public static final int ARMOR_CLOTH_MASK = 1 << 1;
     /** Unarmed weapon proficiency mask (1 &lt;&lt; ITEM_SUBCLASS_WEAPON_UNARMED). */

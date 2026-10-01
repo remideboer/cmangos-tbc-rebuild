@@ -57,7 +57,7 @@ class Slice35P0Test {
         assertEquals(Codes.CHAR_CREATE_ERROR, client.payload(Opcodes.SMSG_CHAR_CREATE)[0] & 0xFF);
     }
 
-    /** TP-SL35-002 — blank start: Auto Attack only on bar; no class starter spells. */
+    /** TP-SL35-002 — Auto Attack only on bar; Recruit cloth + Worn Shortsword equipped; 3 silver. */
     @Test
     void tpSl35BlankStartShouldHaveAutoAttackOnly() {
         World world = World.inMemory();
@@ -72,9 +72,17 @@ class Slice35P0Test {
         assertEquals(ClasslessConfig.ARMOR_CLOTH_MASK, created.armorProficiency() & ClasslessConfig.ARMOR_CLOTH_MASK);
         assertEquals(ClasslessConfig.WEAPON_UNARMED_MASK, created.weaponProficiency() & ClasslessConfig.WEAPON_UNARMED_MASK);
         assertEquals(0, created.weaponProficiency() & (1 << 7), "no sword proficiency");
+        assertEquals(ClasslessConfig.STARTING_MONEY_COPPER, created.money);
+        assertEquals(ClasslessConfig.ITEM_RECRUIT_SHIRT, created.itemAt(0, 3).entry);
+        assertEquals(ClasslessConfig.ITEM_RECRUIT_PANTS, created.itemAt(0, 6).entry);
+        assertEquals(ClasslessConfig.ITEM_RECRUIT_BOOTS, created.itemAt(0, 7).entry);
+        assertEquals(ClasslessConfig.STARTER_WEAPON, created.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND).entry);
         client.login(world, created.guid);
         Player p = client.session().player();
         assertTrue(p.spells.contains(ClasslessConfig.AUTO_ATTACK));
+        assertEquals(ClasslessConfig.STARTING_MONEY_COPPER, p.money);
+        assertEquals(ClasslessConfig.ITEM_RECRUIT_SHIRT, p.itemAt(0, 3).entry);
+        assertEquals(ClasslessConfig.STARTER_WEAPON, p.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND).entry);
         byte[] bar = client.payload(Opcodes.SMSG_ACTION_BUTTONS);
         assertEquals(ClasslessConfig.AUTO_ATTACK, WowClientDouble.u32le(bar, 0));
         assertEquals(0, WowClientDouble.u32le(bar, 73 * 4), "no HS on stance bar");
@@ -188,6 +196,8 @@ class Slice35P0Test {
                 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         Player p = client.session().player();
+        stripNonWeaponGear(p);
+        world.objectMgr.applyEquippedMelee(p);
         int baseStr = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
         int baseAgi = p.getInt(UpdateFields.UNIT_FIELD_STAT1);
 
@@ -250,6 +260,18 @@ class Slice35P0Test {
     }
 
     private static final int EQUIPMENT_SLOT_CHEST = 4;
+
+    /** Drop Recruit shirt/pants/boots so armor-penalty asserts see only the test chest. */
+    private static void stripNonWeaponGear(Player p) {
+        for (int slot : new int[]{3, 6, 7}) {
+            Item it = p.itemAt(0, slot);
+            if (it == null) {
+                continue;
+            }
+            p.items.remove((int) it.guid);
+            p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + slot * 2, 0);
+        }
+    }
 
     private static void equipChest(World world, Player p, WowClientDouble client, int itemId) {
         unequipChest(world, p, client);

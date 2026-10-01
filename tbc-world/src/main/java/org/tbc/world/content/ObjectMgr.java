@@ -382,6 +382,67 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Recruit's Shirt — item 38 (CharStartOutfit human warrior). */
+        public static ItemTemplate recruitsShirt() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = 38;
+            t.itemClass = 4;
+            t.subClass = 0;
+            t.unk = -1;
+            t.name = "Recruit's Shirt";
+            t.displayId = 9891;
+            t.quality = 1;
+            t.buyPrice = 1;
+            t.sellPrice = 1;
+            t.inventoryType = 4;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 1;
+            t.stackable = 1;
+            return t;
+        }
+
+        /** Recruit's Pants — item 39. */
+        public static ItemTemplate recruitsPants() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = 39;
+            t.itemClass = 4;
+            t.subClass = 1;
+            t.unk = -1;
+            t.name = "Recruit's Pants";
+            t.displayId = 9892;
+            t.quality = 0;
+            t.buyPrice = 5;
+            t.sellPrice = 1;
+            t.inventoryType = 7;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 1;
+            t.stackable = 1;
+            t.armor = 2;
+            return t;
+        }
+
+        /** Recruit's Boots — item 40. */
+        public static ItemTemplate recruitsBoots() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = 40;
+            t.itemClass = 4;
+            t.subClass = 0;
+            t.unk = -1;
+            t.name = "Recruit's Boots";
+            t.displayId = 10141;
+            t.quality = 1;
+            t.buyPrice = 5;
+            t.sellPrice = 1;
+            t.inventoryType = 8;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 1;
+            t.stackable = 1;
+            return t;
+        }
+
         /** Riverpaw Leather Vest — tbc-db item_template 821 (ITEM_MOD_STAMINA 7 / 2, armor 65). */
         public static ItemTemplate riverpawLeatherVest() {
             ItemTemplate t = new ItemTemplate();
@@ -3166,6 +3227,9 @@ public final class ObjectMgr {
         creatures.putIfAbsent(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         items.putIfAbsent(25, ItemTemplate.wornShortsword());
+        items.putIfAbsent(38, ItemTemplate.recruitsShirt());
+        items.putIfAbsent(39, ItemTemplate.recruitsPants());
+        items.putIfAbsent(40, ItemTemplate.recruitsBoots());
         items.putIfAbsent(Content.ITEM_RIVERPAW_LEATHER_VEST, ItemTemplate.riverpawLeatherVest());
         items.putIfAbsent(Content.ITEM_TUNIC_OF_WESTFALL, ItemTemplate.tunicOfWestfall());
         items.putIfAbsent(Content.ITEM_BRACKWATER_VEST, ItemTemplate.brackwaterVest());

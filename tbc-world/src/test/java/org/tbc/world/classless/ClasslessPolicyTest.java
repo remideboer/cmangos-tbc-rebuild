@@ -70,4 +70,21 @@ class ClasslessPolicyTest {
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
         assertFalse(ClasslessCharacterPolicy.isClassless(p));
     }
+
+    @Test
+    void startingLoadoutWhenAppliedShouldEquipRecruitGearAndThreeSilver() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = new Player();
+        p.guid = 1L;
+        p.race = 1;
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        long[] next = {100L};
+        ClasslessStartingLoadout.apply(p, mgr, () -> next[0]++);
+        assertEquals(ClasslessConfig.STARTING_MONEY_COPPER, p.money);
+        assertEquals(ClasslessConfig.ITEM_RECRUIT_SHIRT, p.itemAt(0, 3).entry);
+        assertEquals(ClasslessConfig.ITEM_RECRUIT_PANTS, p.itemAt(0, 6).entry);
+        assertEquals(ClasslessConfig.ITEM_RECRUIT_BOOTS, p.itemAt(0, 7).entry);
+        assertEquals(ClasslessConfig.STARTER_WEAPON, p.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND).entry);
+    }
 }
