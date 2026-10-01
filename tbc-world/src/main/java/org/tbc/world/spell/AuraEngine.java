@@ -166,7 +166,7 @@ public final class AuraEngine {
             target.sendHover(true);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
-            immobilize(target);
+            modRoot(target, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_SILENCE) {
             target.setSilenced(true);
@@ -368,9 +368,8 @@ public final class AuraEngine {
             target.sendHover(false);
         }
         if (sp.aura() == SPELL_AURA_MOD_ROOT) {
-            // HandleAuraModRoot(false) → SetImmobilizedState(false); stacking other roots later.
-            target.setRooted(false);
-            target.sendMoveRoot(false);
+            // HandleAuraModRoot(false) → SetImmobilizedState(false) only when no other MOD_ROOT.
+            modRoot(target, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_SILENCE) {
             // HandleAuraModSilence(false); stacking other MOD_SILENCE later.
@@ -1022,6 +1021,19 @@ public final class AuraEngine {
     }
 
     /** Aura 12 — CMaNGOS SetStunned: SetImmobilizedState(stun=true) then UNIT_FLAG_STUNNED. */
+    /**
+     * Aura 26 — CMaNGOS HandleAuraModRoot / SetImmobilizedState with HasAuraType stacking.
+     * Apply always SendMoveRoot (order counter); unapply clears only when no MOD_ROOT remain.
+     */
+    private static void modRoot(Unit target, boolean apply) {
+        if (apply) {
+            target.addRootAura();
+            target.sendMoveRoot(true);
+        } else if (target.removeRootAura()) {
+            target.sendMoveRoot(false);
+        }
+    }
+
     private static void modStun(Unit target) {
         immobilize(target);
         target.setStunned(true);

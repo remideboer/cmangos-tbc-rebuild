@@ -84,6 +84,8 @@ public class Unit extends Entity {
     /** CMaNGOS m_modSpellCritChance[MAX_SPELL_SCHOOL] — SPELL_AURA_MOD_SPELL_CRIT_CHANCE. */
     private final float[] modSpellCritChance = new float[7];
     private boolean rooted;
+    /** Active SPELL_AURA_MOD_ROOT holders — SetImmobilizedState stacking. */
+    private int rootAuraCount;
     /** CMaNGOS GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED); 0 = none. */
     private int decreaseSpeedPct;
     /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SPEED); 0 = none. */
@@ -109,6 +111,30 @@ public class Unit extends Entity {
 
     public void setRooted(boolean rooted) {
         this.rooted = rooted;
+    }
+
+    /** Stacking SPELL_AURA_MOD_ROOT — CMaNGOS HasAuraType before SetImmobilizedState(false). */
+    public int rootAuraCount() {
+        return rootAuraCount;
+    }
+
+    /** @return true if this was the first root (should SendMoveRoot true). */
+    public boolean addRootAura() {
+        rootAuraCount++;
+        rooted = true;
+        return rootAuraCount == 1;
+    }
+
+    /** @return true if no MOD_ROOT remain (should SendMoveRoot false). */
+    public boolean removeRootAura() {
+        if (rootAuraCount > 0) {
+            rootAuraCount--;
+        }
+        if (rootAuraCount == 0) {
+            rooted = false;
+            return true;
+        }
+        return false;
     }
 
     /**

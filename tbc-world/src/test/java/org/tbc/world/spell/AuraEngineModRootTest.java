@@ -149,6 +149,30 @@ class AuraEngineModRootTest {
         assertFalse(victim.ops.contains(Opcodes.SMSG_FORCE_MOVE_ROOT));
     }
 
+    /**
+     * TP-SL26-170 — HandleAuraModRoot(false) keeps immobilized while another MOD_ROOT remains.
+     * Frost Nova 122 + Entangling Roots 339; unapply Nova → still rooted until Roots cleared.
+     */
+    @Test
+    void unapplyWhenOtherModRootRemainsShouldKeepRooted() {
+        SpellEngine eng = new SpellEngine();
+        Player target = new Player();
+        SpellEngine.SpellInfo roots = eng.info(SpellEngine.ENTANGLING_ROOTS);
+
+        eng.apply(new Player(), target, FROST_NOVA);
+        eng.apply(new Player(), target, roots);
+        assertTrue(target.rooted());
+        assertEquals(2, target.rootAuraCount());
+
+        eng.unapplyAura(target, SpellEngine.FROST_NOVA);
+        assertTrue(target.rooted());
+        assertEquals(1, target.rootAuraCount());
+
+        eng.unapplyAura(target, SpellEngine.ENTANGLING_ROOTS);
+        assertFalse(target.rooted());
+        assertEquals(0, target.rootAuraCount());
+    }
+
     private static Sink login(World world, String name) {
         Sink sink = new Sink();
         WorldSession s = new WorldSession(sink, 1);

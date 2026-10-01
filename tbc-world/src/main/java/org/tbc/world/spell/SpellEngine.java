@@ -181,6 +181,8 @@ public final class SpellEngine {
     public static final int FIREBALL = 133;
     /** Frost Nova rank 1: Spell.dbc RecoveryTime 25000, StartRecoveryTime 1500. */
     public static final int FROST_NOVA = 122;
+    /** Spell.dbc 339 Entangling Roots — SPELL_AURA_MOD_ROOT. */
+    public static final int ENTANGLING_ROOTS = 339;
     /** Hammer of Justice — Spell.dbc 853; EFFECT_APPLY_AURA + SPELL_AURA_MOD_STUN. */
     public static final int HAMMER_OF_JUSTICE = 853;
     /** Counterspell — Spell.dbc 2139; EFFECT_APPLY_AURA + SPELL_AURA_MOD_SILENCE. */
@@ -456,6 +458,10 @@ public final class SpellEngine {
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(FROST_NOVA, new SpellInfo(FROST_NOVA, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_ROOT, 4, 55, 0, 0, 0f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withRecovery(FROST_NOVA_RECOVERY_MS));
+        // Spell.dbc 339 Entangling Roots — MOD_ROOT (stacking with Frost Nova).
+        spells.put(ENTANGLING_ROOTS, new SpellInfo(ENTANGLING_ROOTS, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_ROOT, 0, 0, 0, 0, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(HAMMER_OF_JUSTICE, new SpellInfo(HAMMER_OF_JUSTICE, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_STUN, 2, 0, 0, 0, 0f));
         spells.put(COUNTERSPELL, new SpellInfo(COUNTERSPELL, EFFECT_APPLY_AURA,
