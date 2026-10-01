@@ -227,13 +227,17 @@ public class Unit extends Entity {
     }
 
     /**
-     * CMaNGOS Unit::SetFeignDeath success/NPC path — FLAGS_2 FEIGN_DEATH + DYNFLAG_DEAD.
-     * Combat disengage / resist roll later.
+     * CMaNGOS Unit::SetFeignDeath success path — FLAGS_2 FEIGN_DEATH + DYNFLAG_DEAD.
+     * PLAYER_CONTROLLED success → CombatStop (resist roll later; always success for now).
+     * NPC never CombatStop (AttackStop / threat offline later).
      */
     public void setFeignDeath(boolean apply) {
         int f2 = getInt(UpdateFields.UNIT_FIELD_FLAGS_2);
         int dyn = getInt(UpdateFields.UNIT_DYNAMIC_FLAGS);
         if (apply) {
+            if ((getInt(UpdateFields.UNIT_FIELD_FLAGS) & UNIT_FLAG_PLAYER_CONTROLLED) != 0) {
+                combatStop();
+            }
             setInt(UpdateFields.UNIT_FIELD_FLAGS_2, f2 | UNIT_FLAG2_FEIGN_DEATH);
             setInt(UpdateFields.UNIT_DYNAMIC_FLAGS, dyn | UNIT_DYNFLAG_DEAD);
         } else {

@@ -913,7 +913,7 @@ public final class AuraEngine {
 
     /**
      * Aura 66 — CMaNGOS HandleFeignDeath → SetFeignDeath (success path; resist roll later).
-     * Sets UNIT_FLAG2_FEIGN_DEATH + UNIT_DYNFLAG_DEAD.
+     * Sets UNIT_FLAG2_FEIGN_DEATH + UNIT_DYNFLAG_DEAD; PLAYER_CONTROLLED → CombatStop.
      */
     private static void modFeignDeath(Unit target, boolean apply) {
         target.setFeignDeath(apply);
