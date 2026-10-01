@@ -1091,7 +1091,8 @@ public final class CharacterStore {
             }
             int remaintime;
             if (a.expireAtMs() <= 0) {
-                remaintime = -1;
+                // Timed holders must not be written as permanent (−1) — client shows 0s forever.
+                remaintime = a.durationMs() > 0 ? a.durationMs() : -1;
             } else {
                 long left = a.expireAtMs() - nowMs;
                 if (left <= 0) {
@@ -1142,7 +1143,13 @@ public final class CharacterStore {
             int remaintime = rs.getInt("remaintime");
             int amplitude = rs.getInt("periodictime0");
             long caster = rs.getLong("caster_guid");
-            long expireAt = remaintime < 0 ? 0 : nowMs + remaintime;
+            long expireAt;
+            if (remaintime < 0) {
+                // Heal bad rows: timed maxduration saved as permanent remaintime −1.
+                expireAt = maxduration > 0 ? nowMs + maxduration : 0;
+            } else {
+                expireAt = nowMs + remaintime;
+            }
             long nextTick = amplitude > 0 && expireAt > 0 ? nowMs + amplitude : 0;
             p.auras.add(new Unit.Aura(spellId, maxduration, stacks, 0, expireAt, amplitude, nextTick, caster));
         }

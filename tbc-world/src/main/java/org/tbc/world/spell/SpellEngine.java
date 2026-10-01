@@ -719,6 +719,12 @@ public final class SpellEngine {
         }
         ArrayList<Unit.Aura> kept = new ArrayList<>();
         for (Unit.Aura a : target.auras) {
+            if (a.durationMs() > 0 && a.expireAtMs() <= 0 && nowMs > 0) {
+                // Timed holder missing expire clock (e.g. apply with nowMs 0) — full duration from now.
+                a = new Unit.Aura(a.spellId(), a.durationMs(), a.stacks(), a.mechanic(),
+                        nowMs + a.durationMs(), a.amplitudeMs(),
+                        a.amplitudeMs() > 0 ? nowMs + a.amplitudeMs() : 0, a.casterGuid());
+            }
             if (a.expireAtMs() > 0 && nowMs > 0 && a.expireAtMs() <= nowMs) {
                 int slot = AuraSlots.slotOf(target, a.spellId());
                 if (slot >= 0) {
@@ -744,6 +750,24 @@ public final class SpellEngine {
             if (AuraSlots.slotOf(target, a.spellId()) < 0) {
                 AuraSlots.applyVisible(target, a.spellId(), Math.max(1, target.level), a.stacks());
             }
+        }
+    }
+
+    /**
+     * SpellAuraHolder::SendAuraDuration after create-self — remaining ms for timed restored buffs.
+     * Without this the client shows 0s and treats the aura as permanent.
+     */
+    public void sendPersistedAuraDurations(Unit target, long nowMs, BiConsumer<Integer, byte[]> send) {
+        if (!(target instanceof Player) || send == null || nowMs <= 0) {
+            return;
+        }
+        for (Unit.Aura a : target.auras) {
+            if (a.expireAtMs() <= nowMs) {
+                continue;
+            }
+            int remain = (int) Math.min(Integer.MAX_VALUE, a.expireAtMs() - nowMs);
+            int max = a.durationMs() > 0 ? a.durationMs() : remain;
+            AuraSlots.sendApply(target, null, a.spellId(), max, remain, send);
         }
     }
 

@@ -2,6 +2,7 @@ package org.tbc.world.spell;
 
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.junit.jupiter.api.Test;
 
@@ -116,5 +117,119 @@ class SpellEngineRestoreAurasTest {
         p.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, 1_000, 1, 0, 500L, 0, 0, p.guid));
         engine.restorePersistedAuras(p, 0L);
         assertTrue(p.hasAura(SpellEngine.FROST_ARMOR));
+    }
+
+    @Test
+    void restorePersistedAurasWhenTimedMissingExpireShouldHealFromDuration() {
+        SpellEngine engine = new SpellEngine();
+        Player p = new Player();
+        p.guid = 8;
+        p.level = 1;
+        p.applyCreateFields();
+        p.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, SpellEngine.FROST_ARMOR_DURATION_MS, 1, 0,
+                0L, 0, 0, p.guid));
+        engine.restorePersistedAuras(p, 10_000L);
+        Unit.Aura a = p.auras.stream().filter(x -> x.spellId() == SpellEngine.FROST_ARMOR).findFirst().orElseThrow();
+        assertEquals(10_000L + SpellEngine.FROST_ARMOR_DURATION_MS, a.expireAtMs());
+    }
+
+    @Test
+    void restorePersistedAurasWhenTimedMissingExpireAndAmplitudeShouldScheduleTick() {
+        SpellEngine engine = new SpellEngine();
+        Player p = new Player();
+        p.guid = 12;
+        p.level = 1;
+        p.applyCreateFields();
+        p.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, SpellEngine.FROST_ARMOR_DURATION_MS, 1, 0,
+                0L, 3_000, 0, p.guid));
+        engine.restorePersistedAuras(p, 10_000L);
+        Unit.Aura a = p.auras.stream().filter(x -> x.spellId() == SpellEngine.FROST_ARMOR).findFirst().orElseThrow();
+        assertEquals(13_000L, a.nextTickAtMs());
+    }
+
+    @Test
+    void restorePersistedAurasWhenTimedMissingExpireButNowMsZeroShouldNotHeal() {
+        SpellEngine engine = new SpellEngine();
+        Player p = new Player();
+        p.guid = 13;
+        p.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, SpellEngine.FROST_ARMOR_DURATION_MS, 1, 0,
+                0L, 0, 0, p.guid));
+        engine.restorePersistedAuras(p, 0L);
+        Unit.Aura a = p.auras.stream().filter(x -> x.spellId() == SpellEngine.FROST_ARMOR).findFirst().orElseThrow();
+        assertEquals(0L, a.expireAtMs(), "nowMs 0 leaves expire unset");
+    }
+
+    @Test
+    void sendPersistedAuraDurationsWhenTimedShouldSendRemainMs() {
+        SpellEngine engine = new SpellEngine();
+        Player p = new Player();
+        p.guid = 9;
+        p.level = 1;
+        p.applyCreateFields();
+        AuraSlots.applyVisible(p, SpellEngine.FROST_ARMOR, 1, 1);
+        p.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, SpellEngine.FROST_ARMOR_DURATION_MS, 1, 0,
+                60_000L, 0, 0, p.guid));
+        java.util.ArrayList<Integer> ops = new java.util.ArrayList<>();
+        java.util.concurrent.atomic.AtomicReference<byte[]> dur = new java.util.concurrent.atomic.AtomicReference<>();
+        engine.sendPersistedAuraDurations(p, 10_000L, (op, payload) -> {
+            ops.add(op);
+            if (op == Opcodes.SMSG_UPDATE_AURA_DURATION) {
+                dur.set(payload);
+            }
+        });
+        assertTrue(ops.contains(Opcodes.SMSG_UPDATE_AURA_DURATION));
+        assertEquals(0, dur.get()[0] & 0xFF);
+        assertEquals(50_000, u32le(dur.get(), 1));
+    }
+
+    @Test
+    void sendPersistedAuraDurationsWhenNullOrPermanentShouldNoOp() {
+        SpellEngine engine = new SpellEngine();
+        engine.sendPersistedAuraDurations(null, 1_000L, (op, payload) -> {
+            throw new AssertionError("no send");
+        });
+        Player p = new Player();
+        p.guid = 10;
+        p.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, 0, 1, 0, 0L, 0, 0, p.guid));
+        engine.sendPersistedAuraDurations(p, 1_000L, (op, payload) -> {
+            throw new AssertionError("permanent skip");
+        });
+        engine.sendPersistedAuraDurations(p, 0L, (op, payload) -> {
+            throw new AssertionError("nowMs 0 skip");
+        });
+        p.auras.clear();
+        AuraSlots.applyVisible(p, SpellEngine.FROST_ARMOR, 1, 1);
+        p.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, 1_000, 1, 0, 500L, 0, 0, p.guid));
+        engine.sendPersistedAuraDurations(p, 1_000L, (op, payload) -> {
+            throw new AssertionError("already expired skip");
+        });
+        org.tbc.world.entity.Creature c = new org.tbc.world.entity.Creature();
+        c.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, 1_000, 1, 0, 60_000L, 0, 0, 0));
+        engine.sendPersistedAuraDurations(c, 1_000L, (op, payload) -> {
+            throw new AssertionError("creature skip");
+        });
+        engine.sendPersistedAuraDurations(p, 1_000L, null);
+    }
+
+    @Test
+    void sendPersistedAuraDurationsWhenDurationZeroShouldUseRemainAsMax() {
+        SpellEngine engine = new SpellEngine();
+        Player p = new Player();
+        p.guid = 11;
+        p.level = 1;
+        AuraSlots.applyVisible(p, SpellEngine.FROST_ARMOR, 1, 1);
+        p.auras.add(new Unit.Aura(SpellEngine.FROST_ARMOR, 0, 1, 0, 60_000L, 0, 0, p.guid));
+        java.util.concurrent.atomic.AtomicReference<byte[]> dur = new java.util.concurrent.atomic.AtomicReference<>();
+        engine.sendPersistedAuraDurations(p, 10_000L, (op, payload) -> {
+            if (op == Opcodes.SMSG_UPDATE_AURA_DURATION) {
+                dur.set(payload);
+            }
+        });
+        assertEquals(50_000, u32le(dur.get(), 1));
+    }
+
+    private static int u32le(byte[] b, int off) {
+        return (b[off] & 0xFF) | ((b[off + 1] & 0xFF) << 8)
+                | ((b[off + 2] & 0xFF) << 16) | ((b[off + 3] & 0xFF) << 24);
     }
 }

@@ -139,6 +139,8 @@ public final class LoginBurst {
         var upd = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, true, (int) world.nowMs()));
         s.send(upd.opcode(), upd.payload());
         sent.add(Opcodes.SMSG_UPDATE_OBJECT);
+        // SendAuraDuration after create-self so the buff bar shows remaining time (not 0s).
+        world.spells.sendPersistedAuraDurations(p, world.nowMs(), s::send);
         // Explicit VALUES so OWNER_ONLY damage fields are not lost if create mask was sparse.
         var atk = UpdateBuilder.maybeCompress(UpdateBuilder.values(p,
                 UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,

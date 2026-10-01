@@ -1,0 +1,22 @@
+---
+description: Persisted auras need remaintime + SMSG_UPDATE_AURA_DURATION on login; never save timed as permanent
+globs: tbc-server/tbc-world/src/main/java/org/tbc/world/session/LoginBurst.java,tbc-server/tbc-world/src/main/java/org/tbc/world/persist/CharacterStore.java,tbc-server/tbc-world/src/main/java/org/tbc/world/spell/SpellEngine.java,tbc-server/tbc-world/src/main/java/org/tbc/world/spell/AuraSlots.java
+alwaysApply: false
+---
+
+# Aura persist / login duration (TP-SL07-017)
+
+Restoring buff **icons** alone is not enough. The 8606 client shows **0s** and never expires the bar unless login also sends remaining duration.
+
+**Required contract** (full notes: `tbc-server/docs/aura-persist-on-login.md`):
+
+1. **Save** (`CharacterStore.writeAuras`): timed holders → positive `remaintime` ms. Only `durationMs <= 0` → `remaintime = -1` (permanent). Never map `expireAtMs <= 0` + `durationMs > 0` to permanent.
+2. **Load / restore**: rebuild `expireAtMs = now + remaintime`; heal bad rows (`durationMs > 0` && expire missing → `now + durationMs`).
+3. **Login wire** (`LoginBurst` after create-self): `SpellEngine.sendPersistedAuraDurations` → `SMSG_UPDATE_AURA_DURATION` (CMaNGOS `SendAuraDuration`). Cast path already sends this; login must too.
+4. **Test**: assert the duration opcode on relog (`Slice07P0Test.tpSl07AuraDurationSurvivesRelog`), not only `UNIT_FIELD_AURA`.
+
+```java
+// BAD: restorePersistedAuras → applyVisible only; client tip 0s forever
+// BAD: writeAuras: expireAtMs<=0 → remaintime=-1 when durationMs>0
+// GOOD: write remaintime; restore expireAt; after create-self sendPersistedAuraDurations
+```

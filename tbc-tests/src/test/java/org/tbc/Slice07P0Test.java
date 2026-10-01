@@ -501,6 +501,46 @@ class Slice07P0Test {
         assertEquals(expireBefore, expireAfter, "remaintime preserved across save/load");
     }
 
+    /**
+     * TP-SL07-017 — after create-self, SendAuraDuration so the buff bar shows remaining time
+     * (not 0s permanent). CMaNGOS SpellAuraHolder::SendAuraDuration on load.
+     */
+    @Test
+    void tpSl07AuraDurationSurvivesRelog() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.spells.add(FROST_ARMOR);
+        client.castSpell(world, FROST_ARMOR, 1, p.guid);
+        long expireBefore = p.auras.stream()
+                .filter(a -> a.spellId() == FROST_ARMOR)
+                .mapToLong(Unit.Aura::expireAtMs)
+                .findFirst()
+                .orElse(0L);
+        long remainBefore = expireBefore - world.nowMs();
+        assertTrue(remainBefore > 0);
+        long guid = p.guid;
+        client.session().logout(world, true);
+
+        WowClientDouble again = new WowClientDouble();
+        again.connect(ACC);
+        again.login(world, guid);
+        assertTrue(again.saw(Opcodes.SMSG_UPDATE_AURA_DURATION),
+                "login must SendAuraDuration for timed restored buffs");
+        byte[] dur = again.payload(Opcodes.SMSG_UPDATE_AURA_DURATION);
+        assertEquals(0, dur[0] & 0xFF, "Frost Armor slot");
+        int remainWire = WowClientDouble.u32le(dur, 1);
+        assertTrue(remainWire > remainBefore - 5_000 && remainWire <= remainBefore + 5_000,
+                "remain ≈ " + remainBefore + " was " + remainWire);
+
+        Player loaded = again.session().player();
+        again.clear();
+        world.advanceMs(remainWire + 1);
+        world.tick(1);
+        assertFalse(loaded.hasAura(FROST_ARMOR), "timed buff must still expire after remain");
+        assertEquals(0, again.valuesField(loaded.guid, UpdateFields.UNIT_FIELD_AURA));
+    }
+
     private static final int FROST_ARMOR = 168;
     /** SpellDuration.dbc for DurationIndex 30 (Frost Armor rank 1) — 30 minutes. */
     private static final int FROST_ARMOR_DURATION_MS = 1_800_000;
