@@ -142,14 +142,15 @@ class SpellEngineTest {
 
     @Test
     void castWhenHeroicStrike78ShouldQueueNextMeleeWithoutDamageLog() {
-        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
-        p.setPower(200);
+        p.powerType = Player.POWER_RAGE;
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, Player.POWER_RAGE_MAX);
+        p.setRage(200);
         int hp = c.health();
         engine.cast(p, map, 0, 78, 1, unitTarget(c.guid), this::capture);
         assertTrue(p.hasNextMeleeSpellQueued());
         assertEquals(SpellEngine.HEROIC_STRIKE, p.peekNextMeleeSpellId());
         assertEquals(hp, c.health());
-        assertEquals(200, p.power(), "TakePower waits for the swing (Spell::cast)");
+        assertEquals(200, p.rage(), "TakePower waits for the swing (Spell::cast)");
         assertTrue(ops.contains(Opcodes.SMSG_SPELL_START));
         assertFalse(ops.contains(Opcodes.SMSG_SPELL_GO));
         assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
@@ -158,8 +159,9 @@ class SpellEngineTest {
 
     @Test
     void finishNextMeleeSwingWhenHeroicStrikeShouldSendGoAndDamageLog() {
-        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
-        p.setPower(200);
+        p.powerType = Player.POWER_RAGE;
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, Player.POWER_RAGE_MAX);
+        p.setRage(200);
         p.setFloat(UpdateFields.UNIT_FIELD_MINDAMAGE, 5f);
         p.setFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE, 5f);
         c.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
@@ -171,7 +173,7 @@ class SpellEngineTest {
         c.setHealth(c.health() - damage);
         p.consumeNextMeleeSwing();
         engine.finishNextMeleeSwing(p, c, SpellEngine.HEROIC_STRIKE, 1, damage, 100, this::capture);
-        assertEquals(50, p.power());
+        assertEquals(50, p.rage());
         assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
         WowBuffer log = new WowBuffer(last.get(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
         assertEquals(c.guid, log.getPackedGuid());
@@ -270,8 +272,9 @@ class SpellEngineTest {
     @Test
     void castHeroicStrikeDuringGcdShouldBeAccepted() {
         engine.cast(p, map, 10, SpellEngine.FIREBALL, 1, unitTarget(c.guid), this::capture);
-        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
-        p.setPower(200);
+        p.powerType = Player.POWER_RAGE;
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, Player.POWER_RAGE_MAX);
+        p.setRage(200);
         ops.clear();
         assertTrue(engine.cast(p, map, 20, 78, 2, unitTarget(c.guid), this::capture));
         assertFalse(ops.contains(Opcodes.SMSG_CAST_RESULT));
@@ -414,12 +417,13 @@ class SpellEngineTest {
         engine.cast(p, map, 2000, 30108, 1, unitTarget(c.guid), this::capture);
         assertEquals(1, c.auras.size());
         ops.clear();
-        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
-        p.setPower(200);
+        p.powerType = Player.POWER_RAGE;
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, Player.POWER_RAGE_MAX);
+        p.setRage(200);
         engine.cast(p, map, 0, 78, 1, unitTarget(c.guid), this::capture);
         assertTrue(p.hasNextMeleeSpellQueued());
         assertFalse(ops.contains(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
-        assertEquals(200, p.power(), "rage taken on the swing, not on queue");
+        assertEquals(200, p.rage(), "rage taken on the swing, not on queue");
         engine.apply(p, c, engine.info(78));
         engine.apply(p, c, engine.info(ClassScripts.SPELL_EXECUTE));
         engine.apply(p, p, new SpellEngine.SpellInfo(1, SpellEngine.EFFECT_SCRIPT, 0, 0, 0, 0, 0, 0f));

@@ -85,8 +85,9 @@ class Slice11EventAiTest {
         WowClientDouble client = login(world, "Hit");
         Player p = client.session().player();
         p.spells.add(SpellEngine.FIREBALL);
+        // Fireball costs mana (POWER1); login helper creates a warrior whose setPower writes POWER2.
         p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER1, 100);
-        p.setPower(100);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER1, 100);
         Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
         c.eventAi = new EventAi();
         c.eventAi.load(List.of(new EventAi.Script(EventAi.EVENT_SPELLHIT, 0, 100, EventAi.EFLAG_REPEATABLE,

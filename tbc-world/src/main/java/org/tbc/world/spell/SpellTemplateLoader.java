@@ -30,6 +30,7 @@ public final class SpellTemplateLoader {
              Statement st = c.createStatement();
              ResultSet rs = st.executeQuery(
                      "SELECT Id, CastingTimeIndex, RecoveryTime, StartRecoveryTime, DurationIndex, ManaCost, RangeIndex, "
+                             + "powerType, "
                              + "Effect1, Effect2, Effect3, EffectDieSides1, EffectDieSides2, EffectDieSides3, "
                              + "EffectBasePoints1, EffectBasePoints2, EffectBasePoints3, "
                              + "EffectApplyAuraName1, EffectApplyAuraName2, EffectApplyAuraName3, "
@@ -57,7 +58,8 @@ public final class SpellTemplateLoader {
                         points(rs.getInt("EffectBasePoints3"), rs.getInt("EffectDieSides3"), false),
                         rs.getInt("ProcFlags"), rs.getInt("EffectTriggerSpell1"),
                         rs.getInt("EffectMiscValue1"), rs.getInt("EffectMiscValue2"), rs.getInt("EffectMiscValue3"),
-                        rs.getInt("EffectAmplitude1"), rs.getInt("EffectAmplitude2"), rs.getInt("EffectAmplitude3"));
+                        rs.getInt("EffectAmplitude1"), rs.getInt("EffectAmplitude2"), rs.getInt("EffectAmplitude3"),
+                        rs.getInt("powerType"));
                 n++;
             }
             log.info("loaded {} spell_template rows", n);

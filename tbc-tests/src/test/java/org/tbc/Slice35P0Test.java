@@ -606,6 +606,52 @@ class Slice35P0Test {
         assertEquals(p.rage(), client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER2));
     }
 
+    /**
+     * TP-SL35-018 — Battle Shout 6673 costs rage from POWER2; mana unchanged.
+     */
+    @Test
+    void tpSl35BattleShoutShouldSpendRageNotMana() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Shouthero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.spells.add(Content.SPELL_BATTLE_SHOUT);
+        p.setRage(100);
+        int manaBefore = p.power();
+        client.clear();
+        client.castSpell(world, Content.SPELL_BATTLE_SHOUT, 1, p.guid);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO), "Battle Shout should cast");
+        assertEquals(90, p.rage(), "rage cost 10 from POWER2");
+        assertEquals(manaBefore, p.power(), "mana unchanged");
+        assertEquals(90, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER2));
+    }
+
+    @Test
+    void tpSl35BattleShoutWhenLowRageShouldFailNoPower() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Norager", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.spells.add(Content.SPELL_BATTLE_SHOUT);
+        p.setRage(5);
+        int manaBefore = p.power();
+        client.clear();
+        client.castSpell(world, Content.SPELL_BATTLE_SHOUT, 1, p.guid);
+        assertTrue(client.saw(Opcodes.SMSG_CAST_RESULT));
+        byte[] fail = client.payload(Opcodes.SMSG_CAST_RESULT);
+        assertEquals(Content.SPELL_BATTLE_SHOUT, WowClientDouble.u32le(fail, 0));
+        assertEquals(org.tbc.world.spell.SpellEngine.SPELL_FAILED_NO_POWER, fail[4] & 0xFF);
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(5, p.rage());
+        assertEquals(manaBefore, p.power());
+    }
+
     private static void sendHeroPowerEnable(WowClientDouble client, World world) {
         WowBuffer b = new WowBuffer(48);
         b.putU32(0x01); // say

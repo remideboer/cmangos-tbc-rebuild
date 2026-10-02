@@ -376,10 +376,10 @@ public final class SpellEngine {
 
     public record SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
                             int misc, int equippedItemClass, int castTimeMs, int gcdMs, int recoveryMs, int durationMs,
-                            int amplitudeMs) {
+                            int amplitudeMs, int powerType) {
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange,
                          int misc, int equippedItemClass) {
-            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, 0, 0, 0, 0, 0);
+            this(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, 0, 0, 0, 0, 0, 0);
         }
 
         public SpellInfo(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float maxRange, int misc) {
@@ -393,31 +393,37 @@ public final class SpellEngine {
         /** Spell.dbc CastingTimeIndex → SpellCastTimes.dbc base (ms). */
         public SpellInfo withCastTime(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass, ms,
-                    gcdMs, recoveryMs, durationMs, amplitudeMs);
+                    gcdMs, recoveryMs, durationMs, amplitudeMs, powerType);
         }
 
         /** Spell.dbc StartRecoveryTime (StartRecoveryCategory 133). */
         public SpellInfo withGcd(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
-                    castTimeMs, ms, recoveryMs, durationMs, amplitudeMs);
+                    castTimeMs, ms, recoveryMs, durationMs, amplitudeMs, powerType);
         }
 
         /** Spell.dbc RecoveryTime (ms). Applied at Spell::cast, not at prepare. */
         public SpellInfo withRecovery(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
-                    castTimeMs, gcdMs, ms, durationMs, amplitudeMs);
+                    castTimeMs, gcdMs, ms, durationMs, amplitudeMs, powerType);
         }
 
         /** Spell.dbc DurationIndex → SpellDuration.dbc (ms). */
         public SpellInfo withDuration(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
-                    castTimeMs, gcdMs, recoveryMs, ms, amplitudeMs);
+                    castTimeMs, gcdMs, recoveryMs, ms, amplitudeMs, powerType);
         }
 
         /** Spell.dbc EffectAmplitude (ms) for periodic auras. */
         public SpellInfo withAmplitude(int ms) {
             return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
-                    castTimeMs, gcdMs, recoveryMs, durationMs, ms);
+                    castTimeMs, gcdMs, recoveryMs, durationMs, ms, powerType);
+        }
+
+        /** Spell.dbc powerType (0 mana, 1 rage, 3 energy). */
+        public SpellInfo withPowerType(int pt) {
+            return new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, maxRange, misc, equippedItemClass,
+                    castTimeMs, gcdMs, recoveryMs, durationMs, amplitudeMs, pt);
         }
     }
 
@@ -462,7 +468,8 @@ public final class SpellEngine {
 
     public SpellEngine(DoubleSupplier missRoll) {
         this.missRoll = missRoll;
-        spells.put(HEROIC_STRIKE, new SpellInfo(HEROIC_STRIKE, EFFECT_WEAPON_DAMAGE, 0, 0, 150, 1, 3, 5f));
+        spells.put(HEROIC_STRIKE, new SpellInfo(HEROIC_STRIKE, EFFECT_WEAPON_DAMAGE, 0, 0, 150, 1, 3, 5f)
+                .withPowerType(Player.POWER_RAGE));
         // Spell.dbc StartRecoveryTime 1500 / StartRecoveryCategory 133; on-next-swing Heroic Strike has none.
         spells.put(FIREBALL, new SpellInfo(FIREBALL, EFFECT_SCHOOL_DAMAGE, 0, 4, 30, 8, 12, 30f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
@@ -526,7 +533,13 @@ public final class SpellEngine {
         spells.put(RAPID_FIRE, new SpellInfo(RAPID_FIRE, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_RANGED_HASTE, 0, 0, 40, 40, 0f));
         spells.put(BATTLE_SHOUT, new SpellInfo(BATTLE_SHOUT, EFFECT_APPLY_AURA,
-                AuraEngine.SPELL_AURA_MOD_ATTACK_POWER, 0, 0, 305, 305, 0f));
+                AuraEngine.SPELL_AURA_MOD_ATTACK_POWER, 0, 0, 305, 305, 0f)
+                .withPowerType(Player.POWER_RAGE));
+        // Rank 1 Battle Shout 6673 — ManaCost 10, powerType RAGE (trainer / classless).
+        spells.put(org.tbc.world.content.Content.SPELL_BATTLE_SHOUT, new SpellInfo(
+                org.tbc.world.content.Content.SPELL_BATTLE_SHOUT, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_ATTACK_POWER, 0, 10, 15, 15, 0f)
+                .withPowerType(Player.POWER_RAGE).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(ATTACK_POWER_RANGED_60, new SpellInfo(ATTACK_POWER_RANGED_60, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_RANGED_ATTACK_POWER, 0, 0, 60, 60, 0f));
         spells.put(SPELL_GHOST, new SpellInfo(SPELL_GHOST, EFFECT_APPLY_AURA,
@@ -669,7 +682,7 @@ public final class SpellEngine {
                             int effect3, int aura3, int min3, int max3,
                             int procFlag, int triggerSpell) {
         putTemplate(id, effect, aura, school, mana, minDmg, maxDmg, range, castMs, gcdMs, recoveryMs, durationMs,
-                effect2, aura2, min2, max2, effect3, aura3, min3, max3, procFlag, triggerSpell, 0, 0, 0, 0, 0, 0);
+                effect2, aura2, min2, max2, effect3, aura3, min3, max3, procFlag, triggerSpell, 0, 0, 0, 0, 0, 0, -1);
     }
 
     public void putTemplate(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float range,
@@ -679,7 +692,7 @@ public final class SpellEngine {
                             int procFlag, int triggerSpell, int misc1, int misc2, int misc3) {
         putTemplate(id, effect, aura, school, mana, minDmg, maxDmg, range, castMs, gcdMs, recoveryMs, durationMs,
                 effect2, aura2, min2, max2, effect3, aura3, min3, max3, procFlag, triggerSpell,
-                misc1, misc2, misc3, 0, 0, 0);
+                misc1, misc2, misc3, 0, 0, 0, -1);
     }
 
     public void putTemplate(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float range,
@@ -688,6 +701,17 @@ public final class SpellEngine {
                             int effect3, int aura3, int min3, int max3,
                             int procFlag, int triggerSpell, int misc1, int misc2, int misc3,
                             int amp1, int amp2, int amp3) {
+        putTemplate(id, effect, aura, school, mana, minDmg, maxDmg, range, castMs, gcdMs, recoveryMs, durationMs,
+                effect2, aura2, min2, max2, effect3, aura3, min3, max3, procFlag, triggerSpell,
+                misc1, misc2, misc3, amp1, amp2, amp3, -1);
+    }
+
+    public void putTemplate(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float range,
+                            int castMs, int gcdMs, int recoveryMs, int durationMs,
+                            int effect2, int aura2, int min2, int max2,
+                            int effect3, int aura3, int min3, int max3,
+                            int procFlag, int triggerSpell, int misc1, int misc2, int misc3,
+                            int amp1, int amp2, int amp3, int powerType) {
         int dur = durationMs;
         if (dur <= 0) {
             SpellInfo prev = spells.get(id);
@@ -734,7 +758,7 @@ public final class SpellEngine {
         }
         spells.put(id, new SpellInfo(id, effect, aura, school, mana, amountMin, amountMax, range, misc)
                 .withCastTime(castMs).withGcd(gcdMs).withRecovery(recoveryMs).withDuration(dur)
-                .withAmplitude(amp));
+                .withAmplitude(amp).withPowerType(powerTypeForTemplate(id, powerType)));
         List<SpellInfo> extra = new ArrayList<>();
         if (effect2 != 0) {
             extra.add(new SpellInfo(id, effect2, aura2, school, 0, min2, max2, range, misc2)
@@ -759,6 +783,15 @@ public final class SpellEngine {
         } else {
             triggerSpells.remove(id);
         }
+    }
+
+    /** Prefer SQL powerType when provided (≥0); else keep a prior seed's powerType. */
+    int powerTypeForTemplate(int spellId, int powerTypeFromSql) {
+        if (powerTypeFromSql >= 0) {
+            return powerTypeFromSql;
+        }
+        SpellInfo prev = spells.get(spellId);
+        return prev != null ? prev.powerType() : 0;
     }
 
     /** SPELL_AURA_* modifier catalog applied by EFFECT_APPLY_AURA. */
@@ -1033,7 +1066,7 @@ public final class SpellEngine {
             sendFail(send, spellId, SPELL_FAILED_OUT_OF_RANGE, castCount);
             return false;
         }
-        if (sp.mana > 0 && caster.power() < sp.mana) {
+        if (sp.mana > 0 && !hasPower(caster, sp)) {
             sendFail(send, spellId, SPELL_FAILED_NO_POWER, castCount);
             return false;
         }
@@ -1076,7 +1109,7 @@ public final class SpellEngine {
             }
         }
         for (PendingCast pc : due) {
-            if (pc.caster.power() < pc.sp.mana) {
+            if (!hasPower(pc.caster, pc.sp)) {
                 sendFail(pc.send, pc.sp.id, SPELL_FAILED_NO_POWER, pc.castCount);
                 continue;
             }
@@ -1146,13 +1179,7 @@ public final class SpellEngine {
                             long nowMs, BiConsumer<Integer, byte[]> send) {
         // Spell::cast → SendSpellCooldown → AddCooldown(RecoveryTime); nothing is sent (client uses Spell.dbc).
         caster.cooldowns.addSpell(sp.id, sp.recoveryMs, nowMs);
-        if (sp.mana > 0) {
-            caster.setPower(caster.power() - sp.mana);
-            caster.noteManaUse();
-            var pwr = UpdateBuilder.maybeCompress(
-                    UpdateBuilder.values(caster, UpdateFields.UNIT_FIELD_POWER1 + caster.powerType));
-            send.accept(pwr.opcode(), pwr.payload());
-        }
+        takePower(caster, sp, send);
         int hpBefore = target.health();
         int dmg = 0;
         BiConsumer<Integer, byte[]> prevSend = effectSend;
@@ -3590,15 +3617,7 @@ public final class SpellEngine {
             return;
         }
         caster.cooldowns.addSpell(sp.id, sp.recoveryMs, nowMs);
-        if (sp.mana > 0) {
-            caster.setPower(caster.power() - sp.mana);
-            if (caster.powerType == 0) {
-                caster.noteManaUse();
-            }
-            var pwr = UpdateBuilder.maybeCompress(
-                    UpdateBuilder.values(caster, UpdateFields.UNIT_FIELD_POWER1 + caster.powerType));
-            send.accept(pwr.opcode(), pwr.payload());
-        }
+        takePower(caster, sp, send);
         SpellCastTargets targets = new SpellCastTargets();
         targets.mask = SpellCastTargets.UNIT;
         targets.unitGuid = target.guid;
@@ -3609,6 +3628,54 @@ public final class SpellEngine {
             var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
             send.accept(hp.opcode(), hp.payload());
         }
+    }
+
+    /** CMaNGOS Spell::CheckPower — compare cost to GetPower(spell.powerType). */
+    static boolean hasPower(Player caster, SpellInfo sp) {
+        if (caster == null || sp == null || sp.mana() <= 0) {
+            return true;
+        }
+        return currentPower(caster, sp.powerType()) >= sp.mana();
+    }
+
+    /** CMaNGOS Spell::TakePower — ModifyPower(spell.powerType, −cost). */
+    static void takePower(Player caster, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
+        if (caster == null || sp == null || sp.mana() <= 0) {
+            return;
+        }
+        int pt = sp.powerType();
+        int field = UpdateFields.UNIT_FIELD_POWER1 + pt;
+        if (pt == Player.POWER_RAGE) {
+            caster.setRage(caster.rage() - sp.mana());
+            field = UpdateFields.UNIT_FIELD_POWER2;
+        } else if (pt == Player.POWER_ENERGY) {
+            int cur = caster.getInt(UpdateFields.UNIT_FIELD_POWER4);
+            caster.setInt(UpdateFields.UNIT_FIELD_POWER4, Math.max(0, cur - sp.mana()));
+            field = UpdateFields.UNIT_FIELD_POWER4;
+        } else {
+            // POWER_MANA (0) — debit mana pool (POWER1), not primary-power alias.
+            int cur = caster.getInt(UpdateFields.UNIT_FIELD_POWER1);
+            caster.setInt(UpdateFields.UNIT_FIELD_POWER1, Math.max(0, cur - sp.mana()));
+            caster.noteManaUse();
+            field = UpdateFields.UNIT_FIELD_POWER1;
+        }
+        if (send != null) {
+            var pwr = UpdateBuilder.maybeCompress(UpdateBuilder.values(caster, field));
+            send.accept(pwr.opcode(), pwr.payload());
+            if (org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(caster) && caster.session != null) {
+                org.tbc.world.classless.ClasslessPowerAddon.pushIfPowerFields(caster.session, new int[]{field});
+            }
+        }
+    }
+
+    static int currentPower(Player caster, int powerType) {
+        if (powerType == Player.POWER_RAGE) {
+            return caster.rage();
+        }
+        if (powerType == Player.POWER_ENERGY) {
+            return caster.getInt(UpdateFields.UNIT_FIELD_POWER4);
+        }
+        return caster.getInt(UpdateFields.UNIT_FIELD_POWER1);
     }
 
     private void landProcDamage(Player attacker, Unit victim, int spellId, int school, int dmg,

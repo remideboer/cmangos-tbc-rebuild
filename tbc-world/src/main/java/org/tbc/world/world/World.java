@@ -600,6 +600,8 @@ public final class World implements Runnable {
                     var pwr = UpdateBuilder.maybeCompress(
                             UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_POWER2));
                     p.session.send(pwr.opcode(), pwr.payload());
+                    org.tbc.world.classless.ClasslessPowerAddon.pushIfPowerFields(
+                            p.session, new int[]{UpdateFields.UNIT_FIELD_POWER2});
                 } else {
                     var pwr = UpdateBuilder.maybeCompress(
                             UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_POWER1 + p.powerType));

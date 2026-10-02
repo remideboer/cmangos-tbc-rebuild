@@ -29,7 +29,8 @@ public class SpellSteps {
         world = World.inMemory();
         client = new WowClientDouble();
         client.connect(ACCOUNT);
-        Player created = world.characters.create(ACCOUNT.id(), "Mage", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player created = world.characters.create(ACCOUNT.id(), "Mage", 1, Player.CLASS_MAGE,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         kobold = find(entry);
         Player p = client.session().player();
