@@ -467,6 +467,8 @@ public final class SpellEngine {
     public Consumer<Unit> visibilityUpdater = u -> { };
     /** SkillLineAbility bands for UpdateCraftSkill after CREATE_ITEM. */
     public SkillLineAbility skillLineAbilities = SkillLineAbility.seeded();
+    /** Item templates for Hero caster-armor scaling (World wires objectMgr). */
+    public org.tbc.world.content.ObjectMgr objectMgr;
     /** irand(1,1000) for UpdateSkillPro; in-memory World forces success. */
     public IntSupplier craftSkillRoll = () -> ThreadLocalRandom.current().nextInt(1, 1001);
     /** Same roll for UpdateGatherSkill after skinning / open-lock gather. */
@@ -519,6 +521,16 @@ public final class SpellEngine {
         spells.put(SPELL_STEALTH, new SpellInfo(SPELL_STEALTH, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_STEALTH, 0, 0, 0, 0, 0f, 30));
         auraInterruptFlags.put(SPELL_STEALTH, STEALTH_AURA_INTERRUPT_FLAGS);
+        // Hero Battlecaster passives — learn-only (no combat effect).
+        spells.put(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER,
+                new SpellInfo(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER,
+                        EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
+        spells.put(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                new SpellInfo(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                        EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
+        spells.put(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                new SpellInfo(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                        EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
         spells.put(SPELL_INVISIBILITY, new SpellInfo(SPELL_INVISIBILITY, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_INVISIBILITY, 0, 0, 199, 199, 0f));
         spells.put(SPIRIT_OF_RUNN_TUM, new SpellInfo(SPIRIT_OF_RUNN_TUM, EFFECT_APPLY_AURA,
@@ -1879,6 +1891,9 @@ public final class SpellEngine {
         if (sp.effect == EFFECT_SCHOOL_DAMAGE || sp.effect == EFFECT_WEAPON_DAMAGE
                 || sp.effect == EFFECT_WEAPON_DAMAGE_NOSCHOOL) {
             int dmg = Math.max(1, (sp.minDmg + sp.maxDmg) / 2);
+            if (sp.effect == EFFECT_SCHOOL_DAMAGE && caster instanceof Player cp) {
+                dmg = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, dmg, sp, objectMgr);
+            }
             target.setHealth(target.health() - dmg);
             return dmg;
         }
@@ -1887,6 +1902,9 @@ public final class SpellEngine {
             if (caster instanceof Player player
                     && missRoll.getAsDouble() < player.getFloat(UpdateFields.PLAYER_SPELL_CRIT_PERCENTAGE1) / 100.0) {
                 heal += heal / 2;
+            }
+            if (caster instanceof Player cp) {
+                heal = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, heal, sp, objectMgr);
             }
             target.setHealth(target.health() + heal);
             return 0;
@@ -3449,6 +3467,9 @@ public final class SpellEngine {
         }
         if (sp.aura == SPELL_AURA_PERIODIC_DAMAGE) {
             int dmg = (sp.minDmg + sp.maxDmg) / 2;
+            if (caster instanceof Player cp) {
+                dmg = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, dmg, sp, objectMgr);
+            }
             int before = target.health();
             target.setHealth(before - dmg);
             int dealt = before - target.health();

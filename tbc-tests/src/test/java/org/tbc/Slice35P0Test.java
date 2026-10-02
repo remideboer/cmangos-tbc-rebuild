@@ -82,15 +82,46 @@ class Slice35P0Test {
         assertEquals(ClasslessConfig.ITEM_RECRUIT_PANTS, created.itemAt(0, 6).entry);
         assertEquals(ClasslessConfig.ITEM_RECRUIT_BOOTS, created.itemAt(0, 7).entry);
         assertEquals(ClasslessConfig.STARTER_WEAPON, created.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND).entry);
+        assertTrue(created.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_HEARTHSTONE),
+                "Hero create must include Hearthstone 6948");
+        assertEquals(created.mapId, created.bindMap);
+        assertEquals(created.zoneId, created.bindZone);
         client.login(world, created.guid);
         Player p = client.session().player();
         assertTrue(p.spells.contains(ClasslessConfig.AUTO_ATTACK));
         assertEquals(ClasslessConfig.STARTING_MONEY_COPPER, p.money);
         assertEquals(ClasslessConfig.ITEM_RECRUIT_SHIRT, p.itemAt(0, 3).entry);
         assertEquals(ClasslessConfig.STARTER_WEAPON, p.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND).entry);
+        assertTrue(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_HEARTHSTONE));
+        assertEquals(p.mapId, p.bindMap);
+        assertEquals(p.zoneId, p.bindZone);
         byte[] bar = client.payload(Opcodes.SMSG_ACTION_BUTTONS);
         assertEquals(ClasslessConfig.AUTO_ATTACK, WowClientDouble.u32le(bar, 0));
         assertEquals(0, WowClientDouble.u32le(bar, 73 * 4), "no HS on stance bar");
+    }
+
+    /**
+     * TP-SL35-019 — Hero create: Hearthstone 6948 in bag; homebind = race starter (Northshire).
+     */
+    @Test
+    void tpSl35CreateShouldGrantHearthstoneBoundToStarterZone() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Hearthero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        assertNotNull(created);
+        assertTrue(created.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_HEARTHSTONE));
+        assertEquals(0, created.bindMap);
+        assertEquals(12, created.bindZone);
+        assertEquals(created.x, created.bindX, 0.01f);
+        assertEquals(created.y, created.bindY, 0.01f);
+        assertEquals(created.z, created.bindZ, 0.01f);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        assertTrue(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_HEARTHSTONE));
+        assertEquals(p.mapId, p.bindMap);
+        assertEquals(p.zoneId, p.bindZone);
     }
 
     /**
@@ -648,6 +679,79 @@ class Slice35P0Test {
         assertFalse(client.saw(Opcodes.SMSG_SPELL_GO));
         assertEquals(5, p.rage());
         assertEquals(manaBefore, p.power());
+    }
+
+    /**
+     * TP-SL35-020 — Hero fireball in plate: school damage 1/8; Llane lists Battlecaster ranks.
+     */
+    @Test
+    void tpSl35PlateShouldHalveCasterDamageEightfold() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Casterarm", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.spells.add(Content.SPELL_FIREBALL);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER1, 500);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 500);
+        equipChest(world, p, client, Content.ITEM_LIGHTFORGE_BREASTPLATE);
+        assertEquals(3, org.tbc.world.classless.CasterArmorPolicy.heaviestArmorStep(p, world.objectMgr));
+
+        Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        client.clear();
+        WowBuffer list = new WowBuffer(8);
+        list.putU64(trainer.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, list.array());
+        WowBuffer llaneList = new WowBuffer(client.payload(Opcodes.SMSG_TRAINER_LIST));
+        llaneList.getU64();
+        llaneList.getU32();
+        int count = llaneList.getU32();
+        boolean sawLeather = false;
+        boolean sawMail = false;
+        boolean sawPlate = false;
+        for (int i = 0; i < count; i++) {
+            int spell = llaneList.getU32();
+            llaneList.getU8();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU8();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU32();
+            if (spell == org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER) {
+                sawLeather = true;
+            }
+            if (spell == org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL) {
+                sawMail = true;
+            }
+            if (spell == org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE) {
+                sawPlate = true;
+            }
+        }
+        assertTrue(sawLeather && sawMail && sawPlate, "Llane must list Battlecaster ranks");
+
+        Creature kobold = null;
+        for (Creature c : world.map(0, 0).creatures.values()) {
+            if (c.entry == 6) {
+                kobold = c;
+                break;
+            }
+        }
+        assertNotNull(kobold);
+        p.relocate(kobold.x, kobold.y, kobold.z, kobold.o);
+        int hpBefore = kobold.health();
+        client.clear();
+        client.castSpell(world, Content.SPELL_FIREBALL, 1, kobold.guid);
+        world.tick(1_500);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(hpBefore - 1, kobold.health(), "plate → 10×1/8 → 1 damage");
     }
 
     private static void sendHeroPowerEnable(WowClientDouble client, World world) {

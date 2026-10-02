@@ -142,6 +142,27 @@ class ClasslessPolicyTest {
         assertEquals(12, p.zoneId);
     }
 
+    /** TP-SL35-019 — Hero create grants Hearthstone 6948 bound to the race starter zone. */
+    @Test
+    void startingLoadoutWhenClasslessShouldGrantHearthstoneBoundToStarter() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = new Player();
+        p.guid = 4L;
+        p.race = 1;
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        long[] next = {400L};
+        ClasslessStartingLoadout.apply(p, mgr, () -> next[0]++);
+        assertTrue(p.items.values().stream().anyMatch(it -> it.entry == Content.ITEM_HEARTHSTONE));
+        assertEquals(p.mapId, p.bindMap);
+        assertEquals(p.zoneId, p.bindZone);
+        assertEquals(p.x, p.bindX, 0.01f);
+        assertEquals(p.y, p.bindY, 0.01f);
+        assertEquals(p.z, p.bindZ, 0.01f);
+        assertEquals(0, p.bindMap);
+        assertEquals(12, p.bindZone);
+    }
+
     /** TP-SL35-011 — Hero L1 STAT0..4 = rounded mean of that race's class rows (flat, racial lean kept). */
     @Test
     void startingStatsWhenHumanClasslessShouldUseRaceClassAverage() {

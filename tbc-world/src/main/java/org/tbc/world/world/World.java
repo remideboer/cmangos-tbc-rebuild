@@ -146,6 +146,7 @@ public final class World implements Runnable {
         this.graveyards = GraveyardManager.seeded();
         this.objectMgr.load(worldDb, scripts, dataDir);
         this.spells.skillLineAbilities = this.objectMgr.skillLineAbilities;
+        this.spells.objectMgr = this.objectMgr;
         SpellTemplateLoader.load(worldDb, dataDir, spells);
         this.factions = Factions.seeded();
         this.factions.loadFromDataDir(dataDir);
@@ -1260,7 +1261,7 @@ public final class World implements Runnable {
             if (pl.session == null) {
                 continue;
             }
-            boolean visible = u.isVisibleTo(pl);
+            boolean visible = org.tbc.world.classless.CasterArmorPolicy.visibleTo(u, pl, objectMgr);
             if (!visible && pl.session.hasSeen(u.guid)) {
                 WowBuffer d = new WowBuffer(8);
                 d.putU64(u.guid);

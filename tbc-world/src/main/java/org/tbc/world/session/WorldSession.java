@@ -990,12 +990,12 @@ public final class WorldSession {
         seen.clear();
         seen.add(p.guid);
         for (Player o : world.map(p.mapId, p.instanceId).nearbyPlayers(p, GameMap.VISIBILITY)) {
-            if (p.isVisibleTo(o) && o.session != null) {
+            if (org.tbc.world.classless.CasterArmorPolicy.visibleTo(p, o, world.objectMgr) && o.session != null) {
                 var self = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, false, (int) world.nowMs()));
                 o.session.send(self.opcode(), self.payload());
                 o.session.markSeen(p.guid);
             }
-            if (!o.isVisibleTo(p)) {
+            if (!org.tbc.world.classless.CasterArmorPolicy.visibleTo(o, p, world.objectMgr)) {
                 continue;
             }
             var other = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(o, false, (int) world.nowMs()));
@@ -1161,7 +1161,7 @@ public final class WorldSession {
             }
         }
         for (Player o : map.nearbyPlayers(player, GameMap.VISIBILITY)) {
-            if (!o.isVisibleTo(player)) {
+            if (!org.tbc.world.classless.CasterArmorPolicy.visibleTo(o, player, world.objectMgr)) {
                 continue;
             }
             if (!seen.add(o.guid)) {

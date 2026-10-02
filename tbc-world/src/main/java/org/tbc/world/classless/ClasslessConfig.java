@@ -1,5 +1,6 @@
 package org.tbc.world.classless;
 
+import org.tbc.world.content.Content;
 import org.tbc.world.content.WeaponSkills;
 
 /**
@@ -21,9 +22,10 @@ public final class ClasslessConfig {
     public static final int ITEM_RECRUIT_BOOTS = 40;
     /** 3 silver in copper. */
     public static final int STARTING_MONEY_COPPER = 300;
-    /** Classless create kit: cloth recruit pieces + Worn Shortsword. */
+    /** Classless create kit: cloth recruit pieces + Worn Shortsword + Hearthstone 6948. */
     public static final int[] STARTING_ITEMS = {
-            ITEM_RECRUIT_SHIRT, ITEM_RECRUIT_PANTS, ITEM_RECRUIT_BOOTS, STARTER_WEAPON
+            ITEM_RECRUIT_SHIRT, ITEM_RECRUIT_PANTS, ITEM_RECRUIT_BOOTS, STARTER_WEAPON,
+            Content.ITEM_HEARTHSTONE
     };
     /** Cloth armor proficiency mask (1 &lt;&lt; ITEM_SUBCLASS_ARMOR_CLOTH). */
     public static final int ARMOR_CLOTH_MASK = 1 << 1;

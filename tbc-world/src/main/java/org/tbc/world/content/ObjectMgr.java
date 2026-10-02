@@ -3114,6 +3114,26 @@ public final class ObjectMgr {
         }
     }
 
+    /** Append Hero Battlecaster ranks when SQL loaded the trainer without them. */
+    private void ensureBattlecasterOnTrainer(int entry) {
+        List<TrainerSpell> list = trainerSpells.computeIfAbsent(entry, e -> new ArrayList<>());
+        appendBattlecasterIfMissing(list, org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER,
+                org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_LEATHER);
+        appendBattlecasterIfMissing(list, org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_MAIL);
+        appendBattlecasterIfMissing(list, org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_PLATE);
+    }
+
+    private static void appendBattlecasterIfMissing(List<TrainerSpell> list, int spell, int reqLevel) {
+        for (TrainerSpell t : list) {
+            if (t.spell() == spell) {
+                return;
+            }
+        }
+        list.add(new TrainerSpell(spell, org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER, reqLevel));
+    }
+
     private void seedDefaults() {
         levelStats.seedDefaults();
         seedCreateActions();
@@ -3142,10 +3162,27 @@ public final class ObjectMgr {
         trainerSpells.put(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT_RANK2, 500, 12, 0, 0,
-                        Content.SPELL_BATTLE_SHOUT, 0, 0, false))));
+                        Content.SPELL_BATTLE_SHOUT, 0, 0, false),
+                new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER,
+                        org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_LEATHER),
+                new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                        org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_MAIL),
+                new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                        org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_PLATE))));
         spellChain.putIfAbsent(Content.SPELL_BATTLE_SHOUT_RANK2,
                 new SpellChainNode(Content.SPELL_BATTLE_SHOUT_RANK2, Content.SPELL_BATTLE_SHOUT,
                         Content.SPELL_BATTLE_SHOUT, 2, 0));
+        spellChain.putIfAbsent(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                new SpellChainNode(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                        org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER,
+                        org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER, 2, 0));
+        spellChain.putIfAbsent(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                new SpellChainNode(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                        org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                        org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL, 3, 0));
         creatures.put(Content.NPC_KHELDEN_BREMEN, new CreatureTemplate(Content.NPC_KHELDEN_BREMEN, "Khelden Bremen", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         trainerTypeByEntry.put(Content.NPC_KHELDEN_BREMEN, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
@@ -3327,10 +3364,28 @@ public final class ObjectMgr {
         trainerSpells.putIfAbsent(Content.NPC_LLANE_BESHERE, new ArrayList<>(List.of(
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT_RANK2, 500, 12, 0, 0,
-                        Content.SPELL_BATTLE_SHOUT, 0, 0, false))));
+                        Content.SPELL_BATTLE_SHOUT, 0, 0, false),
+                new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER,
+                        org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_LEATHER),
+                new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                        org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_MAIL),
+                new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                        org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_PLATE))));
+        ensureBattlecasterOnTrainer(Content.NPC_LLANE_BESHERE);
         spellChain.putIfAbsent(Content.SPELL_BATTLE_SHOUT_RANK2,
                 new SpellChainNode(Content.SPELL_BATTLE_SHOUT_RANK2, Content.SPELL_BATTLE_SHOUT,
                         Content.SPELL_BATTLE_SHOUT, 2, 0));
+        spellChain.putIfAbsent(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                new SpellChainNode(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                        org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER,
+                        org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER, 2, 0));
+        spellChain.putIfAbsent(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                new SpellChainNode(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                        org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                        org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL, 3, 0));
         creatures.putIfAbsent(Content.NPC_KHELDEN_BREMEN, new CreatureTemplate(Content.NPC_KHELDEN_BREMEN, "Khelden Bremen", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         trainerTypeByEntry.putIfAbsent(Content.NPC_KHELDEN_BREMEN, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
