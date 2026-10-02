@@ -205,6 +205,63 @@ class Slice08P0Test {
     }
 
     /**
+     * TP-SL08-033 — Kill objectives met → yellow ? (DIALOG_STATUS_REWARD 8) on involved NPC
+     * + CMSG_QUESTGIVER_COMPLETE_QUEST offer + CHOOSE_REWARD turn-in (CMaNGOS getDialogStatus).
+     */
+    @Test
+    void tpSl08KillCompleteShouldShowRewardStatusAndTurnIn() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "YellowMark", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature mcbride = world.objectMgr.spawnCreature(Content.NPC_MARSHAL_MCBRIDE, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(mcbride);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(mcbride.guid);
+        accept.putU32(Content.QUEST_KOBOLD_CAMP_CLEANUP);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+
+        for (int i = 0; i < 10; i++) {
+            Creature k = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+            world.map(p.mapId, p.instanceId).add(k);
+            client.clear();
+            world.onCreatureKilled(p, k);
+        }
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        assertTrue(client.saw(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        WowBuffer multi = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        int n = multi.getU32();
+        boolean sawReward = false;
+        for (int i = 0; i < n; i++) {
+            long guid = multi.getU64();
+            int status = multi.getU8() & 0xFF;
+            if (guid == mcbride.guid) {
+                assertEquals(Content.DIALOG_STATUS_REWARD, status);
+                sawReward = true;
+            }
+        }
+        assertTrue(sawReward);
+
+        client.clear();
+        WowBuffer complete = new WowBuffer(12);
+        complete.putU64(mcbride.guid);
+        complete.putU32(Content.QUEST_KOBOLD_CAMP_CLEANUP);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST, complete.array());
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(mcbride.guid);
+        choose.putU32(Content.QUEST_KOBOLD_CAMP_CLEANUP);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE));
+        assertEquals(0, p.questLogId[0]);
+    }
+
+    /**
      * TP-SL08-022 — Player::ItemAddedQuestCheck / SendQuestUpdateAddItem:
      * Brotherhood of Thieves 18 ReqItemId1 752 × 12. C++ packet is item u32 + add-count u32
      * (not quest id). Looting 12 completes the objective.
