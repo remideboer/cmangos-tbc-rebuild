@@ -607,9 +607,11 @@ public final class SpellEngine {
         // Food 433: EffectBasePoints 16 → +17 HP each 5 s for 30 s (HandleModRegen PeriodicTick).
         spells.put(SPELL_FOOD, new SpellInfo(SPELL_FOOD, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_REGEN,
                 0, 0, 17, 17, 0f).withDuration(FOOD_DURATION_MS).withAmplitude(FOOD_AMPLITUDE_MS));
+        auraInterruptFlags.put(SPELL_FOOD, AURA_INTERRUPT_FLAG_STANDING_CANCELS);
         // Drink 430: effect1 PERIODIC_DUMMY BasePoints 41 → +42 mana / tick (Drink script → MOD_POWER_REGEN).
         spells.put(SPELL_DRINK, new SpellInfo(SPELL_DRINK, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_POWER_REGEN,
                 0, 0, 42, 42, 0f).withDuration(FOOD_DURATION_MS).withAmplitude(DRINK_AMPLITUDE_MS));
+        auraInterruptFlags.put(SPELL_DRINK, AURA_INTERRUPT_FLAG_STANDING_CANCELS);
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
         spells.put(LOGINEFFECT, new SpellInfo(LOGINEFFECT, EFFECT_DUMMY, 0, 0, 0, 0, 0, 0f));
         // Beg — Spell.dbc 7267; DuelHandler forfeit CastSpell TRIGGERED.
@@ -1299,11 +1301,26 @@ public final class SpellEngine {
                 target.auras.set(i, new Unit.Aura(sp.id, duration, a.stacks(), a.mechanic(),
                         expireAt, amp > 0 ? amp : a.amplitudeMs(), nextTick, casterGuid));
             }
+            maybeSitForStandingCancel(target, sp.id);
             return;
         }
         target.auras.add(new Unit.Aura(sp.id, duration, 1, 0, expireAt, amp, nextTick, casterGuid));
         int level = caster == null ? target.level : caster.level;
         AuraSlots.applyVisible(target, sp.id, level, 1);
+        maybeSitForStandingCancel(target, sp.id);
+    }
+
+    /**
+     * CMaNGOS SpellAuraHolder apply: STANDING_CANCELS (food/drink) → SetStandState(SIT)
+     * when the target is not already sitting.
+     */
+    private void maybeSitForStandingCancel(Unit target, int spellId) {
+        if ((auraInterruptFlags.getOrDefault(spellId, 0) & AURA_INTERRUPT_FLAG_STANDING_CANCELS) == 0) {
+            return;
+        }
+        if (!target.isSitState()) {
+            target.sit();
+        }
     }
 
     /** DurationIndex −1 area auras (Devotion Aura 465): permanent until cancel. */

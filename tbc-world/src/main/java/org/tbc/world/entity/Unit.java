@@ -800,6 +800,12 @@ public class Unit extends Entity {
         return health() > 0;
     }
 
+    /**
+     * CMaNGOS Unit::SetStandState → RemoveAurasWithInterruptFlags(STANDING_CANCELS) when leaving
+     * a seated state. Wired by WorldSession to SpellEngine.
+     */
+    public java.util.function.Consumer<Unit> leaveSeatedAuras;
+
     public void sit() {
         setStandState(UNIT_STAND_STATE_SIT);
     }
@@ -812,6 +818,17 @@ public class Unit extends Entity {
         return standState() == UNIT_STAND_STATE_STAND;
     }
 
+    /** CMaNGOS Unit::IsSitState — sit / chair (v1: UNIT_STAND_STATE_SIT). */
+    public boolean isSitState() {
+        return standState() == UNIT_STAND_STATE_SIT;
+    }
+
+    /** CMaNGOS Unit::IsSeatedState — anything but stand or sleep. */
+    public boolean isSeatedState() {
+        int s = standState();
+        return s != UNIT_STAND_STATE_SLEEP && s != UNIT_STAND_STATE_STAND;
+    }
+
     public int standState() {
         return getInt(UpdateFields.UNIT_FIELD_BYTES_1) & 0xFF;
     }
@@ -822,8 +839,15 @@ public class Unit extends Entity {
     }
 
     private void setStandState(int state) {
+        int next = state & 0xFF;
+        if (standState() == next) {
+            return;
+        }
         int bytes = getInt(UpdateFields.UNIT_FIELD_BYTES_1);
-        setInt(UpdateFields.UNIT_FIELD_BYTES_1, (bytes & ~0xFF) | (state & 0xFF));
+        setInt(UpdateFields.UNIT_FIELD_BYTES_1, (bytes & ~0xFF) | next);
+        if (!isSeatedState() && leaveSeatedAuras != null) {
+            leaveSeatedAuras.accept(this);
+        }
     }
 
     /** UNIT_FIELD_BYTES_1 byte 3 (UNIT_BYTES_1_OFFSET_MISC_FLAGS). */

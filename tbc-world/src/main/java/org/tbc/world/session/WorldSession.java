@@ -967,6 +967,9 @@ public final class WorldSession {
         }
         this.player = p;
         p.session = this;
+        // CMaNGOS Unit::SetStandState — leave seated drops food/drink (STANDING_CANCELS).
+        p.leaveSeatedAuras = u -> world.spells.removeAurasWithInterruptFlags(
+                u, org.tbc.world.spell.SpellEngine.AURA_INTERRUPT_FLAG_STANDING_CANCELS, this::send);
         p.gmLevel = account.gmlevel();
         lastCharGuidLow = Guid.low(p.guid);
         loadGlobalAccountData(world);
@@ -1014,6 +1017,11 @@ public final class WorldSession {
             in.getU32();
         }
         MovementInfo m = MovementInfo.readC2s(in);
+        // CMaNGOS MovementHandler: MOVEFLAG_MASK_MOVING_OR_TURN while sitting → SetStandState(STAND)
+        // (removes STANDING_CANCELS food/drink via leaveSeatedAuras).
+        if ((m.moveFlags & MovementInfo.MOVEFLAG_MASK_MOVING_OR_TURN) != 0 && player.isSitState()) {
+            player.stand();
+        }
         float ox = player.x;
         float oy = player.y;
         player.relocate(m.x, m.y, m.z, m.o);

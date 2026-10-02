@@ -7,6 +7,7 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.net.wow8606.MovementInfo;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -311,6 +312,88 @@ class Slice07P0Test {
         world.advanceMs(SpellEngine.FOOD_AMPLITUDE_MS);
         world.tick(SpellEngine.FOOD_AMPLITUDE_MS);
         assertEquals(57, p.health());
+    }
+
+    /**
+     * TP-SL07-022 — Food 433 AuraInterruptFlags STANDING_CANCELS: use sits; stand cancels aura
+     * (CMaNGOS SetStandState → RemoveAurasWithInterruptFlags); ticks stop.
+     */
+    @Test
+    void tpSl07FoodSitAndStandShouldCancelAura() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        p.setHealth(40);
+        int slot = p.firstFreeBagSlot();
+        Item jerky = new Item(world.nextItemGuid(), Content.ITEM_TOUGH_JERKY);
+        jerky.slot = slot;
+        jerky.count = 1;
+        p.items.put((int) jerky.guid, jerky);
+
+        client.clear();
+        WowBuffer use = new WowBuffer(20);
+        use.putU8(INVENTORY_SLOT_BAG_0);
+        use.putU8(slot);
+        use.putU8(0);
+        use.putU8(1);
+        use.putU64(UpdateBuilder.itemGuid(jerky));
+        use.putU32(0);
+        client.handle(world, Opcodes.CMSG_USE_ITEM, use.array());
+
+        assertEquals(Unit.UNIT_STAND_STATE_SIT, p.standState());
+        assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == SpellEngine.SPELL_FOOD));
+
+        WowBuffer stand = new WowBuffer(4);
+        stand.putU32(Unit.UNIT_STAND_STATE_STAND);
+        client.handle(world, Opcodes.CMSG_STANDSTATECHANGE, stand.array());
+
+        assertTrue(p.isStanding());
+        assertFalse(p.auras.stream().anyMatch(a -> a.spellId() == SpellEngine.SPELL_FOOD));
+        int hpAfterStand = p.health();
+        world.advanceMs(SpellEngine.FOOD_AMPLITUDE_MS);
+        world.tick(SpellEngine.FOOD_AMPLITUDE_MS);
+        assertEquals(hpAfterStand, p.health());
+    }
+
+    /**
+     * TP-SL07-022 — Sitting while eating; MOVEFLAG_FORWARD stands and cancels food
+     * (CMaNGOS MovementHandler SetStandState STAND).
+     */
+    @Test
+    void tpSl07FoodMoveShouldStandAndCancelAura() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        Player p = mageWithFireball(world, client);
+        int slot = p.firstFreeBagSlot();
+        Item jerky = new Item(world.nextItemGuid(), Content.ITEM_TOUGH_JERKY);
+        jerky.slot = slot;
+        jerky.count = 1;
+        p.items.put((int) jerky.guid, jerky);
+
+        WowBuffer use = new WowBuffer(20);
+        use.putU8(INVENTORY_SLOT_BAG_0);
+        use.putU8(slot);
+        use.putU8(0);
+        use.putU8(1);
+        use.putU64(UpdateBuilder.itemGuid(jerky));
+        use.putU32(0);
+        client.handle(world, Opcodes.CMSG_USE_ITEM, use.array());
+        assertEquals(Unit.UNIT_STAND_STATE_SIT, p.standState());
+
+        WowBuffer hb = new WowBuffer(64);
+        hb.putU32(MovementInfo.MOVEFLAG_FORWARD);
+        hb.putU8(0);
+        hb.putU32(1);
+        hb.putFloat(p.x + 1f);
+        hb.putFloat(p.y);
+        hb.putFloat(p.z);
+        hb.putFloat(p.o);
+        hb.putU32(0);
+        client.handle(world, Opcodes.MSG_MOVE_HEARTBEAT, hb.array());
+
+        assertTrue(p.isStanding());
+        assertFalse(p.auras.stream().anyMatch(a -> a.spellId() == SpellEngine.SPELL_FOOD));
     }
 
     /**

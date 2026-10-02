@@ -8,13 +8,23 @@ public final class MovementInfo {
     public static final int MOVEFLAG_BACKWARD = 0x00000002;
     public static final int MOVEFLAG_STRAFE_LEFT = 0x00000004;
     public static final int MOVEFLAG_STRAFE_RIGHT = 0x00000008;
+    public static final int MOVEFLAG_TURN_LEFT = 0x00000010;
+    public static final int MOVEFLAG_TURN_RIGHT = 0x00000020;
+    public static final int MOVEFLAG_PITCH_UP = 0x00000040;
+    public static final int MOVEFLAG_PITCH_DOWN = 0x00000080;
     public static final int MOVEFLAG_WALK_MODE = 0x00000100;
     public static final int MOVEFLAG_ONTRANSPORT = 0x00000200;
     public static final int MOVEFLAG_FALLING = 0x00001000;
+    public static final int MOVEFLAG_JUMPING = 0x00002000;
     public static final int MOVEFLAG_FALLINGFAR = 0x00004000;
     public static final int MOVEFLAG_SWIMMING = 0x00200000;
     public static final int MOVEFLAG_FLYING2 = 0x02000000;
     public static final int MOVEFLAG_SPLINE_ELEVATION = 0x04000000;
+    /** Object.h — stand from sit when moving/turning (food/drink cancel). */
+    public static final int MOVEFLAG_MASK_MOVING_OR_TURN =
+            MOVEFLAG_FORWARD | MOVEFLAG_BACKWARD | MOVEFLAG_STRAFE_LEFT | MOVEFLAG_STRAFE_RIGHT
+                    | MOVEFLAG_PITCH_UP | MOVEFLAG_PITCH_DOWN | MOVEFLAG_JUMPING | MOVEFLAG_FALLINGFAR
+                    | MOVEFLAG_SPLINE_ELEVATION | MOVEFLAG_TURN_LEFT | MOVEFLAG_TURN_RIGHT;
 
     public int moveFlags;
     public int moveFlags2;
