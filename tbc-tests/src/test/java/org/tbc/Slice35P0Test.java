@@ -17,6 +17,9 @@ import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -350,7 +353,7 @@ class Slice35P0Test {
 
     /**
      * TP-SL35-010 — classless create sets spirit regen rates (mage GT proxy); OOC HP+mana rise;
-     * in combat mana still rises, HP does not.
+     * in combat neither spirit HP nor spirit mana (INTERRUPT rate 0 without Meditation).
      */
     @Test
     void tpSl35ClasslessOocRegenShouldRaiseHealthAndMana() {
@@ -370,6 +373,7 @@ class Slice35P0Test {
         // spi 20 * mage gtOCTRegenHP L1 0.079365 * 2s → +3; sqrt(20)*20*0.034965*2s → +6
         assertEquals(13, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
         assertEquals(56, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER1));
+        assertEquals(0f, p.getFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN_INTERRUPT), 0.001f);
 
         p.setHealth(10);
         p.setPower(50);
@@ -377,7 +381,71 @@ class Slice35P0Test {
         client.clear();
         world.tick(2000);
         assertEquals(10, p.health(), "no spirit HP in combat");
-        assertEquals(56, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER1), "mana still regenerates");
+        assertEquals(50, p.power(), "combat mana uses interrupt rate (0 without Meditation)");
+    }
+
+    /**
+     * TP-SL35-013 — HeroPowerBars enable via LANG_ADDON → AddonEnabled + PowerUpdate for mana/rage/energy.
+     */
+    @Test
+    void tpSl35HeroPowerAddonEnableShouldPushAddonEnabledAndPowerUpdates() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Addonhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+
+        sendHeroPowerEnable(client, world);
+        List<String> chats = messageChatBodies(client);
+        assertTrue(chats.stream().anyMatch(m -> m.equals("HeroPowerBars\tAddonEnabled")),
+                "AddonEnabled: " + chats);
+        assertTrue(chats.stream().anyMatch(m -> m.startsWith("HeroPowerBars\tPowerUpdate#0;")), "mana update");
+        assertTrue(chats.stream().anyMatch(m -> m.matches("HeroPowerBars\\tPowerUpdate#1;\\d+;100")),
+                "rage display max 100: " + chats);
+        assertTrue(chats.stream().anyMatch(m -> m.matches("HeroPowerBars\\tPowerUpdate#3;\\d+;100")),
+                "energy max 100: " + chats);
+    }
+
+    @Test
+    void tpSl35HeroPowerAddonEnableWhenWarriorShouldNotEnable() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Addonwar", 1, 1,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        sendHeroPowerEnable(client, world);
+        List<String> chats = messageChatBodies(client);
+        assertFalse(chats.stream().anyMatch(m -> m.contains("AddonEnabled")), chats.toString());
+    }
+
+    private static void sendHeroPowerEnable(WowClientDouble client, World world) {
+        WowBuffer b = new WowBuffer(48);
+        b.putU32(0x01); // say
+        b.putU32(0xFFFFFFFF); // LANG_ADDON
+        b.putCString("HeroPowerBars\tenable");
+        client.handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
+    }
+
+    private static List<String> messageChatBodies(WowClientDouble client) {
+        List<String> out = new ArrayList<>();
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_MESSAGECHAT) {
+                continue;
+            }
+            WowBuffer buf = new WowBuffer(client.payloads.get(i));
+            buf.getU8();
+            buf.getU32();
+            buf.getU64();
+            buf.getU32();
+            buf.getU64();
+            buf.getU32();
+            out.add(buf.getCString());
+        }
+        return out;
     }
 
     private static final int EQUIPMENT_SLOT_CHEST = 4;

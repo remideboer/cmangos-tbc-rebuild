@@ -1518,6 +1518,61 @@ class CombatTest {
         assertEquals(4, b.getU32());
     }
 
+    /** SetInCombatWith — every null/dead/already-set branch for JaCoCo. */
+    @Test
+    void setInCombatWithWhenNullOrDeadShouldNoOp() {
+        combat.setInCombatWith(null, c);
+        assertFalse(c.inCombat);
+        combat.setInCombatWith(p, null);
+        assertFalse(p.inCombat);
+        p.setHealth(0);
+        combat.setInCombatWith(p, c);
+        assertFalse(p.inCombat);
+        p.setHealth(20);
+        c.setHealth(0);
+        combat.setInCombatWith(p, c);
+        assertFalse(p.inCombat);
+        assertFalse(c.inCombat);
+    }
+
+    @Test
+    void setInCombatWithWhenAliveShouldFlagBothAndIdempotent() {
+        p.setHealth(20);
+        c.setHealth(20);
+        combat.setInCombatWith(p, c);
+        assertTrue(p.inCombat);
+        assertTrue(c.inCombat);
+        assertTrue((p.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_IN_COMBAT) != 0);
+        assertTrue((c.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_IN_COMBAT) != 0);
+        combat.setInCombatWith(p, c);
+        assertTrue(p.inCombat);
+        assertTrue(c.inCombat);
+    }
+
+    @Test
+    void setInCombatWithWhenOnlyOneAlreadyFlaggedShouldFlagTheOther() {
+        p.setHealth(20);
+        c.setHealth(20);
+        p.inCombat = true;
+        p.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                p.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
+        combat.setInCombatWith(p, c);
+        assertTrue(c.inCombat);
+
+        Player p2 = new Player();
+        p2.guid = 3;
+        p2.setHealth(20);
+        Creature c2 = new Creature();
+        c2.guid = 4;
+        c2.applyTemplate(6, "Kobold Vermin", 1, 7, 42, 1);
+        c2.setHealth(20);
+        c2.inCombat = true;
+        c2.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                c2.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
+        combat.setInCombatWith(p2, c2);
+        assertTrue(p2.inCombat);
+    }
+
     private static int u32le(byte[] p) {
         return (p[0] & 0xFF) | ((p[1] & 0xFF) << 8) | ((p[2] & 0xFF) << 16) | ((p[3] & 0xFF) << 24);
     }

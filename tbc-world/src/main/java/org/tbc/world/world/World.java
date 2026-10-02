@@ -565,8 +565,12 @@ public final class World implements Runnable {
         int castCount = nextMeleeSpell ? p.peekNextMeleeCastCount() : 0;
         MeleeTable.Result r = combat.swing(p, c, nowMs(),
                 (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell), offhand);
-        if (c.alive() && !c.inCombat && !c.evading && r.outcome() != MeleeTable.Outcome.EVADE) {
-            engage(c, p);
+        if (c.alive() && !c.evading && r.outcome() != MeleeTable.Outcome.EVADE) {
+            if (!c.inCombat) {
+                engage(c, p);
+            } else {
+                combat.setInCombatWith(p, c);
+            }
         }
         if (r.damage() > 0) {
             p.rewardRageFromHit(r.damage(), r.outcome() == MeleeTable.Outcome.CRIT);
@@ -811,6 +815,7 @@ public final class World implements Runnable {
             engage(c, p);
             return;
         }
+        combat.setInCombatWith(p, c);
         c.victim = c.threatManager.highestGuid();
         c.lastHitMs = nowMs();
         c.lastRefreshX = c.x;

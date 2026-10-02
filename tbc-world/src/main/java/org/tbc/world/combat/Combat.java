@@ -330,6 +330,26 @@ public final class Combat {
     }
 
     /**
+     * CMaNGOS Unit::SetInCombatWith — dealer and victim take the IN_COMBAT flag so spirit HP regen
+     * and combat mana (INTERRUPT rate) apply even when the creature was already fighting.
+     */
+    public void setInCombatWith(Player p, Creature c) {
+        if (p == null || c == null || !p.alive() || !c.alive()) {
+            return;
+        }
+        if (!p.inCombat) {
+            p.inCombat = true;
+            p.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                    p.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
+        }
+        if (!c.inCombat) {
+            c.inCombat = true;
+            c.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                    c.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
+        }
+    }
+
+    /**
      * CMaNGOS Unit::AttackStop (CMSG_ATTACKSTOP). Stops melee swinging; CombatStop /
      * HandleExitCombat still owns leaving UNIT_FLAG_IN_COMBAT when hostiles are gone.
      */

@@ -92,7 +92,7 @@ class Slice04RegenTest {
     }
 
     @Test
-    void tpSl04RegenWhenInCombatShouldNotHealButStillRegenMana() {
+    void tpSl04RegenWhenInCombatShouldNotHealOrSpiritMana() {
         World world = World.inMemory();
         WowClientDouble client = enter(world, HUMAN, MAGE, "Fightmage");
         Player p = client.session().player();
@@ -103,8 +103,9 @@ class Slice04RegenTest {
 
         world.tick(2000);
 
+        // Combat: no spirit HP; mana uses MOD_MANA_REGEN_INTERRUPT (0 without Meditation).
         assertEquals(20, p.health());
-        assertEquals(107, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER1));
+        assertEquals(100, p.power());
     }
 
     @Test
