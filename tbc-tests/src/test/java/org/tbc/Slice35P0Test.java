@@ -422,6 +422,50 @@ class Slice35P0Test {
         assertFalse(chats.stream().anyMatch(m -> m.contains("AddonEnabled")), chats.toString());
     }
 
+    /**
+     * Spirit healer revive for classless Hero — living again with 50% HP/mana/energy on the wire
+     * (issues.md / same contract as TP-SL17-011).
+     */
+    @Test
+    void tpSl35HeroSpiritHealerReviveShouldRestoreLivingHpManaEnergy() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Revivehero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.setInt(UpdateFields.UNIT_FIELD_POWER1, 0);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER2, 500);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER4, 0);
+        int entry = 6491;
+        world.objectMgr.creatures.put(entry, new ObjectMgr.CreatureTemplate(
+                entry, "Spirit Healer", 0, 35, 100, 60,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_SPIRITHEALER, "", "", 0));
+        Creature healer = world.objectMgr.spawnCreature(entry, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(healer);
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        healer.relocate(p.x, p.y, p.z, p.o);
+        client.clear();
+        client.gossipHello(world, healer.guid);
+        client.gossipSelect(world, healer.guid, 0, 0);
+        assertTrue(client.saw(Opcodes.SMSG_SPIRIT_HEALER_CONFIRM));
+        client.clear();
+        WowBuffer activate = new WowBuffer(8);
+        activate.putU64(healer.guid);
+        client.handle(world, Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, activate.array());
+        assertFalse(p.ghost);
+        assertEquals(p.maxHealth() / 2, p.health());
+        assertEquals(p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1) / 2, p.getInt(UpdateFields.UNIT_FIELD_POWER1));
+        assertEquals(0, p.getInt(UpdateFields.UNIT_FIELD_POWER2));
+        assertEquals(p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER4) / 2, p.getInt(UpdateFields.UNIT_FIELD_POWER4));
+        assertEquals(p.maxHealth() / 2, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST);
+    }
+
     private static void sendHeroPowerEnable(WowClientDouble client, World world) {
         WowBuffer b = new WowBuffer(48);
         b.putU32(0x01); // say
