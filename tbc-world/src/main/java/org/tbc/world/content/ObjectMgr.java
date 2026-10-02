@@ -69,7 +69,8 @@ public final class ObjectMgr {
                                    int typeFlags, int type, int family, int rank, int petSpellDataId,
                                    float healthMultiplier, float powerMultiplier, int racialLeader,
                                    String aiName, int extraFlags, float minMeleeDmg, float maxMeleeDmg,
-                                   int meleeAttackTime, float combatReach, int lootId, int minLootGold, int maxLootGold) {
+                                   int meleeAttackTime, float combatReach, int lootId, int minLootGold, int maxLootGold,
+                                   int inhabitType) {
         public CreatureTemplate(int entry, String name, int display, int faction, int hp, int level, int npcFlags,
                                 String scriptName, String gossip, int trainerType) {
             this(entry, name, display, faction, hp, level, npcFlags, scriptName, gossip, trainerType,
@@ -84,7 +85,8 @@ public final class ObjectMgr {
             this(entry, name, display, faction, hp, level, npcFlags, scriptName, gossip, trainerType,
                     subName, iconName, display2, display3, display4, typeFlags, type, family, rank, petSpellDataId,
                     healthMultiplier, powerMultiplier, racialLeader,
-                    "", 0, 1f, 3f, 2000, 1.5f, 0, 0, 0);
+                    "", 0, 1f, 3f, 2000, 1.5f, 0, 0, 0,
+                    org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT);
         }
     }
 
@@ -1953,7 +1955,7 @@ public final class ObjectMgr {
                 "SELECT Entry, Name, SubName, IconName, DisplayId1, DisplayId2, DisplayId3, DisplayId4, "
                         + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
                         + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName, "
-                        + "AIName, ExtraFlags, MinMeleeDmg, MaxMeleeDmg, MeleeBaseAttackTime, LootId, MinLootGold, MaxLootGold "
+                        + "AIName, ExtraFlags, MinMeleeDmg, MaxMeleeDmg, MeleeBaseAttackTime, LootId, MinLootGold, MaxLootGold, InhabitType "
                         + "FROM creature_template",
                 true, true)) {
             log.info("loaded {} creature_template rows", creatures.size());
@@ -1961,6 +1963,26 @@ public final class ObjectMgr {
         }
         if (loadCreaturesSql(c,
                 "SELECT Entry, Name, SubName, IconName, ModelId1, ModelId2, ModelId3, ModelId4, "
+                        + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
+                        + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName, "
+                        + "AIName, ExtraFlags, MinMeleeDmg, MaxMeleeDmg, MeleeBaseAttackTime, LootId, MinLootGold, MaxLootGold, InhabitType "
+                        + "FROM creature_template",
+                true, true)) {
+            log.info("loaded {} creature_template rows", creatures.size());
+            return;
+        }
+        if (loadCreaturesSql(c,
+                "SELECT Entry, Name, SubName, IconName, ModelId1, ModelId2, ModelId3, ModelId4, "
+                        + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
+                        + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName, "
+                        + "AIName, ExtraFlags, MinMeleeDmg, MaxMeleeDmg, MeleeBaseAttackTime, LootId, MinLootGold, MaxLootGold "
+                        + "FROM creature_template",
+                true, true)) {
+            log.info("loaded {} creature_template rows", creatures.size());
+            return;
+        }
+        if (loadCreaturesSql(c,
+                "SELECT Entry, Name, SubName, IconName, DisplayId1, DisplayId2, DisplayId3, DisplayId4, "
                         + "CreatureTypeFlags, CreatureType, Family, `Rank`, PetSpellDataId, HealthMultiplier, "
                         + "PowerMultiplier, RacialLeader, Faction, MinLevelHealth, MinLevel, NpcFlags, ScriptName, "
                         + "AIName, ExtraFlags, MinMeleeDmg, MaxMeleeDmg, MeleeBaseAttackTime, LootId, MinLootGold, MaxLootGold "
@@ -2039,6 +2061,7 @@ public final class ObjectMgr {
                 int entry = rs.getInt(1);
                 String name = nz(rs.getString(2));
                 if (full && combat) {
+                    int inhabit = inhabitTypeOrDefault(rs);
                     creatures.put(entry, new CreatureTemplate(
                             entry, name, rs.getInt(5), rs.getInt(17), Math.max(1, rs.getInt(18)), rs.getInt(19),
                             rs.getInt(20), nz(rs.getString(21)), "", 0,
@@ -2046,7 +2069,7 @@ public final class ObjectMgr {
                             rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13),
                             rs.getFloat(14), rs.getFloat(15), rs.getInt(16),
                             nz(rs.getString(22)), rs.getInt(23), rs.getFloat(24), rs.getFloat(25),
-                            Math.max(1, rs.getInt(26)), 0f, rs.getInt(27), rs.getInt(28), rs.getInt(29)));
+                            Math.max(1, rs.getInt(26)), 0f, rs.getInt(27), rs.getInt(28), rs.getInt(29), inhabit));
                 } else if (full) {
                     creatures.put(entry, new CreatureTemplate(
                             entry, name, rs.getInt(5), rs.getInt(17), Math.max(1, rs.getInt(18)), rs.getInt(19),
@@ -2064,6 +2087,18 @@ public final class ObjectMgr {
         } catch (Exception e) {
             log.warn("creature_template query failed: {}", e.getMessage());
             return false;
+        }
+    }
+
+    private static int inhabitTypeOrDefault(ResultSet rs) {
+        try {
+            int v = rs.getInt("InhabitType");
+            if (rs.wasNull() || v <= 0) {
+                return org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT;
+            }
+            return v;
+        } catch (Exception e) {
+            return org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT;
         }
     }
 
@@ -3265,7 +3300,8 @@ public final class ObjectMgr {
     private static CreatureTemplate seedKoboldVermin() {
         return new CreatureTemplate(6, "Kobold Vermin", 10913, 7, 42, 1, 0, "", "", 0,
                 "", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0,
-                "", 0, 1f, 3f, 2000, 1.5f, 0, 1, 1);
+                "", 0, 1f, 3f, 2000, 1.5f, 0, 1, 1,
+                org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT);
     }
 
     private void seedQueryDefaults() {
@@ -4218,6 +4254,7 @@ public final class ObjectMgr {
         c.scriptName = t.scriptName();
         c.aiName = t.aiName() == null ? "" : t.aiName();
         c.extraFlags = t.extraFlags();
+        c.inhabitType = t.inhabitType() > 0 ? t.inhabitType() : org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT;
         c.applyTemplate(entry, t.name(), t.display(), t.faction(), t.hp(), t.level());
         c.applyCombatStats(t.minMeleeDmg(), t.maxMeleeDmg(), t.meleeAttackTime(), combatReach(t));
         applyCreatureMana(c, t);

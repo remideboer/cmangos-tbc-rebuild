@@ -27,6 +27,8 @@ public final class Creature extends Unit {
     /** After RemoveCorpse / DEAD: waiting for respawn, not shown to clients. */
     public boolean corpseRemoved;
     public float spawnX, spawnY, spawnZ, spawnO;
+    /** creature_template.InhabitType (SharedDefines INHABIT_*). Default ground|water. */
+    public int inhabitType = org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT;
     public int npcFlags;
     /** creature_template.Rank (CreatureEliteType); elites double kill XP. */
     public int rank;

@@ -694,6 +694,23 @@ class SpellEngineTest {
         assertEquals(SpellEngine.FROST_ARMOR_DURATION_MS, remain);
     }
 
+    /** TP-SL35-014 / lab — Rank 1 Fortitude 1243 must not SMSG_CAST_RESULT SPELL_FAILED_ERROR. */
+    @Test
+    void castPowerWordFortitudeWhenKnownShouldApplyStaminaNotInternalError() {
+        p.spells.add(SpellEngine.POWER_WORD_FORTITUDE);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER1, 200);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setPower(200);
+        p.applyClasslessCreateStats(20, 200, 20, 20, 20, 20, 20);
+        int staBefore = p.getInt(UpdateFields.UNIT_FIELD_STAT2);
+        int maxBefore = p.maxHealth();
+        assertTrue(engine.cast(p, map, 0, SpellEngine.POWER_WORD_FORTITUDE, 1, unitTarget(p.guid), this::capture));
+        assertFalse(ops.contains(Opcodes.SMSG_CAST_RESULT), "must not fail with Internal Error / CAST_RESULT");
+        assertTrue(ops.contains(Opcodes.SMSG_SPELL_GO));
+        assertEquals(staBefore + 3, p.getInt(UpdateFields.UNIT_FIELD_STAT2));
+        assertTrue(p.maxHealth() > maxBefore);
+    }
+
     /**
      * spell_template load without SpellDuration.dbc yields DurationIndex→0 ms and must not wipe the
      * hand-seeded 30-minute Frost Armor (client was seeing the 30 s auraDurationMs fallback).

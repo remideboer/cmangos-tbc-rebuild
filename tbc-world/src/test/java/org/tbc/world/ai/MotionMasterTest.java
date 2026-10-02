@@ -336,7 +336,7 @@ class MotionMasterTest {
     }
 
     @Test
-    void wanderWhenGroundLookupShouldUseTerrainZ() {
+    void wanderWhenAdtFarBelowSpawnShouldKeepSpawnZ() {
         Creature c = new Creature();
         c.guid = 2;
         c.mapId = 0;
@@ -361,7 +361,36 @@ class MotionMasterTest {
         pkt.getU32();
         pkt.getFloat();
         pkt.getFloat();
-        assertEquals(40f, pkt.getFloat(), 0.01f);
+        assertEquals(12f, pkt.getFloat(), 0.01f);
+    }
+
+    @Test
+    void wanderWhenAdtNearSpawnShouldUseTerrainZ() {
+        Creature c = new Creature();
+        c.guid = 3;
+        c.mapId = 0;
+        c.relocate(0, 0, 12, 0);
+        c.spawnX = 0;
+        c.spawnY = 0;
+        c.spawnZ = 12;
+        int[] n = {0};
+        c.motion.rng(() -> n[0]++ == 0 ? 0.0 : 1.0);
+        c.motion.moveRandom(10f);
+        byte[] spline = c.motion.update(c, 1000, (map, x, y, hint) -> 12.2f);
+        assertNotNull(spline);
+        WowBuffer pkt = new WowBuffer(spline);
+        pkt.getPackedGuid();
+        pkt.getFloat();
+        pkt.getFloat();
+        pkt.getFloat();
+        pkt.getU32();
+        pkt.getU8();
+        pkt.getU32();
+        pkt.getU32();
+        pkt.getU32();
+        pkt.getFloat();
+        pkt.getFloat();
+        assertEquals(12.2f, pkt.getFloat(), 0.01f);
     }
 
     @Test

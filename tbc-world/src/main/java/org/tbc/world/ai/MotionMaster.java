@@ -4,6 +4,7 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.map.CreatureGrounding;
 import org.tbc.world.map.Terrain;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.session.TaxiHandler;
@@ -292,7 +293,7 @@ public final class MotionMaster {
                 o += (float) (Math.PI * 2);
             }
         }
-        c.relocate(x, y, g.at(c.mapId, x, y, z), o);
+        c.relocate(x, y, CreatureGrounding.resolveZ(z, g.at(c.mapId, x, y, z)), o);
     }
 
     private void clearSpline() {
@@ -320,7 +321,7 @@ public final class MotionMaster {
         float ny = c.y + (float) (dy / len * step);
         float hintZ = c.z + (toZ - c.z) * (step / (float) len);
         float o = faceToward == null ? c.o : angleTo(c, faceToward);
-        c.relocate(nx, ny, g.at(c.mapId, nx, ny, hintZ), o);
+        c.relocate(nx, ny, CreatureGrounding.resolveZ(hintZ, g.at(c.mapId, nx, ny, hintZ)), o);
     }
 
     /**
@@ -389,7 +390,8 @@ public final class MotionMaster {
         double radius = rng.getAsDouble() * wanderRadius;
         destX = c.spawnX + (float) (Math.cos(angle) * radius);
         destY = c.spawnY + (float) (Math.sin(angle) * radius);
-        destZ = g.at(c.mapId, destX, destY, c.spawnZ);
+        float mapZ = g.at(c.mapId, destX, destY, c.spawnZ);
+        destZ = CreatureGrounding.resolveZ(c.spawnZ, mapZ);
         hasDest = true;
     }
 

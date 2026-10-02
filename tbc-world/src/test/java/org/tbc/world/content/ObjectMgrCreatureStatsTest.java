@@ -30,7 +30,8 @@ class ObjectMgrCreatureStatsTest {
         mgr.creatures.put(9000, new ObjectMgr.CreatureTemplate(
                 9000, "Wolf", 1, 38, 50, 1, 0, "", "", 0,
                 "", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0,
-                "EventAI", Creature.CREATURE_EXTRA_FLAG_NO_AGGRO_ON_SIGHT, 5f, 8f, 1600, 2.25f, 0, 0, 0));
+                "EventAI", Creature.CREATURE_EXTRA_FLAG_NO_AGGRO_ON_SIGHT, 5f, 8f, 1600, 2.25f, 0, 0, 0,
+                org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT));
         Creature c = mgr.spawnCreature(9000, 0, 0, 0, 0, 0, null);
         assertEquals(5f, c.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE), 1e-4f);
         assertEquals(8f, c.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE), 1e-4f);

@@ -285,6 +285,8 @@ public final class SpellEngine {
     /** Frost Armor rank 1. Spell.dbc mana 60, DurationIndex 30 → 1_800_000 ms, aura 22. */
     public static final int FROST_ARMOR = 168;
     public static final int FROST_ARMOR_DURATION_MS = 1_800_000;
+    /** Power Word: Fortitude Rank 1 — Spell.dbc 1243, +3 stamina, 30 min. */
+    public static final int POWER_WORD_FORTITUDE = 1243;
     /** Devotion Aura — Spell.dbc 465; APPLY_AREA_AURA_PARTY + MOD_RESISTANCE, permanent. */
     public static final int DEVOTION_AURA = 465;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
@@ -602,6 +604,10 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT, 0, 0, -1, -1, 0f, 16));
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
+        // Spell.dbc 1243: +3 stamina (EffectBasePoints+1), EffectMiscValue = STAT_STAMINA (2), 30 min.
+        spells.put(POWER_WORD_FORTITUDE, new SpellInfo(POWER_WORD_FORTITUDE, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_STAT, 2, 60, 3, 3, 30f, 2)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
         // Spell.dbc 465: +55 armor (EffectBasePoints+1), school mask bit 0, DurationIndex permanent (−1).
         spells.put(DEVOTION_AURA, new SpellInfo(DEVOTION_AURA, EFFECT_APPLY_AREA_AURA_PARTY, SPELL_AURA_MOD_RESISTANCE,
