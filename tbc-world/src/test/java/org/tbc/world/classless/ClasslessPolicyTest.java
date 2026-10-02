@@ -216,4 +216,21 @@ class ClasslessPolicyTest {
         p.spells.add(133);
         assertEquals(2, ClasslessTrainerPolicy.classSpellsLearned(p));
     }
+
+    /** TP-SL35-017 — classless RewardRage writes POWER2, not mana. */
+    @Test
+    void rewardRageFromHitWhenClasslessShouldRaiseRageNotMana() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.level = 1;
+        p.powerType = Player.POWER_MANA;
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER1, 100);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER1, 100);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER2, Player.POWER_RAGE_MAX);
+        p.setRage(0);
+        p.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME, 2000);
+        p.rewardRageFromHit(10, false);
+        assertTrue(p.rage() > 0, "Hero melee should gain stored rage");
+        assertEquals(100, p.power(), "mana primary must stay unchanged");
+    }
 }

@@ -52,7 +52,7 @@ Lab: account **REMI** (id 1007, expansion 1), character **piep** (guid 9032, gno
 | 32 TBC 5-mans | p0_junit | Spec file existence for HFC/CF/Auch/TK/CoT |
 | 33 Classic raids | p0_junit | MC/BWL/AQ/Naxx/ZG/Onyxia + `world-remaining.md` |
 | 34 Class scripts | p0_junit | Execute **5308→20647**; UA **30108**; spec grep |
-| 35 Classless | p0_client | Optional class id **6** (**Hero** display): Auto Attack **6603**, full weapon/armor proficiency + combat skills at 1, trainer catalog with cost `spellcost×(learned+1)` excl. AA/languages, mana+rage+energy, per-item armor / untrained-weapon penalties (`org.tbc.world.classless`). Overlay: ChrClasses id 6 `filename=WARRIOR` + CharBaseInfo race×6; wowme create shows Hero. Triple power bar: AddOn `content/addons/HeroPowerBars` (`TP-SL35-012` lab). `TP-SL35-010`: OOC spirit HP+mana; combat freezes HP and spirit mana (INTERRUPT). |
+| 35 Classless | p0_client | Optional class id **6** (**Hero** display): Auto Attack **6603**, full weapon/armor proficiency + combat skills at 1, trainer catalog with cost `spellcost×(learned+1)` excl. AA/languages, mana+rage+energy, melee rage on POWER2 like warrior (`TP-SL35-017`), per-item armor / untrained-weapon penalties (`org.tbc.world.classless`). Overlay: ChrClasses id 6 `filename=WARRIOR` + CharBaseInfo race×6; wowme create shows Hero. Triple power bar: AddOn `content/addons/HeroPowerBars` (`TP-SL35-012` lab). `TP-SL35-010`: OOC spirit HP+mana; combat freezes HP and spirit mana (INTERRUPT). |
 
 ## Loop B — official 8606 two-client lab
 

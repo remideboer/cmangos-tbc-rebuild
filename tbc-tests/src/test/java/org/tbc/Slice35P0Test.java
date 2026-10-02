@@ -578,6 +578,34 @@ class Slice35P0Test {
         assertEquals(Content.TRAINER_SPELL_FIREBALL_COST * 3, fireballCost);
     }
 
+    /**
+     * TP-SL35-017 — Hero melee hit raises UNIT_FIELD_POWER2 (warrior formula); mana unchanged.
+     */
+    @Test
+    void tpSl35MeleeHitShouldRaiseRageNotMana() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Ragehero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x, c.y, c.z, c.o);
+        int manaBefore = p.power();
+        assertEquals(0, p.rage());
+        client.clear();
+        WowBuffer atk = new WowBuffer(8);
+        atk.putU64(c.guid);
+        client.handle(world, Opcodes.CMSG_ATTACKSWING, atk.array());
+        client.session().tick(world, 0);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        assertTrue(p.rage() > 0, "Hero melee should gain rage on POWER2");
+        assertEquals(manaBefore, p.power(), "mana must not change from melee rage");
+        assertEquals(p.rage(), client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER2));
+    }
+
     private static void sendHeroPowerEnable(WowClientDouble client, World world) {
         WowBuffer b = new WowBuffer(48);
         b.putU32(0x01); // say

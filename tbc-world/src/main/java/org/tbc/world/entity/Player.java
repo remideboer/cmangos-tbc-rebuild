@@ -1028,14 +1028,20 @@ public final class Player extends Unit {
 
     /** CMaNGOS Player::RewardRage; stored rage is display×10 (max 1000). */
     public void rewardRageFromHit(int damage, boolean crit) {
-        if (powerType != POWER_RAGE || damage <= 0) {
+        boolean classless = org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(this);
+        if ((!classless && powerType != POWER_RAGE) || damage <= 0) {
             return;
         }
         float conv = (0.0091107836f * level * level) + (3.225598133f * level) + 4.2652911f;
         float speed = getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME) / 1000.0f;
         float hitFactor = speed * (crit ? 7f : 3.5f);
         float addRage = (damage / conv * 7.5f + hitFactor) / 2.0f;
-        setPower(power() + (int) (addRage * 10));
+        int add = (int) (addRage * 10);
+        if (classless) {
+            setRage(rage() + add);
+        } else {
+            setPower(power() + add);
+        }
     }
 
     public Item itemAt(int bag, int slot) {

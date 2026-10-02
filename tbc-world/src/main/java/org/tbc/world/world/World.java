@@ -596,9 +596,15 @@ public final class World implements Runnable {
                 p.session.send(hp.opcode(), hp.payload());
             }
             if (r.damage() > 0 || (nextMeleeSpell && spellId != 0)) {
-                var pwr = UpdateBuilder.maybeCompress(
-                        UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_POWER1 + p.powerType));
-                p.session.send(pwr.opcode(), pwr.payload());
+                if (org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
+                    var pwr = UpdateBuilder.maybeCompress(
+                            UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_POWER2));
+                    p.session.send(pwr.opcode(), pwr.payload());
+                } else {
+                    var pwr = UpdateBuilder.maybeCompress(
+                            UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_POWER1 + p.powerType));
+                    p.session.send(pwr.opcode(), pwr.payload());
+                }
             }
             if (!c.alive()) {
                 p.session.send(Opcodes.SMSG_ATTACKSTOP, combat.encodeAttackStop(p.guid, c.guid, false));
