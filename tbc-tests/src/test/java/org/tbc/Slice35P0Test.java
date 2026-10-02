@@ -498,7 +498,7 @@ class Slice35P0Test {
     }
 
     /**
-     * TP-SL35-016 — cumulative trainer cost: first buy 1× spellcost; second refused until money ≥ 2×.
+     * TP-SL35-016 — Hero trainer cost 100×2^learned (ignore row spellCost): 100 then 200 refuse/buy; list U32 400.
      */
     @Test
     void tpSl35CumulativeTrainerCostShouldScaleWithLearnedSpells() {
@@ -512,11 +512,10 @@ class Slice35P0Test {
         Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
         assertNotNull(trainer);
         p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
-        // Fireball trainer for a cheap second row after Battle Shout.
         Creature mage = find(world, Content.NPC_KHELDEN_BREMEN);
         assertNotNull(mage);
 
-        // 300 copper; Battle Shout cost 200 → first buy pays 200×1, money 100.
+        // learned 0 → 100 copper (not Battle Shout row 200).
         p.setMoney(ClasslessConfig.STARTING_MONEY_COPPER);
         client.clear();
         WowBuffer buyBs = new WowBuffer(12);
@@ -525,11 +524,11 @@ class Slice35P0Test {
         client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyBs.array());
         assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
         assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
-        assertEquals(ClasslessConfig.STARTING_MONEY_COPPER - Content.TRAINER_SPELL_BATTLE_SHOUT_COST, p.money);
+        assertEquals(ClasslessConfig.STARTING_MONEY_COPPER - 100, p.money);
 
-        // Second buy Fireball cost 10 × (1+1) = 20; only 100 copper — still affordable; refuse path:
-        // try Rank2 (500×2=1000) with money 100 → refuse.
+        // learned 1 → 200; short money refuses.
         p.level = 12;
+        p.setMoney(199);
         client.clear();
         WowBuffer buyR2 = new WowBuffer(12);
         buyR2.putU64(trainer.guid);
@@ -537,17 +536,16 @@ class Slice35P0Test {
         client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyR2.array());
         assertFalse(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
         assertFalse(p.spells.contains(Content.SPELL_BATTLE_SHOUT_RANK2));
-        assertEquals(100, p.money);
+        assertEquals(199, p.money);
 
-        // With money ≥ 1000 (500×2), Rank2 succeeds.
-        p.setMoney(1_000);
+        p.setMoney(200);
         client.clear();
         client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyR2.array());
         assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
         assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT_RANK2));
         assertEquals(0, p.money);
 
-        // List shows cumulative Fireball cost (10×3=30 with 2 learned).
+        // learned 2 → list Fireball U32 400 (ignore Fireball row spellCost).
         p.relocate(mage.x, mage.y, mage.z, mage.o);
         client.clear();
         WowBuffer list = new WowBuffer(8);
@@ -575,7 +573,7 @@ class Slice35P0Test {
                 fireballCost = cost;
             }
         }
-        assertEquals(Content.TRAINER_SPELL_FIREBALL_COST * 3, fireballCost);
+        assertEquals(400, fireballCost);
     }
 
     /**

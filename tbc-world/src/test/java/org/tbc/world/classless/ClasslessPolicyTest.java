@@ -193,15 +193,29 @@ class ClasslessPolicyTest {
         assertEquals(50, p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_XP));
     }
 
-    /** TP-SL35-016 — buyCost = spellcost × (learned + 1). */
+    /** TP-SL35-016 — buyCost = 100 × 2^learned (ignore trainer-row spellCost). */
     @Test
-    void buyCostWhenZeroLearnedShouldBeOneTimesSpellCost() {
-        assertEquals(100, ClasslessTrainerPolicy.buyCost(100, 0));
-        assertEquals(100, ClasslessTrainerPolicy.buyCost(100, 1) / 2);
-        assertEquals(200, ClasslessTrainerPolicy.buyCost(100, 1));
-        assertEquals(300, ClasslessTrainerPolicy.buyCost(100, 2));
-        assertEquals(0, ClasslessTrainerPolicy.buyCost(0, 5));
-        assertEquals(Integer.MAX_VALUE, ClasslessTrainerPolicy.buyCost(Integer.MAX_VALUE / 2, 2));
+    void buyCostWhenLearnedShouldFollowGeometricHundred() {
+        assertEquals(100, ClasslessTrainerPolicy.buyCost(0));
+        assertEquals(200, ClasslessTrainerPolicy.buyCost(1));
+        assertEquals(400, ClasslessTrainerPolicy.buyCost(2));
+        assertEquals(800, ClasslessTrainerPolicy.buyCost(3));
+        assertEquals(1_600, ClasslessTrainerPolicy.buyCost(4));
+        assertEquals(Integer.MAX_VALUE, ClasslessTrainerPolicy.buyCost(31));
+        assertEquals(Integer.MAX_VALUE, ClasslessTrainerPolicy.buyCost(25));
+    }
+
+    @Test
+    void effectiveCostWhenClasslessShouldIgnoreRowSpellCost() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.spells.add(ClasslessConfig.AUTO_ATTACK);
+        assertEquals(100, ClasslessTrainerPolicy.effectiveCost(p, 999));
+        p.spells.add(6673);
+        assertEquals(200, ClasslessTrainerPolicy.effectiveCost(p, 10));
+        Player warrior = new Player();
+        warrior.clazz = 1;
+        assertEquals(500, ClasslessTrainerPolicy.effectiveCost(warrior, 500));
     }
 
     @Test

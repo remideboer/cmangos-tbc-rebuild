@@ -8,9 +8,12 @@ import org.tbc.world.session.TrainerHandler;
 /**
  * Class trainers list/buy for classless with no spell whitelist; normal classes unchanged.
  * Level / chain / money gates stay in {@link org.tbc.world.session.TrainerService}.
- * Classless buy/list price is {@code spellcost × (classSpellsLearned + 1)}.
+ * Classless buy/list price is {@code 100 × 2^classSpellsLearned} (ignores trainer-row spellCost).
  */
 public final class ClasslessTrainerPolicy {
+    /** First Hero trainer purchase copper; each next spell doubles. */
+    public static final int CLASSLESS_TRAINER_BASE_COST = 100;
+
     private ClasslessTrainerPolicy() {
     }
 
@@ -61,23 +64,23 @@ public final class ClasslessTrainerPolicy {
     }
 
     /**
-     * Classless trainer price: {@code spellCost × (learned + 1)}. Clamps overflow to
-     * {@link Integer#MAX_VALUE}. Normal classes use raw {@code spellCost} in the handler.
+     * Classless trainer price: {@code 100 × 2^learned}. Clamps overflow to
+     * {@link Integer#MAX_VALUE}. Normal classes use raw {@code spellCost} via {@link #effectiveCost}.
      */
-    public static int buyCost(int spellCost, int learned) {
-        if (spellCost <= 0) {
-            return 0;
-        }
+    public static int buyCost(int learned) {
         int n = Math.max(0, learned);
-        long cost = (long) spellCost * (n + 1L);
+        if (n >= 31) {
+            return Integer.MAX_VALUE;
+        }
+        long cost = (long) CLASSLESS_TRAINER_BASE_COST << n;
         return cost > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) cost;
     }
 
-    /** List/buy copper for this row — cumulative for classless, raw otherwise. */
+    /** List/buy copper — geometric for classless (ignores row cost), raw otherwise. */
     public static int effectiveCost(Player p, int spellCost) {
         if (!ClasslessCharacterPolicy.isClassless(p)) {
             return Math.max(0, spellCost);
         }
-        return buyCost(spellCost, classSpellsLearned(p));
+        return buyCost(classSpellsLearned(p));
     }
 }
