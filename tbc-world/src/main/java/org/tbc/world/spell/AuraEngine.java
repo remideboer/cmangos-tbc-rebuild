@@ -49,6 +49,8 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_DISARM = 67;
     public static final int SPELL_AURA_MOD_PERCENT_STAT = 80;
     public static final int SPELL_AURA_MOD_REGEN = 84;
+    /** Drink effect1 (Spell.dbc 430) — amount copied onto MOD_POWER_REGEN (spell_scripts Drink). */
+    public static final int SPELL_AURA_PERIODIC_DUMMY = 226;
     public static final int SPELL_AURA_MOD_POWER_REGEN = 85;
     public static final int SPELL_AURA_WATER_BREATHING = 82;
     public static final int SPELL_AURA_GHOST = 95;

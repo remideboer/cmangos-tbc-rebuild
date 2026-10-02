@@ -62,12 +62,14 @@ echo Package succeeded but a shaded jar is missing under target\.
 exit /b 1
 
 :content_compile
+setlocal EnableDelayedExpansion
 set "CONTENT_JAR=tbc-content\target\tbc-content-0.1.0-SNAPSHOT.jar"
 if not exist "%CONTENT_JAR%" (
   echo content: tbc-content jar missing - skip
-  goto :eof
+  endlocal & goto :eof
 )
 set "BASE_DBC=%CONTENT_BASE_DBC%"
+set "DD="
 if not defined BASE_DBC if exist "conf\local-mangosd.conf" (
   for /f "usebackq tokens=1,* delims==" %%A in (`findstr /i /b /c:"DataDir" "conf\local-mangosd.conf"`) do (
     set "DD=%%B"
@@ -75,18 +77,18 @@ if not defined BASE_DBC if exist "conf\local-mangosd.conf" (
 )
 if not defined BASE_DBC if defined DD (
   rem Strip quotes/spaces; normalize / → \ so "if exist" sees DataDir\dbc\Spell.dbc
-  set "DD=%DD:"=%"
-  for /f "tokens=* delims= " %%Z in ("%DD%") do set "DD=%%Z"
-  set "DD=%DD:/=\%"
-  if exist "%DD%\dbc\Spell.dbc" set "BASE_DBC=%DD%\dbc"
+  set "DD=!DD:"=!"
+  for /f "tokens=* delims= " %%Z in ("!DD!") do set "DD=%%Z"
+  set "DD=!DD:/=\!"
+  if exist "!DD!\dbc\Spell.dbc" set "BASE_DBC=!DD!\dbc"
 )
 if not defined BASE_DBC (
   echo content: no CONTENT_BASE_DBC / DataDir\dbc - skip content compile
-  goto :eof
+  endlocal & goto :eof
 )
 if not exist "%BASE_DBC%\Spell.dbc" (
   echo content: Spell.dbc not found under %BASE_DBC% - skip
-  goto :eof
+  endlocal & goto :eof
 )
 echo content: compiling YAML deltas with base %BASE_DBC%
 set "CONTENT_OUT=%~dp0content\out"
@@ -94,10 +96,10 @@ set "MPQ_NAME=patch-tbc-custom.MPQ"
 "%JAVA_HOME%\bin\java.exe" -jar "%CONTENT_JAR%" compile --content "%~dp0content" --base-dbc "%BASE_DBC%" --out "%CONTENT_OUT%" --mpq-name %MPQ_NAME%
 if errorlevel 1 (
   echo content compile failed.
-  exit /b 1
+  endlocal & exit /b 1
 )
 call :install_patch_mpq
-goto :eof
+endlocal & goto :eof
 
 :install_patch_mpq
 rem After a successful content compile the overlay is patchable — install into the lab client.

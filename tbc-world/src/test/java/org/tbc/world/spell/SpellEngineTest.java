@@ -516,6 +516,116 @@ class SpellEngineTest {
         assertEquals(52, p.power());
     }
 
+    /**
+     * spell_template Food 434: EffectBasePoints 57 → +58 HP / tick; EffectAmplitude 0 → HandleModRegen
+     * defaults to 5000 ms (must survive putTemplate overwriting the hand seed).
+     */
+    @Test
+    void putTemplateWhenFoodModRegenShouldHealByEffectBasePoints() {
+        // Spell.dbc 434 Food (higher tier than Tough Jerky 433).
+        engine.putTemplate(434, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_REGEN,
+                0, 0, 58, 58, 0f, 0, 0, 0, SpellEngine.FOOD_DURATION_MS,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assertEquals(SpellEngine.FOOD_AMPLITUDE_MS, engine.info(434).amplitudeMs());
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 200);
+        p.setHealth(40);
+        engine.apply(p, p, engine.info(434), 1_000L);
+        assertEquals(1, p.auras.stream().filter(a -> a.spellId() == 434).count());
+        assertEquals(SpellEngine.FOOD_AMPLITUDE_MS,
+                p.auras.stream().filter(a -> a.spellId() == 434).findFirst().orElseThrow().amplitudeMs());
+        engine.tickPeriodic(p, p, engine.info(434), this::capture);
+        assertEquals(98, p.health());
+    }
+
+    /**
+     * spell_template Drink 430: effect0 MOD_POWER_REGEN amount 0 + effect1 PERIODIC_DUMMY amount 42
+     * (Drink script copies dummy → regen). Restore uses that designated amount.
+     */
+    @Test
+    void putTemplateWhenDrinkShouldRestoreManaByPeriodicDummyAmount() {
+        // Spell.dbc 430: effect0 amount 0, effect1 PERIODIC_DUMMY +42 / 2200 ms → Drink OnApply copy.
+        engine.putTemplate(SpellEngine.SPELL_DRINK, SpellEngine.EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_POWER_REGEN, 0, 0, 0, 0, 0f,
+                0, 0, 0, SpellEngine.FOOD_DURATION_MS,
+                SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_PERIODIC_DUMMY, 42, 42,
+                0, 0, 0, 0, 0, 0,
+                0, 0, 0,
+                0, SpellEngine.DRINK_AMPLITUDE_MS, 0);
+        assertEquals(42, engine.info(SpellEngine.SPELL_DRINK).minDmg());
+        assertEquals(SpellEngine.DRINK_AMPLITUDE_MS, engine.info(SpellEngine.SPELL_DRINK).amplitudeMs());
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        p.setPower(10);
+        p.powerType = 0;
+        engine.tickPeriodic(p, p, engine.info(SpellEngine.SPELL_DRINK), this::capture);
+        assertEquals(52, p.power());
+    }
+
+    @Test
+    void putTemplateWhenDrinkDummyMaxMissingShouldUseMinAndDefaultAmp() {
+        engine.putTemplate(900_430, SpellEngine.EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_POWER_REGEN, 0, 0, 0, 0, 0f,
+                0, 0, 0, SpellEngine.FOOD_DURATION_MS,
+                SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_PERIODIC_DUMMY, 42, 0,
+                0, 0, 0, 0, 0, 0);
+        assertEquals(42, engine.info(900_430).minDmg());
+        assertEquals(42, engine.info(900_430).maxDmg());
+        assertEquals(SpellEngine.DRINK_AMPLITUDE_MS, engine.info(900_430).amplitudeMs());
+    }
+
+    @Test
+    void putTemplateWhenDrinkAmpAlreadySetShouldKeepAmp() {
+        engine.putTemplate(900_431, SpellEngine.EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_POWER_REGEN, 0, 0, 0, 0, 0f,
+                0, 0, 0, SpellEngine.FOOD_DURATION_MS,
+                SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_PERIODIC_DUMMY, 42, 42,
+                0, 0, 0, 0, 0, 0,
+                0, 0, 0,
+                2_200, 0, 0);
+        assertEquals(42, engine.info(900_431).minDmg());
+        assertEquals(2_200, engine.info(900_431).amplitudeMs());
+    }
+
+    @Test
+    void putTemplateWhenDrinkWithoutDummyShouldDefaultDrinkAmplitude() {
+        engine.putTemplate(900_432, SpellEngine.EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_POWER_REGEN, 0, 0, 42, 42, 0f,
+                0, 0, 0, SpellEngine.FOOD_DURATION_MS,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assertEquals(SpellEngine.DRINK_AMPLITUDE_MS, engine.info(900_432).amplitudeMs());
+    }
+
+    @Test
+    void putTemplateWhenDrinkWrongExtraAuraShouldNotCopyAmount() {
+        engine.putTemplate(900_433, SpellEngine.EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_POWER_REGEN, 0, 0, 0, 0, 0f,
+                0, 0, 0, SpellEngine.FOOD_DURATION_MS,
+                SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_REGEN, 42, 42,
+                0, 0, 0, 0, 0, 0);
+        assertEquals(0, engine.info(900_433).minDmg());
+        assertEquals(SpellEngine.DRINK_AMPLITUDE_MS, engine.info(900_433).amplitudeMs());
+    }
+
+    @Test
+    void putTemplateWhenDrinkDummyZeroMinShouldNotCopyAmount() {
+        engine.putTemplate(900_434, SpellEngine.EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_POWER_REGEN, 0, 0, 0, 0, 0f,
+                0, 0, 0, SpellEngine.FOOD_DURATION_MS,
+                SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_PERIODIC_DUMMY, 0, 0,
+                0, 0, 0, 0, 0, 0);
+        assertEquals(0, engine.info(900_434).minDmg());
+    }
+
+    @Test
+    void putTemplateWhenAmpZeroShouldKeepSeededAmplitude() {
+        int before = engine.info(30108).amplitudeMs();
+        assertTrue(before > 0);
+        engine.putTemplate(30108, SpellEngine.EFFECT_APPLY_AURA,
+                SpellEngine.SPELL_AURA_PERIODIC_DAMAGE, 5, 0, 10, 10, 30f,
+                0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assertEquals(before, engine.info(30108).amplitudeMs());
+    }
+
     @Test
     void tickPeriodicWhenDrinkNonManaOrDeadShouldIgnore() {
         p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);

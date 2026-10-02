@@ -1,0 +1,10 @@
+# OR ChrClasses id 6 (0x20) into SkillLineAbility / SkillRaceClassInfo ClassMask
+# so the 8606 trainer UI shows class spells for Classless (server already lists them).
+# Compile + install overlay — see content/README.md.
+kind: classless-skill-mask
+id: 6
+client:
+  SkillLineAbility:
+    orClassMask: 32
+  SkillRaceClassInfo:
+    orClassMask: 32

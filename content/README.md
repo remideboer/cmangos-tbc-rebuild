@@ -128,14 +128,15 @@ Creates the unused Death Knight slot as **Classless** on the 8606 create screen 
 
 1. [`classes/classless.yaml`](classes/classless.yaml) — `kind: chrclasses`, id **6**, `filename: WARRIOR` (stock `CLASS_ICON_TCOORDS["WARRIOR"]`; no GlueXML).
 2. [`classes/classless-charbaseinfo.yaml`](classes/classless-charbaseinfo.yaml) — `kind: charbaseinfo` race×6 rows for playable races `1–8, 10, 11` (without these, `GetAvailableClasses` hides the class).
-3. Bindings: `ChrClasses.txt` col **filename** (string); `CharBaseInfo.txt` packed `RaceID`/`ClassID`.
+3. [`classes/classless-skill-mask.yaml`](classes/classless-skill-mask.yaml) — `kind: classless-skill-mask` ORs ClassMask bit **0x20** into `SkillLineAbility.dbc` / `SkillRaceClassInfo.dbc` (non-zero masks only) so the trainer UI shows class spells for classless.
+4. Bindings: `ChrClasses.txt`, `CharBaseInfo.txt`, `SkillLineAbility.txt`, `SkillRaceClassInfo.txt`.
 
 ### Install
 
-1. Base DBC tree must include `ChrClasses.dbc` and `CharBaseInfo.dbc` (`CONTENT_BASE_DBC` / DataDir).
+1. Base DBC tree must include `ChrClasses.dbc`, `CharBaseInfo.dbc`, `SkillLineAbility.dbc`, and `SkillRaceClassInfo.dbc` (`CONTENT_BASE_DBC` / DataDir).
 2. Compile + install overlay (`build.bat`, or `java -jar tbc-content… compile` then [`install-client-patch.bat`](install-client-patch.bat)).
 3. Install backs up any prior `Data\enUS\patch-enUS-3.MPQ` as `patch-enUS-3.MPQ.bak.<timestamp>` and clears Cache/WDB.
-4. Fully quit the client, start **wowme.exe**, open character create — Classless with warrior icon; create submits class byte **6**.
+4. Fully quit the client, start **wowme.exe**, open character create — Classless with warrior icon; create submits class byte **6**. Class trainers should list spells (server already sends full lists).
 5. Server: `ClasslessConfig.enabled` (default true).
 
 ### Rollback

@@ -1,14 +1,21 @@
 package org.tbc.world.session;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.tbc.world.classless.ClasslessConfig;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Player;
-import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** TP-SL14-018 — GetTrainerSpellState green/red/gray. */
 class TrainerServiceTest {
+    @AfterEach
+    void resetClassless() {
+        ClasslessConfig.reset();
+    }
+
     @Test
     void stateWhenKnownSpellShouldBeGray() {
         Player p = new Player();
@@ -25,6 +32,49 @@ class TrainerServiceTest {
         ObjectMgr.TrainerSpell t = new ObjectMgr.TrainerSpell(Content.SPELL_BATTLE_SHOUT_RANK2, 500, 12, 0, 0,
                 Content.SPELL_BATTLE_SHOUT, 0, 0, false);
         assertEquals(TrainerHandler.TRAINER_SPELL_RED, TrainerService.state(p, t, null));
+    }
+
+    @Test
+    void stateWhenClasslessMissingReqAbilityAndSkillShouldBeGreen() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.level = 1;
+        ObjectMgr.TrainerSpell t = new ObjectMgr.TrainerSpell(133, 10, 1, 95, 1,
+                99999, 0, 0, false);
+        assertEquals(TrainerHandler.TRAINER_SPELL_GREEN, TrainerService.state(p, t, null));
+    }
+
+    @Test
+    void stateWhenClasslessBelowReqLevelShouldBeRed() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.level = 6;
+        ObjectMgr.TrainerSpell t = new ObjectMgr.TrainerSpell(20287, 100, 10);
+        assertEquals(TrainerHandler.TRAINER_SPELL_RED, TrainerService.state(p, t, null));
+    }
+
+    @Test
+    void stateWhenClasslessMissingSpellChainPrevShouldBeRed() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.spellChain.put(639, new ObjectMgr.SpellChainNode(639, 635, 635, 2, 0));
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.level = 6;
+        ObjectMgr.TrainerSpell t = new ObjectMgr.TrainerSpell(639, 2000, 6);
+        assertEquals(TrainerHandler.TRAINER_SPELL_RED, TrainerService.state(p, t, mgr));
+        p.spells.add(635);
+        assertEquals(TrainerHandler.TRAINER_SPELL_GREEN, TrainerService.state(p, t, mgr));
+    }
+
+    @Test
+    void stateWhenClasslessMissingSpellChainReqShouldBeGreen() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.spellChain.put(1000, new ObjectMgr.SpellChainNode(1000, 0, 1000, 1, 5000));
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.level = 1;
+        ObjectMgr.TrainerSpell t = new ObjectMgr.TrainerSpell(1000, 10, 1);
+        assertEquals(TrainerHandler.TRAINER_SPELL_GREEN, TrainerService.state(p, t, mgr));
     }
 
     @Test

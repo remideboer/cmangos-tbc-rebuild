@@ -1,10 +1,12 @@
 package org.tbc.world.session;
 
+import org.tbc.world.classless.ClasslessCharacterPolicy;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Player;
 
 /**
  * CMaNGOS Player::GetTrainerSpellState — green/red/gray for trainer list and buy.
+ * Classless skips skill / ReqAbility / spell_chain.req; still enforces level and chain.prev.
  */
 public final class TrainerService {
     private TrainerService() {}
@@ -27,17 +29,20 @@ public final class TrainerService {
         if (p.level < reqLevel) {
             return TrainerHandler.TRAINER_SPELL_RED;
         }
-        if (t.reqSkill() != 0 && p.skillValue(t.reqSkill()) < t.reqSkillValue()) {
-            return TrainerHandler.TRAINER_SPELL_RED;
-        }
-        if (t.reqAbility0() != 0 && !p.spells.contains(t.reqAbility0())) {
-            return TrainerHandler.TRAINER_SPELL_RED;
-        }
-        if (t.reqAbility1() != 0 && !p.spells.contains(t.reqAbility1())) {
-            return TrainerHandler.TRAINER_SPELL_RED;
-        }
-        if (t.reqAbility2() != 0 && !p.spells.contains(t.reqAbility2())) {
-            return TrainerHandler.TRAINER_SPELL_RED;
+        boolean classless = ClasslessCharacterPolicy.isClassless(p);
+        if (!classless) {
+            if (t.reqSkill() != 0 && p.skillValue(t.reqSkill()) < t.reqSkillValue()) {
+                return TrainerHandler.TRAINER_SPELL_RED;
+            }
+            if (t.reqAbility0() != 0 && !p.spells.contains(t.reqAbility0())) {
+                return TrainerHandler.TRAINER_SPELL_RED;
+            }
+            if (t.reqAbility1() != 0 && !p.spells.contains(t.reqAbility1())) {
+                return TrainerHandler.TRAINER_SPELL_RED;
+            }
+            if (t.reqAbility2() != 0 && !p.spells.contains(t.reqAbility2())) {
+                return TrainerHandler.TRAINER_SPELL_RED;
+            }
         }
         if (mgr != null) {
             ObjectMgr.SpellChainNode chain = mgr.spellChain.get(t.spell());
@@ -45,7 +50,7 @@ public final class TrainerService {
                 if (chain.prev() != 0 && !p.spells.contains(chain.prev())) {
                     return TrainerHandler.TRAINER_SPELL_RED;
                 }
-                if (chain.req() != 0 && !p.spells.contains(chain.req())) {
+                if (!classless && chain.req() != 0 && !p.spells.contains(chain.req())) {
                     return TrainerHandler.TRAINER_SPELL_RED;
                 }
             }

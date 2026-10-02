@@ -1,0 +1,16 @@
+# SkillLineAbility.dbc — TBC 2.4.3 (15 × uint32). ClassMask index used by classless overlay.
+uint ID
+uint SkillLine
+uint Spell
+uint RaceMask
+uint ClassMask
+uint ExcludeRace
+uint ExcludeClass
+uint MinSkillLineRank
+uint SupercededBySpell
+uint AcquireMethod
+uint TrivialSkillLineRankHigh
+uint TrivialSkillLineRankLow
+uint CharacterPoints0
+uint CharacterPoints1
+uint NumSkillUps

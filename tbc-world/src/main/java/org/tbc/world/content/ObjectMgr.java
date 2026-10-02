@@ -3139,6 +3139,15 @@ public final class ObjectMgr {
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT_RANK2, 500, 12, 0, 0,
                         Content.SPELL_BATTLE_SHOUT, 0, 0, false))));
+        spellChain.putIfAbsent(Content.SPELL_BATTLE_SHOUT_RANK2,
+                new SpellChainNode(Content.SPELL_BATTLE_SHOUT_RANK2, Content.SPELL_BATTLE_SHOUT,
+                        Content.SPELL_BATTLE_SHOUT, 2, 0));
+        creatures.put(Content.NPC_KHELDEN_BREMEN, new CreatureTemplate(Content.NPC_KHELDEN_BREMEN, "Khelden Bremen", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
+        trainerTypeByEntry.put(Content.NPC_KHELDEN_BREMEN, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.put(Content.NPC_KHELDEN_BREMEN, Player.CLASS_MAGE);
+        trainerSpells.put(Content.NPC_KHELDEN_BREMEN, new ArrayList<>(List.of(
+                new TrainerSpell(Content.SPELL_FIREBALL, Content.TRAINER_SPELL_FIREBALL_COST, 1))));
         creatures.put(Content.NPC_DANE_LINDGREN, new CreatureTemplate(Content.NPC_DANE_LINDGREN, "Dane Lindgren", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_TRAINER, "", "",
                 org.tbc.world.session.TrainerHandler.TRAINER_TYPE_TRADESKILLS));
@@ -3194,6 +3203,7 @@ public final class ObjectMgr {
             spawns.add(new Spawn(5, Content.NPC_MARSHAL_MCBRIDE, 0, -8908f, -130f, 80f, 0f));
             spawns.add(new Spawn(6, 103, 0, -8600f, -180f, 80f, 0f));
             spawns.add(new Spawn(7, Content.NPC_LLANE_BESHERE, 0, -8918.36f, -208.411f, 82.309f, 0f));
+            spawns.add(new Spawn(15, Content.NPC_KHELDEN_BREMEN, 0, -8920f, -210f, 82.3f, 0f));
             spawns.add(new Spawn(14, Content.NPC_DANE_LINDGREN, 0, -8910f, -200f, 82f, 0f));
             spawns.add(new Spawn(8, Content.NPC_DUNGAR_LONGDRINK, 0, -8835.76f, 490.084f, 109.699f, 0f));
             spawns.add(new Spawn(9, Content.NPC_AUCTIONEER_CHILTON, 0, -8912f, -122f, 80f, 0f));
@@ -3314,6 +3324,15 @@ public final class ObjectMgr {
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT_RANK2, 500, 12, 0, 0,
                         Content.SPELL_BATTLE_SHOUT, 0, 0, false))));
+        spellChain.putIfAbsent(Content.SPELL_BATTLE_SHOUT_RANK2,
+                new SpellChainNode(Content.SPELL_BATTLE_SHOUT_RANK2, Content.SPELL_BATTLE_SHOUT,
+                        Content.SPELL_BATTLE_SHOUT, 2, 0));
+        creatures.putIfAbsent(Content.NPC_KHELDEN_BREMEN, new CreatureTemplate(Content.NPC_KHELDEN_BREMEN, "Khelden Bremen", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
+        trainerTypeByEntry.putIfAbsent(Content.NPC_KHELDEN_BREMEN, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(Content.NPC_KHELDEN_BREMEN, Player.CLASS_MAGE);
+        trainerSpells.putIfAbsent(Content.NPC_KHELDEN_BREMEN, new ArrayList<>(List.of(
+                new TrainerSpell(Content.SPELL_FIREBALL, Content.TRAINER_SPELL_FIREBALL_COST, 1))));
         creatures.putIfAbsent(Content.NPC_DANE_LINDGREN, new CreatureTemplate(Content.NPC_DANE_LINDGREN, "Dane Lindgren", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_TRAINER, "", "",
                 org.tbc.world.session.TrainerHandler.TRAINER_TYPE_TRADESKILLS));

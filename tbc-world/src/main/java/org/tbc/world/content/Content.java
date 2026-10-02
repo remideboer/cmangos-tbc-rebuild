@@ -120,6 +120,8 @@ public final class Content {
     public static final int NPC_MARSHAL_DUGHAN = 240;
     public static final int NPC_DEPUTY_WILLEM = 823;
     public static final int NPC_LLANE_BESHERE = 911;
+    /** Northshire mage trainer (TrainerClass mage). */
+    public static final int NPC_KHELDEN_BREMEN = 1985;
     /** Goldshire blacksmith trainer. */
     public static final int NPC_DANE_LINDGREN = 1103;
     public static final int NPC_DUNGAR_LONGDRINK = 352;
@@ -239,6 +241,9 @@ public final class Content {
     /** Next Battle Shout rank for trainer reqAbility chain (Spell.dbc 5242). */
     public static final int SPELL_BATTLE_SHOUT_RANK2 = 5242;
     public static final int TRAINER_SPELL_BATTLE_SHOUT_COST = 200;
+    /** Spell.dbc Fireball rank 1 — mage starter trainer row. */
+    public static final int SPELL_FIREBALL = 133;
+    public static final int TRAINER_SPELL_FIREBALL_COST = 10;
     public static final int SPELL_APPRENTICE_BLACKSMITH = 2020;
     public static final int TRAINER_SPELL_APPRENTICE_BLACKSMITH_COST = 10;
     public static final int SKILL_BLACKSMITHING = 164;

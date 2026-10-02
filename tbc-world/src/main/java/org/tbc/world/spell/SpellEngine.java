@@ -583,7 +583,7 @@ public final class SpellEngine {
         // Food 433: EffectBasePoints 16 → +17 HP each 5 s for 30 s (HandleModRegen PeriodicTick).
         spells.put(SPELL_FOOD, new SpellInfo(SPELL_FOOD, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_REGEN,
                 0, 0, 17, 17, 0f).withDuration(FOOD_DURATION_MS).withAmplitude(FOOD_AMPLITUDE_MS));
-        // Drink 430: mana restore stand-in amount 42 every 2 s (HandleModPowerRegen PeriodicTick).
+        // Drink 430: effect1 PERIODIC_DUMMY BasePoints 41 → +42 mana / tick (Drink script → MOD_POWER_REGEN).
         spells.put(SPELL_DRINK, new SpellInfo(SPELL_DRINK, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_POWER_REGEN,
                 0, 0, 42, 42, 0f).withDuration(FOOD_DURATION_MS).withAmplitude(DRINK_AMPLITUDE_MS));
         spells.put(36300, new SpellInfo(36300, EFFECT_APPLY_AURA, 0, 0, 0, 0, 0, 0f));
@@ -658,6 +658,10 @@ public final class SpellEngine {
     /**
      * One spell_template row. Replaces a hand-seeded id. Effects 2 and 3 apply after effect 1
      * when their effect id is not 0.
+     * <p>
+     * Food ({@link AuraEngine#SPELL_AURA_MOD_REGEN}): EffectAmplitude 0 → 5000 ms (HandleModRegen).
+     * Drink ({@link AuraEngine#SPELL_AURA_MOD_POWER_REGEN} amount 0 + PERIODIC_DUMMY): copy dummy
+     * amount onto the primary (spell_scripts {@code Drink} OnApply).
      */
     public void putTemplate(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float range,
                             int castMs, int gcdMs, int recoveryMs, int durationMs,
@@ -665,7 +669,7 @@ public final class SpellEngine {
                             int effect3, int aura3, int min3, int max3,
                             int procFlag, int triggerSpell) {
         putTemplate(id, effect, aura, school, mana, minDmg, maxDmg, range, castMs, gcdMs, recoveryMs, durationMs,
-                effect2, aura2, min2, max2, effect3, aura3, min3, max3, procFlag, triggerSpell, 0, 0, 0);
+                effect2, aura2, min2, max2, effect3, aura3, min3, max3, procFlag, triggerSpell, 0, 0, 0, 0, 0, 0);
     }
 
     public void putTemplate(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float range,
@@ -673,6 +677,17 @@ public final class SpellEngine {
                             int effect2, int aura2, int min2, int max2,
                             int effect3, int aura3, int min3, int max3,
                             int procFlag, int triggerSpell, int misc1, int misc2, int misc3) {
+        putTemplate(id, effect, aura, school, mana, minDmg, maxDmg, range, castMs, gcdMs, recoveryMs, durationMs,
+                effect2, aura2, min2, max2, effect3, aura3, min3, max3, procFlag, triggerSpell,
+                misc1, misc2, misc3, 0, 0, 0);
+    }
+
+    public void putTemplate(int id, int effect, int aura, int school, int mana, int minDmg, int maxDmg, float range,
+                            int castMs, int gcdMs, int recoveryMs, int durationMs,
+                            int effect2, int aura2, int min2, int max2,
+                            int effect3, int aura3, int min3, int max3,
+                            int procFlag, int triggerSpell, int misc1, int misc2, int misc3,
+                            int amp1, int amp2, int amp3) {
         int dur = durationMs;
         if (dur <= 0) {
             SpellInfo prev = spells.get(id);
@@ -687,14 +702,47 @@ public final class SpellEngine {
                 misc = prev.misc();
             }
         }
-        spells.put(id, new SpellInfo(id, effect, aura, school, mana, minDmg, maxDmg, range, misc)
-                .withCastTime(castMs).withGcd(gcdMs).withRecovery(recoveryMs).withDuration(dur));
+        int amountMin = minDmg;
+        int amountMax = maxDmg;
+        int amp = amp1;
+        // Drink script OnApply: copy PERIODIC_DUMMY amount onto MOD_POWER_REGEN when base is 0.
+        if (aura == AuraEngine.SPELL_AURA_MOD_POWER_REGEN && amountMin <= 0
+                && aura2 == AuraEngine.SPELL_AURA_PERIODIC_DUMMY && min2 > 0) {
+            amountMin = min2;
+            amountMax = max2;
+            if (amountMax <= 0) {
+                amountMax = min2;
+            }
+            if (amp <= 0) {
+                amp = amp2;
+            }
+            if (amp <= 0) {
+                amp = DRINK_AMPLITUDE_MS;
+            }
+        }
+        if (amp <= 0 && aura == AuraEngine.SPELL_AURA_MOD_REGEN) {
+            amp = FOOD_AMPLITUDE_MS;
+        }
+        if (amp <= 0 && aura == AuraEngine.SPELL_AURA_MOD_POWER_REGEN) {
+            amp = DRINK_AMPLITUDE_MS;
+        }
+        if (amp <= 0) {
+            SpellInfo prev = spells.get(id);
+            if (prev != null && prev.amplitudeMs() > 0) {
+                amp = prev.amplitudeMs();
+            }
+        }
+        spells.put(id, new SpellInfo(id, effect, aura, school, mana, amountMin, amountMax, range, misc)
+                .withCastTime(castMs).withGcd(gcdMs).withRecovery(recoveryMs).withDuration(dur)
+                .withAmplitude(amp));
         List<SpellInfo> extra = new ArrayList<>();
         if (effect2 != 0) {
-            extra.add(new SpellInfo(id, effect2, aura2, school, 0, min2, max2, range, misc2));
+            extra.add(new SpellInfo(id, effect2, aura2, school, 0, min2, max2, range, misc2)
+                    .withAmplitude(amp2));
         }
         if (effect3 != 0) {
-            extra.add(new SpellInfo(id, effect3, aura3, school, 0, min3, max3, range, misc3));
+            extra.add(new SpellInfo(id, effect3, aura3, school, 0, min3, max3, range, misc3)
+                    .withAmplitude(amp3));
         }
         if (extra.isEmpty()) {
             extraEffects.remove(id);

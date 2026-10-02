@@ -4,6 +4,7 @@ import org.tbc.content.dbc.DbcBinding;
 import org.tbc.content.dbc.WdbcFile;
 import org.tbc.content.domain.CharBaseInfoDomain;
 import org.tbc.content.domain.ChrClassesDomain;
+import org.tbc.content.domain.ClasslessSkillMaskDomain;
 import org.tbc.content.domain.ContentDomain;
 import org.tbc.content.domain.SpellDomain;
 import org.tbc.content.mpq.MpqWriter;
@@ -27,6 +28,7 @@ public final class ContentCompiler {
         register(new SpellDomain());
         register(new ChrClassesDomain());
         register(new CharBaseInfoDomain());
+        register(new ClasslessSkillMaskDomain());
     }
 
     public void register(ContentDomain domain) {

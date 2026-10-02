@@ -1,0 +1,9 @@
+# SkillRaceClassInfo.dbc — TBC 2.4.3 (8 × uint32). ClassMask for trainable skill lines.
+uint ID
+uint SkillID
+uint RaceMask
+uint ClassMask
+uint Flags
+uint MinLevel
+uint SkillTierID
+uint SkillCostIndex

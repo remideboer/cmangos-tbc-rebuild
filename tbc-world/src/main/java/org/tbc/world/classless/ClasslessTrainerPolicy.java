@@ -5,7 +5,10 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.session.TrainerHandler;
 
-/** Class trainers list/buy for classless via eligibility catalog; normal classes unchanged. */
+/**
+ * Class trainers list/buy for classless with no spell whitelist; normal classes unchanged.
+ * Level / chain / money gates stay in {@link org.tbc.world.session.TrainerService}.
+ */
 public final class ClasslessTrainerPolicy {
     private ClasslessTrainerPolicy() {
     }
@@ -24,15 +27,14 @@ public final class ClasslessTrainerPolicy {
     }
 
     public static boolean mayBuy(Player p, int spellId) {
-        return ClasslessCharacterPolicy.isClassless(p)
-                && ClasslessConfig.get().trainerSpellEligible(spellId);
+        return ClasslessCharacterPolicy.isClassless(p);
     }
 
-    /** Keep trainer list rows that are eligible (or all rows when not classless). */
+    /** Keep trainer list rows (classless: all spell ids; other classes: no id whitelist). */
     public static boolean listIncludes(Player p, int spellId) {
-        if (!ClasslessCharacterPolicy.isClassless(p)) {
-            return true;
+        if (spellId <= 0) {
+            return false;
         }
-        return ClasslessConfig.get().trainerSpellEligible(spellId);
+        return true;
     }
 }

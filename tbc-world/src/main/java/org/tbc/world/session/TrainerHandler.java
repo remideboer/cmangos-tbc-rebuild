@@ -56,18 +56,18 @@ public final class TrainerHandler {
             return null;
         }
         List<ObjectMgr.TrainerSpell> rows = mgr.spellsForTrainer(c.entry);
-        if (rows.isEmpty()) {
-            return null;
-        }
         java.util.ArrayList<ObjectMgr.TrainerSpell> listed = new java.util.ArrayList<>();
         for (ObjectMgr.TrainerSpell s : rows) {
-            if (org.tbc.world.classless.ClasslessTrainerPolicy.listIncludes(p, s.spell())) {
-                listed.add(s);
+            if (!org.tbc.world.classless.ClasslessTrainerPolicy.listIncludes(p, s.spell())) {
+                continue;
             }
+            // CMaNGOS IsSpellFitByClassAndRace — classless always fits (no SkillLineAbility classmask).
+            if (!mgr.skillLineAbilities.fitsClassAndRace(p, s.spell())) {
+                continue;
+            }
+            listed.add(s);
         }
-        if (listed.isEmpty()) {
-            return null;
-        }
+        // CMaNGOS still sends TRAINER_LIST with count 0 + greeting (empty UI, not silent drop).
         int trainerType = mgr.trainerType(c.entry);
         WowBuffer b = new WowBuffer(16 + listed.size() * 38 + DEFAULT_GREETING.length() + 1);
         b.putU64(c.guid);
@@ -137,6 +137,9 @@ public final class TrainerHandler {
             return;
         }
         if (!org.tbc.world.classless.ClasslessTrainerPolicy.listIncludes(p, spell)) {
+            return;
+        }
+        if (!world.objectMgr.skillLineAbilities.fitsClassAndRace(p, spell)) {
             return;
         }
         if (TrainerService.state(p, row, world.objectMgr) != TRAINER_SPELL_GREEN) {

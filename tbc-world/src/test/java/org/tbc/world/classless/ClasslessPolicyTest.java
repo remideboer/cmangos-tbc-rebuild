@@ -2,7 +2,9 @@ package org.tbc.world.classless;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,7 +26,6 @@ class ClasslessPolicyTest {
         assertEquals(3, cfg.armorStep(ClasslessConfig.ARMOR_PLATE));
         assertEquals(0.10f, cfg.armorReductionForStep(1), 1e-6);
         assertEquals(0.30f, cfg.strAgiReductionForStep(3), 1e-6);
-        assertTrue(cfg.trainerSpellEligible(6673));
     }
 
     @Test
@@ -51,16 +52,32 @@ class ClasslessPolicyTest {
     }
 
     @Test
-    void trainerPolicyWhenClasslessShouldAllowClassTrainer() {
+    void trainerPolicyWhenClasslessShouldAllowAnyClassTrainerSpell() {
         Player p = new Player();
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
         assertTrue(ClasslessTrainerPolicy.mayBuy(p, 6673));
-        assertFalse(ClasslessTrainerPolicy.mayBuy(p, 99999));
+        assertTrue(ClasslessTrainerPolicy.mayBuy(p, 99999));
         assertTrue(ClasslessTrainerPolicy.listIncludes(p, 6673));
-        assertFalse(ClasslessTrainerPolicy.listIncludes(p, 99999));
+        assertTrue(ClasslessTrainerPolicy.listIncludes(p, 99999));
         Player warrior = new Player();
         warrior.clazz = 1;
         assertTrue(ClasslessTrainerPolicy.listIncludes(warrior, 99999));
+        assertFalse(ClasslessTrainerPolicy.mayBuy(warrior, 6673));
+    }
+
+    @Test
+    void trainerPolicyWhenClasslessShouldAcceptAnyClassTrainerNpc() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        Creature mage = new Creature();
+        mage.entry = Content.NPC_KHELDEN_BREMEN;
+        assertTrue(ClasslessTrainerPolicy.isTrainerOf(p, mage, mgr));
+        assertTrue(mgr.isTrainerOf(p, mage));
+        Player warrior = new Player();
+        warrior.clazz = 1;
+        assertFalse(mgr.isTrainerOf(warrior, mage));
     }
 
     @Test

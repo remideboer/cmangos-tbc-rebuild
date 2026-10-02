@@ -1,9 +1,5 @@
 package org.tbc.world.classless;
 
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
-
 /**
  * Tunable classless rules. Category→step mapping is separate from per-step effects
  * so equipment handling does not hard-code percentages.
@@ -51,7 +47,6 @@ public final class ClasslessConfig {
     private final double untrainedWeaponMissAddPct;
     /** Optional damage multiplier for untrained weapons; 1.0 = off. */
     private final float untrainedWeaponDamageMult;
-    private final Set<Integer> trainerEligibleSpells;
     private final int baseHealth;
     private final int baseMana;
     private final int str;
@@ -67,7 +62,6 @@ public final class ClasslessConfig {
             float[] speedReductionPct,
             double untrainedWeaponMissAddPct,
             float untrainedWeaponDamageMult,
-            Set<Integer> trainerEligibleSpells,
             int baseHealth,
             int baseMana,
             int str,
@@ -81,7 +75,6 @@ public final class ClasslessConfig {
         this.speedReductionPct = speedReductionPct.clone();
         this.untrainedWeaponMissAddPct = untrainedWeaponMissAddPct;
         this.untrainedWeaponDamageMult = untrainedWeaponDamageMult;
-        this.trainerEligibleSpells = Collections.unmodifiableSet(new LinkedHashSet<>(trainerEligibleSpells));
         this.baseHealth = baseHealth;
         this.baseMana = baseMana;
         this.str = str;
@@ -109,8 +102,6 @@ public final class ClasslessConfig {
 
     /** Locked v1 oracle from Slice 35 plan. */
     public static ClasslessConfig defaults() {
-        Set<Integer> eligible = new LinkedHashSet<>();
-        eligible.add(6673); // Battle Shout — warrior starter trainer
         return new ClasslessConfig(
                 true,
                 new float[]{0f, 0.10f, 0.20f, 0.30f},
@@ -118,7 +109,6 @@ public final class ClasslessConfig {
                 new float[]{0f, 0.05f, 0.10f, 0.15f},
                 5.0,
                 1.0f,
-                eligible,
                 20,
                 100,
                 20,
@@ -136,7 +126,6 @@ public final class ClasslessConfig {
                 speedReductionPct,
                 untrainedWeaponMissAddPct,
                 untrainedWeaponDamageMult,
-                trainerEligibleSpells,
                 baseHealth,
                 baseMana,
                 str,
@@ -185,14 +174,6 @@ public final class ClasslessConfig {
 
     public float untrainedWeaponDamageMult() {
         return untrainedWeaponDamageMult;
-    }
-
-    public boolean trainerSpellEligible(int spellId) {
-        return trainerEligibleSpells.contains(spellId);
-    }
-
-    public Set<Integer> trainerEligibleSpells() {
-        return trainerEligibleSpells;
     }
 
     public int baseHealth() {

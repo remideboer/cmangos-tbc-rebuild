@@ -138,7 +138,7 @@ class Slice35P0Test {
         assertTrue(p2.spells.contains(Content.SPELL_BATTLE_SHOUT));
     }
 
-    /** TP-SL35-004 — trainer list/buy eligible; normal warrior unchanged. */
+    /** TP-SL35-004 — any class trainer list/buy; warrior cannot use mage trainer. */
     @Test
     void tpSl35TrainerBuyEligibleAbility() {
         World world = World.inMemory();
@@ -148,22 +148,102 @@ class Slice35P0Test {
                 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         Player p = client.session().player();
-        Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
-        assertNotNull(trainer);
-        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
-        p.setMoney(Content.TRAINER_SPELL_BATTLE_SHOUT_COST);
+        Creature warriorTrainer = find(world, Content.NPC_LLANE_BESHERE);
+        assertNotNull(warriorTrainer);
+        p.relocate(warriorTrainer.x, warriorTrainer.y, warriorTrainer.z, warriorTrainer.o);
+        p.setMoney(Content.TRAINER_SPELL_BATTLE_SHOUT_COST + Content.TRAINER_SPELL_FIREBALL_COST + 500);
         client.clear();
         WowBuffer list = new WowBuffer(8);
-        list.putU64(trainer.guid);
+        list.putU64(warriorTrainer.guid);
         client.handle(world, Opcodes.CMSG_TRAINER_LIST, list.array());
         assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST));
+        WowBuffer llaneList = new WowBuffer(client.payload(Opcodes.SMSG_TRAINER_LIST));
+        assertEquals(warriorTrainer.guid, llaneList.getU64());
+        llaneList.getU32();
+        int llaneCount = llaneList.getU32();
+        assertTrue(llaneCount >= 1, "classless must see Llane spells");
+        boolean sawBattleShout = false;
+        for (int i = 0; i < llaneCount; i++) {
+            int spell = llaneList.getU32();
+            llaneList.getU8();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU8();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU32();
+            llaneList.getU32();
+            if (spell == Content.SPELL_BATTLE_SHOUT) {
+                sawBattleShout = true;
+            }
+        }
+        assertTrue(sawBattleShout, "Llane list must include Battle Shout 6673");
         client.clear();
         WowBuffer buy = new WowBuffer(12);
-        buy.putU64(trainer.guid);
+        buy.putU64(warriorTrainer.guid);
         buy.putU32(Content.SPELL_BATTLE_SHOUT);
         client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
         assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
         assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+
+        // Rank2 needs prev 6673 + level 12 (spell_chain.prev kept for classless).
+        client.clear();
+        WowBuffer buyR2Early = new WowBuffer(12);
+        buyR2Early.putU64(warriorTrainer.guid);
+        buyR2Early.putU32(Content.SPELL_BATTLE_SHOUT_RANK2);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyR2Early.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED), "rank2 red under level");
+        assertFalse(p.spells.contains(Content.SPELL_BATTLE_SHOUT_RANK2));
+        p.level = 12;
+        p.setMoney(p.money + 500);
+        client.clear();
+        WowBuffer buyR2 = new WowBuffer(12);
+        buyR2.putU64(warriorTrainer.guid);
+        buyR2.putU32(Content.SPELL_BATTLE_SHOUT_RANK2);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyR2.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT_RANK2));
+
+        Creature mageTrainer = find(world, Content.NPC_KHELDEN_BREMEN);
+        assertNotNull(mageTrainer);
+        p.relocate(mageTrainer.x, mageTrainer.y, mageTrainer.z, mageTrainer.o);
+        client.clear();
+        WowBuffer mageList = new WowBuffer(8);
+        mageList.putU64(mageTrainer.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, mageList.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST), "classless opens mage trainer");
+        WowBuffer magePayload = new WowBuffer(client.payload(Opcodes.SMSG_TRAINER_LIST));
+        assertEquals(mageTrainer.guid, magePayload.getU64());
+        magePayload.getU32();
+        int mageCount = magePayload.getU32();
+        assertTrue(mageCount >= 1, "classless must see mage trainer spells");
+        boolean sawFireball = false;
+        for (int i = 0; i < mageCount; i++) {
+            int spell = magePayload.getU32();
+            magePayload.getU8();
+            magePayload.getU32();
+            magePayload.getU32();
+            magePayload.getU32();
+            magePayload.getU8();
+            magePayload.getU32();
+            magePayload.getU32();
+            magePayload.getU32();
+            magePayload.getU32();
+            magePayload.getU32();
+            if (spell == Content.SPELL_FIREBALL) {
+                sawFireball = true;
+            }
+        }
+        assertTrue(sawFireball, "Khelden list must include Fireball 133");
+        client.clear();
+        WowBuffer buyFb = new WowBuffer(12);
+        buyFb.putU64(mageTrainer.guid);
+        buyFb.putU32(Content.SPELL_FIREBALL);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyFb.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertTrue(p.spells.contains(Content.SPELL_FIREBALL));
     }
 
     @Test
@@ -184,6 +264,15 @@ class Slice35P0Test {
         buy.putU32(Content.SPELL_BATTLE_SHOUT);
         client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
         assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+
+        Creature mageTrainer = find(world, Content.NPC_KHELDEN_BREMEN);
+        assertNotNull(mageTrainer);
+        p.relocate(mageTrainer.x, mageTrainer.y, mageTrainer.z, mageTrainer.o);
+        client.clear();
+        WowBuffer mageList = new WowBuffer(8);
+        mageList.putU64(mageTrainer.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, mageList.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_LIST), "warrior cannot open mage trainer");
     }
 
     /** TP-SL35-005 — unproficient leather/mail/plate apply per-step reductions. */
