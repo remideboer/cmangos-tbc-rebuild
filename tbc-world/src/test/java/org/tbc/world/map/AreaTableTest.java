@@ -39,6 +39,16 @@ class AreaTableTest {
     }
 
     @Test
+    void zoneIdWhenShadowglenShouldBeTeldrassil() {
+        AreaTable areas = AreaTable.seeded();
+        assertEquals(AreaTable.TELDRASSIL, areas.zoneId(AreaTable.SHADOWGLEN));
+        assertEquals(AreaTable.SHADOWGLEN, areas.areaId(AreaTable.SHADOWGLEN));
+        assertEquals(AreaTable.SHADOWGLEN, areas.areaId(561));
+        assertEquals(AreaTable.TELDRASSIL, areas.zoneId(561));
+        assertEquals(AreaTable.TELDRASSIL, areas.zoneId(AreaTable.TELDRASSIL));
+    }
+
+    @Test
     void zoneIdWhenDunMoroghShouldBeSelf() {
         AreaTable areas = AreaTable.seeded();
         assertEquals(1, areas.zoneId(1));

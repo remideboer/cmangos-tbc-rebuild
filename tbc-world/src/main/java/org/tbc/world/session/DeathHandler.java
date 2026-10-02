@@ -149,13 +149,14 @@ public final class DeathHandler {
         GraveyardManager.Loc gy = world.graveyards.closest(p.mapId, deathX, deathY, deathZ, p.team,
                 areaId, zoneId);
         if (gy != null) {
-            float z = world.terrain.at(gy.map(), gy.x(), gy.y(), gy.z());
-            world.teleport(p, gy.map(), gy.x(), gy.y(), z, gy.o());
+            // CMaNGOS Player::RepopAtGraveyard → TeleportTo(safe_loc xyz); do not re-snap Z via maps
+            // (Teldrassil/platform graves can sample a lower cloud layer).
+            world.teleport(p, gy.map(), gy.x(), gy.y(), gy.z(), gy.o());
             WowBuffer loc = new WowBuffer(16);
             loc.putU32(gy.map());
             loc.putFloat(gy.x());
             loc.putFloat(gy.y());
-            loc.putFloat(z);
+            loc.putFloat(gy.z());
             s.send(Opcodes.SMSG_DEATH_RELEASE_LOC, loc.array());
         }
         sendWaterWalk(s, true);

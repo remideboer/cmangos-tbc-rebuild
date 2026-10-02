@@ -141,6 +141,39 @@ class Slice17P0Test {
         assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
     }
 
+    /**
+     * TP-SL17-020 — Die in Shadowglen (createinfo zone Teldrassil 141): world_safe_locs 93 Aldrassil,
+     * not Alliance default Elwynn / mid-air cloud void.
+     */
+    @Test
+    void tpSl17RepopWhenShadowglenShouldUseNearestAldrassilSpiritHealer() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Shadowglen");
+        Player p = client.session().player();
+        world.map(p.mapId, p.instanceId).remove(p);
+        p.mapId = 1;
+        p.zoneId = org.tbc.world.map.AreaTable.TELDRASSIL;
+        p.zoneClient = 0;
+        p.team = org.tbc.world.map.GraveyardManager.ALLIANCE;
+        p.relocate(10311.3f, 831.463f, 1326.41f, 0f);
+        world.map(1, 0).add(p);
+        p.setHealth(0);
+        client.clear();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
+        assertEquals(1, WowClientDouble.u32le(loc, 0));
+        assertEquals(10384.8f, WowClientDouble.floatle(loc, 4), 0.5f);
+        assertEquals(811.531f, WowClientDouble.floatle(loc, 8), 0.5f);
+        assertEquals(1317.54f, WowClientDouble.floatle(loc, 12), 0.5f);
+        assertEquals(1, p.mapId);
+        assertEquals(10384.8f, p.x, 0.5f);
+        assertEquals(1317.54f, p.z, 0.5f);
+        assertTrue(p.ghost);
+        assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
+    }
+
     @Test
     void tpSl17RepopWhenDunMoroghShouldUseClosestGraveyard() {
         World world = World.inMemory();

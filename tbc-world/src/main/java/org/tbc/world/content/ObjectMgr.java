@@ -3119,6 +3119,8 @@ public final class ObjectMgr {
         seedCreateActions();
         createInfo.put(key(1, 1), new CreateInfo(1, 1, 0, 12, -8949.95f, -132.493f, 83.5312f, 0f));
         createInfo.put(key(2, 1), new CreateInfo(2, 1, 1, 14, -618.518f, -4251.67f, 38.718f, 0f));
+        // Night Elf warrior — Shadowglen / Teldrassil (classless createForRace).
+        createInfo.put(key(4, 1), new CreateInfo(4, 1, 1, 141, 10311.3f, 831.463f, 1326.41f, 0f));
         // Blood Elf has no warrior; mage coords = Sunstrider (classless createForRace).
         createInfo.put(key(10, 8), new CreateInfo(10, 8, 530, 3431, 10349.6f, -6357.29f, 33.4026f, 0f));
         createSpells.put((int) key(1, 1), new ArrayList<>(List.of(6603, 78, 81, 107, 196, 203, 204, 522, 668, 2382, 2457, 2479, 3050, 3365, 6233, 6246, 6247, 6477, 6478, 7266, 7267, 7355, 8386, 9078, 9125, 20597, 20598, 20599, 20864, 21651, 21652, 22027, 22810)));

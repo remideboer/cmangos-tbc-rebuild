@@ -26,6 +26,10 @@ public final class AreaTable {
     public static final int EVERSONG_WOODS = 3430;
     /** AreaTable.dbc Sunstrider Isle — playercreateinfo zone for race 10; parent Eversong. */
     public static final int SUNSTRIDER_ISLE = 3431;
+    /** AreaTable.dbc Teldrassil — playercreateinfo zone for race 4. */
+    public static final int TELDRASSIL = 141;
+    /** AreaTable.dbc Shadowglen — Night Elf starter sub-area; parent Teldrassil. */
+    public static final int SHADOWGLEN = 188;
 
     public record Entry(int id, int parentZone, int exploreFlag) {
         int zoneOrSelf() {
@@ -44,6 +48,9 @@ public final class AreaTable {
         t.add(DUN_MOROGH, 0, 1);
         t.add(EVERSONG_WOODS, 0, 0);
         t.add(SUNSTRIDER_ISLE, EVERSONG_WOODS, 0);
+        // AreaBit from AreaTable.dbc (Shadowglen 561) so terrain.area → AREALINK without DataDir.
+        t.add(TELDRASSIL, 0, 220);
+        t.add(SHADOWGLEN, TELDRASSIL, 561);
         return t;
     }
 

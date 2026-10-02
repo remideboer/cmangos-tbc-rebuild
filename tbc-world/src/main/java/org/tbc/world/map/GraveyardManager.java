@@ -60,6 +60,18 @@ public final class GraveyardManager {
         g.addLink(921, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
         g.addLink(921, 3487, AREALINK, TEAM_BOTH); // Silvermoon City
         g.addLink(922, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
+        // tbc-db Teldrassil (141): Aldrassil GY 93 is nearest for Shadowglen createinfo spawn.
+        g.addLoc(new Loc(90, 1, 10054.3f, 2117.12f, 1329.63f, 2.40855f));
+        g.addLoc(new Loc(91, 1, 9701.25f, 945.62f, 1291.35f, 2.72271f));
+        g.addLoc(new Loc(93, 1, 10384.8f, 811.531f, 1317.54f, 1.11701f));
+        g.addLoc(new Loc(129, 1, 8706f, 965f, 13.27f, 0f));
+        g.addLink(90, AreaTable.TELDRASSIL, AREALINK, ALLIANCE);
+        g.addLink(91, AreaTable.TELDRASSIL, AREALINK, TEAM_BOTH);
+        g.addLink(93, AreaTable.TELDRASSIL, AREALINK, ALLIANCE);
+        g.addLink(93, AreaTable.SHADOWGLEN, AREALINK, ALLIANCE);
+        g.addLink(129, AreaTable.TELDRASSIL, AREALINK, ALLIANCE);
+        // Alliance map fallback: stay on Kalimdor (Aldrassil) instead of Elwynn void.
+        g.addLink(93, 1, MAPLINK, ALLIANCE);
         return g;
     }
 
@@ -86,18 +98,15 @@ public final class GraveyardManager {
             try (PreparedStatement ps = c.prepareStatement(
                     "SELECT id, ghost_loc, link_kind, faction FROM game_graveyard_zone");
                     ResultSet rs = ps.executeQuery()) {
-                Map<Integer, List<Link>> loaded = new HashMap<>();
+                int n = 0;
                 while (rs.next()) {
-                    int locId = rs.getInt(1);
-                    int ghostLoc = rs.getInt(2);
-                    int kind = rs.getInt(3);
-                    int team = rs.getInt(4);
-                    loaded.computeIfAbsent(key(ghostLoc, kind), k -> new ArrayList<>())
-                            .add(new Link(locId, team));
+                    addLink(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4));
+                    n++;
                 }
-                if (!loaded.isEmpty()) {
-                    links.clear();
-                    links.putAll(loaded);
+                // Merge (do not clear seeds): tbc-db has no map-1 Alliance MAPLINK, so wiping
+                // seeds sent Kalimdor ghosts to Elwynn / void when area/zone resolution missed.
+                if (n > 0) {
+                    log.info("loaded {} game_graveyard_zone rows", n);
                 }
             }
         } catch (Exception e) {

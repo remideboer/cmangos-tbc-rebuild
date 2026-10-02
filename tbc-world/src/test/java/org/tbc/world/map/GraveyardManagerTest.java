@@ -50,4 +50,20 @@ class GraveyardManagerTest {
         assertEquals(10458.5f, loc.x(), 0.5f);
         assertEquals(-6364.61f, loc.y(), 0.5f);
     }
+
+    /**
+     * TP-SL17-020 — Shadowglen (area 188) / Teldrassil zone 141 → world_safe_locs 93 Aldrassil,
+     * not Alliance continent default (Elwynn) / mid-air void.
+     */
+    @Test
+    void closestWhenShadowglenShouldUseAldrassilSpiritHealer() {
+        GraveyardManager g = GraveyardManager.seeded();
+        GraveyardManager.Loc loc = g.closest(1, 10311.3f, 831.463f, 1326.41f,
+                GraveyardManager.ALLIANCE, AreaTable.SHADOWGLEN, AreaTable.TELDRASSIL);
+        assertEquals(93, loc.id());
+        assertEquals(1, loc.map());
+        assertEquals(10384.8f, loc.x(), 0.5f);
+        assertEquals(811.531f, loc.y(), 0.5f);
+        assertEquals(1317.54f, loc.z(), 0.5f);
+    }
 }
