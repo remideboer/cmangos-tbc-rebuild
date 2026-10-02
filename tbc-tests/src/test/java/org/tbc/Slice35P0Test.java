@@ -348,6 +348,38 @@ class Slice35P0Test {
         assertTrue(hit.damage() > 0);
     }
 
+    /**
+     * TP-SL35-010 — classless create sets spirit regen rates (mage GT proxy); OOC HP+mana rise;
+     * in combat mana still rises, HP does not.
+     */
+    @Test
+    void tpSl35ClasslessOocRegenShouldRaiseHealthAndMana() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Regenhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        p.setHealth(10);
+        p.setPower(50);
+        client.clear();
+
+        world.tick(2000);
+
+        // spi 20 * mage gtOCTRegenHP L1 0.079365 * 2s → +3; sqrt(20)*20*0.034965*2s → +6
+        assertEquals(13, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
+        assertEquals(56, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER1));
+
+        p.setHealth(10);
+        p.setPower(50);
+        p.inCombat = true;
+        client.clear();
+        world.tick(2000);
+        assertEquals(10, p.health(), "no spirit HP in combat");
+        assertEquals(56, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER1), "mana still regenerates");
+    }
+
     private static final int EQUIPMENT_SLOT_CHEST = 4;
 
     /** Drop Recruit shirt/pants/boots so armor-penalty asserts see only the test chest. */

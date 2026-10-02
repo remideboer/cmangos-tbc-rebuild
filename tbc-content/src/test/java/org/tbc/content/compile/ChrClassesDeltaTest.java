@@ -38,7 +38,7 @@ class ChrClassesDeltaTest {
                 client:
                   ChrClasses:
                     powerType: 0
-                    name_lang_enUS: Classless
+                    name_lang_enUS: Hero
                     filename: WARRIOR
                 server:
                   templateId: 1
@@ -62,7 +62,7 @@ class ChrClassesDeltaTest {
         int row = merged.findRecordIndexById(6);
         assertEquals(0, merged.records().get(row)[binding.field("powerType").orElseThrow().index()]);
         int nameOff = merged.records().get(row)[binding.field("name_lang_enUS").orElseThrow().index()];
-        assertEquals("Classless", merged.str(nameOff));
+        assertEquals("Hero", merged.str(nameOff));
         int fileOff = merged.records().get(row)[binding.field("filename").orElseThrow().index()];
         assertEquals("WARRIOR", merged.str(fileOff));
     }

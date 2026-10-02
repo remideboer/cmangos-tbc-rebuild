@@ -7,7 +7,7 @@ import java.util.function.LongSupplier;
 
 /**
  * Auto Attack only on the bar, cloth + unarmed proficiency, Recruit cloth + Worn Shortsword,
- * and 3 silver. Spawn uses the race's warrior create coords.
+ * and 3 silver. Spawn uses the race's normal starter ({@link CreateSpawnResolver}).
  */
 public final class ClasslessStartingLoadout {
     private ClasslessStartingLoadout() {
@@ -27,16 +27,16 @@ public final class ClasslessStartingLoadout {
         p.addWeaponProficiency(ClasslessConfig.WEAPON_UNARMED_MASK);
         p.setMoney(ClasslessConfig.STARTING_MONEY_COPPER);
         if (mgr != null && nextItemGuid != null) {
-            ObjectMgr.CreateInfo warriorStart = mgr.create(p.race, 1);
-            if (warriorStart != null) {
-                p.mapId = warriorStart.map();
-                p.zoneId = warriorStart.zone();
-                p.relocate(warriorStart.x(), warriorStart.y(), warriorStart.z(), warriorStart.o());
-                p.bindMap = warriorStart.map();
-                p.bindZone = warriorStart.zone();
-                p.bindX = warriorStart.x();
-                p.bindY = warriorStart.y();
-                p.bindZ = warriorStart.z();
+            CreateSpawnResolver.SpawnChoice start = CreateSpawnResolver.resolve(mgr, p.race, null);
+            if (start != null) {
+                p.mapId = start.map();
+                p.zoneId = start.zone();
+                p.relocate(start.x(), start.y(), start.z(), start.o());
+                p.bindMap = start.map();
+                p.bindZone = start.zone();
+                p.bindX = start.x();
+                p.bindY = start.y();
+                p.bindZ = start.z();
             }
             mgr.giveNamedStartItems(p, ClasslessConfig.STARTING_ITEMS, nextItemGuid);
         }

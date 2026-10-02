@@ -1,11 +1,11 @@
 # Classless character — ChrClasses id 6 (unused Death Knight slot in TBC).
-# Compile + install overlay MPQ, then create with wowme.exe — see content/README.md.
+# Display name: Hero. Compile + install overlay MPQ, then create with wowme.exe — see content/README.md.
 kind: chrclasses
 id: 6
 client:
   ChrClasses:
     powerType: 0
-    name_lang_enUS: Classless
+    name_lang_enUS: Hero
     filename: WARRIOR
 server:
   templateId: 1

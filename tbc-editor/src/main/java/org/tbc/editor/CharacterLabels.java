@@ -27,7 +27,7 @@ public final class CharacterLabels {
             case 3 -> "Hunter";
             case 4 -> "Rogue";
             case 5 -> "Priest";
-            case 6 -> "Classless";
+            case 6 -> "Hero";
             case 7 -> "Shaman";
             case 8 -> "Mage";
             case 9 -> "Warlock";

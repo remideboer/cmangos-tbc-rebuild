@@ -31,7 +31,7 @@ Commit **YAML + tests** only (`content/out/` and client MPQs are gitignored / no
 | Path | Role |
 |------|------|
 | `spells/*.yaml` | Spell deltas (`kind: spell`) |
-| `classes/*.yaml` | ChrClasses / CharBaseInfo deltas (`kind: chrclasses`, `kind: charbaseinfo`) — e.g. Classless id 6 |
+| `classes/*.yaml` | ChrClasses / CharBaseInfo deltas (`kind: chrclasses`, `kind: charbaseinfo`) — e.g. Hero (classless) id 6 |
 | `items/`, `quests/`, `talents/` | Reserved for later domains (empty for now) |
 | `bindings/tbc243/` | DBC field layouts (from WoW-Spell-Editor Bindings_243_tbc) |
 | `out/` | Generated artifacts (**gitignored**) |
@@ -122,7 +122,8 @@ Re-running compile backs up existing `content\out` files before overwrite; the i
 
 ## Classless character (ChrClasses id 6)
 
-Creates the unused Death Knight slot as **Classless** on the 8606 create screen (warrior icon).
+Creates the unused Death Knight slot as **Hero** on the 8606 create screen (warrior icon).
+Internal id remains class 6 / `CLASS_CLASSLESS`.
 
 ### Author
 
@@ -136,7 +137,7 @@ Creates the unused Death Knight slot as **Classless** on the 8606 create screen 
 1. Base DBC tree must include `ChrClasses.dbc`, `CharBaseInfo.dbc`, `SkillLineAbility.dbc`, and `SkillRaceClassInfo.dbc` (`CONTENT_BASE_DBC` / DataDir).
 2. Compile + install overlay (`build.bat`, or `java -jar tbc-content… compile` then [`install-client-patch.bat`](install-client-patch.bat)).
 3. Install backs up any prior `Data\enUS\patch-enUS-3.MPQ` as `patch-enUS-3.MPQ.bak.<timestamp>` and clears Cache/WDB.
-4. Fully quit the client, start **wowme.exe**, open character create — Classless with warrior icon; create submits class byte **6**. Class trainers should list spells (server already sends full lists).
+4. Fully quit the client, start **wowme.exe**, open character create — Hero with warrior icon; create submits class byte **6**. Class trainers should list spells (server already sends full lists).
 5. Server: `ClasslessConfig.enabled` (default true).
 
 ### Rollback

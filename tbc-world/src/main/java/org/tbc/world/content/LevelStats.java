@@ -227,9 +227,11 @@ public final class LevelStats {
     }
 
     private static float gt(Map<Integer, Float> table, int clazz, int level) {
-        Float v = table.get(classKey(clazz, level));
+        // TBC has no Death Knight / class-6 GT rows; Hero uses mage ratios (mana primary).
+        int gtClass = clazz == 6 ? 8 : clazz;
+        Float v = table.get(classKey(gtClass, level));
         if (v == null) {
-            v = table.get(classKey(clazz, 1));
+            v = table.get(classKey(gtClass, 1));
         }
         return v != null ? v : 0f;
     }

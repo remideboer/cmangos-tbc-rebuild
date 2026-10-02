@@ -104,4 +104,40 @@ class ClasslessPolicyTest {
         assertEquals(ClasslessConfig.ITEM_RECRUIT_BOOTS, p.itemAt(0, 7).entry);
         assertEquals(ClasslessConfig.STARTER_WEAPON, p.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND).entry);
     }
+
+    /** TP-SL35-008 — Blood Elf has no warrior createinfo; classless must still use Sunstrider, not Northshire. */
+    @Test
+    void startingLoadoutWhenBloodElfClasslessShouldSpawnSunstriderIsle() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        // SQL-shaped: BE mage only (no warrior row) — mirrors tbcmangos playercreateinfo.
+        mgr.createInfo.put(ObjectMgr.key(10, 8),
+                new ObjectMgr.CreateInfo(10, 8, 530, 3431, 10349.6f, -6357.29f, 33.4026f, 0f));
+        Player p = new Player();
+        p.guid = 2L;
+        p.race = 10;
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        long[] next = {200L};
+        ClasslessStartingLoadout.apply(p, mgr, () -> next[0]++);
+        assertEquals(530, p.mapId);
+        assertEquals(3431, p.zoneId);
+        assertEquals(10349.6f, p.x, 0.01f);
+        assertEquals(-6357.29f, p.y, 0.01f);
+        assertEquals(530, p.bindMap);
+        assertEquals(3431, p.bindZone);
+    }
+
+    @Test
+    void startingLoadoutWhenHumanClasslessShouldStayNorthshire() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = new Player();
+        p.guid = 3L;
+        p.race = 1;
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        long[] next = {300L};
+        ClasslessStartingLoadout.apply(p, mgr, () -> next[0]++);
+        assertEquals(0, p.mapId);
+        assertEquals(12, p.zoneId);
+    }
 }

@@ -710,6 +710,9 @@ public final class Player extends Unit {
         createStats[3] = inte;
         createStats[4] = spi;
         powerType = POWER_MANA;
+        LevelStats ls = LevelStats.defaults();
+        hpRegenPerSecond = ls.hpRegenPerSpirit(CLASS_CLASSLESS, level, spi);
+        manaRegenPerSecond = (float) Math.sqrt(inte) * ls.manaRegenPerSpirit(CLASS_CLASSLESS, level, spi);
         applyLevelStats();
         setInt(UpdateFields.UNIT_FIELD_MAXPOWER2, POWER_RAGE_MAX);
         setInt(UpdateFields.UNIT_FIELD_POWER2, 0);

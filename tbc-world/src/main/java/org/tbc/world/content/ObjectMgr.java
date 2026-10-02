@@ -3119,6 +3119,8 @@ public final class ObjectMgr {
         seedCreateActions();
         createInfo.put(key(1, 1), new CreateInfo(1, 1, 0, 12, -8949.95f, -132.493f, 83.5312f, 0f));
         createInfo.put(key(2, 1), new CreateInfo(2, 1, 1, 14, -618.518f, -4251.67f, 38.718f, 0f));
+        // Blood Elf has no warrior; mage coords = Sunstrider (classless createForRace).
+        createInfo.put(key(10, 8), new CreateInfo(10, 8, 530, 3431, 10349.6f, -6357.29f, 33.4026f, 0f));
         createSpells.put((int) key(1, 1), new ArrayList<>(List.of(6603, 78, 81, 107, 196, 203, 204, 522, 668, 2382, 2457, 2479, 3050, 3365, 6233, 6246, 6247, 6477, 6478, 7266, 7267, 7355, 8386, 9078, 9125, 20597, 20598, 20599, 20864, 21651, 21652, 22027, 22810)));
         creatures.put(6, seedKoboldVermin());
         creatures.put(103, new CreatureTemplate(103, "Garrick Padfoot", 3734, 21, 80, 5, 0, "", "", 0));
@@ -3455,7 +3457,12 @@ public final class ObjectMgr {
 
     private boolean includeGossipOption(Player p, Creature c, GossipMenuItem it) {
         if (it.conditionId() != 0) {
-            return false;
+            // Hero (classless): waive SQL classmask/level gates on Train only; isTrainerOf still applies.
+            boolean classlessTrainer = it.optionId() == GOSSIP_OPTION_TRAINER
+                    && org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p);
+            if (!classlessTrainer) {
+                return false;
+            }
         }
         if ((it.npcFlag() & c.npcFlags) == 0) {
             return false;
@@ -4082,6 +4089,23 @@ public final class ObjectMgr {
             i = createInfo.get(key(1, 1));
         }
         return i;
+    }
+
+    /**
+     * Race starter from {@code playercreateinfo}: prefer warrior (class 1), else any row for the race,
+     * else human warrior. Used by classless spawn (BE has no warrior row).
+     */
+    public CreateInfo createForRace(int race) {
+        CreateInfo warrior = createInfo.get(key(race, 1));
+        if (warrior != null) {
+            return warrior;
+        }
+        for (var e : createInfo.entrySet()) {
+            if ((int) (e.getKey() >> 8) == race) {
+                return e.getValue();
+            }
+        }
+        return createInfo.get(key(1, 1));
     }
 
     public Creature spawnCreature(int entry, int map, float x, float y, float z, float o, ScriptRegistry scripts) {
