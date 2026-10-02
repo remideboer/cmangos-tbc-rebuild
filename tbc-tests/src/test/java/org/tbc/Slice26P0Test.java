@@ -241,6 +241,26 @@ class Slice26P0Test {
         assertFalse(b.session().hasSeen(stealther.guid));
     }
 
+    /**
+     * TP-SL26-174 — Attacking breaks Stealth 1784 (AuraInterruptFlags ATTACKING).
+     */
+    @Test
+    void tpSl26AttackSwingShouldBreakStealth() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Rogue");
+        Player p = client.session().player();
+        p.spells.add(org.tbc.world.spell.SpellEngine.SPELL_STEALTH);
+        client.castSpell(world, org.tbc.world.spell.SpellEngine.SPELL_STEALTH, 1, p.guid);
+        assertEquals(org.tbc.world.entity.Unit.Visibility.GROUP_STEALTH, p.visibility());
+        org.tbc.world.entity.Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        client.clear();
+        client.attackSwing(world, c.guid);
+        world.tick(2000);
+        assertEquals(org.tbc.world.entity.Unit.Visibility.ON, p.visibility());
+        assertTrue(p.auras.stream().noneMatch(a -> a.spellId() == org.tbc.world.spell.SpellEngine.SPELL_STEALTH));
+    }
+
     private static final World.Account ACC_A =
             new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
     private static final World.Account ACC_B =

@@ -210,6 +210,14 @@ public final class SpellEngine {
     public static final int SPELL_DISARM = 676;
     /** Stealth — Spell.dbc 1784 effect1 MOD_STEALTH (effect0 is shapeshift FORM_STEALTH). */
     public static final int SPELL_STEALTH = 1784;
+    /** SpellDefines.h AuraInterruptFlags — removed by any damage. */
+    public static final int AURA_INTERRUPT_FLAG_DAMAGE = 0x00000002;
+    /** SpellDefines.h — removed by melee attack (AttackerStateUpdate). */
+    public static final int AURA_INTERRUPT_FLAG_ATTACKING = 0x00001000;
+    /** SpellDefines.h — removed by standing up (food/drink/sleep). */
+    public static final int AURA_INTERRUPT_FLAG_STANDING_CANCELS = 0x00040000;
+    /** spell_template.AuraInterruptFlags for Stealth 1784 (includes DAMAGE|ATTACKING). */
+    public static final int STEALTH_AURA_INTERRUPT_FLAGS = 15366;
     /** Invisibility — Spell.dbc 11392; APPLY_AURA MOD_INVISIBILITY. */
     public static final int SPELL_INVISIBILITY = 11392;
     /** Spirit of Runn Tum — Spell.dbc 22735; APPLY_AURA MOD_SCALE +300%. */
@@ -446,6 +454,8 @@ public final class SpellEngine {
     private static final int CAST_TIME_INDEX_16_MS = 1500;
 
     private final Map<Integer, SpellInfo> spells = new HashMap<>();
+    /** Spell.dbc AuraInterruptFlags by spell id (CMaNGOS RemoveAurasWithInterruptFlags). */
+    private final Map<Integer, Integer> auraInterruptFlags = new HashMap<>();
     private final DoubleSupplier missRoll;
     private final AuraEngine auras = new AuraEngine();
     /** Wire sink while {@link #finishCast} runs effects (dispel VALUES). Null outside cast. */
@@ -508,6 +518,7 @@ public final class SpellEngine {
                 AuraEngine.SPELL_AURA_MOD_DISARM, 0, 0, 0, 0, 0f));
         spells.put(SPELL_STEALTH, new SpellInfo(SPELL_STEALTH, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_STEALTH, 0, 0, 0, 0, 0f, 30));
+        auraInterruptFlags.put(SPELL_STEALTH, STEALTH_AURA_INTERRUPT_FLAGS);
         spells.put(SPELL_INVISIBILITY, new SpellInfo(SPELL_INVISIBILITY, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_INVISIBILITY, 0, 0, 199, 199, 0f));
         spells.put(SPIRIT_OF_RUNN_TUM, new SpellInfo(SPIRIT_OF_RUNN_TUM, EFFECT_APPLY_AURA,
@@ -1414,6 +1425,45 @@ public final class SpellEngine {
         if (vis) {
             visibilityUpdater.accept(target);
         }
+    }
+
+    /**
+     * CMaNGOS Unit::RemoveAurasWithInterruptFlags — drop holders whose Spell.dbc
+     * AuraInterruptFlags overlap {@code flags}.
+     */
+    public void removeAurasWithInterruptFlags(Unit target, int flags, BiConsumer<Integer, byte[]> send) {
+        if (target == null || flags == 0) {
+            return;
+        }
+        ArrayList<Integer> drop = new ArrayList<>();
+        for (Unit.Aura a : target.auras) {
+            int mask = auraInterruptFlags.getOrDefault(a.spellId(), 0);
+            if ((mask & flags) != 0) {
+                drop.add(a.spellId());
+            }
+        }
+        for (int spellId : drop) {
+            int slot = AuraSlots.slotOf(target, spellId);
+            cancelAura(target, spellId);
+            unapplyAura(target, spellId);
+            if (send != null) {
+                sendUnapplyAuraValues(target, spellId, send);
+                if (slot >= 0) {
+                    AuraSlots.clearVisible(target, slot);
+                    var upd = UpdateBuilder.maybeCompress(
+                            UpdateBuilder.values(target,
+                                    UpdateFields.UNIT_FIELD_AURA + slot,
+                                    UpdateFields.UNIT_FIELD_AURAFLAGS + slot / 4,
+                                    UpdateFields.UNIT_FIELD_AURALEVELS + slot / 4,
+                                    UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + slot / 4));
+                    send.accept(upd.opcode(), upd.payload());
+                }
+            }
+        }
+    }
+
+    public int auraInterruptFlags(int spellId) {
+        return auraInterruptFlags.getOrDefault(spellId, 0);
     }
 
     static boolean affectsVisibility(SpellInfo sp) {

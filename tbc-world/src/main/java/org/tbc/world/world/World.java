@@ -450,6 +450,8 @@ public final class World implements Runnable {
         if (p == null || victim == null || !victim.alive()) {
             return;
         }
+        BiConsumer<Integer, byte[]> atkSend = p.session != null ? p.session::send : null;
+        spells.removeAurasWithInterruptFlags(p, SpellEngine.AURA_INTERRUPT_FLAG_ATTACKING, atkSend);
         int min = Math.round(p.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
         int max = Math.round(p.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
         MeleeTable.Result r = MeleeTable.roll(p, victim, min, max);
@@ -457,6 +459,8 @@ public final class World implements Runnable {
         int dealt = r.damage();
         boolean duelEnded = false;
         if (dealt > 0) {
+            BiConsumer<Integer, byte[]> vicSend = victim.session != null ? victim.session::send : null;
+            spells.removeAurasWithInterruptFlags(victim, SpellEngine.AURA_INTERRUPT_FLAG_DAMAGE, vicSend);
             if (p.duelOpponent == victim && dealt >= before - 1) {
                 dealt = Math.max(0, before - 1);
                 duelEnded = true;
@@ -560,6 +564,9 @@ public final class World implements Runnable {
 
     private void applyMeleeHit(Player p, Creature c, boolean offhand) {
         GameMap hitMap = map(p.mapId, p.instanceId);
+        // CMaNGOS AttackerStateUpdate → RemoveAurasWithInterruptFlags(ATTACKING) (Stealth 1784).
+        BiConsumer<Integer, byte[]> send = p.session != null ? p.session::send : null;
+        spells.removeAurasWithInterruptFlags(p, SpellEngine.AURA_INTERRUPT_FLAG_ATTACKING, send);
         boolean nextMeleeSpell = !offhand && p.hasNextMeleeSpellQueued();
         int spellId = nextMeleeSpell ? p.peekNextMeleeSpellId() : 0;
         int castCount = nextMeleeSpell ? p.peekNextMeleeCastCount() : 0;
@@ -854,6 +861,11 @@ public final class World implements Runnable {
         GameMap hitMap = map(p.mapId, p.instanceId);
         boolean wasAlive = p.alive();
         MeleeTable.Result r = combat.swing(c, p, nowMs(), (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
+        // CMaNGOS DealDamage → RemoveAurasWithInterruptFlags(DAMAGE) on the victim.
+        if (r.damage() > 0) {
+            BiConsumer<Integer, byte[]> send = p.session != null ? p.session::send : null;
+            spells.removeAurasWithInterruptFlags(p, SpellEngine.AURA_INTERRUPT_FLAG_DAMAGE, send);
+        }
         // SendAttackStateUpdate + the victim's public UNIT_FIELD_HEALTH go SendMessageToSet (victim included).
         byte[] log = combat.encodeAttack(c, p, r);
         var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.UNIT_FIELD_HEALTH));
