@@ -267,7 +267,8 @@ public final class CharacterStore {
             // Skills loaded from character_skills after row; create defaults only if empty.
         }
         if (org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
-            org.tbc.world.classless.ClasslessCharacterPolicy.applyStartingStats(p);
+            org.tbc.world.classless.ClasslessCharacterPolicy.applyStartingStats(p,
+                    mgr != null && mgr.levelStats != null ? mgr.levelStats : null);
         } else {
             initStatsForLevel(p, mgr);
         }

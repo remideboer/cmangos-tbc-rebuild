@@ -189,6 +189,53 @@ public final class LevelStats {
         return s != null ? s : new Stats(20, 20, 20, 20, 20);
     }
 
+    /**
+     * Flat Hero starting abilities: rounded mean of every class row for that race+level
+     * (racial lean kept, no warrior/mage class bias). Falls back to human averages, then 21s.
+     */
+    public Stats averageStats(int race, int level) {
+        Stats avg = averageStatsExact(race, level);
+        if (avg != null) {
+            return avg;
+        }
+        if (race != 1) {
+            avg = averageStatsExact(1, level);
+            if (avg != null) {
+                return avg;
+            }
+        }
+        return new Stats(21, 21, 21, 21, 21);
+    }
+
+    private Stats averageStatsExact(int race, int level) {
+        long sumStr = 0, sumAgi = 0, sumSta = 0, sumInte = 0, sumSpi = 0;
+        int n = 0;
+        int raceShift = race << 16;
+        int levelMask = level & 0xFF;
+        for (var e : raceClassLevels.entrySet()) {
+            int key = e.getKey();
+            if ((key & 0xFF) != levelMask || (key & ~0xFFFF) != raceShift) {
+                continue;
+            }
+            Stats s = e.getValue();
+            sumStr += s.str();
+            sumAgi += s.agi();
+            sumSta += s.sta();
+            sumInte += s.inte();
+            sumSpi += s.spi();
+            n++;
+        }
+        if (n == 0) {
+            return null;
+        }
+        return new Stats(
+                Math.round(sumStr / (float) n),
+                Math.round(sumAgi / (float) n),
+                Math.round(sumSta / (float) n),
+                Math.round(sumInte / (float) n),
+                Math.round(sumSpi / (float) n));
+    }
+
     /** DataDir/dbc gt*.dbc: one float per row, row = (class - 1) * 100 + level - 1. Missing files keep the seeds. */
     public void loadGt(Path dataDir) {
         if (dataDir == null) {

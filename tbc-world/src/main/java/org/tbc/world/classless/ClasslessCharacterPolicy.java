@@ -1,5 +1,6 @@
 package org.tbc.world.classless;
 
+import org.tbc.world.content.LevelStats;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -45,15 +46,21 @@ public final class ClasslessCharacterPolicy {
         }
     }
 
-    /** Dedicated level-1 stats — not a warrior/mage fallback. */
+    /** Flat L1 abilities from per-race class average; HP/mana from ClasslessConfig. */
     public static void applyStartingStats(Player p) {
+        applyStartingStats(p, LevelStats.defaults());
+    }
+
+    public static void applyStartingStats(Player p, LevelStats levelStats) {
         if (p == null) {
             return;
         }
         ClasslessConfig cfg = ClasslessConfig.get();
+        LevelStats ls = levelStats != null ? levelStats : LevelStats.defaults();
+        LevelStats.Stats st = ls.averageStats(p.race, Math.max(1, p.level));
         p.applyClasslessCreateStats(
                 cfg.baseHealth(), cfg.baseMana(),
-                cfg.str(), cfg.agi(), cfg.sta(), cfg.inte(), cfg.spi());
+                st.str(), st.agi(), st.sta(), st.inte(), st.spi());
     }
 
     public static void applyCreate(Player p, ObjectMgr mgr, LongSupplier nextItemGuid) {
@@ -61,7 +68,8 @@ public final class ClasslessCharacterPolicy {
             return;
         }
         ClasslessStartingLoadout.apply(p, mgr, nextItemGuid);
-        applyStartingStats(p);
+        LevelStats ls = mgr != null && mgr.levelStats != null ? mgr.levelStats : LevelStats.defaults();
+        applyStartingStats(p, ls);
     }
 
     /** Re-apply cloth + unarmed if persist did not carry proficiency masks. */

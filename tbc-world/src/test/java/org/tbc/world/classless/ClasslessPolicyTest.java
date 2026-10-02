@@ -140,4 +140,40 @@ class ClasslessPolicyTest {
         assertEquals(0, p.mapId);
         assertEquals(12, p.zoneId);
     }
+
+    /** TP-SL35-011 — Hero L1 STAT0..4 = rounded mean of that race's class rows (flat, racial lean kept). */
+    @Test
+    void startingStatsWhenHumanClasslessShouldUseRaceClassAverage() {
+        Player p = new Player();
+        p.race = 1;
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.level = 1;
+        ClasslessCharacterPolicy.applyStartingStats(p);
+        // Human L1 mean of war/pal/rogue/priest/mage/lock seeds → 21/21/21/21/21
+        assertEquals(21, p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT0));
+        assertEquals(21, p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT1));
+        assertEquals(21, p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(21, p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT3));
+        assertEquals(21, p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT4));
+    }
+
+    @Test
+    void startingStatsWhenOrcClasslessShouldCarryRacialLeanVsHuman() {
+        Player human = new Player();
+        human.race = 1;
+        human.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        human.level = 1;
+        ClasslessCharacterPolicy.applyStartingStats(human);
+        Player orc = new Player();
+        orc.race = 2;
+        orc.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        orc.level = 1;
+        ClasslessCharacterPolicy.applyStartingStats(orc);
+        assertTrue(orc.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT0)
+                        > human.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT0),
+                "orc Hero STR above human Hero");
+        assertTrue(orc.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT3)
+                        < human.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT3),
+                "orc Hero INT below human Hero");
+    }
 }
