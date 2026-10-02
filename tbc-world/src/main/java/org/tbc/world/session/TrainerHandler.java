@@ -94,7 +94,7 @@ public final class TrainerHandler {
             }
             b.putU32(s.spell());
             b.putU8(state);
-            b.putU32(s.cost());
+            b.putU32(org.tbc.world.classless.ClasslessTrainerPolicy.effectiveCost(p, s.cost()));
             b.putU32(0);
             b.putU32(s.primaryProfessionFirstRank() ? 1 : 0);
             b.putU8(s.reqLevel());
@@ -133,7 +133,11 @@ public final class TrainerHandler {
                 break;
             }
         }
-        if (row == null || p.money < row.cost()) {
+        if (row == null) {
+            return;
+        }
+        int cost = org.tbc.world.classless.ClasslessTrainerPolicy.effectiveCost(p, row.cost());
+        if (p.money < cost) {
             return;
         }
         if (!org.tbc.world.classless.ClasslessTrainerPolicy.listIncludes(p, spell)) {
@@ -145,7 +149,7 @@ public final class TrainerHandler {
         if (TrainerService.state(p, row, world.objectMgr) != TRAINER_SPELL_GREEN) {
             return;
         }
-        p.setMoney(p.money - row.cost());
+        p.setMoney(p.money - cost);
         // ModifyMoney → client bag copper (vendor buy / bank slot same pattern).
         var coin = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
         s.send(coin.opcode(), coin.payload());

@@ -137,9 +137,19 @@ public final class Player extends Unit {
         weaponProficiency |= mask;
     }
 
+    /** Clear weapon proficiency bits (tests / unlearn paths). */
+    public void clearWeaponProficiency(int mask) {
+        weaponProficiency &= ~mask;
+    }
+
     /** CMaNGOS Player::AddArmorProficiency. Plate Mail 750 mask 16. */
     public void addArmorProficiency(int mask) {
         armorProficiency |= mask;
+    }
+
+    /** Clear armor proficiency bits (tests / unlearn paths). */
+    public void clearArmorProficiency(int mask) {
+        armorProficiency &= ~mask;
     }
     public int skin, face, hairStyle, hairColor, facialHair;
     public int money;

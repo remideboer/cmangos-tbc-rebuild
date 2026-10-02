@@ -60,7 +60,7 @@ class Slice35P0Test {
         assertEquals(Codes.CHAR_CREATE_ERROR, client.payload(Opcodes.SMSG_CHAR_CREATE)[0] & 0xFF);
     }
 
-    /** TP-SL35-002 — Auto Attack only on bar; Recruit cloth + Worn Shortsword equipped; 3 silver. */
+    /** TP-SL35-002 — Auto Attack only on bar; Recruit cloth + Worn Shortsword; full proficiencies; 3 silver. */
     @Test
     void tpSl35BlankStartShouldHaveAutoAttackOnly() {
         World world = World.inMemory();
@@ -72,9 +72,11 @@ class Slice35P0Test {
         assertTrue(created.spells.contains(ClasslessConfig.AUTO_ATTACK));
         assertFalse(created.spells.contains(78), "no Heroic Strike");
         assertFalse(created.spells.contains(Content.SPELL_BATTLE_SHOUT));
-        assertEquals(ClasslessConfig.ARMOR_CLOTH_MASK, created.armorProficiency() & ClasslessConfig.ARMOR_CLOTH_MASK);
-        assertEquals(ClasslessConfig.WEAPON_UNARMED_MASK, created.weaponProficiency() & ClasslessConfig.WEAPON_UNARMED_MASK);
-        assertEquals(0, created.weaponProficiency() & (1 << 7), "no sword proficiency");
+        assertEquals(ClasslessConfig.ALL_ARMOR_PROFICIENCY_MASK,
+                created.armorProficiency() & ClasslessConfig.ALL_ARMOR_PROFICIENCY_MASK);
+        assertEquals(ClasslessConfig.ALL_WEAPON_PROFICIENCY_MASK,
+                created.weaponProficiency() & ClasslessConfig.ALL_WEAPON_PROFICIENCY_MASK);
+        assertTrue((created.weaponProficiency() & (1 << 7)) != 0, "sword proficiency on create");
         assertEquals(ClasslessConfig.STARTING_MONEY_COPPER, created.money);
         assertEquals(ClasslessConfig.ITEM_RECRUIT_SHIRT, created.itemAt(0, 3).entry);
         assertEquals(ClasslessConfig.ITEM_RECRUIT_PANTS, created.itemAt(0, 6).entry);
@@ -89,6 +91,30 @@ class Slice35P0Test {
         byte[] bar = client.payload(Opcodes.SMSG_ACTION_BUTTONS);
         assertEquals(ClasslessConfig.AUTO_ATTACK, WowClientDouble.u32le(bar, 0));
         assertEquals(0, WowClientDouble.u32le(bar, 73 * 4), "no HS on stance bar");
+    }
+
+    /**
+     * TP-SL35-015 — Hero create: full armor/weapon proficiency masks; combat skills at 1.
+     */
+    @Test
+    void tpSl35CreateShouldGrantFullProficienciesAndWeaponSkillsAtOne() {
+        World world = World.inMemory();
+        Player created = world.characters.create(ACC.id(), "Fullskill", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        assertNotNull(created);
+        assertEquals(ClasslessConfig.ALL_ARMOR_PROFICIENCY_MASK,
+                created.armorProficiency() & ClasslessConfig.ALL_ARMOR_PROFICIENCY_MASK);
+        assertEquals(ClasslessConfig.ALL_WEAPON_PROFICIENCY_MASK,
+                created.weaponProficiency() & ClasslessConfig.ALL_WEAPON_PROFICIENCY_MASK);
+        assertEquals(1, created.skillValue(org.tbc.world.content.WeaponSkills.SKILL_SWORDS));
+        assertEquals(1, created.skillValue(org.tbc.world.content.WeaponSkills.SKILL_AXES));
+        assertEquals(1, created.skillValue(org.tbc.world.content.WeaponSkills.SKILL_UNARMED));
+        assertEquals(1, created.skillValue(org.tbc.world.content.WeaponSkills.SKILL_DEFENSE));
+        assertEquals(5, created.skillMax(org.tbc.world.content.WeaponSkills.SKILL_SWORDS));
+        assertTrue(created.spells.contains(ClasslessConfig.AUTO_ATTACK));
+        assertFalse(created.spells.contains(78), "no Heroic Strike");
+        assertFalse(created.spells.contains(Content.SPELL_BATTLE_SHOUT), "no free class abilities");
+        assertEquals(0, org.tbc.world.classless.ClasslessTrainerPolicy.classSpellsLearned(created));
     }
 
     /** TP-SL35-007 — create-self exposes mana + rage + energy MAXPOWER. */
@@ -154,7 +180,8 @@ class Slice35P0Test {
         Creature warriorTrainer = find(world, Content.NPC_LLANE_BESHERE);
         assertNotNull(warriorTrainer);
         p.relocate(warriorTrainer.x, warriorTrainer.y, warriorTrainer.z, warriorTrainer.o);
-        p.setMoney(Content.TRAINER_SPELL_BATTLE_SHOUT_COST + Content.TRAINER_SPELL_FIREBALL_COST + 500);
+        // Cumulative: BS 200×1 + Rank2 500×2 + Fireball 10×3 = 1230+
+        p.setMoney(5_000);
         client.clear();
         WowBuffer list = new WowBuffer(8);
         list.putU64(warriorTrainer.guid);
@@ -200,7 +227,7 @@ class Slice35P0Test {
         assertFalse(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED), "rank2 red under level");
         assertFalse(p.spells.contains(Content.SPELL_BATTLE_SHOUT_RANK2));
         p.level = 12;
-        p.setMoney(p.money + 500);
+        p.setMoney(Math.max(p.money, 2_000));
         client.clear();
         WowBuffer buyR2 = new WowBuffer(12);
         buyR2.putU64(warriorTrainer.guid);
@@ -288,6 +315,8 @@ class Slice35P0Test {
                 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         Player p = client.session().player();
+        // Penalty oracle needs cloth-only; create now grants full armor proficiency.
+        p.clearArmorProficiency(ClasslessConfig.ALL_ARMOR_PROFICIENCY_MASK & ~ClasslessConfig.ARMOR_CLOTH_MASK);
         stripNonWeaponGear(p);
         world.objectMgr.applyEquippedMelee(p);
         int baseStr = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
@@ -343,6 +372,8 @@ class Slice35P0Test {
         target.level = p.level;
         Item main = p.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND);
         assertNotNull(main, "starter sword equipped");
+        // Create grants sword bit; clear it to exercise untrained miss path.
+        p.clearWeaponProficiency(1 << 7);
         double untrainedAdd = org.tbc.world.classless.WeaponPenaltyPolicy.missAddPercent(p, false);
         assertEquals(ClasslessConfig.get().untrainedWeaponMissAddPct(), untrainedAdd, 1e-9);
         p.addWeaponProficiency(1 << 7); // 1H swords
@@ -464,6 +495,87 @@ class Slice35P0Test {
         assertEquals(p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER4) / 2, p.getInt(UpdateFields.UNIT_FIELD_POWER4));
         assertEquals(p.maxHealth() / 2, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_HEALTH));
         assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST);
+    }
+
+    /**
+     * TP-SL35-016 — cumulative trainer cost: first buy 1× spellcost; second refused until money ≥ 2×.
+     */
+    @Test
+    void tpSl35CumulativeTrainerCostShouldScaleWithLearnedSpells() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Costhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        // Fireball trainer for a cheap second row after Battle Shout.
+        Creature mage = find(world, Content.NPC_KHELDEN_BREMEN);
+        assertNotNull(mage);
+
+        // 300 copper; Battle Shout cost 200 → first buy pays 200×1, money 100.
+        p.setMoney(ClasslessConfig.STARTING_MONEY_COPPER);
+        client.clear();
+        WowBuffer buyBs = new WowBuffer(12);
+        buyBs.putU64(trainer.guid);
+        buyBs.putU32(Content.SPELL_BATTLE_SHOUT);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyBs.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+        assertEquals(ClasslessConfig.STARTING_MONEY_COPPER - Content.TRAINER_SPELL_BATTLE_SHOUT_COST, p.money);
+
+        // Second buy Fireball cost 10 × (1+1) = 20; only 100 copper — still affordable; refuse path:
+        // try Rank2 (500×2=1000) with money 100 → refuse.
+        p.level = 12;
+        client.clear();
+        WowBuffer buyR2 = new WowBuffer(12);
+        buyR2.putU64(trainer.guid);
+        buyR2.putU32(Content.SPELL_BATTLE_SHOUT_RANK2);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyR2.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertFalse(p.spells.contains(Content.SPELL_BATTLE_SHOUT_RANK2));
+        assertEquals(100, p.money);
+
+        // With money ≥ 1000 (500×2), Rank2 succeeds.
+        p.setMoney(1_000);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyR2.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT_RANK2));
+        assertEquals(0, p.money);
+
+        // List shows cumulative Fireball cost (10×3=30 with 2 learned).
+        p.relocate(mage.x, mage.y, mage.z, mage.o);
+        client.clear();
+        WowBuffer list = new WowBuffer(8);
+        list.putU64(mage.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, list.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST));
+        WowBuffer payload = new WowBuffer(client.payload(Opcodes.SMSG_TRAINER_LIST));
+        payload.getU64();
+        payload.getU32();
+        int count = payload.getU32();
+        int fireballCost = -1;
+        for (int i = 0; i < count; i++) {
+            int spell = payload.getU32();
+            payload.getU8();
+            int cost = payload.getU32();
+            payload.getU32();
+            payload.getU32();
+            payload.getU8();
+            payload.getU32();
+            payload.getU32();
+            payload.getU32();
+            payload.getU32();
+            payload.getU32();
+            if (spell == Content.SPELL_FIREBALL) {
+                fireballCost = cost;
+            }
+        }
+        assertEquals(Content.TRAINER_SPELL_FIREBALL_COST * 3, fireballCost);
     }
 
     private static void sendHeroPowerEnable(WowClientDouble client, World world) {

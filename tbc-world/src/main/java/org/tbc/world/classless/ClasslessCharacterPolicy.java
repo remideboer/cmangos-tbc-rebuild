@@ -58,7 +58,7 @@ public final class ClasslessCharacterPolicy {
         ClasslessConfig cfg = ClasslessConfig.get();
         LevelStats ls = levelStats != null ? levelStats : LevelStats.defaults();
         LevelStats.Stats st = ls.averageStats(p.race, Math.max(1, p.level));
-        p.applyClasslessCreateStats(
+        p.applyClasslessCreateStats(ls,
                 cfg.baseHealth(), cfg.baseMana(),
                 st.str(), st.agi(), st.sta(), st.inte(), st.spi());
     }
@@ -72,16 +72,12 @@ public final class ClasslessCharacterPolicy {
         applyStartingStats(p, ls);
     }
 
-    /** Re-apply cloth + unarmed if persist did not carry proficiency masks. */
+    /** Re-apply full weapon/armor proficiency masks if persist did not carry them. */
     public static void ensureStartingProficiencies(Player p) {
         if (!isClassless(p)) {
             return;
         }
-        if ((p.armorProficiency() & ClasslessConfig.ARMOR_CLOTH_MASK) == 0) {
-            p.addArmorProficiency(ClasslessConfig.ARMOR_CLOTH_MASK);
-        }
-        if ((p.weaponProficiency() & ClasslessConfig.WEAPON_UNARMED_MASK) == 0) {
-            p.addWeaponProficiency(ClasslessConfig.WEAPON_UNARMED_MASK);
-        }
+        p.addArmorProficiency(ClasslessConfig.ALL_ARMOR_PROFICIENCY_MASK);
+        p.addWeaponProficiency(ClasslessConfig.ALL_WEAPON_PROFICIENCY_MASK);
     }
 }

@@ -3,6 +3,7 @@ package org.tbc.world.classless;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.tbc.world.content.Content;
+import org.tbc.world.content.ChrStatic;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
@@ -175,5 +176,44 @@ class ClasslessPolicyTest {
         assertTrue(orc.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT3)
                         < human.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_STAT3),
                 "orc Hero INT below human Hero");
+    }
+
+    /** TP-SL35-014 — classless must set PLAYER_NEXT_LEVEL_XP so the client XP bar shows. */
+    @Test
+    void startingStatsWhenClasslessShouldSetNextLevelXpForBar() {
+        Player p = new Player();
+        p.race = 1;
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.level = 1;
+        ClasslessCharacterPolicy.applyStartingStats(p);
+        assertEquals(400, p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_NEXT_LEVEL_XP));
+        assertEquals(0, p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_XP));
+        int[] changed = p.giveXp(50, null);
+        assertTrue(changed.length > 0);
+        assertEquals(50, p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_XP));
+    }
+
+    /** TP-SL35-016 — buyCost = spellcost × (learned + 1). */
+    @Test
+    void buyCostWhenZeroLearnedShouldBeOneTimesSpellCost() {
+        assertEquals(100, ClasslessTrainerPolicy.buyCost(100, 0));
+        assertEquals(100, ClasslessTrainerPolicy.buyCost(100, 1) / 2);
+        assertEquals(200, ClasslessTrainerPolicy.buyCost(100, 1));
+        assertEquals(300, ClasslessTrainerPolicy.buyCost(100, 2));
+        assertEquals(0, ClasslessTrainerPolicy.buyCost(0, 5));
+        assertEquals(Integer.MAX_VALUE, ClasslessTrainerPolicy.buyCost(Integer.MAX_VALUE / 2, 2));
+    }
+
+    @Test
+    void classSpellsLearnedShouldExcludeAutoAttack() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.spells.add(ClasslessConfig.AUTO_ATTACK);
+        p.spells.add(ChrStatic.SPELL_LANG_COMMON);
+        assertEquals(0, ClasslessTrainerPolicy.classSpellsLearned(p));
+        p.spells.add(6673);
+        assertEquals(1, ClasslessTrainerPolicy.classSpellsLearned(p));
+        p.spells.add(133);
+        assertEquals(2, ClasslessTrainerPolicy.classSpellsLearned(p));
     }
 }

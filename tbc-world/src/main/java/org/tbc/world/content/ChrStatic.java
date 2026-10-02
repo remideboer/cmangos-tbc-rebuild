@@ -108,6 +108,14 @@ public final class ChrStatic {
                 || s == SKILL_LANG_DRAENEI;
     }
 
+    public static boolean isLanguageSpell(int spellId) {
+        return spellId == SPELL_LANG_COMMON || spellId == SPELL_LANG_ORCISH
+                || spellId == SPELL_LANG_DWARVISH || spellId == SPELL_LANG_DARNASSIAN
+                || spellId == SPELL_LANG_TAURAHE || spellId == SPELL_LANG_THALASSIAN
+                || spellId == SPELL_LANG_GNOMISH || spellId == SPELL_LANG_TROLL
+                || spellId == SPELL_LANG_GUTTERSPEAK || spellId == SPELL_LANG_DRAENEI;
+    }
+
     public static boolean playable(int race, int clazz) {
         boolean knownRace = false;
         for (Race r : RACES) {

@@ -1,5 +1,7 @@
 package org.tbc.world.classless;
 
+import org.tbc.world.content.WeaponSkills;
+
 /**
  * Tunable classless rules. Category→step mapping is separate from per-step effects
  * so equipment handling does not hard-code percentages.
@@ -9,7 +11,7 @@ public final class ClasslessConfig {
     public static final int CLASS_CLASSLESS = 6;
 
     public static final int AUTO_ATTACK = 6603;
-    /** Worn Shortsword — starter weapon without sword proficiency. */
+    /** Worn Shortsword — starter weapon (Hero starts sword-proficient). */
     public static final int STARTER_WEAPON = 25;
     /** Recruit's Shirt — human warrior CharStartOutfit. */
     public static final int ITEM_RECRUIT_SHIRT = 38;
@@ -27,6 +29,11 @@ public final class ClasslessConfig {
     public static final int ARMOR_CLOTH_MASK = 1 << 1;
     /** Unarmed weapon proficiency mask (1 &lt;&lt; ITEM_SUBCLASS_WEAPON_UNARMED). */
     public static final int WEAPON_UNARMED_MASK = 1 << 13;
+    /** Cloth | leather | mail | plate | shield. */
+    public static final int ALL_ARMOR_PROFICIENCY_MASK =
+            (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 6);
+    /** All combat weapon subclasses with a SkillLine (excludes fishing pole). */
+    public static final int ALL_WEAPON_PROFICIENCY_MASK = allCombatWeaponMask();
 
     /** Armor subclass: cloth / leather / mail / plate. */
     public static final int ARMOR_CLOTH = 1;
@@ -98,6 +105,17 @@ public final class ClasslessConfig {
 
     public static boolean isClasslessId(int clazz) {
         return clazz == CLASS_CLASSLESS;
+    }
+
+    /** Bits for subclasses with non-zero {@link WeaponSkills#skillForWeaponSubclass}; skip fishing pole. */
+    private static int allCombatWeaponMask() {
+        int mask = 0;
+        for (int sub = 0; sub < WeaponSkills.ITEM_SUBCLASS_WEAPON_FISHING_POLE; sub++) {
+            if (WeaponSkills.skillForWeaponSubclass(sub) != 0) {
+                mask |= 1 << sub;
+            }
+        }
+        return mask;
     }
 
     /** Locked v1 oracle from Slice 35 plan. */

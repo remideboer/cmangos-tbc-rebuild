@@ -1,13 +1,15 @@
 package org.tbc.world.classless;
 
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.content.WeaponSkills;
 import org.tbc.world.entity.Player;
 
 import java.util.function.LongSupplier;
 
 /**
- * Auto Attack only on the bar, cloth + unarmed proficiency, Recruit cloth + Worn Shortsword,
- * and 3 silver. Spawn uses the race's normal starter ({@link CreateSpawnResolver}).
+ * Auto Attack only on the bar, full weapon/armor proficiencies with combat skills at 1,
+ * Recruit cloth + Worn Shortsword, and 3 silver. Spawn uses the race's normal starter
+ * ({@link CreateSpawnResolver}).
  */
 public final class ClasslessStartingLoadout {
     private ClasslessStartingLoadout() {
@@ -23,8 +25,9 @@ public final class ClasslessStartingLoadout {
             p.actionButtons[i] = 0;
         }
         p.actionButtons[0] = ClasslessConfig.AUTO_ATTACK;
-        p.addArmorProficiency(ClasslessConfig.ARMOR_CLOTH_MASK);
-        p.addWeaponProficiency(ClasslessConfig.WEAPON_UNARMED_MASK);
+        p.addArmorProficiency(ClasslessConfig.ALL_ARMOR_PROFICIENCY_MASK);
+        p.addWeaponProficiency(ClasslessConfig.ALL_WEAPON_PROFICIENCY_MASK);
+        applyCombatSkills(p);
         p.setMoney(ClasslessConfig.STARTING_MONEY_COPPER);
         if (mgr != null && nextItemGuid != null) {
             CreateSpawnResolver.SpawnChoice start = CreateSpawnResolver.resolve(mgr, p.race, null);
@@ -40,5 +43,17 @@ public final class ClasslessStartingLoadout {
             }
             mgr.giveNamedStartItems(p, ClasslessConfig.STARTING_ITEMS, nextItemGuid);
         }
+    }
+
+    /** Combat weapon SkillLines + defense at value 1 / max level×5 (same as create skills). */
+    static void applyCombatSkills(Player p) {
+        int max = Math.max(1, p.level * 5);
+        for (int sub = 0; sub < WeaponSkills.ITEM_SUBCLASS_WEAPON_FISHING_POLE; sub++) {
+            int skill = WeaponSkills.skillForWeaponSubclass(sub);
+            if (skill != 0) {
+                p.learnSkill(skill, 1, max, 0);
+            }
+        }
+        p.learnSkill(WeaponSkills.SKILL_DEFENSE, 1, max, 0);
     }
 }
