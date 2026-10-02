@@ -139,12 +139,13 @@ Internal id remains class 6 / `CLASS_CLASSLESS`.
 3. Install backs up any prior `Data\enUS\patch-enUS-3.MPQ` as `patch-enUS-3.MPQ.bak.<timestamp>` and clears Cache/WDB.
 4. Fully quit the client, start **wowme.exe**, open character create — Hero with warrior icon; create submits class byte **6**. Class trainers should list spells (server already sends full lists).
 5. Server: `ClasslessConfig.enabled` (default true).
+6. Multi-power bar: run [`install-addons.bat`](install-addons.bat) (copies [`addons/HeroPowerBars`](addons/HeroPowerBars/)), enable **HeroPowerBars** on the character AddOns list, `/reload`. PlayerFrame mana bar splits into mana / rage / energy. Server pushes values via LANG_ADDON (`TP-SL35-013`). Stock FrameXML is untouched — disable or delete the AddOn to restore the single bar.
 
 ### Rollback
 
 1. Fully quit **wowme.exe** / Wow.
 2. Restore the newest `Data\enUS\patch-enUS-3.MPQ.bak.*` over `patch-enUS-3.MPQ`, **or** delete `patch-enUS-3.MPQ` to drop the overlay entirely.
 3. Delete `Cache\` and `WDB\` under the lab client (or re-run install which clears them).
-4. Restart. YAML/bindings in git are unchanged by rollback — only the client MPQ reverts.
+4. Optional: delete `Interface\AddOns\HeroPowerBars\` (or disable the AddOn) to drop the triple power bar.
+5. Restart. YAML/bindings in git are unchanged by rollback — only the client MPQ / AddOn reverts.
 
-LUA multi-power bars (mana+rage+energy) remain a follow-up; the server already writes MAXPOWER1/2/4. No GlueXML in this pass.

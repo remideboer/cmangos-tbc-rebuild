@@ -184,6 +184,77 @@ class SpellEngineModResistanceTest {
     }
 
     @Test
+    void sendAuraStatValuesWhenModStatStaminaShouldPushHealthPool() {
+        p.applyClasslessCreateStats(20, 100, 20, 20, 20, 20, 20);
+        SpellEngine.SpellInfo fort = new SpellEngine.SpellInfo(
+                1243, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STAT,
+                0, 0, 27, 27, 0f, 2);
+        engine.auras().apply(p, fort);
+        SpellEngine.sendAuraStatValues(p, fort, this::capture);
+        assertTrue(valuesPayloads.size() >= 1);
+        assertEquals(310, p.maxHealth());
+    }
+
+    @Test
+    void sendAuraStatValuesWhenModStatIntellectShouldPushManaPool() {
+        p.applyClasslessCreateStats(20, 100, 20, 20, 20, 20, 20);
+        int manaBefore = p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+        SpellEngine.SpellInfo ai = new SpellEngine.SpellInfo(
+                1459, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STAT,
+                0, 0, 10, 10, 0f, 3);
+        engine.auras().apply(p, ai);
+        SpellEngine.sendAuraStatValues(p, ai, this::capture);
+        assertTrue(valuesPayloads.size() >= 1);
+        assertTrue(p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1) > manaBefore);
+    }
+
+    @Test
+    void sendAuraStatValuesWhenModStatMiscOutOfRangeShouldNoOp() {
+        SpellEngine.SpellInfo bad = new SpellEngine.SpellInfo(
+                999010, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STAT,
+                0, 0, 5, 5, 0f, 99);
+        SpellEngine.sendAuraStatValues(p, bad, this::capture);
+        assertTrue(valuesPayloads.isEmpty());
+    }
+
+    @Test
+    void sendAuraStatValuesWhenModStatNegativeAmountShouldUseNegStat() {
+        p.applyClasslessCreateStats(20, 100, 20, 20, 20, 20, 20);
+        SpellEngine.SpellInfo curse = new SpellEngine.SpellInfo(
+                999011, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STAT,
+                0, 0, -5, -5, 0f, 2);
+        engine.auras().apply(p, curse);
+        SpellEngine.sendAuraStatValues(p, curse, this::capture);
+        assertTrue(valuesPayloads.size() >= 1);
+    }
+
+    @Test
+    void sendAuraStatValuesWhenModStatAllStatsShouldPushHealthAndMana() {
+        p.applyClasslessCreateStats(20, 100, 20, 20, 20, 20, 20);
+        SpellEngine.SpellInfo all = new SpellEngine.SpellInfo(
+                999012, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STAT,
+                0, 0, 2, 2, 0f, -1);
+        engine.auras().apply(p, all);
+        SpellEngine.sendAuraStatValues(p, all, this::capture);
+        assertTrue(valuesPayloads.size() >= 1);
+        assertTrue(p.maxHealth() > 40);
+        assertTrue(p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1) > 100);
+    }
+
+    @Test
+    void sendAuraStatValuesWhenModStatStrengthOnlyShouldOmitHealthManaFields() {
+        p.applyClasslessCreateStats(20, 100, 20, 20, 20, 20, 20);
+        int maxHp = p.maxHealth();
+        SpellEngine.SpellInfo str = new SpellEngine.SpellInfo(
+                999013, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STAT,
+                0, 0, 5, 5, 0f, 0);
+        engine.auras().apply(p, str);
+        SpellEngine.sendAuraStatValues(p, str, this::capture);
+        assertTrue(valuesPayloads.size() >= 1);
+        assertEquals(maxHp, p.maxHealth());
+    }
+
+    @Test
     void putTemplateWhenMiscZeroShouldKeepSeededFrostArmorSchoolMask() {
         engine.putTemplate(SpellEngine.FROST_ARMOR, SpellEngine.EFFECT_APPLY_AURA,
                 SpellEngine.SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f,

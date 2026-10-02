@@ -1297,7 +1297,42 @@ public final class SpellEngine {
             var upd = UpdateBuilder.maybeCompress(
                     UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS));
             send.accept(upd.opcode(), upd.payload());
+            return;
         }
+        if (aura == AuraEngine.SPELL_AURA_MOD_STAT) {
+            sendModStatValues(target, sp, send);
+        }
+    }
+
+    /** MOD_STAT — STAT/POSSTAT sheet + max health/mana when stamina/intellect change. */
+    static void sendModStatValues(Unit target, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
+        int misc = sp.misc();
+        List<Integer> fields = new ArrayList<>();
+        for (int i = 0; i < AuraEngine.MAX_STATS; i++) {
+            if (misc >= 0 && misc != i) {
+                continue;
+            }
+            fields.add(UpdateFields.UNIT_FIELD_STAT0 + i);
+            int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+            int buffBase = amount >= 0
+                    ? UpdateFields.UNIT_FIELD_POSSTAT0
+                    : UpdateFields.UNIT_FIELD_NEGSTAT0;
+            fields.add(buffBase + i);
+            if (i == 2) {
+                fields.add(UpdateFields.UNIT_FIELD_MAXHEALTH);
+                fields.add(UpdateFields.UNIT_FIELD_HEALTH);
+            }
+            if (i == 3) {
+                fields.add(UpdateFields.UNIT_FIELD_MAXPOWER1);
+                fields.add(UpdateFields.UNIT_FIELD_POWER1);
+            }
+        }
+        if (fields.isEmpty()) {
+            return;
+        }
+        var upd = UpdateBuilder.maybeCompress(
+                UpdateBuilder.values(target, fields.stream().mapToInt(Integer::intValue).toArray()));
+        send.accept(upd.opcode(), upd.payload());
     }
 
     /**

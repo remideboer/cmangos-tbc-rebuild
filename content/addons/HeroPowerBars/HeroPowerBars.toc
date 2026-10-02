@@ -1,0 +1,7 @@
+## Interface: 20400
+## Title: HeroPowerBars
+## Notes: Hero (class 6) PlayerFrame power bar split into mana / rage / energy
+## Author: tbc-server
+## Version: 1.0
+
+HeroPowerBars.lua

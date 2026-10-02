@@ -29,6 +29,44 @@ class AuraEngineModStatTest {
         assertEquals(10, p.getInt(UpdateFields.UNIT_FIELD_POSSTAT3));
     }
 
+    /**
+     * Power Word: Fortitude — SPELL_AURA_MOD_STAT misc STAT_STAMINA (2).
+     * CMaNGOS HandleStatModifier(STAT_STAMINA) → UpdateMaxHealth.
+     */
+    @Test
+    void applyWhenFortitudeShouldRaiseStaminaAndMaxHealth() {
+        AuraEngine auras = new AuraEngine();
+        Player p = new Player();
+        // createHealth 20 + sta 20 → max 40 via healthBonusFromStamina (20 + 0*10)
+        p.applyClasslessCreateStats(20, 100, 20, 20, 20, 20, 20);
+        int maxBefore = p.maxHealth();
+        // Rank-shaped: +27 stamina (TBC mid ranks); EffectBasePoints+1 style amount.
+        SpellEngine.SpellInfo fort = new SpellEngine.SpellInfo(
+                1243, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STAT,
+                0, 0, 27, 27, 0f, 2);
+        auras.apply(p, fort);
+        assertEquals(47, p.getInt(UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(27, p.getInt(UpdateFields.UNIT_FIELD_POSSTAT2));
+        assertTrue(p.maxHealth() > maxBefore, "Fortitude must grow health pool");
+        // sta 47 → bonus 20 + 27*10 = 290; max = createHealth 20 + 290 = 310
+        assertEquals(310, p.maxHealth());
+    }
+
+    @Test
+    void unapplyWhenFortitudeShouldRestoreMaxHealth() {
+        AuraEngine auras = new AuraEngine();
+        Player p = new Player();
+        p.applyClasslessCreateStats(20, 100, 20, 20, 20, 20, 20);
+        int maxBefore = p.maxHealth();
+        SpellEngine.SpellInfo fort = new SpellEngine.SpellInfo(
+                1243, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STAT,
+                0, 0, 27, 27, 0f, 2);
+        auras.apply(p, fort);
+        auras.unapply(p, fort);
+        assertEquals(20, p.getInt(UpdateFields.UNIT_FIELD_STAT2));
+        assertEquals(maxBefore, p.maxHealth());
+    }
+
     @Test
     void unapplyWhenArcaneIntellectShouldRestoreIntellect() {
         AuraEngine auras = new AuraEngine();

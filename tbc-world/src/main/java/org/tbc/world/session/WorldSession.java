@@ -77,6 +77,8 @@ public final class WorldSession {
     public int bgQueue;
     public int worldStates2476;
     public int worldStates2478;
+    /** HeroPowerBars AddOn subscribed (LANG_ADDON enable). */
+    private boolean heroPowerAddonEnabled;
 
     public WorldSession(PacketSink sink, int serverSeed) {
         this.sink = sink;
@@ -89,6 +91,14 @@ public final class WorldSession {
 
     public Player player() {
         return player;
+    }
+
+    public boolean heroPowerAddonEnabled() {
+        return heroPowerAddonEnabled;
+    }
+
+    public void setHeroPowerAddonEnabled(boolean on) {
+        this.heroPowerAddonEnabled = on;
     }
 
     public World.Account account() {
@@ -166,6 +176,7 @@ public final class WorldSession {
             if (regen.length > 0) {
                 var v = UpdateBuilder.maybeCompress(UpdateBuilder.values(player, regen));
                 send(v.opcode(), v.payload());
+                org.tbc.world.classless.ClasslessPowerAddon.pushIfPowerFields(this, regen);
             }
         }
         if (player.duelCountdownStartMs != 0 && world.nowMs() >= player.duelCountdownStartMs + 3000) {
@@ -1161,6 +1172,10 @@ public final class WorldSession {
             target = in.getCString();
         }
         String msg = in.getCString();
+        if (lang == org.tbc.world.classless.ClasslessPowerAddon.LANG_ADDON
+                && org.tbc.world.classless.ClasslessPowerAddon.handleInbound(this, msg)) {
+            return;
+        }
         if (msg.startsWith(".") || msg.startsWith("!")) {
             String r = world.gm.handle(world, player, msg);
             system(r);

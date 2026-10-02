@@ -448,6 +448,7 @@ public final class AuraEngine {
     /**
      * Aura 29 — CMaNGOS HandleAuraModStat: misc is stat index (0–4) or &lt; 0 for all stats;
      * TOTAL_VALUE amount then ApplyStatBuffMod for POSSTAT/NEGSTAT columns.
+     * Stamina → UpdateMaxHealth; intellect → UpdateMaxPower(MANA) for players.
      */
     private static void modStat(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
         int amount = (sp.minDmg() + sp.maxDmg()) / 2;
@@ -458,6 +459,8 @@ public final class AuraEngine {
         if (misc < -2 || misc > 4) {
             return;
         }
+        boolean touchSta = false;
+        boolean touchInt = false;
         for (int i = 0; i < MAX_STATS; i++) {
             if (misc >= 0 && misc != i) {
                 continue;
@@ -470,6 +473,20 @@ public final class AuraEngine {
                     : UpdateFields.UNIT_FIELD_NEGSTAT0;
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
+            if (i == 2) {
+                touchSta = true;
+            }
+            if (i == 3) {
+                touchInt = true;
+            }
+        }
+        if (target instanceof Player p) {
+            if (touchSta) {
+                p.recalculateMaxHealthFromStamina();
+            }
+            if (touchInt) {
+                p.recalculateMaxManaFromIntellect();
+            }
         }
     }
 
