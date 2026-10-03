@@ -5,15 +5,19 @@ import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.map.CreatureGrounding;
+import org.tbc.world.map.SurfaceQuery;
+import org.tbc.world.map.SurfaceResult;
 import org.tbc.world.map.Terrain;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.session.TaxiHandler;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.DoubleSupplier;
 
 /**
- * Straight-line chase and OOC random.
+ * Straight-line chase and OOC random (navmesh PathFinder in later increment).
  * CMaNGOS: RandomMovementGenerator one spline until Finalized;
  * packet_builder WriteLinearPath last_idx = pointCount-3;
  * ChaseMovementGenerator GetNearPoint + SetInFront.
@@ -58,6 +62,8 @@ public final class MotionMaster {
     private int splineDurationMs;
     private int splineElapsedMs;
     private boolean splineActive;
+    private PathFinder pathFinder = PathFinder.straightLine();
+    private final List<Waypoint> pathRest = new ArrayList<>();
 
     public int type() {
         return type;
@@ -65,6 +71,10 @@ public final class MotionMaster {
 
     public void rng(DoubleSupplier rng) {
         this.rng = rng == null ? ThreadLocalRandom.current()::nextDouble : rng;
+    }
+
+    public void pathFinder(PathFinder pathFinder) {
+        this.pathFinder = pathFinder == null ? PathFinder.straightLine() : pathFinder;
     }
 
     public void moveChase(Unit victim) {
@@ -118,12 +128,17 @@ public final class MotionMaster {
 
     /** MoveSplineInit::Stop — InterruptMoving syncs to ComputePosition first, then MonsterMoveStop. */
     public byte[] stop(Creature c) {
-        return stop(c, Terrain.NONE);
+        return stop(c, SurfaceQuery.fromHeight(Terrain.NONE));
     }
 
     public byte[] stop(Creature c, Terrain.Height ground) {
+        return stop(c, SurfaceQuery.fromHeight(ground));
+    }
+
+    public byte[] stop(Creature c, SurfaceQuery surfaces) {
+        SurfaceQuery sq = surfaces == null ? SurfaceQuery.fromHeight(Terrain.NONE) : surfaces;
         if (c != null && splineActive) {
-            syncSplinePosition(c, ground == null ? Terrain.NONE : ground);
+            syncSplinePosition(c, sq);
         }
         clearSpline();
         moveIdle();
@@ -141,27 +156,31 @@ public final class MotionMaster {
     }
 
     public byte[] update(Creature c, int diffMs) {
-        return update(c, diffMs, Terrain.NONE);
+        return update(c, diffMs, SurfaceQuery.fromHeight(Terrain.NONE));
     }
 
     public byte[] update(Creature c, int diffMs, Terrain.Height ground) {
+        return update(c, diffMs, SurfaceQuery.fromHeight(ground));
+    }
+
+    public byte[] update(Creature c, int diffMs, SurfaceQuery surfaces) {
         if (c == null || diffMs <= 0) {
             return null;
         }
-        Terrain.Height g = ground == null ? Terrain.NONE : ground;
+        SurfaceQuery sq = surfaces == null ? SurfaceQuery.fromHeight(Terrain.NONE) : surfaces;
         if (type == RANDOM) {
-            return updateRandom(c, diffMs, g);
+            return updateRandom(c, diffMs, sq);
         }
         if (type == HOME) {
-            return updateHome(c, diffMs, g);
+            return updateHome(c, diffMs, sq);
         }
         if (type != CHASE || target == null) {
             return null;
         }
-        return updateChase(c, diffMs, g);
+        return updateChase(c, diffMs, sq);
     }
 
-    private byte[] updateChase(Creature c, int diffMs, Terrain.Height g) {
+    private byte[] updateChase(Creature c, int diffMs, SurfaceQuery sq) {
         sincePacketMs += diffMs;
         double dist = c.distance2d(target);
         float stop = Combat.meleeRange(c, target);
@@ -189,15 +208,24 @@ public final class MotionMaster {
         }
         float mx = target.x - (float) (nx / len * stop);
         float my = target.y - (float) (ny / len * stop);
-        float mz = g.at(c.mapId, mx, my, target.z);
+        SurfaceResult ground = sq.query(c.mapId, mx, my, target.z, c.inhabitType);
+        if (ground.blocksGroundMove()) {
+            c.chaseUnreachable = true;
+            return stop(c, sq);
+        }
+        float mz = SurfaceQuery.resolveOrHint(ground, target.z);
         boolean targetMoved = hasDest && Math.hypot(target.x - lastTargetX, target.y - lastTargetY) > TARGET_MOVE_YARDS;
         if (!hasDest || targetMoved) {
-            destX = mx;
-            destY = my;
-            destZ = mz;
+            boolean straight = dist < 12f;
+            if (!applyNavPath(c, mx, my, mz, false, straight)) {
+                c.chaseUnreachable = true;
+                return stop(c, sq);
+            }
             lastTargetX = target.x;
             lastTargetY = target.y;
             hasDest = true;
+            splineSent = false;
+        } else if (arrived(c) && nextPathPoint()) {
             splineSent = false;
         }
         byte[] spline = null;
@@ -215,16 +243,20 @@ public final class MotionMaster {
         if (splineActive) {
             splineElapsedMs += diffMs;
         }
-        advance(c, destX, destY, destZ, UpdateBuilder.RUN, diffMs, g, target);
-        return spline;
+        byte[] blocked = advance(c, destX, destY, destZ, UpdateBuilder.RUN, diffMs, sq, target);
+        return blocked != null ? blocked : spline;
     }
 
-    private byte[] updateHome(Creature c, int diffMs, Terrain.Height g) {
+    private byte[] updateHome(Creature c, int diffMs, SurfaceQuery sq) {
         sincePacketMs += diffMs;
-        destX = c.spawnX;
-        destY = c.spawnY;
-        destZ = c.spawnZ;
-        hasDest = true;
+        if (!hasDest) {
+            if (!applyNavPath(c, c.spawnX, c.spawnY, c.spawnZ, true, false)) {
+                return stop(c, sq);
+            }
+            hasDest = true;
+        } else if (arrived(c) && nextPathPoint()) {
+            splineSent = false;
+        }
         byte[] spline = null;
         if (!splineSent && readyToSend()) {
             beginSpline(c, destX, destY, destZ, UpdateBuilder.RUN);
@@ -234,8 +266,11 @@ public final class MotionMaster {
         if (splineActive) {
             splineElapsedMs += diffMs;
         }
-        advance(c, destX, destY, destZ, UpdateBuilder.RUN, diffMs, g, null);
-        if (arrived(c)) {
+        byte[] blocked = advance(c, destX, destY, destZ, UpdateBuilder.RUN, diffMs, sq, null);
+        if (blocked != null) {
+            return blocked;
+        }
+        if (arrived(c) && pathRest.isEmpty()) {
             c.relocate(c.spawnX, c.spawnY, c.spawnZ, c.spawnO);
             clearSpline();
         }
@@ -246,22 +281,29 @@ public final class MotionMaster {
         return type == HOME && c != null && arrived(c);
     }
 
-    private byte[] updateRandom(Creature c, int diffMs, Terrain.Height g) {
+    private byte[] updateRandom(Creature c, int diffMs, SurfaceQuery sq) {
         if (wanderRadius <= 0) {
             return null;
         }
         byte[] spline = null;
         if (!hasDest || arrived(c)) {
-            pickDest(c, g);
-            beginSpline(c, destX, destY, destZ, UpdateBuilder.WALK);
-            spline = monsterMove(c, destX, destY, destZ, UpdateBuilder.WALK);
-            splineSent = true;
+            if (arrived(c) && nextPathPoint()) {
+                beginSpline(c, destX, destY, destZ, UpdateBuilder.WALK);
+                spline = monsterMove(c, destX, destY, destZ, UpdateBuilder.WALK);
+                splineSent = true;
+            } else if (!pickDest(c, sq)) {
+                return null;
+            } else {
+                beginSpline(c, destX, destY, destZ, UpdateBuilder.WALK);
+                spline = monsterMove(c, destX, destY, destZ, UpdateBuilder.WALK);
+                splineSent = true;
+            }
         }
         if (splineActive) {
             splineElapsedMs += diffMs;
         }
-        advance(c, destX, destY, destZ, UpdateBuilder.WALK, diffMs, g, null);
-        return spline;
+        byte[] blocked = advance(c, destX, destY, destZ, UpdateBuilder.WALK, diffMs, sq, null);
+        return blocked != null ? blocked : spline;
     }
 
     private void beginSpline(Creature c, float toX, float toY, float toZ, float speed) {
@@ -281,7 +323,7 @@ public final class MotionMaster {
     }
 
     /** CMaNGOS MoveSpline::ComputePosition for the linear monster-move we launched. */
-    private void syncSplinePosition(Creature c, Terrain.Height g) {
+    private void syncSplinePosition(Creature c, SurfaceQuery sq) {
         float t = Math.min(1f, splineElapsedMs / (float) splineDurationMs);
         float x = splineFromX + (destX - splineFromX) * t;
         float y = splineFromY + (destY - splineFromY) * t;
@@ -293,17 +335,20 @@ public final class MotionMaster {
                 o += (float) (Math.PI * 2);
             }
         }
-        c.relocate(x, y, CreatureGrounding.resolveZ(z, g.at(c.mapId, x, y, z)), o);
+        SurfaceResult ground = sq.query(c.mapId, x, y, z, c.inhabitType);
+        c.relocate(x, y, SurfaceQuery.resolveOrHint(ground, z), o);
     }
 
     private void clearSpline() {
         splineActive = false;
         splineElapsedMs = 0;
         splineDurationMs = 1;
+        pathRest.clear();
     }
 
-    private void advance(Creature c, float toX, float toY, float toZ, float speed, int diffMs,
-            Terrain.Height g, Unit faceToward) {
+    /** @return MonsterMoveStop when ground is blocked; otherwise null */
+    private byte[] advance(Creature c, float toX, float toY, float toZ, float speed, int diffMs,
+            SurfaceQuery sq, Unit faceToward) {
         double dx = toX - c.x;
         double dy = toY - c.y;
         double len = Math.hypot(dx, dy);
@@ -311,7 +356,7 @@ public final class MotionMaster {
             if (faceToward != null) {
                 face(c, faceToward);
             }
-            return;
+            return null;
         }
         float step = speed * (diffMs / 1000f);
         if (step > len) {
@@ -320,8 +365,16 @@ public final class MotionMaster {
         float nx = c.x + (float) (dx / len * step);
         float ny = c.y + (float) (dy / len * step);
         float hintZ = c.z + (toZ - c.z) * (step / (float) len);
+        SurfaceResult ground = sq.query(c.mapId, nx, ny, hintZ, c.inhabitType);
+        if (ground.blocksGroundMove()) {
+            if (type == CHASE) {
+                c.chaseUnreachable = true;
+            }
+            return stop(c, sq);
+        }
         float o = faceToward == null ? c.o : angleTo(c, faceToward);
-        c.relocate(nx, ny, CreatureGrounding.resolveZ(hintZ, g.at(c.mapId, nx, ny, hintZ)), o);
+        c.relocate(nx, ny, SurfaceQuery.resolveOrHint(ground, hintZ), o);
+        return null;
     }
 
     /**
@@ -385,14 +438,83 @@ public final class MotionMaster {
         return Math.hypot(destX - c.x, destY - c.y) < 0.2;
     }
 
-    private void pickDest(Creature c, Terrain.Height g) {
-        double angle = rng.getAsDouble() * Math.PI * 2;
-        double radius = rng.getAsDouble() * wanderRadius;
-        destX = c.spawnX + (float) (Math.cos(angle) * radius);
-        destY = c.spawnY + (float) (Math.sin(angle) * radius);
-        float mapZ = g.at(c.mapId, destX, destY, c.spawnZ);
-        destZ = CreatureGrounding.resolveZ(c.spawnZ, mapZ);
-        hasDest = true;
+    private boolean applyNavPath(Creature c, float tx, float ty, float tz, boolean forceDest,
+            boolean straightLine) {
+        pathRest.clear();
+        if (CreatureGrounding.canFly(c.inhabitType)) {
+            destX = tx;
+            destY = ty;
+            destZ = tz;
+            return true;
+        }
+        PathFinder.Result r = pathFinder.calculate(c.mapId, c.x, c.y, c.z, tx, ty, tz, forceDest, straightLine);
+        if (r.nopath() || !r.usable() || r.points().isEmpty()) {
+            return false;
+        }
+        Waypoint first = r.points().get(0);
+        destX = first.x();
+        destY = first.y();
+        destZ = first.z();
+        for (int i = 1; i < r.points().size(); i++) {
+            pathRest.add(r.points().get(i));
+        }
+        return true;
+    }
+
+    private boolean nextPathPoint() {
+        if (pathRest.isEmpty()) {
+            return false;
+        }
+        Waypoint w = pathRest.remove(0);
+        destX = w.x();
+        destY = w.y();
+        destZ = w.z();
+        return true;
+    }
+
+    /** @return false when no safe wander point (hole) */
+    private boolean pickDest(Creature c, SurfaceQuery sq) {
+        if (!CreatureGrounding.canFly(c.inhabitType)) {
+            PathFinder.Result r = pathFinder.randomPoint(c.mapId, c.spawnX, c.spawnY, c.spawnZ, wanderRadius, rng);
+            if (r.nopath()) {
+                hasDest = false;
+                return false;
+            }
+            if (r.usable() && !r.points().isEmpty()) {
+                Waypoint first = r.points().get(0);
+                SurfaceResult ground = sq.query(c.mapId, first.x(), first.y(), first.z(), c.inhabitType);
+                if (ground.blocksGroundMove()) {
+                    hasDest = false;
+                    return false;
+                }
+                destX = first.x();
+                destY = first.y();
+                destZ = SurfaceQuery.resolveOrHint(ground, first.z());
+                pathRest.clear();
+                for (int i = 1; i < r.points().size(); i++) {
+                    pathRest.add(r.points().get(i));
+                }
+                hasDest = true;
+                return true;
+            }
+        }
+        for (int attempt = 0; attempt < 8; attempt++) {
+            double angle = rng.getAsDouble() * Math.PI * 2;
+            double radius = rng.getAsDouble() * wanderRadius;
+            float x = c.spawnX + (float) (Math.cos(angle) * radius);
+            float y = c.spawnY + (float) (Math.sin(angle) * radius);
+            SurfaceResult ground = sq.query(c.mapId, x, y, c.spawnZ, c.inhabitType);
+            if (ground.blocksGroundMove()) {
+                continue;
+            }
+            destX = x;
+            destY = y;
+            destZ = SurfaceQuery.resolveOrHint(ground, c.spawnZ);
+            hasDest = true;
+            return true;
+        }
+        hasDest = false;
+        return false;
     }
 
     static byte[] monsterMove(Creature c, float destX, float destY, float destZ) {

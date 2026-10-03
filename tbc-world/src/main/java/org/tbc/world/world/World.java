@@ -12,6 +12,7 @@ import org.tbc.world.ai.DbScriptStore;
 import org.tbc.world.ai.EventAi;
 import org.tbc.world.ai.FactorySelector;
 import org.tbc.world.ai.MotionMaster;
+import org.tbc.world.ai.PathFinder;
 import org.tbc.world.ai.ScriptedCreatureAI;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.combat.Factions;
@@ -29,7 +30,10 @@ import org.tbc.world.map.AreaTable;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.map.GraveyardManager;
 import org.tbc.world.map.LineOfSight;
+import org.tbc.world.map.SurfaceQuery;
 import org.tbc.world.map.Terrain;
+import org.tbc.world.mmap.MMapManager;
+import org.tbc.world.vmap.VMapManager;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -51,6 +55,7 @@ import org.tbc.world.spell.SpellTemplateLoader;
 import org.tbc.world.events.GameEventMgr;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -104,6 +109,8 @@ public final class World implements Runnable {
     /** Channel name → moderation (Channel.cpp m_moderation default false). */
     public final Map<String, Boolean> channelModeration = new ConcurrentHashMap<>();
     public final Terrain terrain;
+    private final SurfaceQuery surfaces;
+    private final org.tbc.world.ai.PathFinder pathFinder;
     public final AreaTable areas;
     public final GraveyardManager graveyards;
     public final String motd;
@@ -141,6 +148,8 @@ public final class World implements Runnable {
         this.characters.clearOnline();
         Path dataDir = conf == null ? null : Path.of(conf.get("DataDir", "."));
         this.terrain = Terrain.fromDataDir(dataDir);
+        this.surfaces = SurfaceQuery.combine(terrain.asHeight(), VMapManager.fromDataDir(dataDir));
+        this.pathFinder = buildPathFinder(conf, dataDir);
         this.areas = AreaTable.seeded();
         this.areas.loadFromDataDir(dataDir);
         this.graveyards = GraveyardManager.seeded();
@@ -167,6 +176,17 @@ public final class World implements Runnable {
 
     public static World inMemory() {
         return new World(null, null, null, null);
+    }
+
+    private static PathFinder buildPathFinder(Conf conf, Path dataDir) {
+        if (conf == null) {
+            return PathFinder.straightLine();
+        }
+        boolean mmapsPresent = dataDir != null && Files.isDirectory(dataDir.resolve("mmaps"));
+        boolean enabled = conf.getBool("mmap.enabled", mmapsPresent);
+        MMapManager mmap = MMapManager.fromDataDir(dataDir, enabled);
+        boolean require = enabled && mmap.nativeReady();
+        return new PathFinder(mmap, require);
     }
 
     private void loadCommandOverlay() {
@@ -1081,7 +1101,8 @@ public final class World implements Runnable {
                 if (c.inCombat || c.motion.type() == MotionMaster.RANDOM || c.motion.type() == MotionMaster.HOME) {
                     float ox = c.x;
                     float oy = c.y;
-                    byte[] spline = c.motion.update(c, diff, terrain.asHeight());
+                    c.motion.pathFinder(pathFinder);
+                    byte[] spline = c.motion.update(c, diff, surfaces);
                     m.reindex(c, ox, oy);
                     if (spline != null) {
                         for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {

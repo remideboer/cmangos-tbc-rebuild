@@ -4,12 +4,15 @@ import org.tbc.common.WowBuffer;
 import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
+import org.tbc.world.map.CreatureGrounding;
+import org.tbc.world.map.SurfaceQuery;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.session.TaxiHandler;
 import org.tbc.world.session.WorldSession;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -422,6 +425,71 @@ class MotionMasterTest {
         assertEquals(MotionMaster.HOME, c.motion.type());
         c.motion.update(c, 1000);
         assertTrue(c.x < 20f);
+    }
+
+    @Test
+    void chaseWhenWallBetweenShouldNotTunnelThroughWall() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.mapId = 0;
+        c.relocate(0, 0, 0, 0);
+        Player p = new Player();
+        p.guid = 1;
+        p.relocate(20, 0, 0, 0);
+        c.motion.pathFinder(PathFinder.requiring(GridNavQuery.wallAtX(5, -2, 2, -20, 20)));
+        c.motion.moveChase(p);
+        for (int i = 0; i < 40; i++) {
+            c.motion.update(c, 200);
+            assertFalse(Math.round(c.x) == 5 && Math.abs(c.y) <= 2, "tunneled through wall");
+        }
+        assertTrue(c.x > 0.5f || Math.abs(c.y) > 0.5f);
+    }
+
+    @Test
+    void chaseWhenNopathShouldIdleUnreachable() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.relocate(0, 0, 0, 0);
+        Player p = new Player();
+        p.guid = 1;
+        p.relocate(50, 0, 0, 0);
+        NavQuery island = new GridNavQuery(-2, 2, -2, 2, (x, y) -> true);
+        c.motion.pathFinder(PathFinder.requiring(island));
+        c.motion.moveChase(p);
+        c.motion.update(c, 50);
+        assertTrue(c.chaseUnreachable);
+        assertEquals(MotionMaster.IDLE, c.motion.type());
+    }
+
+    @Test
+    void flyerWhenSurfaceBelowShouldKeepHintZ() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.inhabitType = CreatureGrounding.INHABIT_AIR;
+        c.relocate(0, 0, 80, 0);
+        Player p = new Player();
+        p.guid = 1;
+        p.relocate(20, 0, 80, 0);
+        SurfaceQuery sq = SurfaceQuery.of((map, x, y) -> new float[]{0f});
+        c.motion.moveChase(p);
+        c.motion.update(c, 200, sq);
+        assertEquals(80f, c.z, 1.0f);
+        assertEquals(MotionMaster.CHASE, c.motion.type());
+    }
+
+    @Test
+    void wanderWhenHoleShouldNotEmitSpline() {
+        Creature c = new Creature();
+        c.guid = 2;
+        c.relocate(0, 0, 12, 0);
+        c.spawnX = 0;
+        c.spawnY = 0;
+        c.spawnZ = 12;
+        c.motion.rng(() -> 0.0);
+        c.motion.moveRandom(10f);
+        SurfaceQuery hole = SurfaceQuery.of((map, x, y) -> new float[0]);
+        assertEquals(null, c.motion.update(c, 1000, hole));
+        assertEquals(12f, c.z, 1e-3f);
     }
 
     private static int splineId(byte[] spline) {
