@@ -309,8 +309,11 @@ class Slice07P0Test {
         assertEquals(2, jerky.count);
         assertEquals(1, p.auras.stream().filter(a -> a.spellId() == SpellEngine.SPELL_FOOD).count());
 
-        world.advanceMs(SpellEngine.FOOD_AMPLITUDE_MS);
-        world.tick(SpellEngine.FOOD_AMPLITUDE_MS);
+        world.advanceMs(2_000);
+        world.tick(2_000);
+        assertEquals(46, p.health(), "17 per 5s is 6 health after 2s, not the whole tick");
+        world.advanceMs(3_000);
+        world.tick(3_000);
         assertEquals(57, p.health());
     }
 
@@ -344,6 +347,7 @@ class Slice07P0Test {
         assertEquals(Unit.UNIT_STAND_STATE_SIT, p.standState());
         assertEquals(Unit.UNIT_STAND_STATE_SIT,
                 client.valuesField(p.guid, UpdateFields.UNIT_FIELD_BYTES_1) & 0xFF);
+        assertEquals(Unit.UNIT_STAND_STATE_SIT, client.payload(Opcodes.SMSG_STANDSTATE_UPDATE)[0] & 0xFF);
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == SpellEngine.SPELL_FOOD));
 
         WowBuffer stand = new WowBuffer(4);
@@ -427,10 +431,15 @@ class Slice07P0Test {
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
         assertEquals(Unit.UNIT_STAND_STATE_SIT,
                 client.valuesField(p.guid, UpdateFields.UNIT_FIELD_BYTES_1) & 0xFF);
+        assertEquals(Unit.UNIT_STAND_STATE_SIT, client.payload(Opcodes.SMSG_STANDSTATE_UPDATE)[0] & 0xFF);
         assertFalse(p.items.containsKey((int) water.guid));
 
-        world.advanceMs(SpellEngine.DRINK_AMPLITUDE_MS);
-        world.tick(SpellEngine.DRINK_AMPLITUDE_MS);
+        // Drink is amount/5 per second (42 mana per 5s), same as UpdateManaRegen, not one lump.
+        world.advanceMs(2_000);
+        world.tick(2_000);
+        assertEquals(26, p.power());
+        world.advanceMs(3_000);
+        world.tick(3_000);
         assertEquals(52, p.power());
     }
 

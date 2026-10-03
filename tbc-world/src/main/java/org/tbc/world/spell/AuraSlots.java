@@ -210,15 +210,27 @@ public final class AuraSlots {
      * Aura::Update m_isPeriodic: holders whose Amplitude has elapsed fire PeriodicTick
      * and schedule the next tick (one tick per pulse, matching CMaNGOS Unit::Update).
      */
-    public static void pulsePeriodic(Unit target, long nowMs, Consumer<Unit.Aura> onTick) {
+    /**
+     * @return true when the callback already moved {@code nextTickAtMs} (food/drink accrual).
+     *         False lets the pulse add one full amplitude, which is the DoT schedule.
+     */
+    @FunctionalInterface
+    public interface PeriodicPulse {
+        boolean onTick(Unit.Aura aura);
+    }
+
+    public static void pulsePeriodic(Unit target, long nowMs, PeriodicPulse onTick) {
         if (target == null || onTick == null) {
             return;
         }
         for (int i = 0; i < target.auras.size(); i++) {
             Unit.Aura a = target.auras.get(i);
             if (a.amplitudeMs() > 0 && a.nextTickAtMs() > 0 && nowMs >= a.nextTickAtMs()) {
-                onTick.accept(a);
-                target.auras.set(i, a.withNextTick(a.nextTickAtMs() + a.amplitudeMs()));
+                boolean rescheduled = onTick.onTick(a);
+                Unit.Aura current = i < target.auras.size() ? target.auras.get(i) : a;
+                if (!rescheduled && current.nextTickAtMs() == a.nextTickAtMs()) {
+                    target.auras.set(i, current.withNextTick(a.nextTickAtMs() + a.amplitudeMs()));
+                }
             }
         }
     }

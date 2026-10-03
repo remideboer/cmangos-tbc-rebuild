@@ -314,9 +314,9 @@ public final class SpellEngine {
     /** Hearthstone. Spell.dbc CastingTimeIndex 7 → SpellCastTimes.dbc 10000 ms, StartRecoveryTime 1500. */
     public static final int HEARTHSTONE = 8690;
     public static final int HEARTHSTONE_CAST_MS = 10_000;
-    /** Food — Spell.dbc 433 APPLY_AURA MOD_REGEN +17 / 5 s (Tough Jerky). DurationIndex 85 → 30 s. */
+    /** Food — Spell.dbc 433 APPLY_AURA MOD_REGEN +17 / 5 s. DurationIndex 85 → 18 s (61.2 health). */
     public static final int SPELL_FOOD = 433;
-    public static final int FOOD_DURATION_MS = 30_000;
+    public static final int FOOD_DURATION_MS = 18_000;
     public static final int FOOD_AMPLITUDE_MS = 5_000;
     /** Drink — Spell.dbc 430 APPLY_AURA MOD_POWER_REGEN (Refreshing Spring Water). */
     public static final int SPELL_DRINK = 430;
@@ -624,7 +624,7 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(DRAIN_LIFE_DURATION_MS));
         spells.put(HEARTHSTONE, new SpellInfo(HEARTHSTONE, EFFECT_TELEPORT_UNITS, 0, 0, 0, 0, 0, 0f)
                 .withCastTime(HEARTHSTONE_CAST_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
-        // Food 433: EffectBasePoints 16 → +17 HP each 5 s for 30 s (HandleModRegen PeriodicTick).
+        // Food 433: EffectBasePoints 16 → +17 HP per 5 s for 18 s (client: 3.4 HP/sec).
         spells.put(SPELL_FOOD, new SpellInfo(SPELL_FOOD, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_REGEN,
                 0, 0, 17, 17, 0f).withDuration(FOOD_DURATION_MS).withAmplitude(FOOD_AMPLITUDE_MS));
         auraInterruptFlags.put(SPELL_FOOD, AURA_INTERRUPT_FLAG_STANDING_CANCELS);
@@ -1315,7 +1315,9 @@ public final class SpellEngine {
         int duration = permanent ? 0 : auraDurationMs(sp);
         long expireAt = permanent || nowMs <= 0 ? 0 : nowMs + duration;
         int amp = sp.amplitudeMs();
-        long nextTick = amp > 0 && nowMs > 0 ? nowMs + amp : 0;
+        // Eat/drink credit time starts now so each world tick pays amount/5s, not one lump.
+        long nextTick = eatDrinkRegen(sp) && nowMs > 0 ? nowMs
+                : amp > 0 && nowMs > 0 ? nowMs + amp : 0;
         long casterGuid = caster == null ? 0 : caster.guid;
         for (int i = 0; i < target.auras.size(); i++) {
             Unit.Aura a = target.auras.get(i);
@@ -3474,9 +3476,82 @@ public final class SpellEngine {
 
     public static final int SPELL_AURA_PERIODIC_DAMAGE = 3;
 
+    /** Food/drink: STANDING_CANCELS plus MOD_REGEN or MOD_POWER_REGEN. Client shows amount per 5s. */
+    public boolean eatDrinkRegen(SpellInfo sp) {
+        if (sp == null || (sp.aura != AuraEngine.SPELL_AURA_MOD_REGEN
+                && sp.aura != AuraEngine.SPELL_AURA_MOD_POWER_REGEN)) {
+            return false;
+        }
+        int flags = auraInterruptFlags.getOrDefault(sp.id, 0);
+        return (flags & AURA_INTERRUPT_FLAG_STANDING_CANCELS) != 0;
+    }
+
+    /**
+     * Whole periods of eat/drink pay {@code amount}. Partial time pays {@code amount * elapsed / 5s}
+     * so the health bar rises through the buff instead of one lump at the end.
+     */
+    public static int regenGain(int amount, int periodMs, long elapsedMs) {
+        if (amount <= 0 || periodMs <= 0 || elapsedMs <= 0) {
+            return 0;
+        }
+        return (int) ((long) amount * elapsedMs / periodMs);
+    }
+
+    /**
+     * Credit eat/drink since the aura's nextTick (last credit time). Returns true so the periodic
+     * pulse does not also add a full amplitude lump.
+     */
+    public boolean accrueEatDrink(Unit target, Unit.Aura aura, SpellInfo sp, long now,
+                                  BiConsumer<Integer, byte[]> send) {
+        if (target == null || aura == null || sp == null || !target.alive()) {
+            return true;
+        }
+        int idx = -1;
+        for (int i = 0; i < target.auras.size(); i++) {
+            if (target.auras.get(i).spellId() == aura.spellId()
+                    && target.auras.get(i).nextTickAtMs() == aura.nextTickAtMs()) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx < 0) {
+            return true;
+        }
+        int amount = (sp.minDmg + sp.maxDmg) / 2;
+        long elapsed = now - aura.nextTickAtMs();
+        int gain = regenGain(amount, FOOD_AMPLITUDE_MS, elapsed);
+        if (gain <= 0) {
+            return true;
+        }
+        boolean food = sp.aura == AuraEngine.SPELL_AURA_MOD_REGEN;
+        boolean mana = sp.aura == AuraEngine.SPELL_AURA_MOD_POWER_REGEN
+                && target instanceof Player p && p.powerType == 0;
+        if (!food && !mana) {
+            return true;
+        }
+        long consumed = (long) gain * FOOD_AMPLITUDE_MS / amount;
+        target.auras.set(idx, aura.withNextTick(aura.nextTickAtMs() + consumed));
+        if (food) {
+            target.setHealth(target.health() + gain);
+            if (send != null) {
+                var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
+                send.accept(hp.opcode(), hp.payload());
+            }
+            return true;
+        }
+        Player drinker = (Player) target;
+        drinker.setPower(drinker.power() + gain);
+        if (send != null) {
+            var pwr = UpdateBuilder.maybeCompress(UpdateBuilder.values(drinker, UpdateFields.UNIT_FIELD_POWER1));
+            send.accept(pwr.opcode(), pwr.payload());
+        }
+        return true;
+    }
+
     /**
      * Amplitude tick: PERIODIC_DAMAGE (DoT), MOD_REGEN (food), MOD_POWER_REGEN (drink).
-     * combat-log.md / CMaNGOS Aura::PeriodicTick.
+     * combat-log.md / CMaNGOS Aura::PeriodicTick. Eat/drink on the world pulse uses
+     * {@link #accrueEatDrink} so a full call here is one completed period.
      */
     public void tickPeriodic(Unit caster, Unit target, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
         if (caster == null || target == null || sp == null || send == null) {

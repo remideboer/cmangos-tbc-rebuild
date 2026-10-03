@@ -81,6 +81,87 @@ class SpellEngineFoodDrinkSitTest {
         assertTrue(p.isStanding());
     }
 
+    @Test
+    void regenGainWhenPartialPeriodShouldScaleAndRejectNonPositive() {
+        assertEquals(0, SpellEngine.regenGain(0, 5_000, 2_000));
+        assertEquals(0, SpellEngine.regenGain(17, 0, 2_000));
+        assertEquals(0, SpellEngine.regenGain(17, 5_000, 0));
+        assertEquals(6, SpellEngine.regenGain(17, 5_000, 2_000));
+        assertEquals(17, SpellEngine.regenGain(17, 5_000, 5_000));
+    }
+
+    @Test
+    void applyFoodWhenTimedShouldCreditFromNowNotTheFullPeriod() {
+        SpellEngine eng = new SpellEngine();
+        Player p = new Player();
+        eng.apply(p, p, eng.info(SpellEngine.SPELL_FOOD), 1_000);
+        assertEquals(1_000L, p.auras.get(0).nextTickAtMs());
+        eng.apply(p, p, eng.info(30108), 1_000);
+        assertEquals(1_000L + SpellEngine.UA_AMPLITUDE_MS, p.auras.get(p.auras.size() - 1).nextTickAtMs());
+        assertTrue(eng.eatDrinkRegen(eng.info(SpellEngine.SPELL_FOOD)));
+        assertTrue(eng.eatDrinkRegen(eng.info(SpellEngine.SPELL_DRINK)));
+        assertFalse(eng.eatDrinkRegen(eng.info(SpellEngine.SPELL_STEALTH)));
+        assertFalse(eng.eatDrinkRegen(null));
+        assertFalse(eng.eatDrinkRegen(new SpellEngine.SpellInfo(
+                99999, 6, AuraEngine.SPELL_AURA_MOD_REGEN, 0, 0, 17, 17, 0f, 0)));
+    }
+
+    @Test
+    void accrueEatDrinkWhenPartialShouldHealAndIgnoreEdges() {
+        SpellEngine eng = new SpellEngine();
+        Player p = standingPlayer();
+        p.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 200);
+        p.setHealth(40);
+        eng.apply(p, p, eng.info(SpellEngine.SPELL_FOOD), 1_000);
+        p.auras.add(0, new Unit.Aura(1, 1, 1, 0, 0, 0, 0, 0));
+        Unit.Aura food = p.auras.get(1);
+        assertTrue(eng.accrueEatDrink(null, food, eng.info(SpellEngine.SPELL_FOOD), 3_000, (op, payload) -> { }));
+        assertTrue(eng.accrueEatDrink(p, null, eng.info(SpellEngine.SPELL_FOOD), 3_000, (op, payload) -> { }));
+        assertTrue(eng.accrueEatDrink(p, food, null, 3_000, (op, payload) -> { }));
+        p.setHealth(0);
+        assertTrue(eng.accrueEatDrink(p, food, eng.info(SpellEngine.SPELL_FOOD), 3_000, (op, payload) -> { }));
+        p.setHealth(40);
+        assertTrue(eng.accrueEatDrink(p, food, eng.info(SpellEngine.SPELL_FOOD), 1_000, null));
+        assertEquals(40, p.health());
+        Unit.Aura missing = new Unit.Aura(SpellEngine.SPELL_FOOD, 18_000, 1, 0, 0, 5_000, 50, 1);
+        assertTrue(eng.accrueEatDrink(p, missing, eng.info(SpellEngine.SPELL_FOOD), 3_000, null));
+        assertTrue(eng.accrueEatDrink(p, food, eng.info(SpellEngine.SPELL_FOOD), 3_000, null));
+        assertEquals(46, p.health());
+        food = p.auras.get(1);
+        assertTrue(eng.accrueEatDrink(p, food, eng.info(SpellEngine.SPELL_FOOD), 6_000, (op, payload) -> { }));
+        assertEquals(57, p.health());
+
+        Player quiet = standingPlayer();
+        quiet.guid = 3;
+        quiet.setHealth(40);
+        quiet.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        quiet.setPower(10);
+        quiet.powerType = 0;
+        eng.apply(quiet, quiet, eng.info(SpellEngine.SPELL_DRINK), 1_000);
+        assertTrue(eng.accrueEatDrink(quiet, quiet.auras.get(0), eng.info(SpellEngine.SPELL_DRINK), 6_000, null));
+        assertEquals(52, quiet.power());
+
+        Player drinker = standingPlayer();
+        drinker.guid = 2;
+        drinker.setHealth(40);
+        drinker.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        drinker.setPower(10);
+        drinker.powerType = 0;
+        eng.apply(drinker, drinker, eng.info(SpellEngine.SPELL_DRINK), 1_000);
+        Unit.Aura drink = drinker.auras.get(0);
+        drinker.powerType = 1;
+        assertTrue(eng.accrueEatDrink(drinker, drink, eng.info(SpellEngine.SPELL_DRINK), 6_000, null));
+        assertEquals(10, drinker.getInt(UpdateFields.UNIT_FIELD_POWER1));
+        org.tbc.world.entity.Creature mob = new org.tbc.world.entity.Creature();
+        mob.setHealth(40);
+        mob.auras.add(drink);
+        assertTrue(eng.accrueEatDrink(mob, drink, eng.info(SpellEngine.SPELL_DRINK), 6_000, null));
+        drinker.powerType = 0;
+        assertTrue(eng.accrueEatDrink(drinker, drink, eng.info(SpellEngine.SPELL_DRINK), 6_000,
+                (op, payload) -> { }));
+        assertEquals(52, drinker.power());
+    }
+
     /** TP-SL07-022 — food from standing publishes UNIT_FIELD_BYTES_1 sit (CMaNGOS SetStandState). */
     @Test
     void castFoodWhenStandingShouldSendSitBytes() {

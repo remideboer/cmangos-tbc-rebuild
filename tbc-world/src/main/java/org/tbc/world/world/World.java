@@ -1236,25 +1236,31 @@ public final class World implements Runnable {
     }
 
     private void pulseUnitPeriodic(GameMap m, Unit u, long now) {
+        BiConsumer<Integer, byte[]> send = (op, payload) -> {
+            if (u instanceof Player self && self.session != null) {
+                self.session.send(op, payload);
+            }
+            for (Player pl : m.nearbyPlayers(u, GameMap.VISIBILITY)) {
+                if (pl.session != null) {
+                    pl.session.send(op, payload);
+                }
+            }
+        };
         AuraSlots.pulsePeriodic(u, now, a -> {
+            SpellEngine.SpellInfo sp = spells.info(a.spellId());
+            if (spells.eatDrinkRegen(sp)) {
+                spells.accrueEatDrink(u, a, sp, now, send);
+                return true;
+            }
             Unit caster = m.players.get(a.casterGuid());
             if (caster == null) {
                 caster = m.creatures.get(a.casterGuid());
             }
             if (caster == null) {
-                return;
+                return false;
             }
-            BiConsumer<Integer, byte[]> send = (op, payload) -> {
-                if (u instanceof Player self && self.session != null) {
-                    self.session.send(op, payload);
-                }
-                for (Player pl : m.nearbyPlayers(u, GameMap.VISIBILITY)) {
-                    if (pl.session != null) {
-                        pl.session.send(op, payload);
-                    }
-                }
-            };
-            spells.tickPeriodic(caster, u, spells.info(a.spellId()), send);
+            spells.tickPeriodic(caster, u, sp, send);
+            return false;
         });
     }
 

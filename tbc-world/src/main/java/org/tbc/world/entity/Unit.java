@@ -833,12 +833,19 @@ public class Unit extends Entity {
         return getInt(UpdateFields.UNIT_FIELD_BYTES_1) & 0xFF;
     }
 
-    /** Allowed client animstates: stand/sit/sleep/kneel (spell.md CMSG_STANDSTATECHANGE). */
+    /**
+     * Client-requested anim (CMSG_STANDSTATECHANGE). The client already played it, so
+     * CMaNGOS SetStandState(state, acknowledge=true) does not echo SMSG_STANDSTATE_UPDATE.
+     */
     public void applyStandState(int state) {
-        setStandState(state);
+        setStandState(state, true);
     }
 
     private void setStandState(int state) {
+        setStandState(state, false);
+    }
+
+    private void setStandState(int state, boolean acknowledge) {
         int next = state & 0xFF;
         if (standState() == next) {
             return;
@@ -847,6 +854,11 @@ public class Unit extends Entity {
         setInt(UpdateFields.UNIT_FIELD_BYTES_1, (bytes & ~0xFF) | next);
         if (!isSeatedState() && leaveSeatedAuras != null) {
             leaveSeatedAuras.accept(this);
+        }
+        if (!acknowledge && this instanceof Player player && player.session != null) {
+            WowBuffer stand = new WowBuffer(1);
+            stand.putU8(next);
+            player.session.send(Opcodes.SMSG_STANDSTATE_UPDATE, stand.array());
         }
     }
 
