@@ -180,6 +180,32 @@ class ClasslessPolicyTest {
         assertEquals(12, p.bindZone);
     }
 
+    /** Hero create backpack: Refreshing Spring Water ×5, Tough Hunk of Bread ×5, Minor Healing Potion ×1. */
+    @Test
+    void startingLoadoutWhenClasslessShouldGrantWaterBreadAndMinorHealingPotion() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = new Player();
+        p.guid = 5L;
+        p.race = 1;
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        long[] next = {500L};
+        ClasslessStartingLoadout.apply(p, mgr, () -> next[0]++);
+        assertEquals(5, countOwned(p, Content.ITEM_REFRESHING_SPRING_WATER));
+        assertEquals(5, countOwned(p, Content.ITEM_TOUGH_HUNK_OF_BREAD));
+        assertEquals(1, countOwned(p, Content.ITEM_MINOR_HEALING_POTION));
+    }
+
+    private static int countOwned(Player p, int entry) {
+        int n = 0;
+        for (var it : p.items.values()) {
+            if (it.entry == entry) {
+                n += it.count;
+            }
+        }
+        return n;
+    }
+
     /** TP-SL35-011 — Hero L1 STAT0..4 = rounded mean of that race's class rows (flat, racial lean kept). */
     @Test
     void startingStatsWhenHumanClasslessShouldUseRaceClassAverage() {

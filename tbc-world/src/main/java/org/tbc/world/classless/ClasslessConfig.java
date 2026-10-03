@@ -27,6 +27,15 @@ public final class ClasslessConfig {
             ITEM_RECRUIT_SHIRT, ITEM_RECRUIT_PANTS, ITEM_RECRUIT_BOOTS, STARTER_WEAPON,
             Content.ITEM_HEARTHSTONE
     };
+    /**
+     * Backpack stacks after {@link #STARTING_ITEMS}: Refreshing Spring Water ×5,
+     * Tough Hunk of Bread ×5, Minor Healing Potion ×1.
+     */
+    public static final int[][] STARTING_STACKS = {
+            {Content.ITEM_REFRESHING_SPRING_WATER, 5},
+            {Content.ITEM_TOUGH_HUNK_OF_BREAD, 5},
+            {Content.ITEM_MINOR_HEALING_POTION, 1},
+    };
     /** Cloth armor proficiency mask (1 &lt;&lt; ITEM_SUBCLASS_ARMOR_CLOTH). */
     public static final int ARMOR_CLOTH_MASK = 1 << 1;
     /** Unarmed weapon proficiency mask (1 &lt;&lt; ITEM_SUBCLASS_WEAPON_UNARMED). */

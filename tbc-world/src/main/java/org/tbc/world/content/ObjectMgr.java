@@ -1457,6 +1457,25 @@ public final class ObjectMgr {
             t.spellCharges[0] = -1;
             return t;
         }
+
+        /** Minor Healing Potion — item 118 ON_USE spell 439, stackable 5 (item_template). */
+        public static ItemTemplate minorHealingPotion() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_MINOR_HEALING_POTION;
+            t.name = "Minor Healing Potion";
+            t.itemClass = 0;
+            t.subClass = 1;
+            t.displayId = 15710;
+            t.quality = 1;
+            t.buyPrice = 20;
+            t.sellPrice = 5;
+            t.stackable = 5;
+            t.requiredDisenchantSkill = -1;
+            t.spellId[0] = 439;
+            t.spellTrigger[0] = 0;
+            t.spellCharges[0] = -1;
+            return t;
+        }
     }
 
     /**
@@ -3428,16 +3447,19 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_TOUGH_HUNK_OF_BREAD, ItemTemplate.toughHunkOfBread());
         items.putIfAbsent(Content.ITEM_RED_BURLAP_BANDANA, ItemTemplate.redBurlapBandana());
         items.putIfAbsent(Content.ITEM_REFRESHING_SPRING_WATER, ItemTemplate.refreshingSpringWater());
+        items.putIfAbsent(Content.ITEM_MINOR_HEALING_POTION, ItemTemplate.minorHealingPotion());
         // SQL load may have created empty spell rows; force usable-item spells from seeds.
         mergeUsableItemSpells(ItemTemplate.hearthstone());
         mergeUsableItemSpells(ItemTemplate.toughJerky());
         mergeUsableItemSpells(ItemTemplate.toughHunkOfBread());
         mergeUsableItemSpells(ItemTemplate.refreshingSpringWater());
+        mergeUsableItemSpells(ItemTemplate.minorHealingPotion());
         // Keep consumable max-stack for 8606 client even if a thin SQL row set stackable=1.
         ensureStackable(Content.ITEM_TOUGH_JERKY, 20);
         ensureStackable(Content.ITEM_TOUGH_HUNK_OF_BREAD, 20);
         ensureStackable(Content.ITEM_RED_BURLAP_BANDANA, 20);
         ensureStackable(Content.ITEM_REFRESHING_SPRING_WATER, 20);
+        ensureStackable(Content.ITEM_MINOR_HEALING_POTION, 5);
         quests.putIfAbsent(Content.QUEST_A_THREAT_WITHIN, new QuestTemplate(Content.QUEST_A_THREAT_WITHIN, "A Threat Within", 1, 0,
                 0, "Speak with Marshal McBride.", "Speak with Marshal McBride.", 0, 0, 0, 0, 1, 24, 0, 0));
         quests.putIfAbsent(Content.QUEST_REST_AND_RELAXATION, new QuestTemplate(Content.QUEST_REST_AND_RELAXATION,

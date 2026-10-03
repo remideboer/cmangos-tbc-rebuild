@@ -8,8 +8,8 @@ import java.util.function.LongSupplier;
 
 /**
  * Auto Attack only on the bar, full weapon/armor proficiencies with combat skills at 1,
- * Recruit cloth + Worn Shortsword + Hearthstone, and 3 silver. Homebind and spawn use the
- * race's normal starter ({@link CreateSpawnResolver}).
+ * Recruit cloth + Worn Shortsword + Hearthstone, starter food/water/potion, and 3 silver.
+ * Homebind and spawn use the race's normal starter ({@link CreateSpawnResolver}).
  */
 public final class ClasslessStartingLoadout {
     private ClasslessStartingLoadout() {
@@ -42,6 +42,9 @@ public final class ClasslessStartingLoadout {
                 p.bindZ = start.z();
             }
             mgr.giveNamedStartItems(p, ClasslessConfig.STARTING_ITEMS, nextItemGuid);
+            for (int[] stack : ClasslessConfig.STARTING_STACKS) {
+                mgr.storeNewItem(p, stack[0], stack[1], nextItemGuid);
+            }
         }
     }
 

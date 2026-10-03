@@ -220,6 +220,8 @@ public final class Content {
     public static final int ITEM_HEARTHSTONE = 6948;
     /** locales_item 117 Tough Jerky; item_template spellid_1 433 charges −1. */
     public static final int ITEM_TOUGH_JERKY = 117;
+    /** locales_item 118 Minor Healing Potion; item_template spellid_1 439 charges −1. */
+    public static final int ITEM_MINOR_HEALING_POTION = 118;
     /** Tough Hunk of Bread — stackable food (item_template.stackable 20). */
     public static final int ITEM_TOUGH_HUNK_OF_BREAD = 4540;
     public static final int ITEM_ROUGH_ARROW = 2512;
