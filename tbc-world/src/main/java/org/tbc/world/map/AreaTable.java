@@ -30,6 +30,16 @@ public final class AreaTable {
     public static final int TELDRASSIL = 141;
     /** AreaTable.dbc Shadowglen — Night Elf starter sub-area; parent Teldrassil. */
     public static final int SHADOWGLEN = 188;
+    /** AreaTable.dbc Azuremyst Isle (Draenei continent zone). */
+    public static final int AZUREMYST = 3524;
+    /** AreaTable.dbc Ammen Vale — playercreateinfo zone for race 11; parent Azuremyst. */
+    public static final int AMMEN_VALE = 3526;
+    /** AreaTable.dbc / playercreateinfo Durotar. */
+    public static final int DUROTAR = 14;
+    /** AreaTable.dbc / playercreateinfo Tirisfal Glades. */
+    public static final int TIRISFAL = 85;
+    /** AreaTable.dbc / playercreateinfo Mulgore. */
+    public static final int MULGORE = 215;
 
     public record Entry(int id, int parentZone, int exploreFlag) {
         int zoneOrSelf() {
@@ -51,6 +61,11 @@ public final class AreaTable {
         // AreaBit from AreaTable.dbc (Shadowglen 561) so terrain.area → AREALINK without DataDir.
         t.add(TELDRASSIL, 0, 220);
         t.add(SHADOWGLEN, TELDRASSIL, 561);
+        t.add(AZUREMYST, 0, 0);
+        t.add(AMMEN_VALE, AZUREMYST, 0);
+        t.add(DUROTAR, 0, 0);
+        t.add(TIRISFAL, 0, 0);
+        t.add(MULGORE, 0, 0);
         return t;
     }
 

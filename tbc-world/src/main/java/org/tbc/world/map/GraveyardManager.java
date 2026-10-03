@@ -63,6 +63,16 @@ public final class GraveyardManager {
         g.addLink(921, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
         g.addLink(921, 3487, AREALINK, TEAM_BOTH); // Silvermoon City
         g.addLink(922, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
+        // Horde map-530 safety: stay on Eversong, not Barrens default / void.
+        g.addLink(912, 530, MAPLINK, HORDE);
+        // tbc-db Azuremyst (3524): Ammen Vale GY 918; no DB row for createinfo area 3526.
+        g.addLoc(new Loc(918, 530, -4123.14f, -13660.1f, 74.6f, 5.49779f));
+        g.addLoc(new Loc(923, 530, -4312.77f, -12441f, 17.1903f, 3.66519f));
+        g.addLink(918, AreaTable.AMMEN_VALE, AREALINK, TEAM_BOTH);
+        g.addLink(918, AreaTable.AZUREMYST, AREALINK, TEAM_BOTH);
+        g.addLink(923, AreaTable.AZUREMYST, AREALINK, TEAM_BOTH);
+        // Alliance map-530 safety: stay on Azuremyst, not Elwynn default / void.
+        g.addLink(918, 530, MAPLINK, ALLIANCE);
         // tbc-db Teldrassil (141): Aldrassil GY 93 is nearest for Shadowglen createinfo spawn.
         g.addLoc(new Loc(90, 1, 10054.3f, 2117.12f, 1329.63f, 2.40855f));
         g.addLoc(new Loc(91, 1, 9701.25f, 945.62f, 1291.35f, 2.72271f));
@@ -75,6 +85,15 @@ public final class GraveyardManager {
         g.addLink(129, AreaTable.TELDRASSIL, AREALINK, ALLIANCE);
         // Alliance map fallback: stay on Kalimdor (Aldrassil) instead of Elwynn void.
         g.addLink(93, 1, MAPLINK, ALLIANCE);
+        // Horde starters (in-memory; tbc-db has these AREALINKs when SQL loads).
+        g.addLoc(new Loc(94, 0, 1882.94f, 1629.11f, 94.4175f, 4.64258f));
+        g.addLoc(new Loc(709, 1, -634.635f, -4296.03f, 40.5254f, 4.11898f));
+        g.addLoc(new Loc(34, 1, -2944.56f, -153.215f, 65.786f, 1.88496f));
+        g.addLink(94, AreaTable.TIRISFAL, AREALINK, HORDE);
+        g.addLink(709, AreaTable.DUROTAR, AREALINK, HORDE);
+        g.addLink(34, AreaTable.MULGORE, AREALINK, HORDE);
+        // EK Horde map safety: Deathknell instead of Barrens default / void.
+        g.addLink(94, 0, MAPLINK, HORDE);
         return g;
     }
 

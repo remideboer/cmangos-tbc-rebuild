@@ -3183,6 +3183,11 @@ public final class ObjectMgr {
         createInfo.put(key(4, 1), new CreateInfo(4, 1, 1, 141, 10311.3f, 831.463f, 1326.41f, 0f));
         // Blood Elf has no warrior; mage coords = Sunstrider (classless createForRace).
         createInfo.put(key(10, 8), new CreateInfo(10, 8, 530, 3431, 10349.6f, -6357.29f, 33.4026f, 0f));
+        // Draenei warrior — Ammen Vale (classless / GY wire tests).
+        createInfo.put(key(11, 1), new CreateInfo(11, 1, 530, 3526, -3961.64f, -13931.2f, 100.615f, 2.08364f));
+        // Undead / Tauren starters (GY void-prevention wire tests).
+        createInfo.put(key(5, 1), new CreateInfo(5, 1, 0, 85, 1676.35f, 1677.45f, 121.67f, 2.70526f));
+        createInfo.put(key(6, 1), new CreateInfo(6, 1, 1, 215, -2917.58f, -257.98f, 52.9968f, 0f));
         createSpells.put((int) key(1, 1), new ArrayList<>(List.of(6603, 78, 81, 107, 196, 203, 204, 522, 668, 2382, 2457, 2479, 3050, 3365, 6233, 6246, 6247, 6477, 6478, 7266, 7267, 7355, 8386, 9078, 9125, 20597, 20598, 20599, 20864, 21651, 21652, 22027, 22810)));
         creatures.put(6, seedKoboldVermin());
         creatures.put(103, new CreatureTemplate(103, "Garrick Padfoot", 3734, 21, 80, 5, 0, "", "", 0));

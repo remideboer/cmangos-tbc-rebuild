@@ -13,6 +13,8 @@ import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.session.DeathHandler;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.Map;
 
@@ -189,6 +191,75 @@ class Slice17P0Test {
         assertEquals(530, WowClientDouble.u32le(loc, 0));
         assertEquals(10458.5f, WowClientDouble.floatle(loc, 4), 0.5f);
         assertEquals(39.7907f, WowClientDouble.floatle(loc, 12), 0.5f);
+    }
+
+    /**
+     * TP-SL17-023 — Undead create (Tirisfal 85): Deathknell GY 94, not Barrens / void.
+     */
+    @Test
+    void tpSl17RepopWhenUndeadShouldUseDeathknellSpiritHealer() {
+        assertStarterRepop(5, 1, "UndeadGy", 0, 85,
+                1882.94f, 1629.11f, 94.4175f);
+    }
+
+    /**
+     * TP-SL17-023 — Orc create (Durotar 14): Valley of Trials GY 709, not Crossroads far jump.
+     */
+    @Test
+    void tpSl17RepopWhenOrcShouldUseValleyOfTrialsSpiritHealer() {
+        assertStarterRepop(2, 1, "OrcGy", 1, 14,
+                -634.635f, -4296.03f, 40.5254f);
+    }
+
+    /**
+     * Starter-race create→repop matrix (void guard): same-map GY, MSG_MOVE_TELEPORT_ACK, Z match.
+     * race,clazz,name,expectMap,expectZone,gyX,gyY,gyZ
+     */
+    @ParameterizedTest(name = "tpSl17StarterRepopMatrix {2}")
+    @CsvSource({
+            "1, 1, HumanGy, 0, 12, -8935.33, -188.646, 80.4165",
+            "2, 1, OrcMatrix, 1, 14, -634.635, -4296.03, 40.5254",
+            "4, 1, NightElfGy, 1, 141, 10384.8, 811.531, 1317.54",
+            "5, 1, UndeadMatrix, 0, 85, 1882.94, 1629.11, 94.4175",
+            "6, 1, TaurenGy, 1, 215, -2944.56, -153.215, 65.786",
+            "10, 8, BeMageMatrix, 530, 3431, 10458.5, -6364.61, 39.7907",
+            "11, 1, DraeneiMatrix, 530, 3526, -4123.14, -13660.1, 74.6",
+            "1, 6, HeroHumanGy, 0, 12, -8935.33, -188.646, 80.4165",
+            "10, 6, HeroBeGy, 530, 3431, 10458.5, -6364.61, 39.7907",
+    })
+    void tpSl17StarterRepopMatrixShouldLandAtSameMapSpiritHealer(int race, int clazz, String name,
+            int expectMap, int expectZone, float gyX, float gyY, float gyZ) {
+        assertStarterRepop(race, clazz, name, expectMap, expectZone, gyX, gyY, gyZ);
+    }
+
+    /**
+     * TP-SL17-022 — Draenei warrior create (Ammen Vale 3526): repop at world_safe_locs 918,
+     * not Alliance EK default / void. Create+login only — no zone poke.
+     */
+    @Test
+    void tpSl17RepopWhenDraeneiShouldUseAmmenValeSpiritHealer() {
+        World world = World.inMemory();
+        WowClientDouble client = loginRace(world, "DraeneiGy", 11, 1);
+        Player p = client.session().player();
+        assertEquals(530, p.mapId);
+        assertEquals(org.tbc.world.map.AreaTable.AMMEN_VALE, p.zoneId);
+        assertEquals(org.tbc.world.map.GraveyardManager.ALLIANCE, p.team);
+        p.setHealth(0);
+        client.clear();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
+        assertEquals(530, WowClientDouble.u32le(loc, 0));
+        assertEquals(-4123.14f, WowClientDouble.floatle(loc, 4), 0.5f);
+        assertEquals(-13660.1f, WowClientDouble.floatle(loc, 8), 0.5f);
+        assertEquals(74.6f, WowClientDouble.floatle(loc, 12), 0.5f);
+        assertEquals(530, p.mapId);
+        assertEquals(-4123.14f, p.x, 0.5f);
+        assertEquals(74.6f, p.z, 0.5f);
+        assertTrue(p.ghost);
+        assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
+        assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
     }
 
     /**
@@ -666,9 +737,13 @@ class Slice17P0Test {
     }
 
     private static WowClientDouble loginBloodElf(World world, String name, int clazz) {
+        return loginRace(world, name, 10, clazz);
+    }
+
+    private static WowClientDouble loginRace(World world, String name, int race, int clazz) {
         WowClientDouble client = new WowClientDouble();
         client.connect(ACC);
-        Player created = world.characters.create(ACC.id(), name, 10, clazz, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player created = world.characters.create(ACC.id(), name, race, clazz, 0, 1, 1, 1, 1, 0, world.objectMgr);
         assertNotNull(created);
         client.login(world, created.guid);
         return client;
@@ -682,19 +757,34 @@ class Slice17P0Test {
         assertEquals(3431, p.zoneId);
         assertEquals(org.tbc.world.map.GraveyardManager.HORDE, p.team);
         p.relocate(10381.6f, -6399.23f, 38.5306f, 3.74096f);
+        assertRepopAtGy(world, client, p, 530, 10458.5f, -6364.61f, 39.7907f);
+    }
+
+    private static void assertStarterRepop(int race, int clazz, String name, int expectMap, int expectZone,
+                                           float gyX, float gyY, float gyZ) {
+        World world = World.inMemory();
+        WowClientDouble client = loginRace(world, name, race, clazz);
+        Player p = client.session().player();
+        assertEquals(expectMap, p.mapId);
+        assertEquals(expectZone, p.zoneId);
+        assertRepopAtGy(world, client, p, expectMap, gyX, gyY, gyZ);
+    }
+
+    private static void assertRepopAtGy(World world, WowClientDouble client, Player p,
+                                        int expectMap, float gyX, float gyY, float gyZ) {
         p.setHealth(0);
         client.clear();
         WowBuffer repop = new WowBuffer(1);
         repop.putU8(0);
         client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
         byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
-        assertEquals(530, WowClientDouble.u32le(loc, 0));
-        assertEquals(10458.5f, WowClientDouble.floatle(loc, 4), 0.5f);
-        assertEquals(-6364.61f, WowClientDouble.floatle(loc, 8), 0.5f);
-        assertEquals(39.7907f, WowClientDouble.floatle(loc, 12), 0.5f);
-        assertEquals(530, p.mapId);
-        assertEquals(10458.5f, p.x, 0.5f);
-        assertEquals(39.7907f, p.z, 0.5f);
+        assertEquals(expectMap, WowClientDouble.u32le(loc, 0));
+        assertEquals(gyX, WowClientDouble.floatle(loc, 4), 0.5f);
+        assertEquals(gyY, WowClientDouble.floatle(loc, 8), 0.5f);
+        assertEquals(gyZ, WowClientDouble.floatle(loc, 12), 0.5f);
+        assertEquals(expectMap, p.mapId);
+        assertEquals(gyX, p.x, 0.5f);
+        assertEquals(gyZ, p.z, 0.5f);
         assertTrue(p.ghost);
         assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
         assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
