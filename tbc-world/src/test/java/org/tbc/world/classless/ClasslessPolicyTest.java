@@ -257,6 +257,31 @@ class ClasslessPolicyTest {
         assertEquals(50, p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_XP));
     }
 
+    /** TP-SL35-025 — ding VALUES must include Hero rage/energy bars, not only mana. */
+    @Test
+    void giveXpWhenClasslessDingsShouldIncludeRageAndEnergyFields() {
+        Player p = new Player();
+        p.race = 1;
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.level = 1;
+        ClasslessCharacterPolicy.applyStartingStats(p);
+        int[] changed = p.giveXp(400, null);
+        assertEquals(2, p.level);
+        assertTrue(p.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER1) > 0);
+        assertTrue(java.util.Arrays.stream(changed).anyMatch(
+                f -> f == org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER1));
+        assertTrue(java.util.Arrays.stream(changed).anyMatch(
+                f -> f == org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER1));
+        assertTrue(java.util.Arrays.stream(changed).anyMatch(
+                f -> f == org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER2));
+        assertTrue(java.util.Arrays.stream(changed).anyMatch(
+                f -> f == org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER2));
+        assertTrue(java.util.Arrays.stream(changed).anyMatch(
+                f -> f == org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_MAXPOWER4));
+        assertTrue(java.util.Arrays.stream(changed).anyMatch(
+                f -> f == org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_POWER4));
+    }
+
     /** TP-SL35-016 — buyCost = 100 × 2^learned (ignore trainer-row spellCost). */
     @Test
     void buyCostWhenLearnedShouldFollowGeometricHundred() {

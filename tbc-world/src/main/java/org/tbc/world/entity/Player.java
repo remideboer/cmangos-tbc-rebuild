@@ -1,6 +1,7 @@
 package org.tbc.world.entity;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.classless.ClasslessCharacterPolicy;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.LevelStats;
 import org.tbc.world.content.SkillLineAbility;
@@ -589,6 +590,9 @@ public final class Player extends Unit {
         level = newLevel;
         setInt(UpdateFields.UNIT_FIELD_LEVEL, level);
         initStatsForLevel(levelStats);
+        if (ClasslessCharacterPolicy.isClassless(this)) {
+            ClasslessCharacterPolicy.applyStartingStats(this, levelStats);
+        }
         if (level >= TALENT_START_LEVEL) {
             setInt(UpdateFields.PLAYER_CHARACTER_POINTS1, getInt(UpdateFields.PLAYER_CHARACTER_POINTS1) + 1);
         }
@@ -609,6 +613,8 @@ public final class Player extends Unit {
         UpdateFields.UNIT_FIELD_STAT3, UpdateFields.UNIT_FIELD_STAT4, UpdateFields.UNIT_FIELD_RESISTANCES,
         UpdateFields.UNIT_FIELD_MAXHEALTH, UpdateFields.UNIT_FIELD_HEALTH,
         UpdateFields.UNIT_FIELD_MAXPOWER1, UpdateFields.UNIT_FIELD_POWER1,
+        UpdateFields.UNIT_FIELD_MAXPOWER2, UpdateFields.UNIT_FIELD_POWER2,
+        UpdateFields.UNIT_FIELD_MAXPOWER4, UpdateFields.UNIT_FIELD_POWER4,
         UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, UpdateFields.PLAYER_CHARACTER_POINTS1,
     };
 

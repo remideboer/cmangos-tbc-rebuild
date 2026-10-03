@@ -738,6 +738,7 @@ public final class World implements Runnable {
         if (changed.length > 0 && tapper.session != null) {
             var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(tapper, changed));
             tapper.session.send(upd.opcode(), upd.payload());
+            org.tbc.world.classless.ClasslessPowerAddon.pushIfPowerFields(tapper.session, changed);
         }
     }
 

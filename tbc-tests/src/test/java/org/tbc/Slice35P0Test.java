@@ -485,6 +485,52 @@ class Slice35P0Test {
                 "energy max 100: " + chats);
     }
 
+    /**
+     * TP-SL35-025 — after a ding, VALUES must carry max/current mana, rage, and energy, and
+     * HeroPowerBars must get PowerUpdate#0/#1/#3 so the triple bars refill without a relog.
+     */
+    @Test
+    void tpSl35HeroDingShouldPushRageEnergyManaValuesAndAddon() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Dinghero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        created.xp = 350;
+        world.characters.save(created);
+        client.login(world, created.guid);
+        sendHeroPowerEnable(client, world);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.attackSwing(world, c.guid);
+        client.clear();
+        int n = 0;
+        while (c.alive() && n++ < 400) {
+            world.meleeHit(p, c);
+        }
+        assertFalse(c.alive());
+        assertTrue(client.saw(Opcodes.SMSG_LEVELUP_INFO));
+        assertEquals(2, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_LEVEL));
+        assertTrue(client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXPOWER1) > 0);
+        assertEquals(client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXPOWER1),
+                client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER1));
+        assertEquals(Player.POWER_RAGE_MAX, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXPOWER2));
+        assertEquals(Player.POWER_ENERGY_MAX, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_MAXPOWER4));
+        assertEquals(Player.POWER_ENERGY_MAX, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER4));
+        List<String> chats = messageChatBodies(client);
+        assertTrue(chats.stream().anyMatch(m -> m.startsWith("HeroPowerBars\tPowerUpdate#0;")),
+                "mana addon after ding: " + chats);
+        assertTrue(chats.stream().anyMatch(m -> m.startsWith("HeroPowerBars\tPowerUpdate#1;")),
+                "rage addon after ding: " + chats);
+        assertTrue(chats.stream().anyMatch(m -> m.startsWith("HeroPowerBars\tPowerUpdate#3;")),
+                "energy addon after ding: " + chats);
+    }
+
     @Test
     void tpSl35HeroPowerAddonEnableWhenWarriorShouldNotEnable() {
         World world = World.inMemory();
