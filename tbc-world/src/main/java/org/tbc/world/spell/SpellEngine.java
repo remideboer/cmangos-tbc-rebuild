@@ -680,6 +680,15 @@ public final class SpellEngine {
         spells.put(2973, new SpellInfo(2973, EFFECT_WEAPON_DAMAGE, 0, 0, 15, 5, 5, 5f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(75, new SpellInfo(75, EFFECT_SCHOOL_DAMAGE, 0, 0, 0, 1, 1, 30f));
+        // Serpent Sting / Arcane Shot Rank 1 — Hero hunter follow-up rewards.
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_SERPENT_STING, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_SERPENT_STING, EFFECT_APPLY_AURA,
+                SPELL_AURA_PERIODIC_DAMAGE, 3, 15, 10, 10, 35f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(15_000).withAmplitude(3_000));
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_SHOT, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_SHOT, EFFECT_SCHOOL_DAMAGE,
+                0, 6, 25, 15, 15, 35f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(403, new SpellInfo(403, EFFECT_SCHOOL_DAMAGE, 0, 3, 15, 13, 15, 30f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(331, new SpellInfo(331, EFFECT_HEAL, 0, 3, 25, 34, 44, 40f)

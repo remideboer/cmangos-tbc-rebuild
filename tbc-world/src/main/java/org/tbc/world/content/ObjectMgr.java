@@ -3394,6 +3394,7 @@ public final class ObjectMgr {
         }
         seedHeroWarriorUnlock();
         seedHeroPaladinUnlock();
+        seedHeroHunterUnlock();
     }
 
     private void seedHeroWarriorUnlock() {
@@ -3558,6 +3559,76 @@ public final class ObjectMgr {
         addQuestRelation(questGivers, trainer, mercy);
         addQuestRelation(questInvolved, trainer, mercy);
         questRewSpell.putIfAbsent(mercy, org.tbc.world.spell.SpellEngine.HOLY_LIGHT);
+    }
+
+    private void seedHeroHunterUnlock() {
+        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_HUNTER_TRAINER;
+        int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_THE_MARKED_TRAIL;
+        int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
+        creatures.put(trainer, new CreatureTemplate(trainer,
+                org.tbc.world.classless.HeroClassUnlock.NAME_KAELAN_DAWNSTRIKE,
+                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
+                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                "Hunter Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
+        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(trainer, Player.CLASS_HUNTER);
+        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_AUTO_SHOT, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SERPENT_STING, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_SHOT, 100, 1))));
+        quests.putIfAbsent(questId, new QuestTemplate(questId, "The Marked Trail", 1, 0,
+                0,
+                "Track the local prey, land three solid hits, then finish one. Return alive.",
+                "Land 3 weapon hits on a Mana Wyrm and defeat 1 Mana Wyrm.",
+                wyrm, org.tbc.world.classless.HeroClassUnlock.REQUIRED_KILLS));
+        addQuestRelation(questGivers, trainer, questId);
+        addQuestRelation(questInvolved, trainer, questId);
+        questCreatureHits.putIfAbsent(questId, new CreatureHitObjective(wyrm,
+                org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_MARKED_HITS));
+        questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.HUNTERS_MARK);
+        seedHeroHunterFollowUps(trainer, wyrm, questId);
+        addSpawnIfMissing(20, trainer, 0, -8404f, -404f, 80f, 0f);
+        replaceSpawn(21, trainer, 530,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_X,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_Y,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_Z,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_O);
+    }
+
+    private void seedHeroHunterFollowUps(int trainer, int wyrm, int unlockQuest) {
+        int venom = org.tbc.world.classless.HeroClassUnlock.ITEM_VENOM_SAMPLE;
+        items.putIfAbsent(venom, ItemTemplate.heroQuestJunk(venom, "Venom Sample"));
+
+        int steady = org.tbc.world.classless.HeroClassUnlock.QUEST_STEADY_AIM;
+        quests.putIfAbsent(steady, heroFollowUpQuest(steady, "Steady Aim",
+                "Prove you can finish a local threat with your basic kit. Return alive.",
+                "Defeat 1 Mana Wyrm.",
+                wyrm, 1, 0, 0, unlockQuest));
+        addQuestRelation(questGivers, trainer, steady);
+        addQuestRelation(questInvolved, trainer, steady);
+        questRewSpell.putIfAbsent(steady, org.tbc.world.classless.HeroClassUnlock.SPELL_AUTO_SHOT);
+
+        int venomQ = org.tbc.world.classless.HeroClassUnlock.QUEST_VENOM_IN_THE_FIELD;
+        quests.putIfAbsent(venomQ, heroFollowUpQuest(venomQ, "Venom in the Field",
+                "Recover venom samples from local beasts. Return alive.",
+                "Collect 1 Venom Sample.",
+                0, 0, venom, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, venomQ);
+        addQuestRelation(questInvolved, trainer, venomQ);
+        questRewSpell.putIfAbsent(venomQ, org.tbc.world.classless.HeroClassUnlock.SPELL_SERPENT_STING);
+
+        int clean = org.tbc.world.classless.HeroClassUnlock.QUEST_A_CLEAN_SHOT;
+        quests.putIfAbsent(clean, heroFollowUpQuest(clean, "A Clean Shot",
+                "Land three solid hits on a marked target. Return alive.",
+                "Land 3 weapon hits on a Mana Wyrm.",
+                0, 0, 0, 0, unlockQuest));
+        addQuestRelation(questGivers, trainer, clean);
+        addQuestRelation(questInvolved, trainer, clean);
+        questCreatureHits.putIfAbsent(clean, new CreatureHitObjective(wyrm,
+                org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_CLEAN_SHOT_HITS));
+        questRewSpell.putIfAbsent(clean, org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_SHOT);
     }
 
     private void addSpawnIfMissing(int guid, int entry, int map, float x, float y, float z, float o) {

@@ -22,17 +22,26 @@ public final class HeroClassUnlock {
     public static final int QUEST_STAND_FAST = 90006;
     public static final int QUEST_STRENGTH_IN_SERVICE = 90007;
     public static final int QUEST_MERCYS_LESSON = 90008;
+    public static final int QUEST_THE_MARKED_TRAIL = 90009;
+    public static final int QUEST_STEADY_AIM = 90010;
+    public static final int QUEST_VENOM_IN_THE_FIELD = 90011;
+    public static final int QUEST_A_CLEAN_SHOT = 90012;
 
     public static final int NPC_HERO_WARRIOR_TRAINER = 91001;
     public static final int NPC_HERO_PALADIN_TRAINER = 91002;
+    public static final int NPC_HERO_HUNTER_TRAINER = 91003;
     /** Blood Elf Sunstrider Isle warrior trainer display name. */
     public static final String NAME_LORVAEN_BLOODFEATHER = "Lorvaen Bloodfeather";
     /** Blood Elf Sunstrider Isle paladin trainer display name. */
     public static final String NAME_VELAARA_SUNWARD = "Velaara Sunward";
+    /** Blood Elf Sunstrider Isle hunter trainer display name. */
+    public static final String NAME_KAELAN_DAWNSTRIKE = "Kaelan Dawnstrike";
     public static final int CREATURE_MANA_WYRM = 15274;
     public static final int REQUIRED_HITS = 5;
     public static final int REQUIRED_KILLS = 1;
     public static final int FOLLOWUP_CHARGE_HITS = 3;
+    public static final int FOLLOWUP_MARKED_HITS = 3;
+    public static final int FOLLOWUP_CLEAN_SHOT_HITS = 3;
     /** Server-owned quest item for Rend follow-up. */
     public static final int ITEM_TRAINING_STRIP = 92001;
     /** Paladin unlock: protective token. */
@@ -41,12 +50,20 @@ public final class HeroClassUnlock {
     public static final int ITEM_BLESSING_TOKEN = 92003;
     /** Holy Light follow-up healing kit. */
     public static final int ITEM_HEALING_KIT = 92004;
+    /** Hunter Serpent Sting follow-up venom sample. */
+    public static final int ITEM_VENOM_SAMPLE = 92005;
     /** Charge Rank 1 (Spell.dbc 100). */
     public static final int SPELL_CHARGE = 100;
     /** Rend Rank 1 (Spell.dbc 772). */
     public static final int SPELL_REND = 772;
     /** Blessing of Might Rank 1 (Spell.dbc 19740). */
     public static final int SPELL_BLESSING_OF_MIGHT = 19740;
+    /** Auto Shot (Spell.dbc 75). */
+    public static final int SPELL_AUTO_SHOT = 75;
+    /** Serpent Sting Rank 1 (Spell.dbc 1978). */
+    public static final int SPELL_SERPENT_STING = 1978;
+    /** Arcane Shot Rank 1 (Spell.dbc 3044). */
+    public static final int SPELL_ARCANE_SHOT = 3044;
     /** Jesthenis Sunstriker (15280) ModelId1. */
     public static final int DISPLAY_JESTHENIS = 15521;
     /** FactionTemplate Silvermoon City NPC (creature 15280). Reputation faction 911. */
@@ -65,6 +82,11 @@ public final class HeroClassUnlock {
     public static final float SUNSTRIDER_PALADIN_Y = -6401.23f;
     public static final float SUNSTRIDER_PALADIN_Z = 38.5306f;
     public static final float SUNSTRIDER_PALADIN_O = 3.74096f;
+    /** Hunter trainer a few yards from the warrior trainer. */
+    public static final float SUNSTRIDER_HUNTER_X = 10379.6f;
+    public static final float SUNSTRIDER_HUNTER_Y = -6397.23f;
+    public static final float SUNSTRIDER_HUNTER_Z = 38.5306f;
+    public static final float SUNSTRIDER_HUNTER_O = 3.74096f;
 
     public static final HeroClassUnlock WARRIOR = new HeroClassUnlock(
             Player.CLASS_WARRIOR,
@@ -84,6 +106,15 @@ public final class HeroClassUnlock {
             0,
             REQUIRED_KILLS);
 
+    public static final HeroClassUnlock HUNTER = new HeroClassUnlock(
+            Player.CLASS_HUNTER,
+            QUEST_THE_MARKED_TRAIL,
+            NPC_HERO_HUNTER_TRAINER,
+            SpellEngine.HUNTERS_MARK,
+            CREATURE_MANA_WYRM,
+            FOLLOWUP_MARKED_HITS,
+            REQUIRED_KILLS);
+
     /** Hero-only follow-up: teaches one spell on turn-in; gates that spell on trainers. */
     public record FollowUp(int questId, int rewardSpell, int requiresQuest, int trainerClass) {
     }
@@ -100,10 +131,17 @@ public final class HeroClassUnlock {
             QUEST_STRENGTH_IN_SERVICE, SPELL_BLESSING_OF_MIGHT, QUEST_A_VOW_TESTED, Player.CLASS_PALADIN);
     public static final FollowUp MERCYS_LESSON = new FollowUp(
             QUEST_MERCYS_LESSON, SpellEngine.HOLY_LIGHT, QUEST_A_VOW_TESTED, Player.CLASS_PALADIN);
+    public static final FollowUp STEADY_AIM = new FollowUp(
+            QUEST_STEADY_AIM, SPELL_AUTO_SHOT, QUEST_THE_MARKED_TRAIL, Player.CLASS_HUNTER);
+    public static final FollowUp VENOM_IN_THE_FIELD = new FollowUp(
+            QUEST_VENOM_IN_THE_FIELD, SPELL_SERPENT_STING, QUEST_THE_MARKED_TRAIL, Player.CLASS_HUNTER);
+    public static final FollowUp A_CLEAN_SHOT = new FollowUp(
+            QUEST_A_CLEAN_SHOT, SPELL_ARCANE_SHOT, QUEST_THE_MARKED_TRAIL, Player.CLASS_HUNTER);
 
     private static final List<FollowUp> FOLLOW_UPS = List.of(
             RALLY_THE_LINE, CLOSE_THE_DISTANCE, A_WOUND_TO_REMEMBER,
-            STAND_FAST, STRENGTH_IN_SERVICE, MERCYS_LESSON);
+            STAND_FAST, STRENGTH_IN_SERVICE, MERCYS_LESSON,
+            STEADY_AIM, VENOM_IN_THE_FIELD, A_CLEAN_SHOT);
 
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_QUEST = new HashMap<>();
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_SPELL = new HashMap<>();
@@ -117,8 +155,10 @@ public final class HeroClassUnlock {
         }
         UNLOCK_BY_QUEST.put(WARRIOR.questId, WARRIOR);
         UNLOCK_BY_QUEST.put(PALADIN.questId, PALADIN);
+        UNLOCK_BY_QUEST.put(HUNTER.questId, HUNTER);
         UNLOCK_BY_CLASS.put(WARRIOR.classId, WARRIOR);
         UNLOCK_BY_CLASS.put(PALADIN.classId, PALADIN);
+        UNLOCK_BY_CLASS.put(HUNTER.classId, HUNTER);
     }
 
     private final int classId;
@@ -189,8 +229,8 @@ public final class HeroClassUnlock {
     }
 
     /**
-     * Class trainers without a Hero unlock path stay open. Warrior/Paladin require their unlock
-     * quest rewarded.
+     * Class trainers without a Hero unlock path stay open. Warrior/Paladin/Hunter require their
+     * unlock quest rewarded.
      */
     public static boolean trainerClassUnlocked(Player p, int trainerClass) {
         HeroClassUnlock unlock = UNLOCK_BY_CLASS.get(trainerClass);

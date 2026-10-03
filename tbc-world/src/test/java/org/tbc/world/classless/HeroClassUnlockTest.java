@@ -63,4 +63,21 @@ class HeroClassUnlockTest {
         p.rewardedQuests.add(HeroClassUnlock.QUEST_STAND_FAST);
         assertTrue(HeroClassUnlock.spellUnlocked(p, SpellEngine.DEVOTION_AURA));
     }
+
+    @Test
+    void trainerClassUnlockedWhenHunterShouldRequireMarkedTrail() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_HUNTER));
+        assertSame(HeroClassUnlock.HUNTER, HeroClassUnlock.forQuest(HeroClassUnlock.QUEST_THE_MARKED_TRAIL));
+        assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_STEADY_AIM));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_THE_MARKED_TRAIL);
+        assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_HUNTER));
+        assertFalse(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_AUTO_SHOT));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_STEADY_AIM);
+        assertTrue(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_AUTO_SHOT));
+        // Prior class paths stay gated independently.
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PALADIN));
+    }
 }
