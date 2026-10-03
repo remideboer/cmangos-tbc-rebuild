@@ -12,4 +12,5 @@ conf/local-*.conf
 .project
 .settings/
 content/out/
+docs/features/
 
