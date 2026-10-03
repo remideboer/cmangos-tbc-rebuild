@@ -101,6 +101,8 @@ public final class Factions {
         monster(16, 16);
         monster(21, 21);
         allianceNpc(12, 72);
+        hordeNpc(org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON_REP);
         // FactionTemplate.dbc 2.4.3 rows used by starter-zone SQL (overwritten when DataDir loads).
         put(25, 25, 0, FactionTemplate.GROUP_MONSTER, 0, 0, new int[4], new int[]{25, 0, 0, 0});
         put(32, 29, 16, 0, 0, 0, new int[]{28, 0, 0, 0}, new int[4]);
@@ -126,6 +128,12 @@ public final class Factions {
         put(templateId, factionId, 0, FactionTemplate.GROUP_ALLIANCE,
                 FactionTemplate.GROUP_PLAYER | FactionTemplate.GROUP_ALLIANCE,
                 FactionTemplate.GROUP_HORDE | FactionTemplate.GROUP_MONSTER);
+    }
+
+    private void hordeNpc(int templateId, int factionId) {
+        put(templateId, factionId, 0, FactionTemplate.GROUP_HORDE,
+                FactionTemplate.GROUP_PLAYER | FactionTemplate.GROUP_HORDE,
+                FactionTemplate.GROUP_ALLIANCE | FactionTemplate.GROUP_MONSTER);
     }
 
     private void put(int id, int faction, int flags, int group, int friendGroup, int enemyGroup) {

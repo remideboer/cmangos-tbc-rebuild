@@ -12,6 +12,19 @@ public final class HeroClassUnlock {
     public static final int CREATURE_MANA_WYRM = 15274;
     public static final int REQUIRED_HITS = 5;
     public static final int REQUIRED_KILLS = 1;
+    /** Jesthenis Sunstriker (15280) ModelId1. */
+    public static final int DISPLAY_JESTHENIS = 15521;
+    /** FactionTemplate Silvermoon City NPC (creature 15280). Reputation faction 911. */
+    public static final int FACTION_SILVERMOON = 1604;
+    public static final int FACTION_SILVERMOON_REP = 911;
+    /** Llane Beshere starter sword ItemDisplayInfo (item 1896). */
+    public static final int VIRTUAL_ITEM_SWORD_DISPLAY = 7487;
+    /** Llane Beshere wooden buckler ItemDisplayInfo (item 1961). */
+    public static final int VIRTUAL_ITEM_SHIELD_DISPLAY = 1685;
+    public static final float SUNSTRIDER_SPAWN_X = 10381.6f;
+    public static final float SUNSTRIDER_SPAWN_Y = -6399.23f;
+    public static final float SUNSTRIDER_SPAWN_Z = 38.5306f;
+    public static final float SUNSTRIDER_SPAWN_O = 3.74096f;
 
     public static final HeroClassUnlock WARRIOR = new HeroClassUnlock(
             Player.CLASS_WARRIOR,

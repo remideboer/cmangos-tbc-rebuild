@@ -3307,9 +3307,12 @@ public final class ObjectMgr {
         int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_HEROS_FIRST_LESSON;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
-        creatures.putIfAbsent(trainer, new CreatureTemplate(trainer, "Hero Warrior Trainer", 0, 12, 100, 5,
+        creatures.put(trainer, new CreatureTemplate(trainer, "Hero Warrior Trainer",
+                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", 0));
+                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                "Warrior Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
         trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
         trainerClass.putIfAbsent(trainer, Player.CLASS_WARRIOR);
         trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
@@ -3336,8 +3339,14 @@ public final class ObjectMgr {
         questCreatureHits.putIfAbsent(questId, new CreatureHitObjective(wyrm,
                 org.tbc.world.classless.HeroClassUnlock.REQUIRED_HITS));
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.HEROIC_STRIKE);
-        addSpawnIfMissing(16, trainer, 0, -8916f, -206f, 82.3f, 0f);
-        addSpawnIfMissing(17, trainer, 530, 10349.6f, -6357.29f, 33.4026f, 0f);
+        // Map-0 twin is for TP-SL35 find() only. Faction 1604 is Horde — keep it outside
+        // abbey DetectOrAttack range (same rule as seeded hostiles).
+        addSpawnIfMissing(16, trainer, 0, -8400f, -400f, 80f, 0f);
+        replaceSpawn(17, trainer, 530,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_X,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_Y,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_Z,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_O);
     }
 
     private void addSpawnIfMissing(int guid, int entry, int map, float x, float y, float z, float o) {
@@ -3346,6 +3355,11 @@ public final class ObjectMgr {
                 return;
             }
         }
+        spawns.add(new Spawn(guid, entry, map, x, y, z, o));
+    }
+
+    private void replaceSpawn(int guid, int entry, int map, float x, float y, float z, float o) {
+        spawns.removeIf(s -> s.guid() == guid);
         spawns.add(new Spawn(guid, entry, map, x, y, z, o));
     }
 
@@ -4309,6 +4323,7 @@ public final class ObjectMgr {
         c.extraFlags = t.extraFlags();
         c.inhabitType = t.inhabitType() > 0 ? t.inhabitType() : org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT;
         c.applyTemplate(entry, t.name(), t.display(), t.faction(), t.hp(), t.level());
+        applyHeroWarriorTrainerVirtualItems(c, entry);
         c.applyCombatStats(t.minMeleeDmg(), t.maxMeleeDmg(), t.meleeAttackTime(), combatReach(t));
         applyCreatureMana(c, t);
         c.npcFlags = t.npcFlags();
@@ -4344,6 +4359,16 @@ public final class ObjectMgr {
         }
         fireEventAiSpawned(c);
         return c;
+    }
+
+    private static void applyHeroWarriorTrainerVirtualItems(Creature c, int entry) {
+        if (entry != org.tbc.world.classless.HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER) {
+            return;
+        }
+        c.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_VIRTUAL_ITEM_SLOT_DISPLAY,
+                org.tbc.world.classless.HeroClassUnlock.VIRTUAL_ITEM_SWORD_DISPLAY);
+        c.setInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_VIRTUAL_ITEM_SLOT_DISPLAY + 1,
+                org.tbc.world.classless.HeroClassUnlock.VIRTUAL_ITEM_SHIELD_DISPLAY);
     }
 
     /** CreatureEventAI EVENT_T_SPAWNED — must run before the first CREATE so corpse flags are on the wire. */
