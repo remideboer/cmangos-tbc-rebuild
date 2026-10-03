@@ -88,6 +88,23 @@ class ContentHeroUnlockTest {
     }
 
     @Test
+    void acceptQuestWhenFollowUpMissingPrevShouldRefuse() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        Creature trainer = spawnTrainer();
+        WowBuffer denied = new WowBuffer(12);
+        denied.putU64(trainer.guid);
+        denied.putU32(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        content.acceptQuest(p, map, denied, this::capture);
+        assertEquals(0, p.questLogId[0]);
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        WowBuffer allowed = new WowBuffer(12);
+        allowed.putU64(trainer.guid);
+        allowed.putU32(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        content.acceptQuest(p, map, allowed, this::capture);
+        assertEquals(HeroClassUnlock.QUEST_RALLY_THE_LINE, p.questLogId[0]);
+    }
+
+    @Test
     void creatureHitCreditWhenQuestHasNoHitObjectiveShouldIgnore() {
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
         Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);

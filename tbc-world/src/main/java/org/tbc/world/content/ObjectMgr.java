@@ -401,6 +401,25 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Server-owned Hero Rend follow-up quest item (92001). */
+        public static ItemTemplate heroTrainingStrip() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = org.tbc.world.classless.HeroClassUnlock.ITEM_TRAINING_STRIP;
+            t.itemClass = 12;
+            t.subClass = 0;
+            t.unk = -1;
+            t.name = "Training Strip";
+            t.displayId = 7412;
+            t.quality = 1;
+            t.inventoryType = 0;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 1;
+            t.requiredLevel = 1;
+            t.stackable = 20;
+            return t;
+        }
+
         /** Skinning Knife — item 7005; hunter create kit. */
         public static ItemTemplate skinningKnife() {
             ItemTemplate t = new ItemTemplate();
@@ -3408,6 +3427,7 @@ public final class ObjectMgr {
         questCreatureHits.putIfAbsent(questId, new CreatureHitObjective(wyrm,
                 org.tbc.world.classless.HeroClassUnlock.REQUIRED_HITS));
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.HEROIC_STRIKE);
+        seedHeroWarriorFollowUps(trainer, wyrm, questId);
         // Map-0 twin is for TP-SL35 find() only. Faction 1604 is Horde — keep it outside
         // abbey DetectOrAttack range (same rule as seeded hostiles).
         addSpawnIfMissing(16, trainer, 0, -8400f, -400f, 80f, 0f);
@@ -3416,6 +3436,52 @@ public final class ObjectMgr {
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_Z,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_O);
+    }
+
+    private void seedHeroWarriorFollowUps(int trainer, int wyrm, int unlockQuest) {
+        int strip = org.tbc.world.classless.HeroClassUnlock.ITEM_TRAINING_STRIP;
+        items.putIfAbsent(strip, ItemTemplate.heroTrainingStrip());
+
+        int rally = org.tbc.world.classless.HeroClassUnlock.QUEST_RALLY_THE_LINE;
+        quests.putIfAbsent(rally, heroFollowUpQuest(rally, "Rally the Line",
+                "Gather your will at the trainer's banner, then defeat a Mana Wyrm.",
+                "Defeat 1 Mana Wyrm.",
+                wyrm, 1, 0, 0, unlockQuest));
+        addQuestRelation(questGivers, trainer, rally);
+        addQuestRelation(questInvolved, trainer, rally);
+        questRewSpell.putIfAbsent(rally, Content.SPELL_BATTLE_SHOUT);
+
+        int chargeQ = org.tbc.world.classless.HeroClassUnlock.QUEST_CLOSE_THE_DISTANCE;
+        quests.putIfAbsent(chargeQ, heroFollowUpQuest(chargeQ, "Close the Distance",
+                "Close on a Mana Wyrm and land three solid weapon hits. Return alive.",
+                "Land 3 weapon hits on a Mana Wyrm.",
+                0, 0, 0, 0, unlockQuest));
+        addQuestRelation(questGivers, trainer, chargeQ);
+        addQuestRelation(questInvolved, trainer, chargeQ);
+        questCreatureHits.putIfAbsent(chargeQ, new CreatureHitObjective(wyrm,
+                org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_CHARGE_HITS));
+        questRewSpell.putIfAbsent(chargeQ, org.tbc.world.classless.HeroClassUnlock.SPELL_CHARGE);
+
+        int rendQ = org.tbc.world.classless.HeroClassUnlock.QUEST_A_WOUND_TO_REMEMBER;
+        quests.putIfAbsent(rendQ, heroFollowUpQuest(rendQ, "A Wound to Remember",
+                "Recover a training strip from the practice ground and return alive.",
+                "Collect 1 Training Strip.",
+                0, 0, strip, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, rendQ);
+        addQuestRelation(questInvolved, trainer, rendQ);
+        questRewSpell.putIfAbsent(rendQ, org.tbc.world.classless.HeroClassUnlock.SPELL_REND);
+    }
+
+    private static QuestTemplate heroFollowUpQuest(int id, String title, String details, String objectives,
+                                                   int creatureId, int creatureCount, int itemId, int itemCount,
+                                                   int prevQuestId) {
+        return new QuestTemplate(id, title, 1, 0, 0, details, objectives,
+                creatureId, creatureCount, itemId, itemCount,
+                1, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0,
+                prevQuestId, 0);
     }
 
     private void addSpawnIfMissing(int guid, int entry, int map, float x, float y, float z, float o) {

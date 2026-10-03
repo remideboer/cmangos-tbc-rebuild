@@ -757,6 +757,9 @@ public final class Content {
                 && !org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
             return;
         }
+        if (!prevSatisfied(p, taken.prevQuestId())) {
+            return;
+        }
         if (slotOf(p, questId) >= 0) {
             return;
         }

@@ -178,15 +178,7 @@ class Slice35P0Test {
                 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         Player p = client.session().player();
-        unlockWarrior(p);
-        Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
-        assertNotNull(trainer);
-        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
-        p.setMoney(Content.TRAINER_SPELL_BATTLE_SHOUT_COST);
-        WowBuffer buy = new WowBuffer(12);
-        buy.putU64(trainer.guid);
-        buy.putU32(Content.SPELL_BATTLE_SHOUT);
-        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
+        unlockBattleShout(p);
         assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
         long guid = p.guid;
         client.session().logout(world, true);
@@ -227,7 +219,6 @@ class Slice35P0Test {
         assertFalse(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
 
         unlockWarrior(p);
-        // Cumulative: BS 200×1 + Rank2 500×2 + Fireball 10×3 = 1230+
         client.clear();
         WowBuffer list = new WowBuffer(8);
         list.putU64(warriorTrainer.guid);
@@ -255,14 +246,13 @@ class Slice35P0Test {
                 sawBattleShout = true;
             }
         }
-        assertTrue(sawBattleShout, "Llane list must include Battle Shout 6673");
+        assertFalse(sawBattleShout, "Battle Shout hidden until follow-up 90002");
+
+        unlockBattleShout(p);
         client.clear();
-        WowBuffer buy = new WowBuffer(12);
-        buy.putU64(warriorTrainer.guid);
-        buy.putU32(Content.SPELL_BATTLE_SHOUT);
-        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
-        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
-        assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, list.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST));
+        assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT), "90002 teaches Battle Shout");
 
         // Rank2 needs prev 6673 + level 12 (spell_chain.prev kept for classless).
         client.clear();
@@ -693,25 +683,14 @@ class Slice35P0Test {
                 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         Player p = client.session().player();
-        unlockWarrior(p);
+        unlockBattleShout(p);
         Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
         assertNotNull(trainer);
         p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
         Creature mage = find(world, Content.NPC_KHELDEN_BREMEN);
         assertNotNull(mage);
 
-        // learned 0 → 100 copper (not Battle Shout row 200).
-        p.setMoney(ClasslessConfig.STARTING_MONEY_COPPER);
-        client.clear();
-        WowBuffer buyBs = new WowBuffer(12);
-        buyBs.putU64(trainer.guid);
-        buyBs.putU32(Content.SPELL_BATTLE_SHOUT);
-        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyBs.array());
-        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
-        assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
-        assertEquals(ClasslessConfig.STARTING_MONEY_COPPER - 100, p.money);
-
-        // learned 1 → 200; short money refuses.
+        // 90002 taught Battle Shout (learned 1) → Rank2 costs 200; short money refuses.
         p.level = 12;
         p.setMoney(199);
         client.clear();
@@ -1164,12 +1143,174 @@ class Slice35P0Test {
         assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST));
         client.clear();
         client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
-        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED), "6673 gated on 90002");
+        assertFalse(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+    }
+
+    /**
+     * TP-SL35-031 — Rally the Line (90002) teaches Battle Shout; warrior refused; trainer lists 6673 after.
+     */
+    @Test
+    void tpSl35RallyTheLineShouldTeachBattleShout() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Rallyhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+
+        WowBuffer acceptEarly = new WowBuffer(12);
+        acceptEarly.putU64(trainer.guid);
+        acceptEarly.putU32(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, acceptEarly.array());
+        assertEquals(0, p.questLogId[0], "90002 requires prev 90001");
+
+        unlockWarrior(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        assertEquals(HeroClassUnlock.QUEST_RALLY_THE_LINE, p.questLogId[0]);
+
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        world.onCreatureKilled(p, wyrm);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(Content.SPELL_BATTLE_SHOUT,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
         assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+        assertTrue(p.rewardedQuests.contains(HeroClassUnlock.QUEST_RALLY_THE_LINE));
+
+        long guid = p.guid;
+        client.session().logout(world, true);
+        WowClientDouble again = new WowClientDouble();
+        again.connect(ACC);
+        again.login(world, guid);
+        Player p2 = again.session().player();
+        assertTrue(p2.spells.contains(Content.SPELL_BATTLE_SHOUT));
+        assertTrue(p2.rewardedQuests.contains(HeroClassUnlock.QUEST_RALLY_THE_LINE));
+
+        WowClientDouble warClient = new WowClientDouble();
+        World.Account warAcc = new World.Account(3, "WAR2", new byte[40], 0, 1, "Win", "x86");
+        warClient.connect(warAcc);
+        Player warCreated = world.characters.create(warAcc.id(), "Warrally", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        warClient.login(world, warCreated.guid);
+        Player warrior = warClient.session().player();
+        warrior.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        warrior.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        WowBuffer warAccept = new WowBuffer(12);
+        warAccept.putU64(trainer.guid);
+        warAccept.putU32(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        warClient.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, warAccept.array());
+        assertEquals(0, warrior.questLogId[0]);
+    }
+
+    /**
+     * TP-SL35-032 — Close the Distance (90003): 3 melee hits, teach Charge 100.
+     */
+    @Test
+    void tpSl35CloseTheDistanceShouldTeachCharge() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Chargehero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockWarrior(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_CLOSE_THE_DISTANCE);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        assertEquals(HeroClassUnlock.QUEST_CLOSE_THE_DISTANCE, p.questLogId[0]);
+
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        wyrm.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 50_000);
+        wyrm.setHealth(50_000);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        for (int i = 0; i < HeroClassUnlock.FOLLOWUP_CHARGE_HITS; i++) {
+            swingOnce(world, client, p, wyrm);
+        }
+        assertEquals(HeroClassUnlock.FOLLOWUP_CHARGE_HITS, p.questLogCounts[0][1]);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_CLOSE_THE_DISTANCE);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_CHARGE,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_CHARGE));
+    }
+
+    /**
+     * TP-SL35-033 — A Wound to Remember (90004): collect Training Strip, teach Rend 772.
+     */
+    @Test
+    void tpSl35WoundToRememberShouldTeachRend() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Rendhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockWarrior(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_A_WOUND_TO_REMEMBER);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        assertEquals(HeroClassUnlock.QUEST_A_WOUND_TO_REMEMBER, p.questLogId[0]);
+
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_TRAINING_STRIP, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_TRAINING_STRIP, 1, client.session()::send);
+        assertEquals(1, p.questLogItemCount[0][0]);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_A_WOUND_TO_REMEMBER);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_REND,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_REND));
     }
 
     private static void unlockWarrior(Player p) {
         p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+    }
+
+    private static void unlockBattleShout(Player p) {
+        unlockWarrior(p);
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        if (!p.spells.contains(Content.SPELL_BATTLE_SHOUT)) {
+            p.spells.add(Content.SPELL_BATTLE_SHOUT);
+        }
     }
 
     private static void swingOnce(World world, WowClientDouble client, Player p, Creature c) {

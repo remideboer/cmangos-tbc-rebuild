@@ -56,14 +56,18 @@ class ClasslessPolicyTest {
     void trainerPolicyWhenClasslessShouldAllowAnyClassTrainerSpell() {
         Player p = new Player();
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
-        assertTrue(ClasslessTrainerPolicy.mayBuy(p, 6673));
+        assertFalse(ClasslessTrainerPolicy.mayBuy(p, Content.SPELL_BATTLE_SHOUT),
+                "Battle Shout gated on follow-up quest 90002");
+        assertFalse(ClasslessTrainerPolicy.listIncludes(p, Content.SPELL_BATTLE_SHOUT));
         assertTrue(ClasslessTrainerPolicy.mayBuy(p, 99999));
-        assertTrue(ClasslessTrainerPolicy.listIncludes(p, 6673));
         assertTrue(ClasslessTrainerPolicy.listIncludes(p, 99999));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        assertTrue(ClasslessTrainerPolicy.mayBuy(p, Content.SPELL_BATTLE_SHOUT));
+        assertTrue(ClasslessTrainerPolicy.listIncludes(p, Content.SPELL_BATTLE_SHOUT));
         Player warrior = new Player();
         warrior.clazz = 1;
         assertTrue(ClasslessTrainerPolicy.listIncludes(warrior, 99999));
-        assertFalse(ClasslessTrainerPolicy.mayBuy(warrior, 6673));
+        assertFalse(ClasslessTrainerPolicy.mayBuy(warrior, Content.SPELL_BATTLE_SHOUT));
     }
 
     @Test

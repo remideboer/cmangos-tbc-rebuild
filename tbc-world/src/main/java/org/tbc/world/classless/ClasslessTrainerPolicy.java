@@ -34,15 +34,24 @@ public final class ClasslessTrainerPolicy {
     }
 
     public static boolean mayBuy(Player p, int spellId) {
-        return ClasslessCharacterPolicy.isClassless(p);
+        if (!ClasslessCharacterPolicy.isClassless(p)) {
+            return false;
+        }
+        return HeroClassUnlock.spellUnlocked(p, spellId);
     }
 
-    /** Keep trainer list rows (classless: all spell ids; other classes: no id whitelist). */
+    /**
+     * Classless: hide follow-up-gated spells until their quest is rewarded.
+     * Other classes: no id whitelist (TrainerService handles eligibility).
+     */
     public static boolean listIncludes(Player p, int spellId) {
         if (spellId <= 0) {
             return false;
         }
-        return true;
+        if (!ClasslessCharacterPolicy.isClassless(p)) {
+            return true;
+        }
+        return HeroClassUnlock.spellUnlocked(p, spellId);
     }
 
     /**

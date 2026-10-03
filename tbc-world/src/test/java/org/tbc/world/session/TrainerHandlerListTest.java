@@ -106,6 +106,10 @@ class TrainerHandlerListTest {
         p.level = 1;
         p.race = 1;
         p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        // Follow-up spells 100/772/6673 stay hidden until their quests are rewarded.
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_CLOSE_THE_DISTANCE);
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_A_WOUND_TO_REMEMBER);
         Creature c = new Creature();
         c.guid = 1;
         c.entry = Content.NPC_LLANE_BESHERE;

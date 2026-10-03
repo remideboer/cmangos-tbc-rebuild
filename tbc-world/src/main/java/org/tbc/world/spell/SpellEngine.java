@@ -567,6 +567,14 @@ public final class SpellEngine {
                 org.tbc.world.content.Content.SPELL_BATTLE_SHOUT, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_ATTACK_POWER, 0, 10, 15, 15, 0f)
                 .withPowerType(Player.POWER_RAGE).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        // Charge Rank 1 / Rend Rank 1 — Hero warrior follow-up quest rewards.
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_CHARGE, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_CHARGE, EFFECT_CHARGE, 0, 0, 0, 0, 0, 0f)
+                .withPowerType(Player.POWER_RAGE).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_REND, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_REND, EFFECT_APPLY_AURA,
+                SPELL_AURA_PERIODIC_DAMAGE, 0, 0, 15, 15, 0f)
+                .withPowerType(Player.POWER_RAGE).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(ATTACK_POWER_RANGED_60, new SpellInfo(ATTACK_POWER_RANGED_60, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_RANGED_ATTACK_POWER, 0, 0, 60, 60, 0f));
         spells.put(SPELL_GHOST, new SpellInfo(SPELL_GHOST, EFFECT_APPLY_AURA,

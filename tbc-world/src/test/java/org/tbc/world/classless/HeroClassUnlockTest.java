@@ -1,6 +1,7 @@
 package org.tbc.world.classless;
 
 import org.junit.jupiter.api.Test;
+import org.tbc.world.content.Content;
 import org.tbc.world.entity.Player;
 import org.tbc.world.spell.SpellEngine;
 
@@ -16,7 +17,13 @@ class HeroClassUnlockTest {
         assertSame(HeroClassUnlock.WARRIOR, HeroClassUnlock.forQuest(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
         assertNull(HeroClassUnlock.forQuest(783));
         assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
+        assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_RALLY_THE_LINE));
         assertFalse(HeroClassUnlock.isHeroOnly(783));
+        assertFalse(HeroClassUnlock.spellUnlocked(new Player(), Content.SPELL_BATTLE_SHOUT));
+        Player unlocked = new Player();
+        unlocked.rewardedQuests.add(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        assertTrue(HeroClassUnlock.spellUnlocked(unlocked, Content.SPELL_BATTLE_SHOUT));
+        assertTrue(HeroClassUnlock.spellUnlocked(unlocked, 99999));
         assertEquals(Player.CLASS_WARRIOR, HeroClassUnlock.WARRIOR.classId());
         assertEquals(SpellEngine.HEROIC_STRIKE, HeroClassUnlock.WARRIOR.starterSpell());
         assertEquals(15274, HeroClassUnlock.WARRIOR.targetCreature());
