@@ -670,6 +670,11 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(2098, new SpellInfo(2098, EFFECT_SCHOOL_DAMAGE, 0, 0, 35, 6, 10, 5f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        // Slice and Dice Rank 1 — Hero rogue follow-up reward (melee haste).
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_SLICE_AND_DICE, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_SLICE_AND_DICE, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_MELEE_HASTE, 0, 0, 30, 30, 0f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(9_000));
         spells.put(2764, new SpellInfo(2764, EFFECT_SCHOOL_DAMAGE, 0, 0, 0, 1, 3, 30f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(686, new SpellInfo(686, EFFECT_SCHOOL_DAMAGE, 0, 5, 25, 12, 16, 30f)

@@ -61,6 +61,7 @@ public final class Player extends Unit {
     public static final int CLASS_WARRIOR = 1;
     public static final int CLASS_PALADIN = 2;
     public static final int CLASS_HUNTER = 3;
+    public static final int CLASS_ROGUE = 4;
     public static final int CLASS_PRIEST = 5;
     public static final int CLASS_MAGE = 8;
     public static final int CLASS_WARLOCK = 9;

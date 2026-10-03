@@ -1697,6 +1697,190 @@ class Slice35P0Test {
         }
     }
 
+    /**
+     * TP-SL35-042 — Rogue unlock 90013 teaches Sinister Strike; trainer gated; warrior refused.
+     */
+    @Test
+    void tpSl35QuietHandShouldTeachSinisterStrikeAndGateTrainer() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Quiethero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_ROGUE_TRAINER);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+
+        client.clear();
+        WowBuffer listLocked = new WowBuffer(8);
+        listLocked.putU64(trainer.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, listLocked.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_LIST));
+
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_A_QUIET_HAND);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        assertEquals(HeroClassUnlock.QUEST_A_QUIET_HAND, p.questLogId[0]);
+
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_CAMP_TOKEN, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_CAMP_TOKEN, 1, client.session()::send);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+
+        p.setHealth(0);
+        client.clear();
+        WowBuffer dead = new WowBuffer(16);
+        dead.putU64(trainer.guid);
+        dead.putU32(HeroClassUnlock.QUEST_A_QUIET_HAND);
+        dead.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, dead.array());
+        assertFalse(p.spells.contains(HeroClassUnlock.SPELL_SINISTER_STRIKE));
+
+        p.setHealth(p.maxHealth());
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_A_QUIET_HAND);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_SINISTER_STRIKE,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_SINISTER_STRIKE));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, listLocked.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST));
+
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PALADIN));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_HUNTER));
+
+        WowClientDouble warClient = new WowClientDouble();
+        World.Account warAcc = new World.Account(6, "WAR5", new byte[40], 0, 1, "Win", "x86");
+        warClient.connect(warAcc);
+        Player warCreated = world.characters.create(warAcc.id(), "Warquiet", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        warClient.login(world, warCreated.guid);
+        Player warrior = warClient.session().player();
+        warrior.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        WowBuffer warAccept = new WowBuffer(12);
+        warAccept.putU64(trainer.guid);
+        warAccept.putU32(HeroClassUnlock.QUEST_A_QUIET_HAND);
+        warClient.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, warAccept.array());
+        assertEquals(0, warrior.questLogId[0]);
+    }
+
+    /** TP-SL35-043 — Disappear from Sight 90014 teaches Stealth 1784. */
+    @Test
+    void tpSl35DisappearFromSightShouldTeachStealth() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Stealthhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_ROGUE_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockRogue(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_DISAPPEAR_FROM_SIGHT);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_SHADOWED_TOKEN, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_SHADOWED_TOKEN, 1, client.session()::send);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_DISAPPEAR_FROM_SIGHT);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(org.tbc.world.spell.SpellEngine.SPELL_STEALTH,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(org.tbc.world.spell.SpellEngine.SPELL_STEALTH));
+    }
+
+    /** TP-SL35-044 — Finish the Opening 90015 teaches Eviscerate 2098. */
+    @Test
+    void tpSl35FinishTheOpeningShouldTeachEviscerate() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Finishhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_ROGUE_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockRogue(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_FINISH_THE_OPENING);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        wyrm.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 50_000);
+        wyrm.setHealth(50_000);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        for (int i = 0; i < HeroClassUnlock.FOLLOWUP_EVISCERATE_HITS; i++) {
+            swingOnce(world, client, p, wyrm);
+        }
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_FINISH_THE_OPENING);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_EVISCERATE,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_EVISCERATE));
+    }
+
+    /** TP-SL35-045 — Keep the Advantage 90016 teaches Slice and Dice 5171. */
+    @Test
+    void tpSl35KeepTheAdvantageShouldTeachSliceAndDice() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Slicehero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_ROGUE_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockRogue(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_KEEP_THE_ADVANTAGE);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_FINISHING_NOTES, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_FINISHING_NOTES, 1, client.session()::send);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_KEEP_THE_ADVANTAGE);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_SLICE_AND_DICE,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_SLICE_AND_DICE));
+    }
+
+    private static void unlockRogue(Player p) {
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_A_QUIET_HAND);
+        if (!p.spells.contains(HeroClassUnlock.SPELL_SINISTER_STRIKE)) {
+            p.spells.add(HeroClassUnlock.SPELL_SINISTER_STRIKE);
+        }
+    }
+
     private static void swingOnce(World world, WowClientDouble client, Player p, Creature c) {
         p.relocate(c.x, c.y, c.z, c.o);
         WowBuffer atk = new WowBuffer(8);

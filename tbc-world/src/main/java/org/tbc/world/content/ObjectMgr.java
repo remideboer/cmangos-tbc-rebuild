@@ -3395,6 +3395,7 @@ public final class ObjectMgr {
         seedHeroWarriorUnlock();
         seedHeroPaladinUnlock();
         seedHeroHunterUnlock();
+        seedHeroRogueUnlock();
     }
 
     private void seedHeroWarriorUnlock() {
@@ -3559,6 +3560,77 @@ public final class ObjectMgr {
         addQuestRelation(questGivers, trainer, mercy);
         addQuestRelation(questInvolved, trainer, mercy);
         questRewSpell.putIfAbsent(mercy, org.tbc.world.spell.SpellEngine.HOLY_LIGHT);
+    }
+
+    private void seedHeroRogueUnlock() {
+        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_ROGUE_TRAINER;
+        int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_A_QUIET_HAND;
+        int token = org.tbc.world.classless.HeroClassUnlock.ITEM_CAMP_TOKEN;
+        creatures.put(trainer, new CreatureTemplate(trainer,
+                org.tbc.world.classless.HeroClassUnlock.NAME_SYLARA_NIGHTWHISPER,
+                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
+                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                "Rogue Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
+        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(trainer, Player.CLASS_ROGUE);
+        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+                new TrainerSpell(org.tbc.world.spell.SpellEngine.SPELL_STEALTH, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_EVISCERATE, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SLICE_AND_DICE, 100, 1))));
+        items.putIfAbsent(token, ItemTemplate.heroQuestJunk(token, "Camp Token"));
+        quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Quiet Hand",
+                "Recover the trainer's token from a local hostile's camp. Return alive.",
+                "Collect 1 Camp Token.",
+                0, 0, token, 1, 0));
+        addQuestRelation(questGivers, trainer, questId);
+        addQuestRelation(questInvolved, trainer, questId);
+        questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_SINISTER_STRIKE);
+        seedHeroRogueFollowUps(trainer, questId);
+        addSpawnIfMissing(22, trainer, 0, -8406f, -406f, 80f, 0f);
+        replaceSpawn(23, trainer, 530,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_X,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_Y,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_Z,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_O);
+    }
+
+    private void seedHeroRogueFollowUps(int trainer, int unlockQuest) {
+        int shadowed = org.tbc.world.classless.HeroClassUnlock.ITEM_SHADOWED_TOKEN;
+        int notes = org.tbc.world.classless.HeroClassUnlock.ITEM_FINISHING_NOTES;
+        int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
+        items.putIfAbsent(shadowed, ItemTemplate.heroQuestJunk(shadowed, "Shadowed Token"));
+        items.putIfAbsent(notes, ItemTemplate.heroQuestJunk(notes, "Finishing-Form Notes"));
+
+        int disappear = org.tbc.world.classless.HeroClassUnlock.QUEST_DISAPPEAR_FROM_SIGHT;
+        quests.putIfAbsent(disappear, heroFollowUpQuest(disappear, "Disappear from Sight",
+                "Retrieve a marked token from the practice grounds. Stealth is not required yet. Return alive.",
+                "Collect 1 Shadowed Token.",
+                0, 0, shadowed, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, disappear);
+        addQuestRelation(questInvolved, trainer, disappear);
+        questRewSpell.putIfAbsent(disappear, org.tbc.world.spell.SpellEngine.SPELL_STEALTH);
+
+        int finish = org.tbc.world.classless.HeroClassUnlock.QUEST_FINISH_THE_OPENING;
+        quests.putIfAbsent(finish, heroFollowUpQuest(finish, "Finish the Opening",
+                "Land three solid hits on a practice target. Return alive.",
+                "Land 3 weapon hits on a Mana Wyrm.",
+                0, 0, 0, 0, unlockQuest));
+        addQuestRelation(questGivers, trainer, finish);
+        addQuestRelation(questInvolved, trainer, finish);
+        questCreatureHits.putIfAbsent(finish, new CreatureHitObjective(wyrm,
+                org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_EVISCERATE_HITS));
+        questRewSpell.putIfAbsent(finish, org.tbc.world.classless.HeroClassUnlock.SPELL_EVISCERATE);
+
+        int advantage = org.tbc.world.classless.HeroClassUnlock.QUEST_KEEP_THE_ADVANTAGE;
+        quests.putIfAbsent(advantage, heroFollowUpQuest(advantage, "Keep the Advantage",
+                "Recover the trainer's finishing-form notes from a local cache. Return alive.",
+                "Collect 1 Finishing-Form Notes.",
+                0, 0, notes, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, advantage);
+        addQuestRelation(questInvolved, trainer, advantage);
+        questRewSpell.putIfAbsent(advantage, org.tbc.world.classless.HeroClassUnlock.SPELL_SLICE_AND_DICE);
     }
 
     private void seedHeroHunterUnlock() {

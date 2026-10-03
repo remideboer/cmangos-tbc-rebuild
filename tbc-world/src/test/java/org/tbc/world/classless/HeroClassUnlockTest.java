@@ -80,4 +80,21 @@ class HeroClassUnlockTest {
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PALADIN));
     }
+
+    @Test
+    void trainerClassUnlockedWhenRogueShouldRequireQuietHand() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_ROGUE));
+        assertSame(HeroClassUnlock.ROGUE, HeroClassUnlock.forQuest(HeroClassUnlock.QUEST_A_QUIET_HAND));
+        assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_DISAPPEAR_FROM_SIGHT));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_A_QUIET_HAND);
+        assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_ROGUE));
+        assertFalse(HeroClassUnlock.spellUnlocked(p, SpellEngine.SPELL_STEALTH));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_DISAPPEAR_FROM_SIGHT);
+        assertTrue(HeroClassUnlock.spellUnlocked(p, SpellEngine.SPELL_STEALTH));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PALADIN));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_HUNTER));
+    }
 }
