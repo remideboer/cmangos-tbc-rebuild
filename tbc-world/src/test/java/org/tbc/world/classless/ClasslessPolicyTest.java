@@ -71,13 +71,15 @@ class ClasslessPolicyTest {
     }
 
     @Test
-    void trainerPolicyWhenClasslessShouldAcceptAnyClassTrainerNpc() {
+    void trainerPolicyWhenClasslessMageTrainerShouldRequireUnlockQuest() {
         ObjectMgr mgr = new ObjectMgr();
         mgr.load(null, null);
         Player p = new Player();
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
         Creature mage = new Creature();
         mage.entry = Content.NPC_KHELDEN_BREMEN;
+        assertFalse(ClasslessTrainerPolicy.isTrainerOf(p, mage, mgr));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_A_CONTROLLED_SPARK);
         assertTrue(ClasslessTrainerPolicy.isTrainerOf(p, mage, mgr));
         assertTrue(mgr.isTrainerOf(p, mage));
         Player warrior = new Player();

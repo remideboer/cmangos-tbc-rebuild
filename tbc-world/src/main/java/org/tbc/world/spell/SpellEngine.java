@@ -622,6 +622,11 @@ public final class SpellEngine {
         spells.put(POWER_WORD_FORTITUDE, new SpellInfo(POWER_WORD_FORTITUDE, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_STAT, 2, 60, 3, 3, 30f, 2)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
+        // Arcane Intellect Rank 1 — Spell.dbc 1459; +2 intellect (STAT_INTELLECT 3), 30 min.
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_INTELLECT, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_INTELLECT, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_STAT, 6, 60, 2, 2, 30f, 3)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
         // Spell.dbc 465: +55 armor (EffectBasePoints+1), school mask bit 0, DurationIndex permanent (−1).
         spells.put(DEVOTION_AURA, new SpellInfo(DEVOTION_AURA, EFFECT_APPLY_AREA_AURA_PARTY, SPELL_AURA_MOD_RESISTANCE,
                 0, 0, 55, 55, 0f, 1).withGcd(SpellCooldowns.GCD_NORMAL_MS));

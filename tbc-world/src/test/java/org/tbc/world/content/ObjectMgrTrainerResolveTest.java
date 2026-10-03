@@ -33,6 +33,7 @@ class ObjectMgrTrainerResolveTest {
         ObjectMgr mgr = mageTrainerWithClassmaskGossip();
         Player classless = new Player();
         classless.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        classless.rewardedQuests.add(org.tbc.world.classless.HeroClassUnlock.QUEST_A_CONTROLLED_SPARK);
         Creature npc = mageNpc();
 
         List<ObjectMgr.GossipMenuItem> opts = mgr.gossipOptionsFor(classless, npc, MENU_JULIA_MAGE);

@@ -33,14 +33,6 @@ class HeroClassUnlockTest {
     }
 
     @Test
-    void trainerClassUnlockedWhenMageShouldStayOpenWithoutQuest() {
-        Player p = new Player();
-        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
-        assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_MAGE));
-        assertTrue(HeroClassUnlock.trainerClassUnlocked(null, Player.CLASS_MAGE));
-    }
-
-    @Test
     void trainerClassUnlockedWhenWarriorShouldRequireRewardedQuest() {
         Player p = new Player();
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
@@ -112,5 +104,21 @@ class HeroClassUnlockTest {
         assertTrue(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_SMITE));
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_ROGUE));
+    }
+
+    @Test
+    void trainerClassUnlockedWhenMageShouldRequireControlledSpark() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_MAGE));
+        assertSame(HeroClassUnlock.MAGE, HeroClassUnlock.forQuest(HeroClassUnlock.QUEST_A_CONTROLLED_SPARK));
+        assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_A_COOLER_HEAD));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_A_CONTROLLED_SPARK);
+        assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_MAGE));
+        assertFalse(HeroClassUnlock.spellUnlocked(p, SpellEngine.FROST_ARMOR));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_A_COOLER_HEAD);
+        assertTrue(HeroClassUnlock.spellUnlocked(p, SpellEngine.FROST_ARMOR));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PRIEST));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
     }
 }

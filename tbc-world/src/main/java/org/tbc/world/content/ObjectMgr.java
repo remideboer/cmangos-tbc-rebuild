@@ -3397,6 +3397,7 @@ public final class ObjectMgr {
         seedHeroHunterUnlock();
         seedHeroRogueUnlock();
         seedHeroPriestUnlock();
+        seedHeroMageUnlock();
     }
 
     private void seedHeroWarriorUnlock() {
@@ -3561,6 +3562,75 @@ public final class ObjectMgr {
         addQuestRelation(questGivers, trainer, mercy);
         addQuestRelation(questInvolved, trainer, mercy);
         questRewSpell.putIfAbsent(mercy, org.tbc.world.spell.SpellEngine.HOLY_LIGHT);
+    }
+
+    private void seedHeroMageUnlock() {
+        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_MAGE_TRAINER;
+        int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_A_CONTROLLED_SPARK;
+        int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
+        int fragments = org.tbc.world.classless.HeroClassUnlock.ITEM_ARCANE_FRAGMENTS;
+        creatures.put(trainer, new CreatureTemplate(trainer,
+                org.tbc.world.classless.HeroClassUnlock.NAME_ARYN_FLAMEWEAVE,
+                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
+                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                "Mage Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
+        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(trainer, Player.CLASS_MAGE);
+        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+                new TrainerSpell(org.tbc.world.spell.SpellEngine.FROST_ARMOR, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_INTELLECT, 100, 1),
+                new TrainerSpell(org.tbc.world.spell.SpellEngine.FROSTBOLT, 100, 1))));
+        items.putIfAbsent(fragments, ItemTemplate.heroQuestJunk(fragments, "Arcane Fragments"));
+        quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Controlled Spark",
+                "Recover arcane fragments, stabilize them at the trainer's focus, and defeat a Mana Wyrm. Return alive.",
+                "Collect 1 Arcane Fragments. Defeat 1 Mana Wyrm.",
+                wyrm, 1, fragments, 1, 0));
+        addQuestRelation(questGivers, trainer, questId);
+        addQuestRelation(questInvolved, trainer, questId);
+        questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.FIREBALL);
+        seedHeroMageFollowUps(trainer, wyrm, questId);
+        addSpawnIfMissing(26, trainer, 0, -8410f, -410f, 80f, 0f);
+        replaceSpawn(27, trainer, 530,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_X,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_Y,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_Z,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_O);
+    }
+
+    private void seedHeroMageFollowUps(int trainer, int wyrm, int unlockQuest) {
+        int focus = org.tbc.world.classless.HeroClassUnlock.ITEM_FROST_TREATED_FOCUS;
+        int notes = org.tbc.world.classless.HeroClassUnlock.ITEM_STUDY_NOTES;
+        items.putIfAbsent(focus, ItemTemplate.heroQuestJunk(focus, "Frost-Treated Focus"));
+        items.putIfAbsent(notes, ItemTemplate.heroQuestJunk(notes, "Study Notes"));
+
+        int cooler = org.tbc.world.classless.HeroClassUnlock.QUEST_A_COOLER_HEAD;
+        quests.putIfAbsent(cooler, heroFollowUpQuest(cooler, "A Cooler Head",
+                "Recover a frost-treated focus from a local hazard. Return alive.",
+                "Collect 1 Frost-Treated Focus.",
+                0, 0, focus, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, cooler);
+        addQuestRelation(questInvolved, trainer, cooler);
+        questRewSpell.putIfAbsent(cooler, org.tbc.world.spell.SpellEngine.FROST_ARMOR);
+
+        int study = org.tbc.world.classless.HeroClassUnlock.QUEST_SHARE_THE_STUDY;
+        quests.putIfAbsent(study, heroFollowUpQuest(study, "Share the Study",
+                "Deliver the trainer's study notes to an ally. Return alive.",
+                "Collect 1 Study Notes.",
+                0, 0, notes, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, study);
+        addQuestRelation(questInvolved, trainer, study);
+        questRewSpell.putIfAbsent(study, org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_INTELLECT);
+
+        int second = org.tbc.world.classless.HeroClassUnlock.QUEST_A_SECOND_SCHOOL;
+        quests.putIfAbsent(second, heroFollowUpQuest(second, "A Second School",
+                "Defeat a marked target with your existing kit. Return alive.",
+                "Defeat 1 Mana Wyrm.",
+                wyrm, 1, 0, 0, unlockQuest));
+        addQuestRelation(questGivers, trainer, second);
+        addQuestRelation(questInvolved, trainer, second);
+        questRewSpell.putIfAbsent(second, org.tbc.world.spell.SpellEngine.FROSTBOLT);
     }
 
     private void seedHeroPriestUnlock() {

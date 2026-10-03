@@ -34,12 +34,17 @@ public final class HeroClassUnlock {
     public static final int QUEST_JUDGMENT_FROM_AFAR = 90018;
     public static final int QUEST_A_GUARDING_WORD = 90019;
     public static final int QUEST_PAIN_AS_WARNING = 90020;
+    public static final int QUEST_A_CONTROLLED_SPARK = 90021;
+    public static final int QUEST_A_COOLER_HEAD = 90022;
+    public static final int QUEST_SHARE_THE_STUDY = 90023;
+    public static final int QUEST_A_SECOND_SCHOOL = 90024;
 
     public static final int NPC_HERO_WARRIOR_TRAINER = 91001;
     public static final int NPC_HERO_PALADIN_TRAINER = 91002;
     public static final int NPC_HERO_HUNTER_TRAINER = 91003;
     public static final int NPC_HERO_ROGUE_TRAINER = 91004;
     public static final int NPC_HERO_PRIEST_TRAINER = 91005;
+    public static final int NPC_HERO_MAGE_TRAINER = 91006;
     /** Blood Elf Sunstrider Isle warrior trainer display name. */
     public static final String NAME_LORVAEN_BLOODFEATHER = "Lorvaen Bloodfeather";
     /** Blood Elf Sunstrider Isle paladin trainer display name. */
@@ -50,6 +55,8 @@ public final class HeroClassUnlock {
     public static final String NAME_SYLARA_NIGHTWHISPER = "Sylara Nightwhisper";
     /** Blood Elf Sunstrider Isle priest trainer display name. */
     public static final String NAME_LIRAE_DAWNWHISPER = "Lirae Dawnwhisper";
+    /** Blood Elf Sunstrider Isle mage trainer display name. */
+    public static final String NAME_ARYN_FLAMEWEAVE = "Aryn Flameweave";
     public static final int CREATURE_MANA_WYRM = 15274;
     public static final int REQUIRED_HITS = 5;
     public static final int REQUIRED_KILLS = 1;
@@ -79,6 +86,12 @@ public final class HeroClassUnlock {
     public static final int ITEM_WARDING_SCROLL = 92010;
     /** SW:P follow-up: shadow-marked token. */
     public static final int ITEM_SHADOW_MARKED_TOKEN = 92011;
+    /** Mage unlock: arcane fragments. */
+    public static final int ITEM_ARCANE_FRAGMENTS = 92012;
+    /** Frost Armor follow-up: frost-treated focus. */
+    public static final int ITEM_FROST_TREATED_FOCUS = 92013;
+    /** Arcane Intellect follow-up: study notes. */
+    public static final int ITEM_STUDY_NOTES = 92014;
     /** Charge Rank 1 (Spell.dbc 100). */
     public static final int SPELL_CHARGE = 100;
     /** Rend Rank 1 (Spell.dbc 772). */
@@ -103,6 +116,8 @@ public final class HeroClassUnlock {
     public static final int SPELL_SMITE = 585;
     /** Shadow Word: Pain Rank 1 (Spell.dbc 589). */
     public static final int SPELL_SHADOW_WORD_PAIN = 589;
+    /** Arcane Intellect Rank 1 (Spell.dbc 1459). */
+    public static final int SPELL_ARCANE_INTELLECT = 1459;
     /** Jesthenis Sunstriker (15280) ModelId1. */
     public static final int DISPLAY_JESTHENIS = 15521;
     /** FactionTemplate Silvermoon City NPC (creature 15280). Reputation faction 911. */
@@ -136,6 +151,11 @@ public final class HeroClassUnlock {
     public static final float SUNSTRIDER_PRIEST_Y = -6403.23f;
     public static final float SUNSTRIDER_PRIEST_Z = 38.5306f;
     public static final float SUNSTRIDER_PRIEST_O = 3.74096f;
+    /** Mage trainer a few yards from the warrior trainer. */
+    public static final float SUNSTRIDER_MAGE_X = 10375.6f;
+    public static final float SUNSTRIDER_MAGE_Y = -6393.23f;
+    public static final float SUNSTRIDER_MAGE_Z = 38.5306f;
+    public static final float SUNSTRIDER_MAGE_O = 3.74096f;
 
     public static final HeroClassUnlock WARRIOR = new HeroClassUnlock(
             Player.CLASS_WARRIOR,
@@ -182,6 +202,15 @@ public final class HeroClassUnlock {
             0,
             REQUIRED_KILLS);
 
+    public static final HeroClassUnlock MAGE = new HeroClassUnlock(
+            Player.CLASS_MAGE,
+            QUEST_A_CONTROLLED_SPARK,
+            NPC_HERO_MAGE_TRAINER,
+            SpellEngine.FIREBALL,
+            CREATURE_MANA_WYRM,
+            0,
+            REQUIRED_KILLS);
+
     /** Hero-only follow-up: teaches one spell on turn-in; gates that spell on trainers. */
     public record FollowUp(int questId, int rewardSpell, int requiresQuest, int trainerClass) {
     }
@@ -216,13 +245,20 @@ public final class HeroClassUnlock {
             QUEST_A_GUARDING_WORD, SpellEngine.POWER_WORD_FORTITUDE, QUEST_MERCY_AND_JUDGMENT, Player.CLASS_PRIEST);
     public static final FollowUp PAIN_AS_WARNING = new FollowUp(
             QUEST_PAIN_AS_WARNING, SPELL_SHADOW_WORD_PAIN, QUEST_MERCY_AND_JUDGMENT, Player.CLASS_PRIEST);
+    public static final FollowUp A_COOLER_HEAD = new FollowUp(
+            QUEST_A_COOLER_HEAD, SpellEngine.FROST_ARMOR, QUEST_A_CONTROLLED_SPARK, Player.CLASS_MAGE);
+    public static final FollowUp SHARE_THE_STUDY = new FollowUp(
+            QUEST_SHARE_THE_STUDY, SPELL_ARCANE_INTELLECT, QUEST_A_CONTROLLED_SPARK, Player.CLASS_MAGE);
+    public static final FollowUp A_SECOND_SCHOOL = new FollowUp(
+            QUEST_A_SECOND_SCHOOL, SpellEngine.FROSTBOLT, QUEST_A_CONTROLLED_SPARK, Player.CLASS_MAGE);
 
     private static final List<FollowUp> FOLLOW_UPS = List.of(
             RALLY_THE_LINE, CLOSE_THE_DISTANCE, A_WOUND_TO_REMEMBER,
             STAND_FAST, STRENGTH_IN_SERVICE, MERCYS_LESSON,
             STEADY_AIM, VENOM_IN_THE_FIELD, A_CLEAN_SHOT,
             DISAPPEAR_FROM_SIGHT, FINISH_THE_OPENING, KEEP_THE_ADVANTAGE,
-            JUDGMENT_FROM_AFAR, A_GUARDING_WORD, PAIN_AS_WARNING);
+            JUDGMENT_FROM_AFAR, A_GUARDING_WORD, PAIN_AS_WARNING,
+            A_COOLER_HEAD, SHARE_THE_STUDY, A_SECOND_SCHOOL);
 
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_QUEST = new HashMap<>();
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_SPELL = new HashMap<>();
@@ -239,11 +275,13 @@ public final class HeroClassUnlock {
         UNLOCK_BY_QUEST.put(HUNTER.questId, HUNTER);
         UNLOCK_BY_QUEST.put(ROGUE.questId, ROGUE);
         UNLOCK_BY_QUEST.put(PRIEST.questId, PRIEST);
+        UNLOCK_BY_QUEST.put(MAGE.questId, MAGE);
         UNLOCK_BY_CLASS.put(WARRIOR.classId, WARRIOR);
         UNLOCK_BY_CLASS.put(PALADIN.classId, PALADIN);
         UNLOCK_BY_CLASS.put(HUNTER.classId, HUNTER);
         UNLOCK_BY_CLASS.put(ROGUE.classId, ROGUE);
         UNLOCK_BY_CLASS.put(PRIEST.classId, PRIEST);
+        UNLOCK_BY_CLASS.put(MAGE.classId, MAGE);
     }
 
     private final int classId;
