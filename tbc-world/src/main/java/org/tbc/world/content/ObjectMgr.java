@@ -3307,7 +3307,8 @@ public final class ObjectMgr {
         int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_HEROS_FIRST_LESSON;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
-        creatures.put(trainer, new CreatureTemplate(trainer, "Hero Warrior Trainer",
+        creatures.put(trainer, new CreatureTemplate(trainer,
+                org.tbc.world.classless.HeroClassUnlock.NAME_LORVAEN_BLOODFEATHER,
                 org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
                 org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,

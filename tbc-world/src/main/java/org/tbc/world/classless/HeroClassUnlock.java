@@ -9,6 +9,8 @@ import org.tbc.world.spell.SpellEngine;
 public final class HeroClassUnlock {
     public static final int QUEST_HEROS_FIRST_LESSON = 90001;
     public static final int NPC_HERO_WARRIOR_TRAINER = 91001;
+    /** Blood Elf Sunstrider Isle warrior trainer display name. */
+    public static final String NAME_LORVAEN_BLOODFEATHER = "Lorvaen Bloodfeather";
     public static final int CREATURE_MANA_WYRM = 15274;
     public static final int REQUIRED_HITS = 5;
     public static final int REQUIRED_KILLS = 1;

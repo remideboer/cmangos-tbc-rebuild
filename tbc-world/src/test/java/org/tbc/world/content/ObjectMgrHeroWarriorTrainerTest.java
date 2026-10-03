@@ -21,6 +21,7 @@ class ObjectMgrHeroWarriorTrainerTest {
         mgr.load(null, null);
         ObjectMgr.CreatureTemplate t = mgr.creatures.get(HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER);
         assertNotNull(t);
+        assertEquals(HeroClassUnlock.NAME_LORVAEN_BLOODFEATHER, t.name());
         assertEquals(HeroClassUnlock.DISPLAY_JESTHENIS, t.display());
         assertEquals(HeroClassUnlock.FACTION_SILVERMOON, t.faction());
         assertEquals("Warrior Trainer", t.subName());
