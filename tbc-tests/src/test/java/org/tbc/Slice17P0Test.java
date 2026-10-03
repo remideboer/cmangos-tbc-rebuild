@@ -137,8 +137,58 @@ class Slice17P0Test {
         assertEquals(-6364.61f, WowClientDouble.floatle(loc, 8), 0.5f);
         assertEquals(530, p.mapId);
         assertEquals(10458.5f, p.x, 0.5f);
+        assertEquals(39.7907f, p.z, 0.5f);
         assertTrue(p.ghost);
+        assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
         assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
+    }
+
+    /**
+     * TP-SL17-021 — Blood Elf mage create (class 8) must repop at Sunstrider GY 912 from
+     * createinfo zone, without tests poking map/zone/team (regression vs Hero-only poke).
+     */
+    @Test
+    void tpSl17RepopWhenBloodElfMageShouldUseSunstriderSpiritHealer() {
+        assertBloodElfRepopAtSunstriderGy(8, "Bemage");
+    }
+
+    /**
+     * TP-SL17-021 — Hero (classless) Blood Elf at Sarrandor: closest spirit healer 912,
+     * not void / Horde default. Create+login only — no zone poke.
+     */
+    @Test
+    void tpSl17RepopWhenHeroBloodElfShouldUseSunstriderSpiritHealer() {
+        assertBloodElfRepopAtSunstriderGy(org.tbc.world.classless.ClasslessConfig.CLASS_CLASSLESS,
+                "Behero");
+    }
+
+    /**
+     * CMaNGOS TeleportTo clears MOVEFLAG_FALLING* so a ghost who died in the void still
+     * lands at the GY instead of keeping fall flags on MSG_MOVE_TELEPORT_ACK.
+     */
+    @Test
+    void tpSl17RepopWhenBloodElfFallingShouldClearFallFlagsAtSpiritHealer() {
+        World world = World.inMemory();
+        WowClientDouble client = loginBloodElf(world, "Befall",
+                org.tbc.world.classless.ClasslessConfig.CLASS_CLASSLESS);
+        Player p = client.session().player();
+        p.relocate(10381.6f, -6399.23f, -200f, 3.74f);
+        p.movement.moveFlags = org.tbc.world.net.wow8606.MovementInfo.MOVEFLAG_FALLING
+                | org.tbc.world.net.wow8606.MovementInfo.MOVEFLAG_FALLINGFAR;
+        p.setHealth(0);
+        client.clear();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        assertEquals(10458.5f, p.x, 0.5f);
+        assertEquals(39.7907f, p.z, 0.5f);
+        assertEquals(0, p.movement.moveFlags);
+        assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
+        assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
+        byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
+        assertEquals(530, WowClientDouble.u32le(loc, 0));
+        assertEquals(10458.5f, WowClientDouble.floatle(loc, 4), 0.5f);
+        assertEquals(39.7907f, WowClientDouble.floatle(loc, 12), 0.5f);
     }
 
     /**
@@ -613,6 +663,41 @@ class Slice17P0Test {
         Player created = world.characters.create(ACC.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         return client;
+    }
+
+    private static WowClientDouble loginBloodElf(World world, String name, int clazz) {
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), name, 10, clazz, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        assertNotNull(created);
+        client.login(world, created.guid);
+        return client;
+    }
+
+    private static void assertBloodElfRepopAtSunstriderGy(int clazz, String name) {
+        World world = World.inMemory();
+        WowClientDouble client = loginBloodElf(world, name, clazz);
+        Player p = client.session().player();
+        assertEquals(530, p.mapId);
+        assertEquals(3431, p.zoneId);
+        assertEquals(org.tbc.world.map.GraveyardManager.HORDE, p.team);
+        p.relocate(10381.6f, -6399.23f, 38.5306f, 3.74096f);
+        p.setHealth(0);
+        client.clear();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
+        assertEquals(530, WowClientDouble.u32le(loc, 0));
+        assertEquals(10458.5f, WowClientDouble.floatle(loc, 4), 0.5f);
+        assertEquals(-6364.61f, WowClientDouble.floatle(loc, 8), 0.5f);
+        assertEquals(39.7907f, WowClientDouble.floatle(loc, 12), 0.5f);
+        assertEquals(530, p.mapId);
+        assertEquals(10458.5f, p.x, 0.5f);
+        assertEquals(39.7907f, p.z, 0.5f);
+        assertTrue(p.ghost);
+        assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
+        assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
     }
 
     private static boolean sawSpellGo(WowClientDouble client, int spellId) {

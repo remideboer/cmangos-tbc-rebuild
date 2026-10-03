@@ -56,6 +56,9 @@ public final class GraveyardManager {
         g.addLoc(new Loc(921, 530, 9407f, -6847.67f, 16f, 5.70723f));
         g.addLoc(new Loc(922, 530, 8709.46f, -6671.76f, 70.336f, 3.14159f));
         g.addLink(912, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
+        // tbc-db has no 3431 row; CMaNGOS uses parent zone. Seed the area so a missed parent
+        // still ports to Sunstrider GY 912 instead of Horde default (map 1 / void).
+        g.addLink(912, AreaTable.SUNSTRIDER_ISLE, AREALINK, TEAM_BOTH);
         g.addLink(914, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
         g.addLink(921, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
         g.addLink(921, 3487, AREALINK, TEAM_BOTH); // Silvermoon City

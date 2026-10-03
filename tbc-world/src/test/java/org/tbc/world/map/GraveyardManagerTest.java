@@ -52,6 +52,21 @@ class GraveyardManagerTest {
     }
 
     /**
+     * tbc-db has no game_graveyard_zone row for Sunstrider Isle 3431 (only parent 3430).
+     * Area-only lookup must still hit loc 912, not Horde continent default / void.
+     */
+    @Test
+    void closestWhenSunstriderIsleAreaOnlyShouldNotFallThroughToHordeDefault() {
+        GraveyardManager g = GraveyardManager.seeded();
+        GraveyardManager.Loc loc = g.closest(530, 10381.6f, -6399.23f, 38.53f,
+                GraveyardManager.HORDE, AreaTable.SUNSTRIDER_ISLE, 0);
+        assertEquals(912, loc.id());
+        assertEquals(530, loc.map());
+        assertEquals(10458.5f, loc.x(), 0.5f);
+        assertEquals(39.7907f, loc.z(), 0.5f);
+    }
+
+    /**
      * TP-SL17-020 — Shadowglen (area 188) / Teldrassil zone 141 → world_safe_locs 93 Aldrassil,
      * not Alliance continent default (Elwynn) / mid-air void.
      */

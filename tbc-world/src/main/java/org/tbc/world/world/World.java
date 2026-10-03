@@ -404,6 +404,11 @@ public final class World implements Runnable {
     }
 
     public void teleport(Player p, int mapId, float x, float y, float z, float o) {
+        // CMaNGOS Player::TeleportTo: reset movement flags so the client does not keep
+        // falling/jumping after MSG_MOVE_TELEPORT_ACK / SMSG_NEW_WORLD.
+        p.movement.moveFlags = 0;
+        p.movement.moveFlags2 = 0;
+        p.movement.fallTime = 0;
         if (p.mapId == mapId) {
             float ox = p.x;
             float oy = p.y;
