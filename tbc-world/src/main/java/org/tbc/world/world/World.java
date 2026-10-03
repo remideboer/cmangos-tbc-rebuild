@@ -1408,6 +1408,11 @@ public final class World implements Runnable {
                             UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
                     pl.session.send(hp.opcode(), hp.payload());
                 }
+                if (info != null && info.effect() == SpellEngine.EFFECT_APPLY_AURA) {
+                    int dur = info.durationMs() > 0 ? info.durationMs() : 30_000;
+                    AuraSlots.sendApply(target, cr, spell, dur, dur, pl.session::send);
+                    SpellEngine.sendAuraStatValues(target, info, pl.session::send);
+                }
             }
         }
     }

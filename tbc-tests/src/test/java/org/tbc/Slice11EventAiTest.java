@@ -119,6 +119,29 @@ class Slice11EventAiTest {
         assertEquals(c.guid, packedGuid(pkt, 4));
     }
 
+    /**
+     * TP-SL11-003 — Mana Wyrm EventAI Faerie Fire 25602 writes UNIT_FIELD_AURA on the victim.
+     */
+    @Test
+    void tpSl11WyrmFaerieFireWhenCombatTimerShouldPutAuraOnVictim() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Wyrmff");
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(15274, 0, p.x, p.y, p.z, p.o, world.scripts);
+        c.eventAi = new EventAi();
+        c.eventAi.load(List.of(EventAi.Script.timerInCombat(0, 1000, 25602, EventAi.TARGET_HOSTILE)));
+        world.map(p.mapId, p.instanceId).add(c);
+        p.relocate(c.x, c.y, c.z, c.o);
+        client.attackSwing(world, c.guid);
+        client.clear();
+        world.tick(501);
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(25602, spellId(client.payload(Opcodes.SMSG_SPELL_GO)));
+        int slot = org.tbc.world.spell.AuraSlots.slotOf(p, 25602);
+        assertTrue(slot >= 0, "visible Faerie Fire slot");
+        assertEquals(25602, client.valuesField(p.guid, org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_AURA + slot));
+    }
+
     @Test
     void meleeWhenNullAiShouldNotSendCreatureAttackerState() {
         World world = World.inMemory();

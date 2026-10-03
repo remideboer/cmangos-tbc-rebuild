@@ -255,6 +255,17 @@ class SpellEngineModResistanceTest {
     }
 
     @Test
+    void sendAuraStatValuesWhenDecreaseArmorShouldPushPhysicalResist() {
+        SpellEngine.SpellInfo ff = new SpellEngine.SpellInfo(
+                25602, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_DECREASE_ARMOR,
+                0, 0, -175, -175, 30f);
+        engine.auras().apply(p, ff);
+        SpellEngine.sendAuraStatValues(p, ff, this::capture);
+        assertEquals(-135, p.getInt(UpdateFields.UNIT_FIELD_RESISTANCES));
+        assertTrue(valuesPayloads.size() >= 1);
+    }
+
+    @Test
     void putTemplateWhenMiscZeroShouldKeepSeededFrostArmorSchoolMask() {
         engine.putTemplate(SpellEngine.FROST_ARMOR, SpellEngine.EFFECT_APPLY_AURA,
                 SpellEngine.SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f,

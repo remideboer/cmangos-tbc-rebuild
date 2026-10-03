@@ -13,6 +13,7 @@ import java.util.Set;
  */
 public final class AuraEngine {
     public static final int SPELL_AURA_MOD_STUN = 12;
+    public static final int SPELL_AURA_MOD_DECREASE_ARMOR = 15;
     public static final int SPELL_AURA_MOD_CONFUSE = 5;
     public static final int SPELL_AURA_MOD_FEAR = 7;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
@@ -70,7 +71,8 @@ public final class AuraEngine {
     public static final int MAX_POWERS = 5;
 
     private static final Set<Integer> KNOWN_AURAS = Set.of(
-            SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_RESISTANCE,
+            SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_DECREASE_ARMOR,
+            SPELL_AURA_MOD_RESISTANCE,
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY,
             SPELL_AURA_TRACK_CREATURES, SPELL_AURA_TRACK_RESOURCES,
@@ -101,6 +103,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_STUN) {
             modStun(target);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_DECREASE_ARMOR) {
+            modDecreaseArmor(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_FEAR) {
             // HandleModFear(true) → SetFleeing(true).
@@ -250,6 +255,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RESISTANCE) {
             modResistance(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_DECREASE_ARMOR) {
+            modDecreaseArmor(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_STAT) {
             modStat(target, sp, false);
@@ -415,6 +423,24 @@ public final class AuraEngine {
         } else {
             target.setShapeshiftForm(Unit.FORM_NONE);
         }
+    }
+
+    /**
+     * Aura 15 — CMaNGOS HandleModDecreaseArmor: TOTAL_VALUE on physical armor
+     * ({@code UNIT_FIELD_RESISTANCES} school 0).
+     */
+    private static void modDecreaseArmor(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int delta = apply ? amount : -amount;
+        target.setInt(UpdateFields.UNIT_FIELD_RESISTANCES,
+                target.getInt(UpdateFields.UNIT_FIELD_RESISTANCES) + delta);
+        int buffField = amount > 0
+                ? UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE
+                : UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE;
+        target.setInt(buffField, target.getInt(buffField) + delta);
     }
 
     /**
