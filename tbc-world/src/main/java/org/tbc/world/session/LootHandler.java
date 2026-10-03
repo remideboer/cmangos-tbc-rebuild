@@ -113,6 +113,30 @@ public final class LootHandler {
         world.combat.reduceCorpseDecayTimer(c, world.nowMs());
     }
 
+    /**
+     * CMSG_LOOT_RELEASE → Loot::Release (HIGHGUID_UNIT, LOOT_CORPSE): always
+     * ForceLootAnimationClientUpdate. Remaining copper after the last item is
+     * taken into the looter (solo) so SetLootStatus(LOOTED) can clear sparkle.
+     */
+    public static void lootRelease(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        long guid = in.remaining() >= 8 ? in.getU64() : 0;
+        p.lootGuid = 0;
+        s.send(Opcodes.SMSG_LOOT_RELEASE_RESPONSE, world.combat.encodeLootRelease(guid));
+        Creature c = world.map(p.mapId, p.instanceId).creatures.get(guid);
+        if (c == null) {
+            return;
+        }
+        if (c.lootItems.isEmpty() && c.lootGold > 0 && world.combat.takeMoney(p, c)) {
+            s.send(Opcodes.SMSG_LOOT_CLEAR_MONEY, new byte[0]);
+        }
+        if (c.lootItems.isEmpty() && c.lootGold == 0) {
+            c.lootable = false;
+            world.combat.reduceCorpseDecayTimer(c, world.nowMs());
+        }
+        world.sendLootableFlags(c, p.instanceId);
+    }
+
     public static void maybeStartRoll(Player p, Creature c, long guid) {
         if (c != null && p.group != null && GroupLoot.rolling(p.group.lootMethod)) {
             GroupLoot.start(p.group, guid, 0, Content.ITEM_WORN_SHORTSWORD);

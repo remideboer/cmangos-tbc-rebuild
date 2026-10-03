@@ -1922,9 +1922,7 @@ public final class WorldSession {
     }
 
     private void handleLootRelease(World world, WowBuffer in) {
-        long guid = in.remaining() >= 8 ? in.getU64() : 0;
-        player.lootGuid = 0;
-        send(Opcodes.SMSG_LOOT_RELEASE_RESPONSE, world.combat.encodeLootRelease(guid));
+        LootHandler.lootRelease(this, world, in);
     }
 
     private void handleCast(World world, WowBuffer in) {

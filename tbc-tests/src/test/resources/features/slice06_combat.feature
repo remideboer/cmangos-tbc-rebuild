@@ -77,6 +77,16 @@ Feature: Slice 6 melee combat and loot
     Then SMSG_LOOT_RELEASE_RESPONSE is for the kobold
     And the corpse is not lootable on the wire
 
+  @tp-sl06-029
+  Scenario: Closing loot after taking items unsets corpse lootable
+    When the player auto-attacks until the kobold is dead
+    And the player loots the corpse
+    Then SMSG_LOOT_RESPONSE is a corpse window for that guid
+    When the player takes loot slot 0
+    And the player closes the loot window
+    Then the backpack shows looted item 25 on the wire
+    And the corpse is not lootable on the wire
+
   @tp-sl06-008
   Scenario: Corpse respawns after delay with health update
     Given the kobold respawn delay is 1 ms

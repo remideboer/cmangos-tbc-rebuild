@@ -365,6 +365,11 @@ public class CombatSteps {
         assertEquals((int) (guid >>> 32), client.valuesField(p.guid, field + 1));
     }
 
+    @When("the player closes the loot window")
+    public void closeLootWindow() {
+        client.lootRelease(world, kobold.guid);
+    }
+
     @When("the player takes the corpse copper")
     public void takeCorpseCopper() {
         copperBeforeLootMoney = client.session().player().money;
