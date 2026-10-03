@@ -262,6 +262,43 @@ class Slice08P0Test {
     }
 
     /**
+     * TP-SL08-037 — A Threat Within 783 has no objectives; accept completes it (CMaNGOS
+     * CanCompleteQuest). McBride in view must get yellow ? {@code DIALOG_STATUS_REWARD} 8,
+     * not leftover grey {@code DIALOG_STATUS_INCOMPLETE} 3.
+     */
+    @Test
+    void tpSl08TalkCompleteShouldShowYellowRewardOnTurnIn() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "TalkMark", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature mcbride = world.objectMgr.spawnCreature(Content.NPC_MARSHAL_MCBRIDE, 0, p.x, p.y, p.z, p.o, world.scripts);
+        Creature willem = world.objectMgr.spawnCreature(Content.NPC_DEPUTY_WILLEM, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(mcbride);
+        world.map(p.mapId, p.instanceId).add(willem);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(willem.guid);
+        accept.putU32(Content.QUEST_A_THREAT_WITHIN);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        WowBuffer multi = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        int n = multi.getU32();
+        boolean sawReward = false;
+        for (int i = 0; i < n; i++) {
+            long guid = multi.getU64();
+            int status = multi.getU8() & 0xFF;
+            if (guid == mcbride.guid) {
+                assertEquals(Content.DIALOG_STATUS_REWARD, status);
+                sawReward = true;
+            }
+        }
+        assertTrue(sawReward);
+    }
+
+    /**
      * TP-SL08-022 — Player::ItemAddedQuestCheck / SendQuestUpdateAddItem:
      * Brotherhood of Thieves 18 ReqItemId1 752 × 12. C++ packet is item u32 + add-count u32
      * (not quest id). Looting 12 completes the objective.

@@ -65,6 +65,42 @@ class ContentQuestLoopTest {
         assertEquals(Content.DIALOG_STATUS_NONE, statusByte());
     }
 
+    /** CMaNGOS getDialogStatus: QUEST_STATUS_COMPLETE on the finisher is yellow ? (REWARD 8). */
+    @Test
+    void dialogStatusWhenLogCompleteShouldShowRewardEvenIfKillCounterShort() {
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
+        content.acceptQuest(p, map, quest(mcbride.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), this::capture);
+        p.questLogState[0] = Content.QUEST_STATE_COMPLETE;
+        content.questGiverStatusQuery(p, map, u64(mcbride.guid), this::capture);
+        assertEquals(Content.DIALOG_STATUS_REWARD, statusByte());
+        ops.clear();
+        last.clear();
+        content.requestReward(p, map, quest(mcbride.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), this::capture);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD));
+    }
+
+    /** Talk quests complete on accept — nearby turn-in must get REWARD 8, not leftover INCOMPLETE 3. */
+    @Test
+    void acceptWhenTalkQuestShouldPushRewardStatusOnTurnIn() {
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
+        Creature willem = spawn(Content.NPC_DEPUTY_WILLEM);
+        content.acceptQuest(p, map, quest(willem.guid, Content.QUEST_A_THREAT_WITHIN), this::capture);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        WowBuffer multi = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        int n = multi.getU32();
+        boolean sawReward = false;
+        for (int i = 0; i < n; i++) {
+            long guid = multi.getU64();
+            int status = multi.getU8() & 0xFF;
+            if (guid == mcbride.guid) {
+                assertEquals(Content.DIALOG_STATUS_REWARD, status);
+                sawReward = true;
+            }
+        }
+        assertTrue(sawReward);
+    }
+
     @Test
     void dialogStatusWhenLevelRacePrevOrRewardedShouldStayNone() {
         Creature farley = spawn(Content.NPC_INNKEEPER_FARLEY);
@@ -512,6 +548,16 @@ class ContentQuestLoopTest {
     }
 
     @Test
+    void acceptWhenGameObjectGivesIncompleteQuestShouldSendGiverStatus() {
+        GameObject poster = go(Content.GO_ICE_STONE);
+        mgr.goQuestGivers.put(Content.GO_ICE_STONE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));
+        content.acceptQuest(p, map, quest(poster.guid, Content.QUEST_KOBOLD_CAMP_CLEANUP), this::capture);
+        assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, p.questLogId[0]);
+        assertEquals(0, p.questLogState[0]);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_STATUS));
+    }
+
+    @Test
     void useGameObjectWhenObjectiveEntryShouldCreditNegativeId() {
         mgr.quests.put(Content.QUEST_KOBOLD_CAMP_CLEANUP, questTemplate(
                 Content.QUEST_KOBOLD_CAMP_CLEANUP, -Content.GO_ICE_BLOCK, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0));
@@ -603,7 +649,7 @@ class ContentQuestLoopTest {
     @Test
     void timerWhenExpiredShouldFailAndCompletedQuestShouldStay() {
         mgr.quests.put(Content.QUEST_KOBOLD_CAMP_CLEANUP, questTemplate(
-                Content.QUEST_KOBOLD_CAMP_CLEANUP, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0));
+                Content.QUEST_KOBOLD_CAMP_CLEANUP, Content.NPC_KOBOLD_VERMIN, 10, 0, 0, 0, 0, 0, 0, 1, 0, 0));
         mgr.questExtras.put(Content.QUEST_KOBOLD_CAMP_CLEANUP, ObjectMgr.QuestExtras.limit(60));
         Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
         mgr.questGivers.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));

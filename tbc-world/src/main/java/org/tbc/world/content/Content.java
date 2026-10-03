@@ -501,7 +501,7 @@ public final class Content {
             return;
         }
         ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
-        if (q == null || !objectivesMet(p, slot, q)) {
+        if (q == null || !readyToTurnIn(p, slot, q)) {
             return;
         }
         send.accept(Opcodes.SMSG_QUESTGIVER_OFFER_REWARD, encodeOfferReward(giverGuid, q));
@@ -603,7 +603,7 @@ public final class Content {
         }
         int slot = slotOf(p, questId);
         if (slot >= 0) {
-            if (objectivesMet(p, slot, q)) {
+            if (readyToTurnIn(p, slot, q)) {
                 return involved ? DIALOG_STATUS_REWARD : DIALOG_STATUS_NONE;
             }
             return DIALOG_STATUS_INCOMPLETE;
@@ -662,6 +662,24 @@ public final class Content {
             return p.rewardedQuests.contains(prevQuestId);
         }
         return slotOf(p, -prevQuestId) >= 0;
+    }
+
+    /**
+     * CMaNGOS getDialogStatus uses QUEST_STATUS_COMPLETE, not a live objective recount.
+     * Spell/event complete can set the log bit before counters catch up.
+     */
+    boolean readyToTurnIn(Player p, int slot, ObjectMgr.QuestTemplate q) {
+        return p.questLogState[slot] == QUEST_STATE_COMPLETE || objectivesMet(p, slot, q);
+    }
+
+    /** Player::CompleteQuest — log bit, QUESTUPDATE_COMPLETE, refresh nearby ? / !. */
+    private void markQuestObjectivesComplete(Player p, GameMap map, int slot, int questId,
+                                             BiConsumer<Integer, byte[]> send) {
+        p.questLogState[slot] = QUEST_STATE_COMPLETE;
+        writeLogField(p, slot);
+        send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
+        sendLogUpdate(p, slot, send);
+        questGiverStatusMultiple(p, map, send);
     }
 
     /** Creature, item, game-object, spell, and explore objectives. */
@@ -746,7 +764,9 @@ public final class Content {
         writeLogField(p, slot);
         sendLogUpdate(p, slot, send);
         send.accept(Opcodes.SMSG_GOSSIP_COMPLETE, new byte[0]);
-        if (c != null) {
+        if (objectivesMet(p, slot, taken)) {
+            markQuestObjectivesComplete(p, map, slot, questId, send);
+        } else if (c != null) {
             sendQuestGiverStatus(p, c, send);
         } else {
             sendQuestGiverStatus(p, go.guid, goDialogStatus(p, giverEntry), send);
@@ -791,7 +811,7 @@ public final class Content {
             return;
         }
         ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
-        if (q == null || !objectivesMet(p, slot, q)) {
+        if (q == null || !readyToTurnIn(p, slot, q)) {
             return;
         }
         if (org.tbc.world.classless.HeroClassUnlock.isHeroOnly(questId) && !p.alive()) {
@@ -1571,7 +1591,7 @@ public final class Content {
         if (slot < 0) {
             return DIALOG_STATUS_AVAILABLE;
         }
-        if (objectivesMet(p, slot, q)) {
+        if (readyToTurnIn(p, slot, q)) {
             return DIALOG_STATUS_REWARD_REP;
         }
         return DIALOG_STATUS_INCOMPLETE;
