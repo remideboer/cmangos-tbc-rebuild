@@ -6,6 +6,7 @@ import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.Codes;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.classless.ClasslessConfig;
+import org.tbc.world.classless.HeroClassUnlock;
 import org.tbc.world.combat.MeleeTable;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
@@ -177,6 +178,7 @@ class Slice35P0Test {
                 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         Player p = client.session().player();
+        unlockWarrior(p);
         Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
         assertNotNull(trainer);
         p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
@@ -198,7 +200,7 @@ class Slice35P0Test {
         assertTrue(p2.spells.contains(Content.SPELL_BATTLE_SHOUT));
     }
 
-    /** TP-SL35-004 — any class trainer list/buy; warrior cannot use mage trainer. */
+    /** TP-SL35-004 — mage trainer stays open; warrior trainer after unlock; warrior class unchanged. */
     @Test
     void tpSl35TrainerBuyEligibleAbility() {
         World world = World.inMemory();
@@ -211,8 +213,21 @@ class Slice35P0Test {
         Creature warriorTrainer = find(world, Content.NPC_LLANE_BESHERE);
         assertNotNull(warriorTrainer);
         p.relocate(warriorTrainer.x, warriorTrainer.y, warriorTrainer.z, warriorTrainer.o);
-        // Cumulative: BS 200×1 + Rank2 500×2 + Fireball 10×3 = 1230+
         p.setMoney(5_000);
+        client.clear();
+        WowBuffer listLocked = new WowBuffer(8);
+        listLocked.putU64(warriorTrainer.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, listLocked.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_LIST), "Hero warrior trainer locked until unlock quest");
+        WowBuffer buyLocked = new WowBuffer(12);
+        buyLocked.putU64(warriorTrainer.guid);
+        buyLocked.putU32(Content.SPELL_BATTLE_SHOUT);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buyLocked.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertFalse(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+
+        unlockWarrior(p);
+        // Cumulative: BS 200×1 + Rank2 500×2 + Fireball 10×3 = 1230+
         client.clear();
         WowBuffer list = new WowBuffer(8);
         list.putU64(warriorTrainer.guid);
@@ -540,6 +555,7 @@ class Slice35P0Test {
                 0, 1, 1, 1, 1, 0, world.objectMgr);
         client.login(world, created.guid);
         Player p = client.session().player();
+        unlockWarrior(p);
         Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
         assertNotNull(trainer);
         p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
@@ -699,6 +715,7 @@ class Slice35P0Test {
         equipChest(world, p, client, Content.ITEM_LIGHTFORGE_BREASTPLATE);
         assertEquals(3, org.tbc.world.classless.CasterArmorPolicy.heaviestArmorStep(p, world.objectMgr));
 
+        unlockWarrior(p);
         Creature trainer = find(world, Content.NPC_LLANE_BESHERE);
         assertNotNull(trainer);
         p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
@@ -826,6 +843,197 @@ class Slice35P0Test {
         chest.slot = dst;
         p.setGuid(UpdateFields.PLAYER_FIELD_INV_SLOT_HEAD + dst * 2, UpdateBuilder.itemGuid(chest));
         world.objectMgr.applyEquippedMelee(p);
+    }
+
+    /**
+     * TP-SL35-021 — only Hero accepts Warrior unlock quest; Warrior class does not.
+     */
+    @Test
+    void tpSl35HeroOnlyWarriorUnlockQuest() {
+        World world = World.inMemory();
+        WowClientDouble heroClient = new WowClientDouble();
+        heroClient.connect(ACC);
+        Player heroCreated = world.characters.create(ACC.id(), "Heroquest", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        heroClient.login(world, heroCreated.guid);
+        Player hero = heroClient.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER);
+        assertNotNull(trainer);
+        hero.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        heroClient.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        assertEquals(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON, hero.questLogId[0]);
+
+        WowClientDouble warClient = new WowClientDouble();
+        World.Account warAcc = new World.Account(2, "WAR", new byte[40], 0, 1, "Win", "x86");
+        warClient.connect(warAcc);
+        Player warCreated = world.characters.create(warAcc.id(), "Warquest", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        warClient.login(world, warCreated.guid);
+        Player warrior = warClient.session().player();
+        warrior.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        WowBuffer warAccept = new WowBuffer(12);
+        warAccept.putU64(trainer.guid);
+        warAccept.putU32(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        warClient.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, warAccept.array());
+        assertEquals(0, warrior.questLogId[0]);
+    }
+
+    /**
+     * TP-SL35-022 — 5 successful melee hits on 15274 advance the hit objective; spells do not.
+     */
+    @Test
+    void tpSl35MeleeHitsShouldAdvanceWarriorUnlockObjective() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Hitquest", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        wyrm.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 50_000);
+        wyrm.setHealth(50_000);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+
+        p.spells.add(Content.SPELL_FIREBALL);
+        p.setInt(UpdateFields.UNIT_FIELD_POWER1, 500);
+        p.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 500);
+        client.clear();
+        client.castSpell(world, Content.SPELL_FIREBALL, 1, wyrm.guid);
+        assertEquals(0, p.questLogCounts[0][1], "non-melee must not count as weapon hits");
+
+        for (int i = 1; i <= 5; i++) {
+            client.clear();
+            swingOnce(world, client, p, wyrm);
+            assertTrue(client.saw(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+            WowBuffer add = new WowBuffer(client.payload(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+            assertEquals(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON, add.getU32());
+            assertEquals(HeroClassUnlock.CREATURE_MANA_WYRM, add.getU32());
+            assertEquals(i, add.getU32());
+            assertEquals(HeroClassUnlock.REQUIRED_HITS, add.getU32());
+        }
+        client.clear();
+        swingOnce(world, client, p, wyrm);
+        assertEquals(5, p.questLogCounts[0][1]);
+    }
+
+    /**
+     * TP-SL35-023 — kill + alive turn-in learns Heroic Strike 78 and persists on relog.
+     */
+    @Test
+    void tpSl35WarriorUnlockTurnInShouldLearnHeroicStrike() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Turnhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        p.questLogCounts[0][1] = HeroClassUnlock.REQUIRED_HITS;
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        world.onCreatureKilled(p, wyrm);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+
+        p.setHealth(0);
+        client.clear();
+        WowBuffer deadChoose = new WowBuffer(16);
+        deadChoose.putU64(trainer.guid);
+        deadChoose.putU32(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        deadChoose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, deadChoose.array());
+        assertFalse(p.spells.contains(org.tbc.world.spell.SpellEngine.HEROIC_STRIKE));
+        assertFalse(p.rewardedQuests.contains(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
+
+        p.setHealth(p.maxHealth());
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(org.tbc.world.spell.SpellEngine.HEROIC_STRIKE,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(org.tbc.world.spell.SpellEngine.HEROIC_STRIKE));
+        assertTrue(p.rewardedQuests.contains(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
+
+        long guid = p.guid;
+        client.session().logout(world, true);
+        WowClientDouble again = new WowClientDouble();
+        again.connect(ACC);
+        again.login(world, guid);
+        Player p2 = again.session().player();
+        assertTrue(p2.spells.contains(org.tbc.world.spell.SpellEngine.HEROIC_STRIKE));
+        assertTrue(p2.rewardedQuests.contains(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
+    }
+
+    /**
+     * TP-SL35-024 — warrior trainer list/buy refused until unlock; Battle Shout after.
+     */
+    @Test
+    void tpSl35WarriorTrainerShouldGateOnUnlockQuest() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Gatehero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        p.setMoney(ClasslessConfig.STARTING_MONEY_COPPER);
+        client.clear();
+        WowBuffer list = new WowBuffer(8);
+        list.putU64(trainer.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, list.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_LIST));
+        WowBuffer buy = new WowBuffer(12);
+        buy.putU64(trainer.guid);
+        buy.putU32(Content.SPELL_BATTLE_SHOUT);
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
+        assertFalse(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, list.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST));
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TRAINER_BUY_SPELL, buy.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_BUY_SUCCEEDED));
+        assertTrue(p.spells.contains(Content.SPELL_BATTLE_SHOUT));
+    }
+
+    private static void unlockWarrior(Player p) {
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+    }
+
+    private static void swingOnce(World world, WowClientDouble client, Player p, Creature c) {
+        p.relocate(c.x, c.y, c.z, c.o);
+        WowBuffer atk = new WowBuffer(8);
+        atk.putU64(c.guid);
+        client.handle(world, Opcodes.CMSG_ATTACKSWING, atk.array());
+        client.session().tick(world, 0);
+        WowBuffer stop = new WowBuffer(0);
+        client.handle(world, Opcodes.CMSG_ATTACKSTOP, stop.array());
     }
 
     private static Creature find(World world, int entry) {

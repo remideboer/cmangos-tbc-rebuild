@@ -56,6 +56,7 @@ public final class Player extends Unit {
     /** ChrClasses unused TBC id — classless mode when ClasslessConfig.enabled. */
     public static final int CLASS_CLASSLESS = 6;
     /** ChrClasses.dbc. CLASSMASK_WAND_USERS in SharedDefines.h. spec/03-protocol/enums.md */
+    public static final int CLASS_WARRIOR = 1;
     public static final int CLASS_HUNTER = 3;
     public static final int CLASS_PRIEST = 5;
     public static final int CLASS_MAGE = 8;

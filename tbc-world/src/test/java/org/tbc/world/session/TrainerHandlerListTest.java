@@ -2,6 +2,7 @@ package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.classless.ClasslessConfig;
+import org.tbc.world.classless.HeroClassUnlock;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
@@ -104,6 +105,7 @@ class TrainerHandlerListTest {
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
         p.level = 1;
         p.race = 1;
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
         Creature c = new Creature();
         c.guid = 1;
         c.entry = Content.NPC_LLANE_BESHERE;

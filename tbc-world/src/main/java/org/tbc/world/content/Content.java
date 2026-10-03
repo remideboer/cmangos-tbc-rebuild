@@ -626,6 +626,10 @@ public final class Content {
         if (!repAndDailyAllow(p, q)) {
             return false;
         }
+        if (org.tbc.world.classless.HeroClassUnlock.isHeroOnly(q.id())
+                && !org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
+            return false;
+        }
         return prevSatisfied(p, q.prevQuestId());
     }
 
@@ -676,6 +680,10 @@ public final class Content {
                 }
             }
         }
+        ObjectMgr.CreatureHitObjective hits = mgr.questCreatureHits.get(q.id());
+        if (hits != null && p.questLogCounts[slot][1] < hits.count()) {
+            return false;
+        }
         ObjectMgr.QuestExtras extra = mgr.questExtras.get(q.id());
         if (extra == null) {
             return true;
@@ -710,6 +718,10 @@ public final class Content {
         }
         ObjectMgr.QuestTemplate taken = mgr.quests.get(questId);
         if (taken == null || !repAndDailyAllow(p, taken)) {
+            return;
+        }
+        if (org.tbc.world.classless.HeroClassUnlock.isHeroOnly(questId)
+                && !org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
             return;
         }
         if (slotOf(p, questId) >= 0) {
@@ -780,6 +792,9 @@ public final class Content {
         if (q == null || !objectivesMet(p, slot, q)) {
             return;
         }
+        if (org.tbc.world.classless.HeroClassUnlock.isHeroOnly(questId) && !p.alive()) {
+            return;
+        }
         // Player::RewardQuest — DestroyItemCount ReqItemId/ReqItemCount before rewards.
         for (int i = 0; i < 4; i++) {
             int reqId = q.reqItemId(i);
@@ -806,6 +821,13 @@ public final class Content {
         storeRewardItem(p, q.rewItemId1(), q.rewItemCount1(), nextItemGuid, send);
         storeRewardItem(p, q.rewChoiceItemId(reward), q.rewChoiceItemCount(reward), nextItemGuid, send);
         p.rewardedQuests.add(questId);
+        int rewSpell = mgr.questRewSpell.getOrDefault(questId, 0);
+        if (rewSpell > 0 && !p.spells.contains(rewSpell)) {
+            p.spells.add(rewSpell);
+            WowBuffer learned = new WowBuffer(4);
+            learned.putU32(rewSpell);
+            send.accept(Opcodes.SMSG_LEARNED_SPELL, learned.array());
+        }
         ObjectMgr.QuestExtras extra = mgr.questExtras.get(questId);
         if (extra != null && extra.rewRepFaction() > 0) {
             p.modifyReputation(extra.rewRepFaction(), extra.rewRepValue());
@@ -1187,6 +1209,50 @@ public final class Content {
             send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
             writeLogField(p, slot);
             boolean done = objectivesMet(p, slot, q);
+            if (done) {
+                p.questLogState[slot] = QUEST_STATE_COMPLETE;
+                writeLogField(p, slot);
+                send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
+            }
+            sendLogUpdate(p, slot, send);
+            if (done) {
+                questGiverStatusMultiple(p, map, send);
+            }
+        }
+    }
+
+    /**
+     * Landed melee hits on a creature objective (not a kill). Misses and spells do not call this.
+     */
+    public void creatureHitCredit(Player p, GameMap map, Creature victim, BiConsumer<Integer, byte[]> send) {
+        if (victim == null) {
+            return;
+        }
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            int questId = p.questLogId[slot];
+            if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
+                continue;
+            }
+            ObjectMgr.CreatureHitObjective hits = mgr.questCreatureHits.get(questId);
+            if (hits == null || hits.creatureEntry() != victim.entry) {
+                continue;
+            }
+            int cur = p.questLogCounts[slot][1];
+            if (cur >= hits.count()) {
+                continue;
+            }
+            cur++;
+            p.questLogCounts[slot][1] = cur;
+            WowBuffer add = new WowBuffer(24);
+            add.putU32(questId);
+            add.putU32(hits.creatureEntry());
+            add.putU32(cur);
+            add.putU32(hits.count());
+            add.putU64(victim.guid);
+            send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
+            writeLogField(p, slot);
+            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            boolean done = q != null && objectivesMet(p, slot, q);
             if (done) {
                 p.questLogState[slot] = QUEST_STATE_COMPLETE;
                 writeLogField(p, slot);

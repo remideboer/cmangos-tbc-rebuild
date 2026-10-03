@@ -27,7 +27,10 @@ public final class ClasslessTrainerPolicy {
         if (mgr.spellsForTrainer(c.entry).isEmpty()) {
             return false;
         }
-        return mgr.trainerType(c.entry) == TrainerHandler.TRAINER_TYPE_CLASS;
+        if (mgr.trainerType(c.entry) != TrainerHandler.TRAINER_TYPE_CLASS) {
+            return false;
+        }
+        return HeroClassUnlock.trainerClassUnlocked(p, mgr.trainerClass.getOrDefault(c.entry, 0));
     }
 
     public static boolean mayBuy(Player p, int spellId) {

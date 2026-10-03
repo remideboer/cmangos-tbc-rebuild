@@ -1518,6 +1518,11 @@ public final class ObjectMgr {
     public final Map<Integer, List<Integer>> goQuestGivers = new HashMap<>();
     public final Map<Integer, List<Integer>> goQuestInvolved = new HashMap<>();
     public final Map<Integer, QuestExtras> questExtras = new HashMap<>();
+    /** Hero unlock: landed melee hits on creature (not kill credit). */
+    public record CreatureHitObjective(int creatureEntry, int count) {}
+    public final Map<Integer, CreatureHitObjective> questCreatureHits = new HashMap<>();
+    /** quest_template.RewSpell / RewSpellCast. */
+    public final Map<Integer, Integer> questRewSpell = new HashMap<>();
     public final Map<Integer, Integer> areaTriggerQuests = new HashMap<>();
 
     /** Columns beyond the kill/item row: spell, explore, reputation, timer, daily, escort point. */
@@ -3295,6 +3300,53 @@ public final class ObjectMgr {
             eventGameObjects.put(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
                     new Spawn(5470020, Content.GO_ICE_STONE, 547, -69.9045f, -162.245f, -2.36656f, 2.42601f))));
         }
+        seedHeroWarriorUnlock();
+    }
+
+    private void seedHeroWarriorUnlock() {
+        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER;
+        int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_HEROS_FIRST_LESSON;
+        int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
+        creatures.putIfAbsent(trainer, new CreatureTemplate(trainer, "Hero Warrior Trainer", 0, 12, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
+                "", "", 0));
+        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(trainer, Player.CLASS_WARRIOR);
+        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+                new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
+                new TrainerSpell(Content.SPELL_BATTLE_SHOUT_RANK2, 500, 12, 0, 0,
+                        Content.SPELL_BATTLE_SHOUT, 0, 0, false),
+                new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_LEATHER,
+                        org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_LEATHER),
+                new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_MAIL,
+                        org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_MAIL),
+                new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
+                        org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_PLATE))));
+        ensureBattlecasterOnTrainer(trainer);
+        quests.putIfAbsent(questId, new QuestTemplate(questId, "The Hero's First Lesson", 1, 0,
+                0,
+                "Practice with your weapon on the Mana Wyrms, then prove you can finish one. Return alive.",
+                "Land 5 weapon hits on a Mana Wyrm and defeat 1 Mana Wyrm.",
+                wyrm, org.tbc.world.classless.HeroClassUnlock.REQUIRED_KILLS));
+        addQuestRelation(questGivers, trainer, questId);
+        addQuestRelation(questInvolved, trainer, questId);
+        questCreatureHits.putIfAbsent(questId, new CreatureHitObjective(wyrm,
+                org.tbc.world.classless.HeroClassUnlock.REQUIRED_HITS));
+        questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.HEROIC_STRIKE);
+        addSpawnIfMissing(16, trainer, 0, -8916f, -206f, 82.3f, 0f);
+        addSpawnIfMissing(17, trainer, 530, 10349.6f, -6357.29f, 33.4026f, 0f);
+    }
+
+    private void addSpawnIfMissing(int guid, int entry, int map, float x, float y, float z, float o) {
+        for (Spawn s : spawns) {
+            if (s.guid() == guid) {
+                return;
+            }
+        }
+        spawns.add(new Spawn(guid, entry, map, x, y, z, o));
     }
 
     private static CreatureTemplate seedKoboldVermin() {
@@ -3471,6 +3523,7 @@ public final class ObjectMgr {
         if (!hasPetitioner) {
             spawns.add(new Spawn(1_000_013, Content.NPC_REBECCA_LAUGHLIN, 0, -8916f, -126f, 80f, 0f));
         }
+        seedHeroWarriorUnlock();
         seedMenu0();
         seedFarleyGossip();
     }

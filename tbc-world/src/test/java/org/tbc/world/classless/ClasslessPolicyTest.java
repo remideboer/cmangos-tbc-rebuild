@@ -79,6 +79,23 @@ class ClasslessPolicyTest {
         Player warrior = new Player();
         warrior.clazz = 1;
         assertFalse(mgr.isTrainerOf(warrior, mage));
+        assertFalse(ClasslessTrainerPolicy.isTrainerOf(p, null, mgr));
+        assertFalse(ClasslessTrainerPolicy.isTrainerOf(p, mage, null));
+    }
+
+    @Test
+    void trainerPolicyWhenClasslessWarriorTrainerShouldRequireUnlockQuest() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        Creature llane = new Creature();
+        llane.entry = Content.NPC_LLANE_BESHERE;
+        llane.npcFlags = Content.UNIT_NPC_FLAG_TRAINER;
+        assertFalse(ClasslessTrainerPolicy.isTrainerOf(p, llane, mgr));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        assertTrue(ClasslessTrainerPolicy.isTrainerOf(p, llane, mgr));
+        assertTrue(mgr.isTrainerOf(p, llane));
     }
 
     @Test

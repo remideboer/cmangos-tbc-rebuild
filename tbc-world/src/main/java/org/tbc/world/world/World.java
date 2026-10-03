@@ -610,6 +610,7 @@ public final class World implements Runnable {
                 p.session.send(atk.opcode(), atk.payload());
                 spells.procMelee(p, c, false, p.session::send);
             }
+            content.creatureHitCredit(p, hitMap, c, p.session != null ? p.session::send : (op, b) -> { });
         }
         if (p.session != null) {
             if (nextMeleeSpell && spellId != 0) {
