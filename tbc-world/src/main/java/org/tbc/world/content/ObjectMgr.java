@@ -403,12 +403,17 @@ public final class ObjectMgr {
 
         /** Server-owned Hero Rend follow-up quest item (92001). */
         public static ItemTemplate heroTrainingStrip() {
+            return heroQuestJunk(org.tbc.world.classless.HeroClassUnlock.ITEM_TRAINING_STRIP, "Training Strip");
+        }
+
+        /** Server-owned Hero quest junk (class unlock / follow-up evidence items). */
+        public static ItemTemplate heroQuestJunk(int entry, String name) {
             ItemTemplate t = new ItemTemplate();
-            t.entry = org.tbc.world.classless.HeroClassUnlock.ITEM_TRAINING_STRIP;
+            t.entry = entry;
             t.itemClass = 12;
             t.subClass = 0;
             t.unk = -1;
-            t.name = "Training Strip";
+            t.name = name;
             t.displayId = 7412;
             t.quality = 1;
             t.inventoryType = 0;
@@ -3388,6 +3393,7 @@ public final class ObjectMgr {
                     new Spawn(5470020, Content.GO_ICE_STONE, 547, -69.9045f, -162.245f, -2.36656f, 2.42601f))));
         }
         seedHeroWarriorUnlock();
+        seedHeroPaladinUnlock();
     }
 
     private void seedHeroWarriorUnlock() {
@@ -3482,6 +3488,76 @@ public final class ObjectMgr {
                 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0,
                 prevQuestId, 0);
+    }
+
+    private void seedHeroPaladinUnlock() {
+        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_PALADIN_TRAINER;
+        int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_A_VOW_TESTED;
+        int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
+        int token = org.tbc.world.classless.HeroClassUnlock.ITEM_PROTECTIVE_TOKEN;
+        creatures.put(trainer, new CreatureTemplate(trainer,
+                org.tbc.world.classless.HeroClassUnlock.NAME_VELAARA_SUNWARD,
+                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
+                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                "Paladin Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
+        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(trainer, Player.CLASS_PALADIN);
+        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+                new TrainerSpell(org.tbc.world.spell.SpellEngine.DEVOTION_AURA, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_BLESSING_OF_MIGHT, 100, 1),
+                new TrainerSpell(org.tbc.world.spell.SpellEngine.HOLY_LIGHT, 100, 1))));
+        items.putIfAbsent(token, ItemTemplate.heroQuestJunk(
+                token, "Protective Token"));
+        quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Vow Tested",
+                "Recover the lost protective token and defeat a Mana Wyrm that threatens the ward. Return alive.",
+                "Collect 1 Protective Token. Defeat 1 Mana Wyrm.",
+                wyrm, 1, token, 1, 0));
+        addQuestRelation(questGivers, trainer, questId);
+        addQuestRelation(questInvolved, trainer, questId);
+        questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS);
+        seedHeroPaladinFollowUps(trainer, wyrm, questId);
+        addSpawnIfMissing(18, trainer, 0, -8402f, -402f, 80f, 0f);
+        replaceSpawn(19, trainer, 530,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_X,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_Y,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_Z,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_O);
+    }
+
+    private void seedHeroPaladinFollowUps(int trainer, int wyrm, int unlockQuest) {
+        int blessing = org.tbc.world.classless.HeroClassUnlock.ITEM_BLESSING_TOKEN;
+        int kit = org.tbc.world.classless.HeroClassUnlock.ITEM_HEALING_KIT;
+        items.putIfAbsent(blessing, ItemTemplate.heroQuestJunk(blessing, "Blessing Token"));
+        items.putIfAbsent(kit, ItemTemplate.heroQuestJunk(kit, "Healing Kit"));
+
+        int stand = org.tbc.world.classless.HeroClassUnlock.QUEST_STAND_FAST;
+        quests.putIfAbsent(stand, heroFollowUpQuest(stand, "Stand Fast",
+                "Hold the trainer's ward by defeating a Mana Wyrm. Return alive.",
+                "Defeat 1 Mana Wyrm.",
+                wyrm, 1, 0, 0, unlockQuest));
+        addQuestRelation(questGivers, trainer, stand);
+        addQuestRelation(questInvolved, trainer, stand);
+        questRewSpell.putIfAbsent(stand, org.tbc.world.spell.SpellEngine.DEVOTION_AURA);
+
+        int strength = org.tbc.world.classless.HeroClassUnlock.QUEST_STRENGTH_IN_SERVICE;
+        quests.putIfAbsent(strength, heroFollowUpQuest(strength, "Strength in Service",
+                "Deliver the trainer's blessing token as proof of service. Return alive.",
+                "Collect 1 Blessing Token.",
+                0, 0, blessing, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, strength);
+        addQuestRelation(questInvolved, trainer, strength);
+        questRewSpell.putIfAbsent(strength, org.tbc.world.classless.HeroClassUnlock.SPELL_BLESSING_OF_MIGHT);
+
+        int mercy = org.tbc.world.classless.HeroClassUnlock.QUEST_MERCYS_LESSON;
+        quests.putIfAbsent(mercy, heroFollowUpQuest(mercy, "Mercy's Lesson",
+                "Recover a healing kit for a wounded trainee. Return alive.",
+                "Collect 1 Healing Kit.",
+                0, 0, kit, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, mercy);
+        addQuestRelation(questInvolved, trainer, mercy);
+        questRewSpell.putIfAbsent(mercy, org.tbc.world.spell.SpellEngine.HOLY_LIGHT);
     }
 
     private void addSpawnIfMissing(int guid, int entry, int map, float x, float y, float z, float o) {

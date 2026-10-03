@@ -1301,6 +1301,202 @@ class Slice35P0Test {
         assertTrue(p.spells.contains(HeroClassUnlock.SPELL_REND));
     }
 
+    /**
+     * TP-SL35-034 — Paladin unlock 90005 teaches Seal of Righteousness; trainer gated; warrior refused.
+     */
+    @Test
+    void tpSl35VowTestedShouldTeachSealAndGatePaladinTrainer() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Vowhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_PALADIN_TRAINER);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+
+        client.clear();
+        WowBuffer listLocked = new WowBuffer(8);
+        listLocked.putU64(trainer.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, listLocked.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_LIST));
+
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_A_VOW_TESTED);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        assertEquals(HeroClassUnlock.QUEST_A_VOW_TESTED, p.questLogId[0]);
+
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_PROTECTIVE_TOKEN, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_PROTECTIVE_TOKEN, 1, client.session()::send);
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        world.onCreatureKilled(p, wyrm);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+
+        p.setHealth(0);
+        client.clear();
+        WowBuffer dead = new WowBuffer(16);
+        dead.putU64(trainer.guid);
+        dead.putU32(HeroClassUnlock.QUEST_A_VOW_TESTED);
+        dead.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, dead.array());
+        assertFalse(p.spells.contains(org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+
+        p.setHealth(p.maxHealth());
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_A_VOW_TESTED);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS));
+        assertTrue(p.rewardedQuests.contains(HeroClassUnlock.QUEST_A_VOW_TESTED));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, listLocked.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST));
+        WowBuffer list = new WowBuffer(client.payload(Opcodes.SMSG_TRAINER_LIST));
+        list.getU64();
+        list.getU32();
+        int count = list.getU32();
+        boolean sawAura = false;
+        for (int i = 0; i < count; i++) {
+            int spell = list.getU32();
+            list.getU8();
+            list.getU32();
+            list.getU32();
+            list.getU32();
+            list.getU8();
+            list.getU32();
+            list.getU32();
+            list.getU32();
+            list.getU32();
+            list.getU32();
+            if (spell == org.tbc.world.spell.SpellEngine.DEVOTION_AURA) {
+                sawAura = true;
+            }
+        }
+        assertFalse(sawAura, "Devotion Aura gated on 90006");
+
+        WowClientDouble warClient = new WowClientDouble();
+        World.Account warAcc = new World.Account(4, "WAR3", new byte[40], 0, 1, "Win", "x86");
+        warClient.connect(warAcc);
+        Player warCreated = world.characters.create(warAcc.id(), "Warvow", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        warClient.login(world, warCreated.guid);
+        Player warrior = warClient.session().player();
+        warrior.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        WowBuffer warAccept = new WowBuffer(12);
+        warAccept.putU64(trainer.guid);
+        warAccept.putU32(HeroClassUnlock.QUEST_A_VOW_TESTED);
+        warClient.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, warAccept.array());
+        assertEquals(0, warrior.questLogId[0]);
+    }
+
+    /** TP-SL35-035 — Stand Fast 90006 teaches Devotion Aura 465. */
+    @Test
+    void tpSl35StandFastShouldTeachDevotionAura() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Standhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_PALADIN_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockPaladin(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_STAND_FAST);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        world.onCreatureKilled(p, wyrm);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_STAND_FAST);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(org.tbc.world.spell.SpellEngine.DEVOTION_AURA,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(org.tbc.world.spell.SpellEngine.DEVOTION_AURA));
+    }
+
+    /** TP-SL35-036 — Strength in Service 90007 teaches Blessing of Might 19740. */
+    @Test
+    void tpSl35StrengthInServiceShouldTeachBlessingOfMight() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Mighthero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_PALADIN_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockPaladin(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_STRENGTH_IN_SERVICE);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_BLESSING_TOKEN, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_BLESSING_TOKEN, 1, client.session()::send);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_STRENGTH_IN_SERVICE);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_BLESSING_OF_MIGHT,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_BLESSING_OF_MIGHT));
+    }
+
+    /** TP-SL35-037 — Mercy's Lesson 90008 teaches Holy Light 635. */
+    @Test
+    void tpSl35MercysLessonShouldTeachHolyLight() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Mercyhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_PALADIN_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockPaladin(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_MERCYS_LESSON);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_HEALING_KIT, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_HEALING_KIT, 1, client.session()::send);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_MERCYS_LESSON);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(org.tbc.world.spell.SpellEngine.HOLY_LIGHT,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(org.tbc.world.spell.SpellEngine.HOLY_LIGHT));
+    }
+
     private static void unlockWarrior(Player p) {
         p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
     }
@@ -1310,6 +1506,13 @@ class Slice35P0Test {
         p.rewardedQuests.add(HeroClassUnlock.QUEST_RALLY_THE_LINE);
         if (!p.spells.contains(Content.SPELL_BATTLE_SHOUT)) {
             p.spells.add(Content.SPELL_BATTLE_SHOUT);
+        }
+    }
+
+    private static void unlockPaladin(Player p) {
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_A_VOW_TESTED);
+        if (!p.spells.contains(org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS)) {
+            p.spells.add(org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS);
         }
     }
 

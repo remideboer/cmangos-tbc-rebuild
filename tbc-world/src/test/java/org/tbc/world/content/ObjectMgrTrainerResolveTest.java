@@ -69,6 +69,8 @@ class ObjectMgrTrainerResolveTest {
         npc.entry = 16275;
         npc.npcFlags = Content.UNIT_NPC_FLAG_TRAINER;
 
+        assertFalse(mgr.isTrainerOf(classless, npc), "Paladin trainer locked until 90005");
+        classless.rewardedQuests.add(org.tbc.world.classless.HeroClassUnlock.QUEST_A_VOW_TESTED);
         assertTrue(mgr.isTrainerOf(classless, npc));
     }
 

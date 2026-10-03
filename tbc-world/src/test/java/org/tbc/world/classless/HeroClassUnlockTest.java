@@ -49,4 +49,18 @@ class HeroClassUnlockTest {
         p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
         assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
     }
+
+    @Test
+    void trainerClassUnlockedWhenPaladinShouldRequireVowTested() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PALADIN));
+        assertSame(HeroClassUnlock.PALADIN, HeroClassUnlock.forQuest(HeroClassUnlock.QUEST_A_VOW_TESTED));
+        assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_STAND_FAST));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_A_VOW_TESTED);
+        assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PALADIN));
+        assertFalse(HeroClassUnlock.spellUnlocked(p, SpellEngine.DEVOTION_AURA));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_STAND_FAST);
+        assertTrue(HeroClassUnlock.spellUnlocked(p, SpellEngine.DEVOTION_AURA));
+    }
 }

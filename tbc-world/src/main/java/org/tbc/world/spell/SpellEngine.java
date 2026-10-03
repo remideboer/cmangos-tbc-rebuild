@@ -625,6 +625,11 @@ public final class SpellEngine {
         // Spell.dbc 465: +55 armor (EffectBasePoints+1), school mask bit 0, DurationIndex permanent (−1).
         spells.put(DEVOTION_AURA, new SpellInfo(DEVOTION_AURA, EFFECT_APPLY_AREA_AURA_PARTY, SPELL_AURA_MOD_RESISTANCE,
                 0, 0, 55, 55, 0f, 1).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        // Blessing of Might Rank 1 — Spell.dbc 19740; Hero paladin follow-up reward.
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_BLESSING_OF_MIGHT, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_BLESSING_OF_MIGHT, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_ATTACK_POWER, 0, 20, 20, 20, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
         spells.put(2050, new SpellInfo(2050, EFFECT_HEAL, 0, 1, 20, 10, 14, 0f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(ClassScripts.SPELL_EXECUTE, new SpellInfo(ClassScripts.SPELL_EXECUTE, EFFECT_DUMMY, 0, 0, 0, 0, 0, 5f)
