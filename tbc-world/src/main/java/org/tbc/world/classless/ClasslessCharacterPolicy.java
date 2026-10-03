@@ -57,10 +57,14 @@ public final class ClasslessCharacterPolicy {
         }
         ClasslessConfig cfg = ClasslessConfig.get();
         LevelStats ls = levelStats != null ? levelStats : LevelStats.defaults();
-        LevelStats.Stats st = ls.averageStats(p.race, Math.max(1, p.level));
+        LevelStats.Stats st = ls.averageStats(p.race, 1);
         p.applyClasslessCreateStats(ls,
                 cfg.baseHealth(), cfg.baseMana(),
-                st.str(), st.agi(), st.sta(), st.inte(), st.spi());
+                st.str() + p.heroStats.spent(HeroStatAllocation.STR),
+                st.agi() + p.heroStats.spent(HeroStatAllocation.AGI),
+                st.sta() + p.heroStats.spent(HeroStatAllocation.STA),
+                st.inte() + p.heroStats.spent(HeroStatAllocation.INTELLECT),
+                st.spi() + p.heroStats.spent(HeroStatAllocation.SPI));
     }
 
     public static void applyCreate(Player p, ObjectMgr mgr, LongSupplier nextItemGuid) {

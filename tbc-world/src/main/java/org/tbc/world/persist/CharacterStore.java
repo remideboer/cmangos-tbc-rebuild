@@ -635,6 +635,11 @@ public final class CharacterStore {
             } catch (Exception e) {
                 log.warn("load quest status {}", e.getMessage());
             }
+            try {
+                loadHeroStats(c, p, mgr);
+            } catch (Exception e) {
+                log.warn("load hero stats {}", e.getMessage());
+            }
             memory.put(g, PlayerPersist.copy(p));
             attachSocial(p);
             attachDeclined(p);
@@ -793,6 +798,11 @@ public final class CharacterStore {
                     c.rollback(quests);
                     log.warn("save quest status {}", e.getMessage());
                 }
+                try {
+                    writeHeroStats(c, p);
+                } catch (Exception e) {
+                    log.warn("save hero stats {}", e.getMessage());
+                }
                 c.commit();
             } catch (Exception e) {
                 try {
@@ -899,6 +909,63 @@ public final class CharacterStore {
             ins.addBatch();
         }
         ins.executeBatch();
+    }
+
+    private static void writeHeroStats(Connection c, Player p) throws Exception {
+        if (!org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
+            return;
+        }
+        try (Statement st = c.createStatement()) {
+            st.execute("""
+                    CREATE TABLE IF NOT EXISTS character_hero_stats (
+                      guid INT PRIMARY KEY,
+                      unspent INT NOT NULL,
+                      str INT NOT NULL,
+                      agi INT NOT NULL,
+                      sta INT NOT NULL,
+                      inte INT NOT NULL,
+                      spi INT NOT NULL)
+                    """);
+        }
+        PreparedStatement del = c.prepareStatement("DELETE FROM character_hero_stats WHERE guid = ?");
+        del.setInt(1, Guid.low(p.guid));
+        del.executeUpdate();
+        PreparedStatement ins = c.prepareStatement(
+                "INSERT INTO character_hero_stats (guid, unspent, str, agi, sta, inte, spi) VALUES (?,?,?,?,?,?,?)");
+        ins.setInt(1, Guid.low(p.guid));
+        ins.setInt(2, p.heroStats.unspent());
+        ins.setInt(3, p.heroStats.spent(org.tbc.world.classless.HeroStatAllocation.STR));
+        ins.setInt(4, p.heroStats.spent(org.tbc.world.classless.HeroStatAllocation.AGI));
+        ins.setInt(5, p.heroStats.spent(org.tbc.world.classless.HeroStatAllocation.STA));
+        ins.setInt(6, p.heroStats.spent(org.tbc.world.classless.HeroStatAllocation.INTELLECT));
+        ins.setInt(7, p.heroStats.spent(org.tbc.world.classless.HeroStatAllocation.SPI));
+        ins.executeUpdate();
+    }
+
+    private static void loadHeroStats(Connection c, Player p, ObjectMgr mgr) throws Exception {
+        if (!org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
+            return;
+        }
+        org.tbc.world.content.LevelStats ls = mgr != null && mgr.levelStats != null
+                ? mgr.levelStats : org.tbc.world.content.LevelStats.defaults();
+        PreparedStatement ps = c.prepareStatement(
+                "SELECT unspent, str, agi, sta, inte, spi FROM character_hero_stats WHERE guid = ?");
+        ps.setInt(1, Guid.low(p.guid));
+        ResultSet rs;
+        try {
+            rs = ps.executeQuery();
+        } catch (Exception e) {
+            p.heroStats.backfillUnspent(ls, p.race, p.level);
+            org.tbc.world.classless.ClasslessCharacterPolicy.applyStartingStats(p, ls);
+            return;
+        }
+        if (!rs.next()) {
+            p.heroStats.backfillUnspent(ls, p.race, p.level);
+        } else {
+            p.heroStats.load(rs.getInt("unspent"), rs.getInt("str"), rs.getInt("agi"),
+                    rs.getInt("sta"), rs.getInt("inte"), rs.getInt("spi"));
+        }
+        org.tbc.world.classless.ClasslessCharacterPolicy.applyStartingStats(p, ls);
     }
 
     private static void loadQuestStatus(Connection c, Player p) throws Exception {

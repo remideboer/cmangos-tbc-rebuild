@@ -1186,7 +1186,7 @@ public final class WorldSession {
         }
         String msg = in.getCString();
         if (lang == org.tbc.world.classless.ClasslessPowerAddon.LANG_ADDON
-                && org.tbc.world.classless.ClasslessPowerAddon.handleInbound(this, msg)) {
+                && org.tbc.world.classless.ClasslessPowerAddon.handleInbound(this, world, msg)) {
             return;
         }
         if (msg.startsWith(".") || msg.startsWith("!")) {

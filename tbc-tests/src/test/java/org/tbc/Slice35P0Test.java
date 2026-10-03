@@ -531,6 +531,93 @@ class Slice35P0Test {
                 "energy addon after ding: " + chats);
     }
 
+    /** TP-SL35-026 — ding does not auto-apply STAT0-4; SMSG_LEVELUP_INFO stat deltas are 0. */
+    @Test
+    void tpSl35HeroDingShouldKeepL1StatsAndZeroLevelupStatDeltas() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Statding", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        created.xp = 350;
+        world.characters.save(created);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int str = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.attackSwing(world, c.guid);
+        client.clear();
+        int n = 0;
+        while (c.alive() && n++ < 400) {
+            world.meleeHit(p, c);
+        }
+        assertFalse(c.alive());
+        assertTrue(client.saw(Opcodes.SMSG_LEVELUP_INFO));
+        byte[] info = client.payload(Opcodes.SMSG_LEVELUP_INFO);
+        assertEquals(2, WowClientDouble.u32le(info, 0));
+        for (int i = 1; i <= 11; i++) {
+            assertEquals(0, WowClientDouble.u32le(info, i * 4), "LEVELUP_INFO dword " + i);
+        }
+        assertEquals(str, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT0));
+        assertTrue(p.heroStats.unspent() > 0);
+    }
+
+    /** TP-SL35-029 — SpendStat raises STAT0 and StatUpdate; warriors are ignored. */
+    @Test
+    void tpSl35HeroSpendStatShouldPushStatUpdateAndValues() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Spendhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        created.xp = 350;
+        world.characters.save(created);
+        client.login(world, created.guid);
+        sendHeroPowerEnable(client, world);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.attackSwing(world, c.guid);
+        int n = 0;
+        while (c.alive() && n++ < 400) {
+            world.meleeHit(p, c);
+        }
+        int str = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
+        int unspent = p.heroStats.unspent();
+        client.clear();
+        sendHeroSpend(client, world, 0, 1);
+        assertEquals(str + 1, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT0));
+        List<String> chats = messageChatBodies(client);
+        assertTrue(chats.stream().anyMatch(m -> m.equals(
+                "HeroPowerBars\tStatUpdate;" + (unspent - 1) + ";1;0;0;0;0")), chats.toString());
+    }
+
+    @Test
+    void tpSl35WarriorSpendStatShouldNotChangeStats() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Spendwar", 1, 1,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        int str = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
+        client.clear();
+        sendHeroSpend(client, world, 0, 1);
+        assertEquals(str, p.getInt(UpdateFields.UNIT_FIELD_STAT0));
+        List<String> chats = messageChatBodies(client);
+        assertFalse(chats.stream().anyMatch(m -> m.contains("StatUpdate")), chats.toString());
+    }
+
     @Test
     void tpSl35HeroPowerAddonEnableWhenWarriorShouldNotEnable() {
         World world = World.inMemory();
@@ -815,6 +902,14 @@ class Slice35P0Test {
         world.tick(1_500);
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
         assertEquals(hpBefore - 1, kobold.health(), "plate → 10×1/8 → 1 damage");
+    }
+
+    private static void sendHeroSpend(WowClientDouble client, World world, int stat, int amount) {
+        WowBuffer b = new WowBuffer(64);
+        b.putU32(0x01);
+        b.putU32(0xFFFFFFFF);
+        b.putCString("HeroPowerBars\tSpendStat;" + stat + ";" + amount);
+        client.handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
     }
 
     private static void sendHeroPowerEnable(WowClientDouble client, World world) {

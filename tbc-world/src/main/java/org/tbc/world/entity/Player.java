@@ -478,6 +478,10 @@ public final class Player extends Unit {
     /** Last CMSG_MOVE_SPLINE_DONE movementCounter (movement.md). */
     public int lastSplineDoneCounter;
 
+    /** Hero ability-point wallet; empty for ordinary classes. */
+    public final org.tbc.world.classless.HeroStatAllocation heroStats =
+            new org.tbc.world.classless.HeroStatAllocation();
+
     /** CMaNGOS m_createStats / GetCreateHealth — player_levelstats + player_classlevelstats for the level. */
     private final int[] createStats = new int[5];
     private LevelStats levelStats;
@@ -574,24 +578,34 @@ public final class Player extends Unit {
     private void giveLevel(int newLevel, List<Integer> changed) {
         LevelStats.ClassLevel cl = levelStats.classLevel(clazz, newLevel);
         LevelStats.Stats st = levelStats.stats(race, clazz, newLevel);
+        boolean hero = ClasslessCharacterPolicy.isClassless(this);
         if (session != null) {
             WowBuffer b = new WowBuffer(48);
             b.putU32(newLevel);
-            b.putU32(cl.baseHealth() - createHealth);
-            b.putU32(cl.baseMana() - createMana);
-            for (int i = 1; i < 5; i++) {
-                b.putU32(0);
-            }
-            for (int i = 0; i < 5; i++) {
-                b.putU32(st.stat(i) - createStats[i]);
+            if (hero) {
+                for (int i = 0; i < 11; i++) {
+                    b.putU32(0);
+                }
+            } else {
+                b.putU32(cl.baseHealth() - createHealth);
+                b.putU32(cl.baseMana() - createMana);
+                for (int i = 1; i < 5; i++) {
+                    b.putU32(0);
+                }
+                for (int i = 0; i < 5; i++) {
+                    b.putU32(st.stat(i) - createStats[i]);
+                }
             }
             session.send(Opcodes.SMSG_LEVELUP_INFO, b.array());
         }
+        int fromLevel = level;
         level = newLevel;
         setInt(UpdateFields.UNIT_FIELD_LEVEL, level);
-        initStatsForLevel(levelStats);
-        if (ClasslessCharacterPolicy.isClassless(this)) {
+        if (hero) {
+            heroStats.awardGain(levelStats, race, fromLevel, newLevel);
             ClasslessCharacterPolicy.applyStartingStats(this, levelStats);
+        } else {
+            initStatsForLevel(levelStats);
         }
         if (level >= TALENT_START_LEVEL) {
             setInt(UpdateFields.PLAYER_CHARACTER_POINTS1, getInt(UpdateFields.PLAYER_CHARACTER_POINTS1) + 1);
@@ -924,6 +938,37 @@ public final class Player extends Unit {
         return base + (intellect - base) * 15;
     }
 
+    /**
+     * Spend Hero unspent points into a base stat (0=str .. 4=spi). Refuses ordinary classes
+     * and invalid amounts. Preserves current HP and mana percentages.
+     */
+    public boolean spendHeroStat(int stat, int amount) {
+        if (!ClasslessCharacterPolicy.isClassless(this)) {
+            return false;
+        }
+        int oldHp = health();
+        int oldMaxHp = maxHealth();
+        int oldMana = getInt(UpdateFields.UNIT_FIELD_POWER1);
+        int oldMaxMana = getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+        if (!heroStats.spend(stat, amount)) {
+            return false;
+        }
+        ClasslessCharacterPolicy.applyStartingStats(this, levelStats);
+        restoreResourcePercent(oldHp, oldMaxHp, oldMana, oldMaxMana);
+        return true;
+    }
+
+    public void restoreResourcePercent(int oldHp, int oldMaxHp, int oldMana, int oldMaxMana) {
+        if (oldMaxHp > 0) {
+            setHealth(Math.max(1, Math.round(oldHp * (float) maxHealth() / oldMaxHp)));
+        }
+        int newMaxMana = getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+        if (oldMaxMana > 0 && newMaxMana > 0) {
+            setInt(UpdateFields.UNIT_FIELD_POWER1,
+                    Math.min(newMaxMana, Math.round(oldMana * (float) newMaxMana / oldMaxMana)));
+        }
+    }
+
     /** Persist copy (CharacterStore snapshot) — the create values are not update fields the DB stores. */
     public void copyCreateStatsFrom(Player src) {
         levelStats = src.levelStats;
@@ -934,6 +979,7 @@ public final class Player extends Unit {
         manaRegenPerSecond = src.manaRegenPerSecond;
         manaRegenInterruptPerSecond = src.manaRegenInterruptPerSecond;
         System.arraycopy(src.createStats, 0, createStats, 0, 5);
+        heroStats.copyFrom(src.heroStats);
     }
 
     public Player() {

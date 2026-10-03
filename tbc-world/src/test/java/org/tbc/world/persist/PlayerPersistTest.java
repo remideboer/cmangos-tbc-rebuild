@@ -180,4 +180,18 @@ class PlayerPersistTest {
         src.auras.clear();
         assertEquals(1, d.auras.size(), "clone is independent");
     }
+
+    @Test
+    void copyWhenHeroStatsSpentShouldCloneWallet() {
+        Player src = new Player();
+        src.guid = 19;
+        src.clazz = org.tbc.world.classless.ClasslessConfig.CLASS_CLASSLESS;
+        src.heroStats.awardGain(org.tbc.world.content.LevelStats.defaults(), 1, 1, 2);
+        assertTrue(src.heroStats.spend(0, 1));
+        Player d = PlayerPersist.copy(src);
+        assertEquals(src.heroStats.unspent(), d.heroStats.unspent());
+        assertEquals(1, d.heroStats.spent(0));
+        src.heroStats.spend(0, 1);
+        assertEquals(1, d.heroStats.spent(0), "clone is independent");
+    }
 }

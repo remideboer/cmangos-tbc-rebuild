@@ -192,15 +192,113 @@ local function handlePowerUpdate(body)
     end
 end
 
+local STAT_NAMES = { "Strength", "Agility", "Stamina", "Intellect", "Spirit" }
+local statCache = { unspent = 0, spent = { 0, 0, 0, 0, 0 } }
+local statPanel
+local statButtons = {}
+local unspentText
+
+local function sendSpend(statIndex)
+    if not SendAddonMessage then
+        return
+    end
+    local name = UnitName("player")
+    local body = "SpendStat;" .. (statIndex - 1) .. ";1"
+    if name then
+        SendAddonMessage(PREFIX, body, "WHISPER", name)
+    else
+        SendAddonMessage(PREFIX, body)
+    end
+end
+
+local function refreshStatPanel()
+    if not statPanel then
+        return
+    end
+    if unspentText then
+        unspentText:SetText("Unspent: " .. (statCache.unspent or 0))
+    end
+    for i = 1, 5 do
+        local btn = statButtons[i]
+        if btn then
+            if btn.label then
+                btn.label:SetText(STAT_NAMES[i] .. ": " .. (statCache.spent[i] or 0))
+            end
+            if (statCache.unspent or 0) < 1 then
+                btn:Disable()
+            else
+                btn:Enable()
+            end
+        end
+    end
+end
+
+local function ensureStatPanel()
+    if statPanel or not PaperDollFrame then
+        return statPanel ~= nil
+    end
+    local parent = PaperDollFrame
+    statPanel = CreateFrame("Frame", ADDON .. "StatPanel", parent)
+    statPanel:SetWidth(180)
+    statPanel:SetHeight(150)
+    statPanel:SetPoint("TOPLEFT", parent, "TOPRIGHT", -20, -40)
+    local bg = statPanel:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(statPanel)
+    bg:SetTexture("Interface\\Tooltips\\UI-Tooltip-Background")
+    bg:SetVertexColor(0, 0, 0, 0.6)
+    unspentText = statPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    unspentText:SetPoint("TOPLEFT", statPanel, "TOPLEFT", 8, -8)
+    unspentText:SetText("Unspent: 0")
+    for i = 1, 5 do
+        local btn = CreateFrame("Button", ADDON .. "StatPlus" .. i, statPanel, "UIPanelButtonTemplate")
+        btn:SetWidth(22)
+        btn:SetHeight(18)
+        btn:SetPoint("TOPLEFT", statPanel, "TOPLEFT", 150, -8 - i * 22)
+        btn:SetText("+")
+        btn:SetScript("OnClick", function()
+            sendSpend(i)
+        end)
+        local label = statPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetPoint("LEFT", statPanel, "TOPLEFT", 8, -16 - i * 22)
+        label:SetText(STAT_NAMES[i] .. ": 0")
+        btn.label = label
+        statButtons[i] = btn
+    end
+    statPanel:Show()
+    refreshStatPanel()
+    return true
+end
+
+local function handleStatUpdate(body)
+    local rest = string.match(body, "^StatUpdate;(.+)$")
+    if not rest then
+        return
+    end
+    local u, s0, s1, s2, s3, s4 = string.match(rest, "^(%d+);(%d+);(%d+);(%d+);(%d+);(%d+)$")
+    if not u then
+        return
+    end
+    statCache.unspent = tonumber(u)
+    statCache.spent[1] = tonumber(s0)
+    statCache.spent[2] = tonumber(s1)
+    statCache.spent[3] = tonumber(s2)
+    statCache.spent[4] = tonumber(s3)
+    statCache.spent[5] = tonumber(s4)
+    ensureStatPanel()
+    refreshStatPanel()
+end
+
 local function handleAddonMessage(prefix, msg)
     if prefix ~= PREFIX then
         return
     end
     if msg == "AddonEnabled" then
         activate()
+        ensureStatPanel()
         return
     end
     handlePowerUpdate(msg)
+    handleStatUpdate(msg)
 end
 
 frame:RegisterEvent("PLAYER_LOGIN")

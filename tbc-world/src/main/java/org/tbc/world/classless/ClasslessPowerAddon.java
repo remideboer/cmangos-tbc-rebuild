@@ -2,8 +2,10 @@ package org.tbc.world.classless;
 
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.WorldSession;
+import org.tbc.world.world.World;
 
 /**
  * Pushes mana/rage/energy to the HeroPowerBars client AddOn via LANG_ADDON whispers
@@ -19,6 +21,10 @@ public final class ClasslessPowerAddon {
     }
 
     public static boolean handleInbound(WorldSession session, String message) {
+        return handleInbound(session, null, message);
+    }
+
+    public static boolean handleInbound(WorldSession session, World world, String message) {
         if (session == null || message == null) {
             return false;
         }
@@ -35,6 +41,10 @@ public final class ClasslessPowerAddon {
             enable(session);
             return true;
         }
+        if (body.startsWith("SpendStat;")) {
+            spend(session, world, body);
+            return true;
+        }
         return true; // known prefix, swallow
     }
 
@@ -46,6 +56,7 @@ public final class ClasslessPowerAddon {
         session.setHeroPowerAddonEnabled(true);
         send(session, "AddonEnabled");
         pushAll(session);
+        pushStats(session);
     }
 
     public static void pushAll(WorldSession session) {
@@ -109,6 +120,73 @@ public final class ClasslessPowerAddon {
             return;
         }
         send(session, "PowerUpdate#" + powerType + ";" + cur + ";" + max);
+    }
+
+    public static void pushStats(WorldSession session) {
+        if (session == null || !session.heroPowerAddonEnabled()) {
+            return;
+        }
+        Player p = session.player();
+        if (!ClasslessCharacterPolicy.isClassless(p)) {
+            return;
+        }
+        send(session, "StatUpdate;" + p.heroStats.unspent()
+                + ";" + p.heroStats.spent(HeroStatAllocation.STR)
+                + ";" + p.heroStats.spent(HeroStatAllocation.AGI)
+                + ";" + p.heroStats.spent(HeroStatAllocation.STA)
+                + ";" + p.heroStats.spent(HeroStatAllocation.INTELLECT)
+                + ";" + p.heroStats.spent(HeroStatAllocation.SPI));
+    }
+
+    public static void pushStatsIfDinged(WorldSession session, int[] changedFields) {
+        if (changedFields == null) {
+            return;
+        }
+        for (int f : changedFields) {
+            if (f == UpdateFields.UNIT_FIELD_LEVEL) {
+                pushStats(session);
+                return;
+            }
+        }
+    }
+
+    private static void spend(WorldSession session, World world, String body) {
+        Player p = session.player();
+        if (!ClasslessCharacterPolicy.isClassless(p)) {
+            return;
+        }
+        String[] parts = body.split(";");
+        if (parts.length < 3) {
+            return;
+        }
+        int stat;
+        int amount;
+        try {
+            stat = Integer.parseInt(parts[1]);
+            amount = Integer.parseInt(parts[2]);
+        } catch (NumberFormatException e) {
+            return;
+        }
+        int oldHp = p.health();
+        int oldMaxHp = p.maxHealth();
+        int oldMana = p.getInt(UpdateFields.UNIT_FIELD_POWER1);
+        int oldMaxMana = p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+        if (!p.spendHeroStat(stat, amount)) {
+            return;
+        }
+        if (world != null) {
+            world.objectMgr.applyEquippedMelee(p);
+            p.restoreResourcePercent(oldHp, oldMaxHp, oldMana, oldMaxMana);
+            var upd = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.values(p,
+                            UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
+                            UpdateFields.UNIT_FIELD_STAT2, UpdateFields.UNIT_FIELD_STAT3,
+                            UpdateFields.UNIT_FIELD_STAT4, UpdateFields.UNIT_FIELD_RESISTANCES,
+                            UpdateFields.UNIT_FIELD_MAXHEALTH, UpdateFields.UNIT_FIELD_HEALTH,
+                            UpdateFields.UNIT_FIELD_MAXPOWER1, UpdateFields.UNIT_FIELD_POWER1));
+            session.send(upd.opcode(), upd.payload());
+        }
+        pushStats(session);
     }
 
     public static void send(WorldSession session, String body) {
