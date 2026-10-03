@@ -7,6 +7,8 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.entity.ReputationMgr;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.session.PacketSink;
+import org.tbc.world.session.WorldSession;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.junit.jupiter.api.BeforeEach;
@@ -448,6 +450,42 @@ class ContentQuestLoopTest {
         return c;
     }
 
+    private void placeBeyondVisibility(Creature c) {
+        float ox = c.x;
+        float oy = c.y;
+        c.relocate((float) GameMap.VISIBILITY + 20f, 0f, 0f, 0f);
+        map.reindex(c, ox, oy);
+    }
+
+    private void remember(long... guids) {
+        WorldSession session = new WorldSession(new PacketSink() {
+            @Override
+            public void send(int opcode, byte[] payload) {
+            }
+
+            @Override
+            public void close() {
+            }
+        }, 1);
+        for (long guid : guids) {
+            session.markSeen(guid);
+        }
+        p.session = session;
+    }
+
+    private int statusFor(long guid) {
+        WowBuffer multi = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        int n = multi.getU32();
+        for (int i = 0; i < n; i++) {
+            long id = multi.getU64();
+            int status = multi.getU8() & 0xFF;
+            if (id == guid) {
+                return status;
+            }
+        }
+        return -1;
+    }
+
     private void capture(int opcode, byte[] payload) {
         ops.add(opcode);
         last.put(opcode, payload);
@@ -511,6 +549,25 @@ class ContentQuestLoopTest {
         assertEquals(1, multi.getU32());
         assertEquals(mcbride.guid, multi.getU64());
         assertEquals(Content.DIALOG_STATUS_REWARD, multi.getU8());
+    }
+
+    /** CMaNGOS m_clientGUIDs — turn-in still on the client past VISIBILITY gets yellow ? (status 8). */
+    @Test
+    void killedMonsterCreditWhenTurnInSeenBeyondVisibilityShouldSendRewardStatus() {
+        Creature mcbride = spawn(Content.NPC_MARSHAL_MCBRIDE);
+        placeBeyondVisibility(mcbride);
+        Creature kobold = spawn(6);
+        mgr.quests.put(Content.QUEST_KOBOLD_CAMP_CLEANUP, questTemplate(
+                Content.QUEST_KOBOLD_CAMP_CLEANUP, Content.NPC_KOBOLD_VERMIN, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0));
+        mgr.questInvolved.put(Content.NPC_MARSHAL_MCBRIDE, new ArrayList<>(List.of(Content.QUEST_KOBOLD_CAMP_CLEANUP)));
+        p.questLogId[0] = Content.QUEST_KOBOLD_CAMP_CLEANUP;
+        remember(0L, kobold.guid, mcbride.guid);
+        ops.clear();
+        last.clear();
+        content.killedMonsterCredit(p, map, spawn(Content.NPC_KOBOLD_VERMIN), this::capture);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        assertEquals(Content.DIALOG_STATUS_REWARD, statusFor(mcbride.guid));
     }
 
     @Test

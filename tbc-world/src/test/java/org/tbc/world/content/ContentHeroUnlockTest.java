@@ -9,6 +9,8 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
+import org.tbc.world.session.PacketSink;
+import org.tbc.world.session.WorldSession;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.spell.SpellEngine;
 
@@ -142,6 +144,52 @@ class ContentHeroUnlockTest {
         assertEquals(5, p.questLogCounts[0][1]);
         assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
         assertTrue(ops.contains(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+    }
+
+    /** Trainer still on the client past VISIBILITY must get yellow ? when hits and the kill are done. */
+    @Test
+    void creatureHitCreditWhenTrainerSeenBeyondVisibilityShouldSendRewardStatus() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        Creature trainer = spawnTrainer();
+        WowBuffer in = new WowBuffer(12);
+        in.putU64(trainer.guid);
+        in.putU32(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        content.acceptQuest(p, map, in, this::capture);
+        float ox = trainer.x;
+        float oy = trainer.y;
+        trainer.relocate((float) GameMap.VISIBILITY + 20f, 0f, 0f, 0f);
+        map.reindex(trainer, ox, oy);
+        WorldSession session = new WorldSession(new PacketSink() {
+            @Override
+            public void send(int opcode, byte[] payload) {
+            }
+
+            @Override
+            public void close() {
+            }
+        }, 1);
+        session.markSeen(trainer.guid);
+        p.session = session;
+        p.questLogCounts[0][0] = 1;
+        Creature wyrm = spawnWyrm();
+        ops.clear();
+        last.clear();
+        for (int i = 0; i < HeroClassUnlock.REQUIRED_HITS; i++) {
+            content.creatureHitCredit(p, map, wyrm, this::capture);
+        }
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        WowBuffer multi = new WowBuffer(last.get(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        int n = multi.getU32();
+        boolean sawReward = false;
+        for (int i = 0; i < n; i++) {
+            long guid = multi.getU64();
+            int status = multi.getU8() & 0xFF;
+            if (guid == trainer.guid) {
+                assertEquals(Content.DIALOG_STATUS_REWARD, status);
+                sawReward = true;
+            }
+        }
+        assertTrue(sawReward);
     }
 
     @Test

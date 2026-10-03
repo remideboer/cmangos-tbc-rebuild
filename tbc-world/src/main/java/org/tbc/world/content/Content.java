@@ -17,7 +17,9 @@ import org.tbc.world.session.TaxiHandler;
 import org.tbc.world.session.TrainerHandler;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.LongSupplier;
 import java.util.function.LongSupplier;
@@ -545,20 +547,28 @@ public final class Content {
 
     /**
      * CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY. Player.cpp SendQuestGiverStatusMultiple:
-     * visible creatures with UNIT_NPC_FLAG_QUESTGIVER; raw guid + uint8 status; count prefix.
+     * questgivers inside visibility, plus any questgiver the client already has
+     * ({@code m_clientGUIDs} / session seen). Raw guid + uint8 status; count prefix.
      * Recv ignored. A game-object questgiver answers CMSG_QUESTGIVER_STATUS_QUERY.
      */
     public void questGiverStatusMultiple(Player p, GameMap map, BiConsumer<Integer, byte[]> send) {
-        List<Creature> found = new ArrayList<>();
+        Map<Long, Creature> found = new LinkedHashMap<>();
         for (Creature c : map.nearbyCreatures(p, GameMap.VISIBILITY)) {
-            if ((c.npcFlags & UNIT_NPC_FLAG_QUESTGIVER) == 0) {
-                continue;
+            if ((c.npcFlags & UNIT_NPC_FLAG_QUESTGIVER) != 0) {
+                found.put(c.guid, c);
             }
-            found.add(c);
+        }
+        if (p.session != null) {
+            for (long guid : p.session.seenGuids()) {
+                Creature c = creature(map, guid);
+                if (c != null && (c.npcFlags & UNIT_NPC_FLAG_QUESTGIVER) != 0) {
+                    found.putIfAbsent(c.guid, c);
+                }
+            }
         }
         WowBuffer out = new WowBuffer(4 + found.size() * 9);
         out.putU32(found.size());
-        for (Creature c : found) {
+        for (Creature c : found.values()) {
             out.putU64(c.guid);
             out.putU8(dialogStatus(p, c));
         }

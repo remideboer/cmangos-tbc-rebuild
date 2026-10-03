@@ -1088,6 +1088,11 @@ public final class WorldSession {
         return seen.contains(guid);
     }
 
+    /** Snapshot of guids already sent to the client (CMaNGOS {@code m_clientGUIDs}). */
+    public Set<Long> seenGuids() {
+        return Set.copyOf(seen);
+    }
+
     public void markSeen(long guid) {
         seen.add(guid);
     }
