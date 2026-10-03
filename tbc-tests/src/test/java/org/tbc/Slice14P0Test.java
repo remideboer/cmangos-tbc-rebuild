@@ -4795,6 +4795,17 @@ class Slice14P0Test {
         assertEquals(1, q[0] & 0xFF);
     }
 
+    /** TP-SL14-021 — new hunter starts with Skinning 393 and Skinning Knife 7005. */
+    @Test
+    void tpSl14HunterCreateShouldLearnSkinningAndKnife() {
+        World world = World.inMemory();
+        Player created = world.characters.create(1, "Huntstart", 1, 3, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        assertNotNull(created);
+        assertEquals(3, created.clazz);
+        assertTrue(created.skillValue(Content.SKILL_SKINNING) >= 1);
+        assertTrue(created.items.values().stream().anyMatch(i -> i.entry == Content.ITEM_SKINNING_KNIFE));
+    }
+
     @Test
     void tpSl14GroupOfflineLeaderOnTick() {
         World world = World.inMemory();

@@ -139,6 +139,7 @@ public final class Content {
     /** gossip_menu_option.option_text on Farley menu 1291. */
     public static final String GOSSIP_FARLEY_INN_INFO = "What can I do at an inn?";
     public static final int ITEM_WORN_SHORTSWORD = 25;
+    public static final int ITEM_SKINNING_KNIFE = 7005;
     /** tbc-db item_template 821; stat_type1 STAMINA 7 / stat_value1 2, armor 65. */
     public static final int ITEM_RIVERPAW_LEATHER_VEST = 821;
     /** tbc-db item_template 2041; stat_type1 AGILITY 3 / 11, stat_type2 STAMINA 7 / 5, armor 92. */

@@ -401,6 +401,32 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** Skinning Knife — item 7005; hunter create kit. */
+        public static ItemTemplate skinningKnife() {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = Content.ITEM_SKINNING_KNIFE;
+            t.itemClass = 2;
+            t.subClass = 14;
+            t.unk = -1;
+            t.name = "Skinning Knife";
+            t.displayId = 6440;
+            t.quality = 1;
+            t.buyPrice = 82;
+            t.sellPrice = 16;
+            t.inventoryType = 13;
+            t.allowableClass = -1;
+            t.allowableRace = -1;
+            t.itemLevel = 4;
+            t.requiredLevel = 1;
+            t.stackable = 1;
+            t.dmgMin[0] = 1;
+            t.dmgMax[0] = 3;
+            t.delay = 1600;
+            t.maxDurability = 20;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Recruit's Shirt — item 38 (CharStartOutfit human warrior). */
         public static ItemTemplate recruitsShirt() {
             ItemTemplate t = new ItemTemplate();
@@ -3423,6 +3449,7 @@ public final class ObjectMgr {
         creatures.putIfAbsent(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
         items.putIfAbsent(25, ItemTemplate.wornShortsword());
+        items.putIfAbsent(Content.ITEM_SKINNING_KNIFE, ItemTemplate.skinningKnife());
         items.putIfAbsent(38, ItemTemplate.recruitsShirt());
         items.putIfAbsent(39, ItemTemplate.recruitsPants());
         items.putIfAbsent(40, ItemTemplate.recruitsBoots());
@@ -4085,26 +4112,31 @@ public final class ObjectMgr {
 
     /** CMaNGOS LearnDefaultSkills from playercreateinfo_skills. Languages are 300/300. */
     public void applyCreateSkills(Player p) {
-        if (p == null || createSkills.isEmpty()) {
+        if (p == null) {
             return;
         }
-        int raceBit = p.race <= 0 ? 0 : 1 << (p.race - 1);
-        int classBit = p.clazz <= 0 ? 0 : 1 << (p.clazz - 1);
-        for (CreateSkill cs : createSkills) {
-            if (cs.skill() == 0) {
-                continue;
+        if (!createSkills.isEmpty()) {
+            int raceBit = p.race <= 0 ? 0 : 1 << (p.race - 1);
+            int classBit = p.clazz <= 0 ? 0 : 1 << (p.clazz - 1);
+            for (CreateSkill cs : createSkills) {
+                if (cs.skill() == 0) {
+                    continue;
+                }
+                if (cs.raceMask() != 0 && (cs.raceMask() & raceBit) == 0) {
+                    continue;
+                }
+                if (cs.classMask() != 0 && (cs.classMask() & classBit) == 0) {
+                    continue;
+                }
+                if (ChrStatic.isLanguageSkill(cs.skill())) {
+                    p.learnSkill(cs.skill(), 300, 300, cs.step());
+                } else {
+                    p.learnSkill(cs.skill(), 1, Math.max(1, p.level * 5), cs.step());
+                }
             }
-            if (cs.raceMask() != 0 && (cs.raceMask() & raceBit) == 0) {
-                continue;
-            }
-            if (cs.classMask() != 0 && (cs.classMask() & classBit) == 0) {
-                continue;
-            }
-            if (ChrStatic.isLanguageSkill(cs.skill())) {
-                p.learnSkill(cs.skill(), 300, 300, cs.step());
-            } else {
-                p.learnSkill(cs.skill(), 1, Math.max(1, p.level * 5), cs.step());
-            }
+        }
+        if (p.clazz == 3 && p.skillValue(Content.SKILL_SKINNING) < 1) {
+            p.learnSkill(Content.SKILL_SKINNING, 1, Math.max(1, p.level * 5), 0);
         }
     }
 
@@ -4124,6 +4156,9 @@ public final class ObjectMgr {
             for (CreateItem ci : extra) {
                 storeCreateItem(p, ci.itemId(), ci.amount(), nextGuid);
             }
+        }
+        if (p.clazz == 3) {
+            storeCreateItem(p, Content.ITEM_SKINNING_KNIFE, 1, nextGuid);
         }
         applyEquippedMelee(p);
     }

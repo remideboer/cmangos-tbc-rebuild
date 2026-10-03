@@ -102,6 +102,25 @@ class ObjectMgrStartItemsTest {
     }
 
     @Test
+    void applyCreateWhenHunterShouldLearnSkinningAndCarryKnife() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        Player hunter = player(1, 3, 0);
+        hunter.level = 1;
+        AtomicLong next = new AtomicLong(40);
+        mgr.applyCreateSkills(hunter);
+        mgr.giveStartItems(hunter, next::getAndIncrement);
+        assertTrue(hunter.skillValue(Content.SKILL_SKINNING) >= 1);
+        assertTrue(hunter.items.values().stream().anyMatch(i -> i.entry == Content.ITEM_SKINNING_KNIFE));
+        Player warrior = player(1, 1, 0);
+        warrior.level = 1;
+        mgr.applyCreateSkills(warrior);
+        mgr.giveStartItems(warrior, () -> 50L);
+        assertEquals(0, warrior.skillValue(Content.SKILL_SKINNING));
+        assertTrue(warrior.items.values().stream().noneMatch(i -> i.entry == Content.ITEM_SKINNING_KNIFE));
+    }
+
+    @Test
     void talentDbcWhenPresentShouldReplaceSeedRow() throws Exception {
         Path dbcDir = tmp.resolve("dbc");
         Files.createDirectories(dbcDir);
