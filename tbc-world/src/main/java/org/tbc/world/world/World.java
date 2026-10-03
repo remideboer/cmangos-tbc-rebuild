@@ -969,6 +969,16 @@ public final class World implements Runnable {
         sendCorpseValues(m, victim);
         m.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, victim.entry, victim, null,
                 (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
+        EventAi.SpellCast sink = (cr, t, spell) -> sendEventAiCast(m, cr, t, spell);
+        enterEvadeMode(m, killer, sink);
+        for (Creature other : m.creatures.values()) {
+            if (other == killer || !other.alive()) {
+                continue;
+            }
+            if (other.victim == victim.guid || other.threatManager.threatOf(victim) > 0f) {
+                enterEvadeMode(m, other, sink);
+            }
+        }
     }
 
     private void creatureMeleeIfReady(Creature c, Unit victim, int diff) {

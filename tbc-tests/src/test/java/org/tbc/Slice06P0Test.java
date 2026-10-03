@@ -210,6 +210,44 @@ class Slice06P0Test {
         assertTrue(sawMonsterMoveType(client, hostile.guid, org.tbc.world.session.TaxiHandler.MONSTER_MOVE_STOP));
     }
 
+    /**
+     * TP-SL06-028 — after a creature kills another creature, the killer EnterEvadeMode / HOME
+     * instead of standing in combat on the corpse.
+     */
+    @Test
+    void tpSl06GuardWhenHostileDiesShouldEvadeHome() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "CvcEvade", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature guard = world.objectMgr.spawnCreature(Content.NPC_MARSHAL_MCBRIDE, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        guard.extraFlags |= Creature.CREATURE_EXTRA_FLAG_GUARD;
+        org.tbc.world.ai.FactorySelector.selectAI(guard, world.scripts);
+        world.map(p.mapId, p.instanceId).add(guard);
+        Creature hostile = world.objectMgr.spawnCreature(6, 0, guard.x + 8f, guard.y, guard.z, guard.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(hostile);
+        float homeX = guard.spawnX;
+        float homeY = guard.spawnY;
+        guard.relocate(homeX + 20f, homeY, guard.z, guard.o);
+        world.map(p.mapId, p.instanceId).reindex(guard, homeX, homeY);
+        hostile.relocate(guard.x + 2f, guard.y, guard.z, guard.o);
+        world.map(p.mapId, p.instanceId).reindex(hostile, homeX + 8f, homeY);
+        world.tick(50);
+        int n = 0;
+        while (hostile.alive() && n++ < 400) {
+            world.creatureMeleeHit(guard, hostile);
+        }
+        assertFalse(hostile.alive());
+        assertFalse(guard.inCombat);
+        assertEquals(0, guard.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_IN_COMBAT);
+        assertTrue(guard.evading || guard.motion.type() == org.tbc.world.ai.MotionMaster.HOME);
+        assertTrue(client.saw(Opcodes.SMSG_ATTACKSTOP));
+    }
+
     @Test
     void hostileWhenOocAfterFirstUpdateShouldNotPullOnFiftyMsTick() {
         World world = World.inMemory();
