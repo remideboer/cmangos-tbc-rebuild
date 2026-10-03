@@ -121,6 +121,24 @@ class ObjectMgrStartItemsTest {
     }
 
     @Test
+    void applyCreateSkillsWhenAnyClassShouldLearnSecondaryProfessions() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.load(null, null);
+        for (int clazz : new int[]{1, 3, 6}) {
+            Player p = player(1, clazz, 0);
+            p.level = 1;
+            mgr.applyCreateSkills(p);
+            mgr.grantCreateSecondaries(p);
+            assertEquals(1, p.skillValue(Content.SKILL_FIRST_AID), "class " + clazz);
+            assertEquals(1, p.skillValue(Content.SKILL_COOKING), "class " + clazz);
+            assertEquals(1, p.skillValue(Content.SKILL_FISHING), "class " + clazz);
+            assertEquals(75, p.skillMax(Content.SKILL_FIRST_AID));
+            assertEquals(75, p.skillMax(Content.SKILL_COOKING));
+            assertEquals(75, p.skillMax(Content.SKILL_FISHING));
+        }
+    }
+
+    @Test
     void talentDbcWhenPresentShouldReplaceSeedRow() throws Exception {
         Path dbcDir = tmp.resolve("dbc");
         Files.createDirectories(dbcDir);

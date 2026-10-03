@@ -4140,6 +4140,22 @@ public final class ObjectMgr {
         }
     }
 
+    /** Cooking / First Aid / Fishing at 1/75 so the professions tab can level. After language slots. */
+    public void grantCreateSecondaries(Player p) {
+        if (p == null) {
+            return;
+        }
+        grantCreateSecondary(p, Content.SKILL_FIRST_AID);
+        grantCreateSecondary(p, Content.SKILL_COOKING);
+        grantCreateSecondary(p, Content.SKILL_FISHING);
+    }
+
+    private static void grantCreateSecondary(Player p, int skill) {
+        if (p.skillValue(skill) < 1) {
+            p.learnSkill(skill, 1, 75, 0);
+        }
+    }
+
     public void giveStartItems(Player p, LongSupplier nextGuid) {
         if (p == null || nextGuid == null) {
             return;

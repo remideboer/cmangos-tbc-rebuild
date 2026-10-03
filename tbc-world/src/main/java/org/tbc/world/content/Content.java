@@ -255,6 +255,8 @@ public final class Content {
     public static final int SKILL_HERBALISM = 182;
     public static final int SKILL_MINING = 186;
     public static final int SKILL_FISHING = 356;
+    public static final int SKILL_FIRST_AID = 129;
+    public static final int SKILL_COOKING = 185;
     public static final int SKILL_SKINNING = 393;
     public static final int SKILL_LOCKPICKING = 633;
     public static final int SKILL_JEWELCRAFTING = 755;

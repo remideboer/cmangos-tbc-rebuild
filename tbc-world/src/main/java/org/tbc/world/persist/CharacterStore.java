@@ -353,6 +353,9 @@ public final class CharacterStore {
         p.reputations.seedCreateDefaults(p.team);
         if (classless) {
             org.tbc.world.classless.ClasslessCharacterPolicy.applyCreate(p, mgr, this::nextItemGuid);
+            if (mgr != null) {
+                mgr.applyCreateSkills(p);
+            }
         } else {
             var ci = mgr.create(race, clazz);
             p.mapId = ci.map();
@@ -375,6 +378,9 @@ public final class CharacterStore {
             initStatsForLevel(p, mgr);
         }
         p.applyCreateFields();
+        if (mgr != null) {
+            mgr.grantCreateSecondaries(p);
+        }
         if (classless) {
             org.tbc.world.classless.ClasslessCharacterPolicy.applyPowers(p);
         }

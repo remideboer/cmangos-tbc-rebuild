@@ -4806,6 +4806,21 @@ class Slice14P0Test {
         assertTrue(created.items.values().stream().anyMatch(i -> i.entry == Content.ITEM_SKINNING_KNIFE));
     }
 
+    /** TP-SL14-022 — every class including Hero starts with First Aid, Cooking, and Fishing. */
+    @Test
+    void tpSl14CreateShouldLearnSecondaryProfessions() {
+        World world = World.inMemory();
+        Player warrior = world.characters.create(1, "Secwar", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player hunter = world.characters.create(1, "Sechunt", 1, 3, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player hero = world.characters.create(1, "Sechero", 1, 6, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        for (Player p : new Player[]{warrior, hunter, hero}) {
+            assertNotNull(p);
+            assertEquals(1, p.skillValue(Content.SKILL_FIRST_AID), p.name);
+            assertEquals(1, p.skillValue(Content.SKILL_COOKING), p.name);
+            assertEquals(1, p.skillValue(Content.SKILL_FISHING), p.name);
+        }
+    }
+
     @Test
     void tpSl14GroupOfflineLeaderOnTick() {
         World world = World.inMemory();
