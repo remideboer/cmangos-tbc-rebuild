@@ -342,6 +342,8 @@ class Slice07P0Test {
         client.handle(world, Opcodes.CMSG_USE_ITEM, use.array());
 
         assertEquals(Unit.UNIT_STAND_STATE_SIT, p.standState());
+        assertEquals(Unit.UNIT_STAND_STATE_SIT,
+                client.valuesField(p.guid, UpdateFields.UNIT_FIELD_BYTES_1) & 0xFF);
         assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == SpellEngine.SPELL_FOOD));
 
         WowBuffer stand = new WowBuffer(4);
@@ -423,6 +425,8 @@ class Slice07P0Test {
         client.handle(world, Opcodes.CMSG_USE_ITEM, use.array());
 
         assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        assertEquals(Unit.UNIT_STAND_STATE_SIT,
+                client.valuesField(p.guid, UpdateFields.UNIT_FIELD_BYTES_1) & 0xFF);
         assertFalse(p.items.containsKey((int) water.guid));
 
         world.advanceMs(SpellEngine.DRINK_AMPLITUDE_MS);

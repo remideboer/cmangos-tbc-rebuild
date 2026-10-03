@@ -462,6 +462,8 @@ public final class SpellEngine {
     private final AuraEngine auras = new AuraEngine();
     /** Wire sink while {@link #finishCast} runs effects (dispel VALUES). Null outside cast. */
     private BiConsumer<Integer, byte[]> effectSend;
+    /** True when this cast's STANDING_CANCELS aura moved the target from stand to sit. */
+    private boolean satFromStandingCancel;
     /**
      * After MOD_STEALTH / MOD_INVISIBILITY apply or unapply — World.updateObjectVisibility
      * (CMaNGOS UpdateVisibilityAndView). Default no-op for domain unit tests.
@@ -1210,6 +1212,7 @@ public final class SpellEngine {
                             long nowMs, BiConsumer<Integer, byte[]> send) {
         // Spell::cast → SendSpellCooldown → AddCooldown(RecoveryTime); nothing is sent (client uses Spell.dbc).
         caster.cooldowns.addSpell(sp.id, sp.recoveryMs, nowMs);
+        satFromStandingCancel = false;
         takePower(caster, sp, send);
         int hpBefore = target.health();
         int dmg = 0;
@@ -1254,6 +1257,11 @@ public final class SpellEngine {
                     for (SpellInfo e : extras) {
                         sendAuraStatValues(target, e, send);
                     }
+                }
+                if (satFromStandingCancel) {
+                    var sit = UpdateBuilder.maybeCompress(
+                            UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_BYTES_1));
+                    send.accept(sit.opcode(), sit.payload());
                 }
             }
         }
@@ -1330,15 +1338,18 @@ public final class SpellEngine {
 
     /**
      * CMaNGOS SpellAuraHolder apply: STANDING_CANCELS (food/drink) → SetStandState(SIT)
-     * when the target is not already sitting.
+     * when the target is not already sitting. Reports whether this call changed the state.
      */
-    private void maybeSitForStandingCancel(Unit target, int spellId) {
+    private boolean maybeSitForStandingCancel(Unit target, int spellId) {
         if ((auraInterruptFlags.getOrDefault(spellId, 0) & AURA_INTERRUPT_FLAG_STANDING_CANCELS) == 0) {
-            return;
+            return false;
         }
-        if (!target.isSitState()) {
-            target.sit();
+        if (target.isSitState()) {
+            return false;
         }
+        target.sit();
+        satFromStandingCancel = true;
+        return true;
     }
 
     /** DurationIndex −1 area auras (Devotion Aura 465): permanent until cancel. */
