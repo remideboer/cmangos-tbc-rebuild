@@ -741,6 +741,25 @@ class Slice08P0Test {
         assertEquals(Content.DIALOG_STATUS_REWARD, reward.getU8());
     }
 
+    /** TP-SL08-038 — SMSG_QUEST_QUERY_RESPONSE 4th u32 is ZoneOrSort (quest.md / HandleQuestQueryOpcode). */
+    @Test
+    void tpSl08QuestQueryShouldCarryZoneOrSortHeader() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Qzone", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        WowBuffer in = new WowBuffer(4);
+        in.putU32(Content.QUEST_KOBOLD_CAMP_CLEANUP);
+        client.handle(world, Opcodes.CMSG_QUEST_QUERY, in.array());
+        byte[] payload = client.payload(Opcodes.SMSG_QUEST_QUERY_RESPONSE);
+        assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, WowClientDouble.u32le(payload, 0));
+        assertEquals(2, WowClientDouble.u32le(payload, 4));
+        assertEquals(1, WowClientDouble.u32le(payload, 8));
+        assertEquals(Content.ZONE_ELWYNN, WowClientDouble.u32le(payload, 12));
+    }
+
     /** QuestDef.h DIALOG_STATUS_AVAILABLE — yellow exclamation. */
     private static final int DIALOG_STATUS_AVAILABLE = 6;
 }

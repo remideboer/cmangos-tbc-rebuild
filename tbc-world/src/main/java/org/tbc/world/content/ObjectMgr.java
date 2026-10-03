@@ -98,27 +98,27 @@ public final class ObjectMgr {
                                int reqCreatureOrGOId3, int reqCreatureOrGOCount3,
                                int reqCreatureOrGOId4, int reqCreatureOrGOCount4,
                                int reqItemId2, int reqItemCount2, int reqItemId3, int reqItemCount3,
-                               int reqItemId4, int reqItemCount4, int prevQuestId, int requiredRaces) {
+                               int reqItemId4, int reqItemCount4, int prevQuestId, int requiredRaces, int zoneOrSort) {
         public QuestTemplate(int id, String title, int minLevel, int type) {
             this(id, title, minLevel, type, 0, "", "", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
 
         public QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives) {
             this(id, title, minLevel, type, rewMoney, details, objectives, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
 
         public QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives,
                              int reqCreatureOrGOId1, int reqCreatureOrGOCount1) {
             this(id, title, minLevel, type, rewMoney, details, objectives, reqCreatureOrGOId1, reqCreatureOrGOCount1,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
 
         public QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives,
                              int reqCreatureOrGOId1, int reqCreatureOrGOCount1, int reqItemId1, int reqItemCount1) {
             this(id, title, minLevel, type, rewMoney, details, objectives, reqCreatureOrGOId1, reqCreatureOrGOCount1,
-                    reqItemId1, reqItemCount1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    reqItemId1, reqItemCount1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
 
         public QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives,
@@ -126,7 +126,7 @@ public final class ObjectMgr {
                              int questLevel, int rewMoneyMaxLevel, int rewItemId1, int rewItemCount1) {
             this(id, title, minLevel, type, rewMoney, details, objectives, reqCreatureOrGOId1, reqCreatureOrGOCount1,
                     reqItemId1, reqItemCount1, questLevel, rewMoneyMaxLevel, rewItemId1, rewItemCount1, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
 
         public QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives,
@@ -136,7 +136,24 @@ public final class ObjectMgr {
             this(id, title, minLevel, type, rewMoney, details, objectives, reqCreatureOrGOId1, reqCreatureOrGOCount1,
                     reqItemId1, reqItemCount1, questLevel, rewMoneyMaxLevel, rewItemId1, rewItemCount1,
                     rewChoiceItemId1, rewChoiceItemCount1, rewChoiceItemId2, rewChoiceItemCount2,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        }
+
+        public QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives,
+                             int reqCreatureOrGOId1, int reqCreatureOrGOCount1, int reqItemId1, int reqItemCount1,
+                             int questLevel, int rewMoneyMaxLevel, int rewItemId1, int rewItemCount1,
+                             int rewChoiceItemId1, int rewChoiceItemCount1, int rewChoiceItemId2, int rewChoiceItemCount2,
+                             int reqCreatureOrGOId2, int reqCreatureOrGOCount2,
+                             int reqCreatureOrGOId3, int reqCreatureOrGOCount3,
+                             int reqCreatureOrGOId4, int reqCreatureOrGOCount4,
+                             int reqItemId2, int reqItemCount2, int reqItemId3, int reqItemCount3,
+                             int reqItemId4, int reqItemCount4, int prevQuestId, int requiredRaces) {
+            this(id, title, minLevel, type, rewMoney, details, objectives, reqCreatureOrGOId1, reqCreatureOrGOCount1,
+                    reqItemId1, reqItemCount1, questLevel, rewMoneyMaxLevel, rewItemId1, rewItemCount1,
+                    rewChoiceItemId1, rewChoiceItemCount1, rewChoiceItemId2, rewChoiceItemCount2,
+                    reqCreatureOrGOId2, reqCreatureOrGOCount2, reqCreatureOrGOId3, reqCreatureOrGOCount3,
+                    reqCreatureOrGOId4, reqCreatureOrGOCount4, reqItemId2, reqItemCount2, reqItemId3, reqItemCount3,
+                    reqItemId4, reqItemCount4, prevQuestId, requiredRaces, 0);
         }
 
         int rewChoiceItemId(int index) {
@@ -2395,7 +2412,7 @@ public final class ObjectMgr {
                 + "ReqItemId1, ReqItemCount1, ReqItemId2, ReqItemCount2, ReqItemId3, ReqItemCount3, "
                 + "ReqItemId4, ReqItemCount4, QuestLevel, RewMoneyMaxLevel, RewItemId1, RewItemCount1, "
                 + "RewChoiceItemId1, RewChoiceItemCount1, RewChoiceItemId2, RewChoiceItemCount2, "
-                + "PrevQuestId, RewOrReqMoney, RequiredRaces FROM quest_template";
+                + "PrevQuestId, RewOrReqMoney, RequiredRaces, ZoneOrSort FROM quest_template";
         return java.util.List.of(
                 full,
                 "SELECT entry, Title, MinLevel, Type, ReqCreatureOrGOId1, ReqCreatureOrGOCount1, ReqItemId1, ReqItemCount1, "
@@ -2428,7 +2445,7 @@ public final class ObjectMgr {
             try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
                 int cols = rs.getMetaData().getColumnCount();
                 while (rs.next()) {
-                    if (cols >= 33) {
+                    if (cols >= 34) {
                         quests.put(rs.getInt("entry"), fullQuest(rs));
                     } else {
                         int reqId = cols >= 6 ? rs.getInt(5) : 0;
@@ -2469,7 +2486,7 @@ public final class ObjectMgr {
                 rs.getInt("ReqItemId2"), rs.getInt("ReqItemCount2"),
                 rs.getInt("ReqItemId3"), rs.getInt("ReqItemCount3"),
                 rs.getInt("ReqItemId4"), rs.getInt("ReqItemCount4"),
-                rs.getInt("PrevQuestId"), rs.getInt("RequiredRaces"));
+                rs.getInt("PrevQuestId"), rs.getInt("RequiredRaces"), rs.getInt("ZoneOrSort"));
     }
 
     private void loadQuestRelations(Connection c) {
@@ -3285,7 +3302,8 @@ public final class ObjectMgr {
                 "Rest and Relaxation", 1, 0, 0, "", "", 0, 0, 0, 0, 5, 27,
                 Content.ITEM_REFRESHING_SPRING_WATER, 5));
         quests.put(Content.QUEST_KOBOLD_CAMP_CLEANUP, new QuestTemplate(Content.QUEST_KOBOLD_CAMP_CLEANUP,
-                "Kobold Camp Cleanup", 1, 0, 0, "", "", Content.NPC_KOBOLD_VERMIN, 10));
+                "Kobold Camp Cleanup", 1, 0, 0, "", "", Content.NPC_KOBOLD_VERMIN, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Content.ZONE_ELWYNN));
         quests.put(Content.QUEST_BROTHERHOOD_OF_THIEVES, new QuestTemplate(Content.QUEST_BROTHERHOOD_OF_THIEVES,
                 "Brotherhood of Thieves", 2, 0, 0, "", "", 0, 0, Content.ITEM_RED_BURLAP_BANDANA, 12, 4, 216, 0, 0,
                 Content.ITEM_MILITIA_DAGGER, 1, Content.ITEM_MILITIA_HAMMER, 1));
@@ -3466,7 +3484,8 @@ public final class ObjectMgr {
                 "Rest and Relaxation", 1, 0, 0, "", "", 0, 0, 0, 0, 5, 27,
                 Content.ITEM_REFRESHING_SPRING_WATER, 5));
         quests.putIfAbsent(Content.QUEST_KOBOLD_CAMP_CLEANUP, new QuestTemplate(Content.QUEST_KOBOLD_CAMP_CLEANUP,
-                "Kobold Camp Cleanup", 1, 0, 0, "", "", Content.NPC_KOBOLD_VERMIN, 10));
+                "Kobold Camp Cleanup", 1, 0, 0, "", "", Content.NPC_KOBOLD_VERMIN, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Content.ZONE_ELWYNN));
         quests.putIfAbsent(Content.QUEST_BROTHERHOOD_OF_THIEVES, new QuestTemplate(Content.QUEST_BROTHERHOOD_OF_THIEVES,
                 "Brotherhood of Thieves", 2, 0, 0, "", "", 0, 0, Content.ITEM_RED_BURLAP_BANDANA, 12, 4, 216, 0, 0,
                 Content.ITEM_MILITIA_DAGGER, 1, Content.ITEM_MILITIA_HAMMER, 1));

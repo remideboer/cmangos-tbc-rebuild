@@ -278,7 +278,8 @@ class QueryHandlerTest {
         assertEquals(Content.QUEST_KOBOLD_CAMP_CLEANUP, b.getU32());
         assertEquals(2, b.getU32());
         assertEquals(1, b.getU32());
-        for (int i = 0; i < 16; i++) {
+        assertEquals(Content.ZONE_ELWYNN, b.getU32());
+        for (int i = 0; i < 15; i++) {
             b.getU32();
         }
         for (int i = 0; i < 4; i++) {

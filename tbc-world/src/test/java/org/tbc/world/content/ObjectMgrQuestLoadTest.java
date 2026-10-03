@@ -17,6 +17,7 @@ class ObjectMgrQuestLoadTest {
         assertTrue(templates.contains("PrevQuestId"), templates);
         assertTrue(templates.contains("RewOrReqMoney"), templates);
         assertTrue(templates.contains("RequiredRaces"), templates);
+        assertTrue(templates.contains("ZoneOrSort"), templates);
         assertFalse(templates.toUpperCase().contains("LIMIT"), templates);
         String relations = String.join("\n", ObjectMgr.questRelationQueries());
         assertTrue(relations.contains("creature_questrelation"), relations);

@@ -110,7 +110,7 @@ public final class QueryHandler {
         out.putU32(id);
         out.putU32(2);
         out.putU32(t.questLevel() != 0 ? t.questLevel() : t.minLevel());
-        out.putU32(0);
+        out.putU32(t.zoneOrSort());
         out.putU32(t.type());
         out.putU32(0);
         out.putU32(0);
