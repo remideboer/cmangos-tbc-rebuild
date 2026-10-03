@@ -30,11 +30,16 @@ public final class HeroClassUnlock {
     public static final int QUEST_DISAPPEAR_FROM_SIGHT = 90014;
     public static final int QUEST_FINISH_THE_OPENING = 90015;
     public static final int QUEST_KEEP_THE_ADVANTAGE = 90016;
+    public static final int QUEST_MERCY_AND_JUDGMENT = 90017;
+    public static final int QUEST_JUDGMENT_FROM_AFAR = 90018;
+    public static final int QUEST_A_GUARDING_WORD = 90019;
+    public static final int QUEST_PAIN_AS_WARNING = 90020;
 
     public static final int NPC_HERO_WARRIOR_TRAINER = 91001;
     public static final int NPC_HERO_PALADIN_TRAINER = 91002;
     public static final int NPC_HERO_HUNTER_TRAINER = 91003;
     public static final int NPC_HERO_ROGUE_TRAINER = 91004;
+    public static final int NPC_HERO_PRIEST_TRAINER = 91005;
     /** Blood Elf Sunstrider Isle warrior trainer display name. */
     public static final String NAME_LORVAEN_BLOODFEATHER = "Lorvaen Bloodfeather";
     /** Blood Elf Sunstrider Isle paladin trainer display name. */
@@ -43,6 +48,8 @@ public final class HeroClassUnlock {
     public static final String NAME_KAELAN_DAWNSTRIKE = "Kaelan Dawnstrike";
     /** Blood Elf Sunstrider Isle rogue trainer display name. */
     public static final String NAME_SYLARA_NIGHTWHISPER = "Sylara Nightwhisper";
+    /** Blood Elf Sunstrider Isle priest trainer display name. */
+    public static final String NAME_LIRAE_DAWNWHISPER = "Lirae Dawnwhisper";
     public static final int CREATURE_MANA_WYRM = 15274;
     public static final int REQUIRED_HITS = 5;
     public static final int REQUIRED_KILLS = 1;
@@ -66,6 +73,12 @@ public final class HeroClassUnlock {
     public static final int ITEM_SHADOWED_TOKEN = 92007;
     /** Slice and Dice follow-up: finishing-form notes. */
     public static final int ITEM_FINISHING_NOTES = 92008;
+    /** Priest unlock: healing supplies. */
+    public static final int ITEM_HEALING_SUPPLIES = 92009;
+    /** PW:F follow-up: warding scroll. */
+    public static final int ITEM_WARDING_SCROLL = 92010;
+    /** SW:P follow-up: shadow-marked token. */
+    public static final int ITEM_SHADOW_MARKED_TOKEN = 92011;
     /** Charge Rank 1 (Spell.dbc 100). */
     public static final int SPELL_CHARGE = 100;
     /** Rend Rank 1 (Spell.dbc 772). */
@@ -84,6 +97,12 @@ public final class HeroClassUnlock {
     public static final int SPELL_EVISCERATE = 2098;
     /** Slice and Dice Rank 1 (Spell.dbc 5171). */
     public static final int SPELL_SLICE_AND_DICE = 5171;
+    /** Lesser Heal Rank 1 (Spell.dbc 2050). */
+    public static final int SPELL_LESSER_HEAL = 2050;
+    /** Smite Rank 1 (Spell.dbc 585). */
+    public static final int SPELL_SMITE = 585;
+    /** Shadow Word: Pain Rank 1 (Spell.dbc 589). */
+    public static final int SPELL_SHADOW_WORD_PAIN = 589;
     /** Jesthenis Sunstriker (15280) ModelId1. */
     public static final int DISPLAY_JESTHENIS = 15521;
     /** FactionTemplate Silvermoon City NPC (creature 15280). Reputation faction 911. */
@@ -112,6 +131,11 @@ public final class HeroClassUnlock {
     public static final float SUNSTRIDER_ROGUE_Y = -6395.23f;
     public static final float SUNSTRIDER_ROGUE_Z = 38.5306f;
     public static final float SUNSTRIDER_ROGUE_O = 3.74096f;
+    /** Priest trainer a few yards from the warrior trainer. */
+    public static final float SUNSTRIDER_PRIEST_X = 10385.6f;
+    public static final float SUNSTRIDER_PRIEST_Y = -6403.23f;
+    public static final float SUNSTRIDER_PRIEST_Z = 38.5306f;
+    public static final float SUNSTRIDER_PRIEST_O = 3.74096f;
 
     public static final HeroClassUnlock WARRIOR = new HeroClassUnlock(
             Player.CLASS_WARRIOR,
@@ -149,6 +173,15 @@ public final class HeroClassUnlock {
             0,
             0);
 
+    public static final HeroClassUnlock PRIEST = new HeroClassUnlock(
+            Player.CLASS_PRIEST,
+            QUEST_MERCY_AND_JUDGMENT,
+            NPC_HERO_PRIEST_TRAINER,
+            SPELL_LESSER_HEAL,
+            CREATURE_MANA_WYRM,
+            0,
+            REQUIRED_KILLS);
+
     /** Hero-only follow-up: teaches one spell on turn-in; gates that spell on trainers. */
     public record FollowUp(int questId, int rewardSpell, int requiresQuest, int trainerClass) {
     }
@@ -177,12 +210,19 @@ public final class HeroClassUnlock {
             QUEST_FINISH_THE_OPENING, SPELL_EVISCERATE, QUEST_A_QUIET_HAND, Player.CLASS_ROGUE);
     public static final FollowUp KEEP_THE_ADVANTAGE = new FollowUp(
             QUEST_KEEP_THE_ADVANTAGE, SPELL_SLICE_AND_DICE, QUEST_A_QUIET_HAND, Player.CLASS_ROGUE);
+    public static final FollowUp JUDGMENT_FROM_AFAR = new FollowUp(
+            QUEST_JUDGMENT_FROM_AFAR, SPELL_SMITE, QUEST_MERCY_AND_JUDGMENT, Player.CLASS_PRIEST);
+    public static final FollowUp A_GUARDING_WORD = new FollowUp(
+            QUEST_A_GUARDING_WORD, SpellEngine.POWER_WORD_FORTITUDE, QUEST_MERCY_AND_JUDGMENT, Player.CLASS_PRIEST);
+    public static final FollowUp PAIN_AS_WARNING = new FollowUp(
+            QUEST_PAIN_AS_WARNING, SPELL_SHADOW_WORD_PAIN, QUEST_MERCY_AND_JUDGMENT, Player.CLASS_PRIEST);
 
     private static final List<FollowUp> FOLLOW_UPS = List.of(
             RALLY_THE_LINE, CLOSE_THE_DISTANCE, A_WOUND_TO_REMEMBER,
             STAND_FAST, STRENGTH_IN_SERVICE, MERCYS_LESSON,
             STEADY_AIM, VENOM_IN_THE_FIELD, A_CLEAN_SHOT,
-            DISAPPEAR_FROM_SIGHT, FINISH_THE_OPENING, KEEP_THE_ADVANTAGE);
+            DISAPPEAR_FROM_SIGHT, FINISH_THE_OPENING, KEEP_THE_ADVANTAGE,
+            JUDGMENT_FROM_AFAR, A_GUARDING_WORD, PAIN_AS_WARNING);
 
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_QUEST = new HashMap<>();
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_SPELL = new HashMap<>();
@@ -198,10 +238,12 @@ public final class HeroClassUnlock {
         UNLOCK_BY_QUEST.put(PALADIN.questId, PALADIN);
         UNLOCK_BY_QUEST.put(HUNTER.questId, HUNTER);
         UNLOCK_BY_QUEST.put(ROGUE.questId, ROGUE);
+        UNLOCK_BY_QUEST.put(PRIEST.questId, PRIEST);
         UNLOCK_BY_CLASS.put(WARRIOR.classId, WARRIOR);
         UNLOCK_BY_CLASS.put(PALADIN.classId, PALADIN);
         UNLOCK_BY_CLASS.put(HUNTER.classId, HUNTER);
         UNLOCK_BY_CLASS.put(ROGUE.classId, ROGUE);
+        UNLOCK_BY_CLASS.put(PRIEST.classId, PRIEST);
     }
 
     private final int classId;
@@ -272,8 +314,8 @@ public final class HeroClassUnlock {
     }
 
     /**
-     * Class trainers without a Hero unlock path stay open. Warrior/Paladin/Hunter/Rogue require
-     * their unlock quest rewarded.
+     * Class trainers without a Hero unlock path stay open. Warrior through Priest require their
+     * unlock quest rewarded.
      */
     public static boolean trainerClassUnlocked(Player p, int trainerClass) {
         HeroClassUnlock unlock = UNLOCK_BY_CLASS.get(trainerClass);

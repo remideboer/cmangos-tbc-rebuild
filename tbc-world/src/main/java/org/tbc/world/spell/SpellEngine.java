@@ -666,6 +666,11 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
         spells.put(585, new SpellInfo(585, EFFECT_SCHOOL_DAMAGE, 0, 2, 20, 13, 17, 30f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        // Shadow Word: Pain Rank 1 — Hero priest follow-up reward.
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_WORD_PAIN, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_WORD_PAIN, EFFECT_APPLY_AURA,
+                SPELL_AURA_PERIODIC_DAMAGE, 5, 25, 10, 10, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(18_000).withAmplitude(3_000));
         spells.put(1752, new SpellInfo(1752, EFFECT_WEAPON_DAMAGE, 0, 0, 45, 3, 3, 5f)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(2098, new SpellInfo(2098, EFFECT_SCHOOL_DAMAGE, 0, 0, 35, 6, 10, 5f)

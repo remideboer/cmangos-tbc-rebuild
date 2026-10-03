@@ -97,4 +97,20 @@ class HeroClassUnlockTest {
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PALADIN));
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_HUNTER));
     }
+
+    @Test
+    void trainerClassUnlockedWhenPriestShouldRequireMercyAndJudgment() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PRIEST));
+        assertSame(HeroClassUnlock.PRIEST, HeroClassUnlock.forQuest(HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT));
+        assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_JUDGMENT_FROM_AFAR));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT);
+        assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PRIEST));
+        assertFalse(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_SMITE));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_JUDGMENT_FROM_AFAR);
+        assertTrue(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_SMITE));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_ROGUE));
+    }
 }

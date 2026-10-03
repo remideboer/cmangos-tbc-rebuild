@@ -1881,6 +1881,179 @@ class Slice35P0Test {
         }
     }
 
+    /**
+     * TP-SL35-046 — Priest unlock 90017 teaches Lesser Heal; trainer gated; warrior refused.
+     */
+    @Test
+    void tpSl35MercyAndJudgmentShouldTeachLesserHealAndGateTrainer() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Mercyjudg", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_PRIEST_TRAINER);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+
+        client.clear();
+        WowBuffer listLocked = new WowBuffer(8);
+        listLocked.putU64(trainer.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, listLocked.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_LIST));
+
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        assertEquals(HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT, p.questLogId[0]);
+
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_HEALING_SUPPLIES, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_HEALING_SUPPLIES, 1, client.session()::send);
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        world.onCreatureKilled(p, wyrm);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_LESSER_HEAL,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_LESSER_HEAL));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, listLocked.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST));
+
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_ROGUE));
+
+        WowClientDouble warClient = new WowClientDouble();
+        World.Account warAcc = new World.Account(7, "WAR6", new byte[40], 0, 1, "Win", "x86");
+        warClient.connect(warAcc);
+        Player warCreated = world.characters.create(warAcc.id(), "Warmj", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        warClient.login(world, warCreated.guid);
+        Player warrior = warClient.session().player();
+        warrior.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        WowBuffer warAccept = new WowBuffer(12);
+        warAccept.putU64(trainer.guid);
+        warAccept.putU32(HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT);
+        warClient.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, warAccept.array());
+        assertEquals(0, warrior.questLogId[0]);
+    }
+
+    /** TP-SL35-047 — Judgment from Afar 90018 teaches Smite 585. */
+    @Test
+    void tpSl35JudgmentFromAfarShouldTeachSmite() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Smitehero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_PRIEST_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockPriest(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_JUDGMENT_FROM_AFAR);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        world.onCreatureKilled(p, wyrm);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_JUDGMENT_FROM_AFAR);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_SMITE,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_SMITE));
+    }
+
+    /** TP-SL35-048 — A Guarding Word 90019 teaches Power Word: Fortitude 1243. */
+    @Test
+    void tpSl35GuardingWordShouldTeachPowerWordFortitude() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Forthhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_PRIEST_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockPriest(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_A_GUARDING_WORD);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_WARDING_SCROLL, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_WARDING_SCROLL, 1, client.session()::send);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_A_GUARDING_WORD);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(org.tbc.world.spell.SpellEngine.POWER_WORD_FORTITUDE,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(org.tbc.world.spell.SpellEngine.POWER_WORD_FORTITUDE));
+    }
+
+    /** TP-SL35-049 — Pain as Warning 90020 teaches Shadow Word: Pain 589. */
+    @Test
+    void tpSl35PainAsWarningShouldTeachShadowWordPain() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Painhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_PRIEST_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockPriest(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_PAIN_AS_WARNING);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_SHADOW_MARKED_TOKEN, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_SHADOW_MARKED_TOKEN, 1, client.session()::send);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_PAIN_AS_WARNING);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_SHADOW_WORD_PAIN,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_SHADOW_WORD_PAIN));
+    }
+
+    private static void unlockPriest(Player p) {
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT);
+        if (!p.spells.contains(HeroClassUnlock.SPELL_LESSER_HEAL)) {
+            p.spells.add(HeroClassUnlock.SPELL_LESSER_HEAL);
+        }
+    }
+
     private static void swingOnce(World world, WowClientDouble client, Player p, Creature c) {
         p.relocate(c.x, c.y, c.z, c.o);
         WowBuffer atk = new WowBuffer(8);

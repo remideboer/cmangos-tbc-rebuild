@@ -3396,6 +3396,7 @@ public final class ObjectMgr {
         seedHeroPaladinUnlock();
         seedHeroHunterUnlock();
         seedHeroRogueUnlock();
+        seedHeroPriestUnlock();
     }
 
     private void seedHeroWarriorUnlock() {
@@ -3560,6 +3561,75 @@ public final class ObjectMgr {
         addQuestRelation(questGivers, trainer, mercy);
         addQuestRelation(questInvolved, trainer, mercy);
         questRewSpell.putIfAbsent(mercy, org.tbc.world.spell.SpellEngine.HOLY_LIGHT);
+    }
+
+    private void seedHeroPriestUnlock() {
+        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_PRIEST_TRAINER;
+        int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT;
+        int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
+        int supplies = org.tbc.world.classless.HeroClassUnlock.ITEM_HEALING_SUPPLIES;
+        creatures.put(trainer, new CreatureTemplate(trainer,
+                org.tbc.world.classless.HeroClassUnlock.NAME_LIRAE_DAWNWHISPER,
+                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
+                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                "Priest Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
+        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(trainer, Player.CLASS_PRIEST);
+        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SMITE, 100, 1),
+                new TrainerSpell(org.tbc.world.spell.SpellEngine.POWER_WORD_FORTITUDE, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_WORD_PAIN, 100, 1))));
+        items.putIfAbsent(supplies, ItemTemplate.heroQuestJunk(supplies, "Healing Supplies"));
+        quests.putIfAbsent(questId, heroFollowUpQuest(questId, "Mercy and Judgment",
+                "Recover healing supplies for a wounded trainee and defeat a Mana Wyrm that threatens the route. Return alive.",
+                "Collect 1 Healing Supplies. Defeat 1 Mana Wyrm.",
+                wyrm, 1, supplies, 1, 0));
+        addQuestRelation(questGivers, trainer, questId);
+        addQuestRelation(questInvolved, trainer, questId);
+        questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_LESSER_HEAL);
+        seedHeroPriestFollowUps(trainer, wyrm, questId);
+        addSpawnIfMissing(24, trainer, 0, -8408f, -408f, 80f, 0f);
+        replaceSpawn(25, trainer, 530,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_X,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_Y,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_Z,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_O);
+    }
+
+    private void seedHeroPriestFollowUps(int trainer, int wyrm, int unlockQuest) {
+        int scroll = org.tbc.world.classless.HeroClassUnlock.ITEM_WARDING_SCROLL;
+        int shadow = org.tbc.world.classless.HeroClassUnlock.ITEM_SHADOW_MARKED_TOKEN;
+        items.putIfAbsent(scroll, ItemTemplate.heroQuestJunk(scroll, "Warding Scroll"));
+        items.putIfAbsent(shadow, ItemTemplate.heroQuestJunk(shadow, "Shadow-Marked Token"));
+
+        int judgment = org.tbc.world.classless.HeroClassUnlock.QUEST_JUDGMENT_FROM_AFAR;
+        quests.putIfAbsent(judgment, heroFollowUpQuest(judgment, "Judgment from Afar",
+                "Defeat a marked target with your existing kit. Return alive.",
+                "Defeat 1 Mana Wyrm.",
+                wyrm, 1, 0, 0, unlockQuest));
+        addQuestRelation(questGivers, trainer, judgment);
+        addQuestRelation(questInvolved, trainer, judgment);
+        questRewSpell.putIfAbsent(judgment, org.tbc.world.classless.HeroClassUnlock.SPELL_SMITE);
+
+        int guarding = org.tbc.world.classless.HeroClassUnlock.QUEST_A_GUARDING_WORD;
+        quests.putIfAbsent(guarding, heroFollowUpQuest(guarding, "A Guarding Word",
+                "Deliver a warding scroll to an ally. Return alive.",
+                "Collect 1 Warding Scroll.",
+                0, 0, scroll, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, guarding);
+        addQuestRelation(questInvolved, trainer, guarding);
+        questRewSpell.putIfAbsent(guarding, org.tbc.world.spell.SpellEngine.POWER_WORD_FORTITUDE);
+
+        int pain = org.tbc.world.classless.HeroClassUnlock.QUEST_PAIN_AS_WARNING;
+        quests.putIfAbsent(pain, heroFollowUpQuest(pain, "Pain as Warning",
+                "Recover a shadow-marked token from a local hostile's camp. Return alive.",
+                "Collect 1 Shadow-Marked Token.",
+                0, 0, shadow, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, pain);
+        addQuestRelation(questInvolved, trainer, pain);
+        questRewSpell.putIfAbsent(pain, org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_WORD_PAIN);
     }
 
     private void seedHeroRogueUnlock() {
