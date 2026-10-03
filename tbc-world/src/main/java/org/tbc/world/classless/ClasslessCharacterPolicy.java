@@ -83,5 +83,14 @@ public final class ClasslessCharacterPolicy {
         }
         p.addArmorProficiency(ClasslessConfig.ALL_ARMOR_PROFICIENCY_MASK);
         p.addWeaponProficiency(ClasslessConfig.ALL_WEAPON_PROFICIENCY_MASK);
+        refreshCombatSkillMax(p);
+    }
+
+    /** Raise Hero combat weapon + defense skill max to level×5; keep current values. */
+    public static void refreshCombatSkillMax(Player p) {
+        if (!isClassless(p)) {
+            return;
+        }
+        ClasslessStartingLoadout.refreshCombatSkillMax(p);
     }
 }

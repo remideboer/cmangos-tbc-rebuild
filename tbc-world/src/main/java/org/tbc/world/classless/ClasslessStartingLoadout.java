@@ -59,4 +59,32 @@ public final class ClasslessStartingLoadout {
         }
         p.learnSkill(WeaponSkills.SKILL_DEFENSE, 1, max, 0);
     }
+
+    /**
+     * CMaNGOS GetSkillMaxForLevel for Hero combat lines: set max to level×5, keep value/step.
+     * Called on ding and login so caps climb without resetting progress.
+     */
+    static void refreshCombatSkillMax(Player p) {
+        if (p == null) {
+            return;
+        }
+        int newMax = Math.max(1, p.level * 5);
+        for (int sub = 0; sub < WeaponSkills.ITEM_SUBCLASS_WEAPON_FISHING_POLE; sub++) {
+            int skill = WeaponSkills.skillForWeaponSubclass(sub);
+            if (skill != 0) {
+                refreshOneCombatSkill(p, skill, newMax);
+            }
+        }
+        refreshOneCombatSkill(p, WeaponSkills.SKILL_DEFENSE, newMax);
+    }
+
+    private static void refreshOneCombatSkill(Player p, int skillId, int newMax) {
+        if (!p.hasSkill(skillId)) {
+            p.learnSkill(skillId, 1, newMax, 0);
+            return;
+        }
+        int value = Math.min(p.skillValue(skillId), newMax);
+        int step = p.skillStep(skillId);
+        p.learnSkill(skillId, value, newMax, step);
+    }
 }

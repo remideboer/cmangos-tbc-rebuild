@@ -605,6 +605,7 @@ public final class Player extends Unit {
         if (hero) {
             heroStats.awardGain(levelStats, race, fromLevel, newLevel);
             ClasslessCharacterPolicy.applyStartingStats(this, levelStats);
+            ClasslessCharacterPolicy.refreshCombatSkillMax(this);
             // Immediate StatUpdate so the character-pane addon shows new unspent without relog.
             ClasslessPowerAddon.pushStats(session);
         } else {
