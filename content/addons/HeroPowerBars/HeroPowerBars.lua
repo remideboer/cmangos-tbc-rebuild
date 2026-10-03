@@ -303,6 +303,7 @@ end
 
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("PLAYER_LEVEL_UP")
 frame:RegisterEvent("CHAT_MSG_ADDON")
 
 frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
@@ -313,8 +314,21 @@ frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
     end
     if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
         requestEnable()
+        return
+    end
+    if event == "PLAYER_LEVEL_UP" then
+        -- Re-sync unspent points if the ding StatUpdate was missed.
+        requestEnable()
     end
 end)
+
+-- When the character pane opens, build/refresh the allocation panel from cache.
+if CharacterFrame then
+    CharacterFrame:HookScript("OnShow", function()
+        ensureStatPanel()
+        refreshStatPanel()
+    end)
+end
 
 frame:SetScript("OnUpdate", function(self, elapsed)
     self._t = (self._t or 0) + elapsed

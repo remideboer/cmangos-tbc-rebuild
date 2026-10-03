@@ -2,6 +2,7 @@ package org.tbc.world.entity;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.classless.ClasslessCharacterPolicy;
+import org.tbc.world.classless.ClasslessPowerAddon;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.LevelStats;
 import org.tbc.world.content.SkillLineAbility;
@@ -604,6 +605,8 @@ public final class Player extends Unit {
         if (hero) {
             heroStats.awardGain(levelStats, race, fromLevel, newLevel);
             ClasslessCharacterPolicy.applyStartingStats(this, levelStats);
+            // Immediate StatUpdate so the character-pane addon shows new unspent without relog.
+            ClasslessPowerAddon.pushStats(session);
         } else {
             initStatsForLevel(levelStats);
         }

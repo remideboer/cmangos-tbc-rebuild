@@ -529,6 +529,11 @@ class Slice35P0Test {
                 "rage addon after ding: " + chats);
         assertTrue(chats.stream().anyMatch(m -> m.startsWith("HeroPowerBars\tPowerUpdate#3;")),
                 "energy addon after ding: " + chats);
+        int unspent = p.heroStats.unspent();
+        assertTrue(unspent > 0);
+        assertTrue(chats.stream().anyMatch(m -> m.equals(
+                "HeroPowerBars\tStatUpdate;" + unspent + ";0;0;0;0;0")),
+                "StatUpdate must follow ding without relog: " + chats);
     }
 
     /** TP-SL35-026 — ding does not auto-apply STAT0-4; SMSG_LEVELUP_INFO stat deltas are 0. */
