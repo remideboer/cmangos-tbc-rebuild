@@ -138,4 +138,50 @@ class GraveyardManagerTest {
         assertEquals(94, loc.id());
         assertEquals(0, loc.map());
     }
+
+    /**
+     * TP-SL17-024 — tbc-db game_graveyard_zone has no 3431 row. After SQL overlay, Blood Elf
+     * createinfo still resolves to world_safe_locs 912 on map 530, not Horde default / void.
+     */
+    @Test
+    void loadWhenSqlOmitsSunstriderAreaShouldKeepIsleGy912() throws Exception {
+        String url = "jdbc:h2:mem:gy3431_" + java.util.UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (org.tbc.common.DbPool worldDb = new org.tbc.common.DbPool(url, "sa", "", "gy-3431")) {
+            try (java.sql.Connection c = worldDb.get(); java.sql.Statement st = c.createStatement()) {
+                st.execute("""
+                        CREATE TABLE world_safe_locs (
+                          id INT PRIMARY KEY, map INT, x FLOAT, y FLOAT, z FLOAT, o FLOAT)
+                        """);
+                st.execute("""
+                        CREATE TABLE game_graveyard_zone (
+                          id INT, ghost_loc INT, link_kind INT, faction INT)
+                        """);
+                st.execute("""
+                        INSERT INTO world_safe_locs (id, map, x, y, z, o) VALUES
+                        (10, 1, -618.518, -4251.67, 38.718, 0),
+                        (912, 530, 10458.5, -6364.61, 39.7907, 5.49779),
+                        (914, 530, 8936.56, -7439.9, 82.0856, 5.49779),
+                        (921, 530, 9407, -6847.67, 16, 5.70723),
+                        (922, 530, 8709.46, -6671.76, 70.336, 3.14159)
+                        """);
+                st.execute("""
+                        INSERT INTO game_graveyard_zone (id, ghost_loc, link_kind, faction) VALUES
+                        (912, 3430, 0, 0),
+                        (914, 3430, 0, 0),
+                        (921, 3430, 0, 0),
+                        (922, 3430, 0, 0)
+                        """);
+            }
+            GraveyardManager g = new GraveyardManager();
+            g.addLoc(new GraveyardManager.Loc(GraveyardManager.DEFAULT_HORDE, 1, -618.518f, -4251.67f, 38.718f, 0f));
+            g.load(worldDb);
+            GraveyardManager.Loc loc = g.closest(530, 10349.6f, -6357.29f, 33.4026f,
+                    GraveyardManager.HORDE, AreaTable.SUNSTRIDER_ISLE, 0);
+            assertEquals(912, loc.id());
+            assertEquals(530, loc.map());
+            assertEquals(10458.5f, loc.x(), 0.5f);
+            assertEquals(39.7907f, loc.z(), 0.5f);
+        }
+    }
 }

@@ -134,6 +134,15 @@ public final class GraveyardManager {
         } catch (Exception e) {
             log.warn("graveyard load failed: {}", e.getMessage());
         }
+        ensureSunstriderSafety();
+    }
+
+    /** tbc-db has no 3431 AREALINK; keep Isle GY 912 after SQL overlay. */
+    private void ensureSunstriderSafety() {
+        addLoc(new Loc(912, 530, 10458.5f, -6364.61f, 39.7907f, 5.49779f));
+        addLink(912, AreaTable.EVERSONG_WOODS, AREALINK, TEAM_BOTH);
+        addLink(912, AreaTable.SUNSTRIDER_ISLE, AREALINK, TEAM_BOTH);
+        addLink(912, 530, MAPLINK, HORDE);
     }
 
     public Loc closest(int mapId, float x, float y, float z, int team, int areaId) {
