@@ -3400,6 +3400,7 @@ public final class ObjectMgr {
         seedHeroMageUnlock();
         seedHeroWarlockUnlock();
         seedHeroShamanUnlock();
+        seedHeroDruidUnlock();
     }
 
     private void seedHeroWarriorUnlock() {
@@ -3564,6 +3565,77 @@ public final class ObjectMgr {
         addQuestRelation(questGivers, trainer, mercy);
         addQuestRelation(questInvolved, trainer, mercy);
         questRewSpell.putIfAbsent(mercy, org.tbc.world.spell.SpellEngine.HOLY_LIGHT);
+    }
+
+    private void seedHeroDruidUnlock() {
+        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_DRUID_TRAINER;
+        int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_A_LIVING_BALANCE;
+        int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
+        int seed = org.tbc.world.classless.HeroClassUnlock.ITEM_BLIGHTED_SEED;
+        creatures.put(trainer, new CreatureTemplate(trainer,
+                org.tbc.world.classless.HeroClassUnlock.NAME_LIRAEN_WILDLEAF,
+                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
+                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                "Druid Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
+        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(trainer, Player.CLASS_DRUID);
+        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_TOUCH, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_MOONFIRE, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_MARK_OF_THE_WILD, 100, 1))));
+        items.putIfAbsent(seed, ItemTemplate.heroQuestJunk(seed, "Blighted Seed"));
+        quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Living Balance",
+                "Recover a blighted seed from the grove edge, then defeat a Mana Wyrm that feeds on it. Return alive.",
+                "Collect 1 Blighted Seed. Defeat 1 Mana Wyrm.",
+                wyrm, 1, seed, 1, 0));
+        addQuestRelation(questGivers, trainer, questId);
+        addQuestRelation(questInvolved, trainer, questId);
+        questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_WRATH);
+        seedHeroDruidFollowUps(trainer, wyrm, questId);
+        addSpawnIfMissing(32, trainer, 0, -8416f, -416f, 80f, 0f);
+        replaceSpawn(33, trainer, 530,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_X,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_Y,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_Z,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_O);
+    }
+
+    private void seedHeroDruidFollowUps(int trainer, int wyrm, int unlockQuest) {
+        int salve = org.tbc.world.classless.HeroClassUnlock.ITEM_GROVE_SALVE;
+        int mark = org.tbc.world.classless.HeroClassUnlock.ITEM_MOONLIGHT_MARK;
+        int offering = org.tbc.world.classless.HeroClassUnlock.ITEM_WILD_OFFERING;
+        items.putIfAbsent(salve, ItemTemplate.heroQuestJunk(salve, "Grove Salve"));
+        items.putIfAbsent(mark, ItemTemplate.heroQuestJunk(mark, "Moonlight Mark"));
+        items.putIfAbsent(offering, ItemTemplate.heroQuestJunk(offering, "Wild Offering"));
+
+        int touch = org.tbc.world.classless.HeroClassUnlock.QUEST_TOUCH_OF_THE_GROVE;
+        quests.putIfAbsent(touch, heroFollowUpQuest(touch, "Touch of the Grove",
+                "Gather grove salve for a wounded ally. Return alive.",
+                "Collect 1 Grove Salve.",
+                0, 0, salve, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, touch);
+        addQuestRelation(questInvolved, trainer, touch);
+        questRewSpell.putIfAbsent(touch, org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_TOUCH);
+
+        int silent = org.tbc.world.classless.HeroClassUnlock.QUEST_A_SILENT_MARK;
+        quests.putIfAbsent(silent, heroFollowUpQuest(silent, "A Silent Mark",
+                "Place a moonlight mark, then defeat its local threat with your existing kit. Return alive.",
+                "Collect 1 Moonlight Mark. Defeat 1 Mana Wyrm.",
+                wyrm, 1, mark, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, silent);
+        addQuestRelation(questInvolved, trainer, silent);
+        questRewSpell.putIfAbsent(silent, org.tbc.world.classless.HeroClassUnlock.SPELL_MOONFIRE);
+
+        int gift = org.tbc.world.classless.HeroClassUnlock.QUEST_A_GIFT_OF_THE_WILD;
+        quests.putIfAbsent(gift, heroFollowUpQuest(gift, "A Gift of the Wild",
+                "Recover a wild offering from the trainer's grove trial. Return alive.",
+                "Collect 1 Wild Offering.",
+                0, 0, offering, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, gift);
+        addQuestRelation(questInvolved, trainer, gift);
+        questRewSpell.putIfAbsent(gift, org.tbc.world.classless.HeroClassUnlock.SPELL_MARK_OF_THE_WILD);
     }
 
     private void seedHeroShamanUnlock() {

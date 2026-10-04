@@ -734,6 +734,15 @@ public final class SpellEngine {
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(5185, new SpellInfo(5185, EFFECT_HEAL, 0, 3, 25, 37, 51, 40f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        // Moonfire / Mark of the Wild Rank 1 — Hero druid follow-up rewards.
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_MOONFIRE, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_MOONFIRE, EFFECT_APPLY_AURA,
+                SPELL_AURA_PERIODIC_DAMAGE, 3, 25, 9, 9, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(12_000).withAmplitude(3_000));
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_MARK_OF_THE_WILD, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_MARK_OF_THE_WILD, EFFECT_APPLY_AURA,
+                AuraEngine.SPELL_AURA_MOD_STAT, 3, 60, 2, 2, 30f, 2)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
         spells.put(20580, new SpellInfo(20580, EFFECT_APPLY_AURA, SPELL_AURA_DUMMY, 0, 0, 0, 0, 0f)
                 .withDuration(10_000).withRecovery(10_000));
         spells.put(20549, new SpellInfo(20549, EFFECT_APPLY_AURA, SPELL_AURA_DUMMY, 0, 0, 0, 0, 0f)

@@ -153,4 +153,20 @@ class HeroClassUnlockTest {
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARLOCK));
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
     }
+
+    @Test
+    void trainerClassUnlockedWhenDruidShouldRequireLivingBalance() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_DRUID));
+        assertSame(HeroClassUnlock.DRUID, HeroClassUnlock.forQuest(HeroClassUnlock.QUEST_A_LIVING_BALANCE));
+        assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_TOUCH_OF_THE_GROVE));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_A_LIVING_BALANCE);
+        assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_DRUID));
+        assertFalse(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_HEALING_TOUCH));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_TOUCH_OF_THE_GROVE);
+        assertTrue(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_HEALING_TOUCH));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_SHAMAN));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
+    }
 }

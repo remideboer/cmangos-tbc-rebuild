@@ -66,6 +66,7 @@ public final class Player extends Unit {
     public static final int CLASS_SHAMAN = 7;
     public static final int CLASS_MAGE = 8;
     public static final int CLASS_WARLOCK = 9;
+    public static final int CLASS_DRUID = 11;
     public static final int PLAYER_FLAGS_GHOST = 0x00000010;
     /** Player.h PLAYER_FLAGS_PVP_DESIRED — permanent PvP preference. */
     public static final int PLAYER_FLAGS_PVP_DESIRED = 0x00000200;
