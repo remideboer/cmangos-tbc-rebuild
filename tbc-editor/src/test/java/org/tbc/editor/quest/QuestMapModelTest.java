@@ -98,4 +98,16 @@ class QuestMapModelTest {
         model.fitToMarkers();
         assertTrue(model.zoom() > 0);
     }
+
+    @Test
+    void deleteSelectedWhenMarkerPresentShouldRemoveIt() {
+        QuestMapModel model = new QuestMapModel();
+        model.setTool(QuestMapModel.Tool.PLACE_GIVER);
+        model.clickWorld(1, 2);
+        assertEquals(1, model.markers().size());
+        model.deleteSelected();
+        assertTrue(model.markers().isEmpty());
+        model.deleteSelected();
+        assertTrue(model.markers().isEmpty());
+    }
 }

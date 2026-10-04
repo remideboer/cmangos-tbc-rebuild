@@ -8,6 +8,7 @@ import org.tbc.world.map.WorldMapArea;
 import org.tbc.world.map.WorldMapAreas;
 
 import javax.swing.BorderFactory;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -35,6 +36,7 @@ public final class QuestDomain implements EditorDomain {
     private final JPanel root = new JPanel(new BorderLayout());
     private final QuestMapCanvas canvas = new QuestMapCanvas();
     private final JComboBox<WorldMapArea> mapCombo;
+    private final JLabel zoneLabel = new JLabel("Zone");
     private final JTextField idField = new JTextField("95001", 8);
     private final JTextField title = new JTextField(20);
     private final JTextArea details = new JTextArea(4, 20);
@@ -62,6 +64,19 @@ public final class QuestDomain implements EditorDomain {
         this.doc = service.create(95001);
         this.mapCombo = new JComboBox<>(this.maps.list().toArray(WorldMapArea[]::new));
         this.mapCombo.setEditable(true);
+        this.mapCombo.setPrototypeDisplayValue(WorldMapAreas.ELWYNN);
+        this.mapCombo.setPreferredSize(new Dimension(280, 24));
+        this.mapCombo.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(javax.swing.JList<?> list, Object value, int index,
+                                                                   boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof WorldMapArea area) {
+                    setText(area.displayName());
+                }
+                return this;
+            }
+        });
         issues.setEditable(false);
         preview.setEditable(false);
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -78,10 +93,14 @@ public final class QuestDomain implements EditorDomain {
         toolbar.add(validateBtn);
         toolbar.add(publishBtn);
         toolbar.add(ackDup);
-        toolbar.add(new JLabel("Map"));
-        toolbar.add(mapCombo);
-        toolbar.add(new JLabel("Tool"));
-        toolbar.add(tools);
+        JPanel zoneBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        zoneBar.add(zoneLabel);
+        zoneBar.add(mapCombo);
+        zoneBar.add(new JLabel("Tool"));
+        zoneBar.add(tools);
+        JPanel north = new JPanel(new BorderLayout());
+        north.add(toolbar, BorderLayout.NORTH);
+        north.add(zoneBar, BorderLayout.SOUTH);
         newBtn.addActionListener(e -> newDoc());
         saveBtn.addActionListener(e -> save());
         loadBtn.addActionListener(e -> load());
@@ -127,7 +146,7 @@ public final class QuestDomain implements EditorDomain {
         south.add(new JScrollPane(lookup), BorderLayout.CENTER);
         east.add(south, BorderLayout.SOUTH);
 
-        root.add(toolbar, BorderLayout.NORTH);
+        root.add(north, BorderLayout.NORTH);
         root.add(canvas, BorderLayout.CENTER);
         root.add(east, BorderLayout.EAST);
         pullFromDoc();
@@ -150,6 +169,14 @@ public final class QuestDomain implements EditorDomain {
 
     public QuestMapCanvas canvas() {
         return canvas;
+    }
+
+    public JComboBox<WorldMapArea> zoneCombo() {
+        return mapCombo;
+    }
+
+    public JLabel zoneLabel() {
+        return zoneLabel;
     }
 
     public void selectNamedMap(String displayName) {

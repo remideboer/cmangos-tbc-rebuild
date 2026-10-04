@@ -4,8 +4,11 @@ import org.tbc.world.map.RegionMinimap;
 import org.tbc.world.map.WorldMapArea;
 
 import javax.swing.JComponent;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -24,6 +27,12 @@ public final class QuestMapCanvas extends JPanel {
     private BufferedImage regionImage;
     private String hoverText = "";
     private Consumer<String> hoverListener = s -> {};
+    private boolean panning;
+    private int lastX;
+    private int lastY;
+    private float popupImgX;
+    private float popupImgY;
+    private JPopupMenu contextMenu = new JPopupMenu();
 
     public QuestMapCanvas() {
         setPreferredSize(new Dimension(640, 480));
@@ -31,8 +40,58 @@ public final class QuestMapCanvas extends JPanel {
         MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                float[] img = viewToImage(e.getX(), e.getY());
-                model.clickPixel(img[0], img[1]);
+                if (e.getButton() == MouseEvent.BUTTON2) {
+                    panning = true;
+                    lastX = e.getX();
+                    lastY = e.getY();
+                    setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                    return;
+                }
+                if (e.getButton() == MouseEvent.BUTTON3 || e.isPopupTrigger()) {
+                    float[] img = viewToImage(e.getX(), e.getY());
+                    popupImgX = img[0];
+                    popupImgY = img[1];
+                    contextMenu = buildContextMenu();
+                    if (isShowing()) {
+                        contextMenu.show(QuestMapCanvas.this, e.getX(), e.getY());
+                    }
+                    return;
+                }
+                if (e.getButton() == MouseEvent.BUTTON1) {
+                    float[] img = viewToImage(e.getX(), e.getY());
+                    model.clickPixel(img[0], img[1]);
+                    repaint();
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (e.getButton() == MouseEvent.BUTTON2) {
+                    panning = false;
+                    setCursor(Cursor.getDefaultCursor());
+                }
+                if (e.isPopupTrigger() && e.getButton() == MouseEvent.BUTTON3) {
+                    float[] img = viewToImage(e.getX(), e.getY());
+                    popupImgX = img[0];
+                    popupImgY = img[1];
+                    contextMenu = buildContextMenu();
+                    if (isShowing()) {
+                        contextMenu.show(QuestMapCanvas.this, e.getX(), e.getY());
+                    }
+                }
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (!panning && (e.getModifiersEx() & MouseEvent.BUTTON2_DOWN_MASK) == 0) {
+                    return;
+                }
+                panning = true;
+                int dx = e.getX() - lastX;
+                int dy = e.getY() - lastY;
+                lastX = e.getX();
+                lastY = e.getY();
+                model.pan(dx, dy);
                 repaint();
             }
 
@@ -56,6 +115,10 @@ public final class QuestMapCanvas extends JPanel {
         addMouseListener(mouse);
         addMouseMotionListener(mouse);
         addMouseWheelListener(mouse);
+    }
+
+    public JPopupMenu contextMenu() {
+        return contextMenu;
     }
 
     public void setHoverListener(Consumer<String> hoverListener) {
@@ -137,6 +200,57 @@ public final class QuestMapCanvas extends JPanel {
         if (!hoverText.isEmpty()) {
             g2.drawString(hoverText, 12, 16);
         }
+    }
+
+    private JPopupMenu buildContextMenu() {
+        JPopupMenu menu = new JPopupMenu();
+        addTool(menu, "Select", QuestMapModel.Tool.SELECT);
+        addTool(menu, "Place giver", QuestMapModel.Tool.PLACE_GIVER);
+        addTool(menu, "Place turn-in", QuestMapModel.Tool.PLACE_TURN_IN);
+        addTool(menu, "Place kill", QuestMapModel.Tool.PLACE_KILL);
+        addTool(menu, "Place object", QuestMapModel.Tool.PLACE_OBJECT);
+        addTool(menu, "Place area", QuestMapModel.Tool.PLACE_AREA);
+        addTool(menu, "Place route", QuestMapModel.Tool.PLACE_ROUTE);
+        addTool(menu, "Place note", QuestMapModel.Tool.PLACE_NOTE);
+        menu.addSeparator();
+        JMenuItem undo = new JMenuItem("Undo");
+        undo.addActionListener(e -> {
+            model.undo();
+            repaint();
+        });
+        JMenuItem redo = new JMenuItem("Redo");
+        redo.addActionListener(e -> {
+            model.redo();
+            repaint();
+        });
+        JMenuItem fit = new JMenuItem("Fit to region");
+        fit.addActionListener(e -> {
+            model.fitToRegion();
+            repaint();
+        });
+        JMenuItem del = new JMenuItem("Delete selected");
+        del.setEnabled(model.selected() != null);
+        del.addActionListener(e -> {
+            model.deleteSelected();
+            repaint();
+        });
+        menu.add(undo);
+        menu.add(redo);
+        menu.add(fit);
+        menu.add(del);
+        return menu;
+    }
+
+    private void addTool(JPopupMenu menu, String label, QuestMapModel.Tool tool) {
+        JMenuItem item = new JMenuItem(label);
+        item.addActionListener(e -> {
+            model.setTool(tool);
+            if (tool != QuestMapModel.Tool.SELECT) {
+                model.clickPixel(popupImgX, popupImgY);
+            }
+            repaint();
+        });
+        menu.add(item);
     }
 
     private float[] viewToImage(int viewX, int viewY) {

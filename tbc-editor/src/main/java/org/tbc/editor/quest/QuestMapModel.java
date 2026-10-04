@@ -273,6 +273,17 @@ public final class QuestMapModel {
         restore(redo.pop());
     }
 
+    public void deleteSelected() {
+        Marker m = selected();
+        if (m == null) {
+            return;
+        }
+        pushUndo();
+        markers.removeIf(x -> x.id.equals(m.id));
+        selectedId = null;
+        redo.clear();
+    }
+
     public void pan(double dx, double dy) {
         panX += dx;
         panY += dy;
