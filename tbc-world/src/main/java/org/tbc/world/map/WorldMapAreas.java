@@ -25,14 +25,14 @@ public final class WorldMapAreas {
             AreaTable.EVERSONG_WOODS, 530, "EversongWoods", "Eversong Woods",
             3083.96f, -10133.8f, 14848.4f, 5351.3f);
     /**
-     * Sunstrider Isle (area 3431) is not a WorldMapArea.dbc row. These loc* match the
-     * Eversong sheet pixels (187, 0)–(715, 557): WorldMapOverlay 1127 (512×512 at 195, 5)
-     * padded so the race-10 create point 10349.6, −6357.29 and graveyard 10458.5, −6364.61
-     * stay on the image.
+     * Sunstrider Isle (area 3431) is not a WorldMapArea.dbc row. These loc* are
+     * {@link WorldMapAreaMapper} world coordinates of Eversong sheet pixels (187, 0)–(748, 557):
+     * WorldMapOverlay 1127 (512×512 at 195, 5) padded so create point 10349.6, −6357.29
+     * and graveyard 10458.5, −6364.61 stay on the image. Horizontal is world Y.
      */
     public static final WorldMapArea SUNSTRIDER = new WorldMapArea(
             AreaTable.SUNSTRIDER_ISLE, 530, "SunstriderIsle", "Sunstrider Isle",
-            3083.96f, -6502.36f, 13114.07f, 8217.12f);
+            670.1699f, -6571.2f, 14848.4f, 7960.5293f);
 
     private final Map<Long, WorldMapArea> byKey = new HashMap<>();
     private final Map<Integer, WorldMapArea> byAreaId = new HashMap<>();
@@ -61,35 +61,53 @@ public final class WorldMapAreas {
             return c;
         }
         try {
-            Map<Integer, String> areaNames = areaNames(dataDir);
-            Map<Integer, String> mapNames = mapNames(dataDir);
-            DbcFile dbc = DbcFile.load(wma);
-            int n = 0;
-            for (int[] row : dbc.records) {
-                if (row.length < 8) {
-                    continue;
-                }
-                int mapId = row[1];
-                int areaId = row[2];
-                String internal = dbc.str(row[3]);
-                float locLeft = Float.intBitsToFloat(row[4]);
-                float locRight = Float.intBitsToFloat(row[5]);
-                float locTop = Float.intBitsToFloat(row[6]);
-                float locBottom = Float.intBitsToFloat(row[7]);
-                WorldMapArea area = new WorldMapArea(areaId, mapId, internal,
-                        displayName(areaId, mapId, internal, areaNames, mapNames),
-                        locLeft, locRight, locTop, locBottom);
-                if (area.degenerate()) {
-                    continue;
-                }
-                c.put(area);
-                n++;
-            }
+            int n = c.ingest(DbcFile.load(wma), areaNames(dataDir), mapNames(dataDir));
             log.info("WorldMapArea {} rows from {}", n, wma);
         } catch (Exception e) {
             log.warn("WorldMapArea load failed: {}", e.getMessage());
         }
         return c;
+    }
+
+    /**
+     * Adds WorldMapArea rows parsed from client DBC bytes (MPQ or a loose file).
+     * Null world-map bytes add nothing. Name tables are optional.
+     */
+    public int addClientDbcs(byte[] worldMapArea, byte[] areaTable, byte[] mapDbc) {
+        if (worldMapArea == null) {
+            return 0;
+        }
+        try {
+            return ingest(DbcFile.read(worldMapArea), areaNames(areaTable), mapNames(mapDbc));
+        } catch (Exception e) {
+            log.warn("WorldMapArea client bytes failed: {}", e.getMessage());
+            return 0;
+        }
+    }
+
+    private int ingest(DbcFile dbc, Map<Integer, String> areaNames, Map<Integer, String> mapNames) {
+        int n = 0;
+        for (int[] row : dbc.records) {
+            if (row.length < 8) {
+                continue;
+            }
+            int mapId = row[1];
+            int areaId = row[2];
+            String internal = dbc.str(row[3]);
+            float locLeft = Float.intBitsToFloat(row[4]);
+            float locRight = Float.intBitsToFloat(row[5]);
+            float locTop = Float.intBitsToFloat(row[6]);
+            float locBottom = Float.intBitsToFloat(row[7]);
+            WorldMapArea area = new WorldMapArea(areaId, mapId, internal,
+                    displayName(areaId, mapId, internal, areaNames, mapNames),
+                    locLeft, locRight, locTop, locBottom);
+            if (area.degenerate()) {
+                continue;
+            }
+            put(area);
+            n++;
+        }
+        return n;
     }
 
     public void put(WorldMapArea area) {
@@ -152,13 +170,16 @@ public final class WorldMapAreas {
     }
 
     private static Map<Integer, String> areaNames(Path dataDir) {
+        return areaNames(readIfPresent(dataDir, "AreaTable.dbc"));
+    }
+
+    private static Map<Integer, String> areaNames(byte[] file) {
         Map<Integer, String> names = new HashMap<>();
-        Path file = dataDir.resolve("dbc").resolve("AreaTable.dbc");
-        if (!Files.isRegularFile(file)) {
+        if (file == null) {
             return names;
         }
         try {
-            DbcFile dbc = DbcFile.load(file);
+            DbcFile dbc = DbcFile.read(file);
             for (int[] row : dbc.records) {
                 if (row.length > 11 && row[0] != 0) {
                     names.put(row[0], dbc.str(row[11]));
@@ -171,13 +192,16 @@ public final class WorldMapAreas {
     }
 
     private static Map<Integer, String> mapNames(Path dataDir) {
+        return mapNames(readIfPresent(dataDir, "Map.dbc"));
+    }
+
+    private static Map<Integer, String> mapNames(byte[] file) {
         Map<Integer, String> names = new HashMap<>();
-        Path file = dataDir.resolve("dbc").resolve("Map.dbc");
-        if (!Files.isRegularFile(file)) {
+        if (file == null) {
             return names;
         }
         try {
-            DbcFile dbc = DbcFile.load(file);
+            DbcFile dbc = DbcFile.read(file);
             for (int[] row : dbc.records) {
                 if (row.length > 4) {
                     names.put(row[0], dbc.str(row[4]));
@@ -187,5 +211,21 @@ public final class WorldMapAreas {
             log.warn("Map names failed: {}", e.getMessage());
         }
         return names;
+    }
+
+    private static byte[] readIfPresent(Path dataDir, String name) {
+        if (dataDir == null) {
+            return null;
+        }
+        Path file = dataDir.resolve("dbc").resolve(name);
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        try {
+            return Files.readAllBytes(file);
+        } catch (Exception e) {
+            log.warn("{} read failed: {}", name, e.getMessage());
+            return null;
+        }
     }
 }

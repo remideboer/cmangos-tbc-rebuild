@@ -40,6 +40,20 @@ class WorldMapAreaMapperTest {
         assertEquals(62f, world[1], 1e-3f);
     }
 
+    /**
+     * Client map percent: horizontal is world Y (locLeft → locRight), vertical is world X (locTop → locBottom).
+     * Goldshire (−9465, 62) is about 28% across Elwynn and 47% down.
+     */
+    @Test
+    void toPixelWhenGoldshireShouldFollowWorldYAcrossAndWorldXDown() {
+        WorldMapAreaMapper map = new WorldMapAreaMapper(ELWYNN);
+        float across = (ELWYNN.locLeft() - 62f) / (ELWYNN.locLeft() - ELWYNN.locRight());
+        float down = (ELWYNN.locTop() - (-9465f)) / (ELWYNN.locTop() - ELWYNN.locBottom());
+        float[] px = map.toPixel(-9465f, 62f, 200, 100);
+        assertEquals(across * 200f, px[0], 0.05f);
+        assertEquals(down * 100f, px[1], 0.05f);
+    }
+
     @Test
     void containsWhenOutsideLocBoxShouldBeFalse() {
         WorldMapAreaMapper map = new WorldMapAreaMapper(ELWYNN);

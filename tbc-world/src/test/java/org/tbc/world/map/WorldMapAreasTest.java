@@ -90,6 +90,31 @@ class WorldMapAreasTest {
     }
 
     @Test
+    void addClientDbcsWhenZoneBytesShouldListDarkshoreAndFelwood() throws Exception {
+        WorldMapAreas areas = WorldMapAreas.seeded();
+        assertEquals(0, areas.addClientDbcs(null, null, null));
+        assertEquals(0, areas.addClientDbcs(new byte[]{1, 2, 3, 4}, null, null));
+        assertEquals(null, areas.byDisplayName("Darkshore"));
+        byte[] names = "\0Darkshore\0Felwood\0".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        ByteBuffer b = ByteBuffer.allocate(20 + 36 * 2 + names.length).order(ByteOrder.LITTLE_ENDIAN);
+        b.putInt(0x43424457);
+        b.putInt(2);
+        b.putInt(9);
+        b.putInt(36);
+        b.putInt(names.length);
+        putZone(b, 1, 1, 148, 1, 4000f, -4000f, 8000f, -8000f);
+        putZone(b, 2, 1, 361, 11, 5000f, -5000f, 9000f, -9000f);
+        b.put(names);
+        assertEquals(2, areas.addClientDbcs(b.array(), null, null));
+        WorldMapArea dark = areas.byDisplayName("Darkshore");
+        assertEquals("Darkshore", dark.internalName());
+        assertEquals(1, dark.mapId());
+        assertEquals(148, dark.areaId());
+        assertEquals("Felwood", areas.byDisplayName("Felwood").internalName());
+        assertEquals(361, areas.byAreaId(361).areaId());
+    }
+
+    @Test
     void fromDbcWhenMissingShouldKeepSeed() {
         WorldMapAreas areas = WorldMapAreas.fromDbc(tmp);
         assertEquals(0, areas.byAreaId(12).mapId());
@@ -110,6 +135,19 @@ class WorldMapAreasTest {
                 .findFirst()
                 .orElseThrow();
         assertEquals("Eastern Kingdoms", continent.displayName());
+    }
+
+    private static void putZone(ByteBuffer b, int id, int mapId, int areaId, int nameOff,
+                                 float locLeft, float locRight, float locTop, float locBottom) {
+        b.putInt(id);
+        b.putInt(mapId);
+        b.putInt(areaId);
+        b.putInt(nameOff);
+        b.putInt(Float.floatToIntBits(locLeft));
+        b.putInt(Float.floatToIntBits(locRight));
+        b.putInt(Float.floatToIntBits(locTop));
+        b.putInt(Float.floatToIntBits(locBottom));
+        b.putInt(-1);
     }
 
     private static void writeWorldMapArea(Path file, int id, int mapId, int areaId, String internal,

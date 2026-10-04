@@ -1,6 +1,9 @@
 package org.tbc.world.map;
 
-/** Axis-aligned WorldMapArea loc* ↔ image pixels (north-up, origin top-left). */
+/**
+ * Axis-aligned WorldMapArea loc* ↔ image pixels (north-up, origin top-left).
+ * Horizontal pixels follow world Y (locLeft → locRight). Vertical pixels follow world X (locTop → locBottom).
+ */
 public final class WorldMapAreaMapper {
     private final WorldMapArea area;
 
@@ -17,8 +20,8 @@ public final class WorldMapAreaMapper {
         if (imgW <= 0 || imgH <= 0) {
             return new float[]{area.locTop(), area.locLeft()};
         }
-        float worldX = area.locTop() + (pixelX / imgW) * (area.locBottom() - area.locTop());
-        float worldY = area.locLeft() + (pixelY / imgH) * (area.locRight() - area.locLeft());
+        float worldX = area.locTop() + (pixelY / imgH) * (area.locBottom() - area.locTop());
+        float worldY = area.locLeft() + (pixelX / imgW) * (area.locRight() - area.locLeft());
         return new float[]{worldX, worldY};
     }
 
@@ -26,8 +29,8 @@ public final class WorldMapAreaMapper {
         if (imgW <= 0 || imgH <= 0 || area.degenerate()) {
             return new float[]{0, 0};
         }
-        float px = (worldX - area.locTop()) / (area.locBottom() - area.locTop()) * imgW;
-        float py = (worldY - area.locLeft()) / (area.locRight() - area.locLeft()) * imgH;
+        float px = (worldY - area.locLeft()) / (area.locRight() - area.locLeft()) * imgW;
+        float py = (worldX - area.locTop()) / (area.locBottom() - area.locTop()) * imgH;
         return new float[]{px, py};
     }
 }

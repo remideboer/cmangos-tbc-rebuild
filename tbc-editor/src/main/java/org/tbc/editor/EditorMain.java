@@ -90,6 +90,7 @@ public final class EditorMain {
                                 : MapSurfaceService.fromTerrain(Terrain.fromDataDir(dataPath), null);
                         Terrain terrain = dataPath == null ? null : Terrain.fromDataDir(dataPath);
                         WorldMapAreas namedMaps = WorldMapAreas.fromDbc(dataPath);
+                        WorldMapBlp.mergeClientAreas(dataPath, namedMaps);
                         QuestService quests = new QuestService(mgr, content, surfaces);
                         frame.addDomain(new QuestDomain(quests, frame::setStatus, namedMaps, area -> {
                             RegionMinimap.Raster clientMap = WorldMapBlp.load(dataPath, area);

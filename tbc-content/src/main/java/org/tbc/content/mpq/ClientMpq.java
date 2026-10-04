@@ -103,7 +103,7 @@ public final class ClientMpq {
         if ((flags & FILE_IMPLODE) != 0) {
             throw new IOException("PKWARE implode is not supported");
         }
-        boolean single = (flags & FILE_SINGLE) != 0 || fileSize <= sectorSize;
+        boolean single = (flags & FILE_SINGLE) != 0;
         if (single) {
             return decompressBlock(data, fileSize);
         }

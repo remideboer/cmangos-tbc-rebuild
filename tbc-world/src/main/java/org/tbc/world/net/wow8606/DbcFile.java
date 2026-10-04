@@ -3,7 +3,7 @@ package org.tbc.world.net.wow8606;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,35 +22,43 @@ public final class DbcFile {
     }
 
     public static DbcFile load(Path path) throws IOException {
-        try (FileChannel ch = FileChannel.open(path)) {
-            ByteBuffer hdr = ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN);
-            ch.read(hdr);
-            hdr.flip();
-            int magic = hdr.getInt();
-            if (magic != 0x43424457) {
-                throw new IOException("not WDBC: " + path);
-            }
-            int recordCount = hdr.getInt();
-            int fieldCount = hdr.getInt();
-            int recordSize = hdr.getInt();
-            int stringSize = hdr.getInt();
-            ByteBuffer rec = ByteBuffer.allocate(recordCount * recordSize).order(ByteOrder.LITTLE_ENDIAN);
-            ch.read(rec);
-            rec.flip();
-            byte[] strings = new byte[stringSize];
-            ByteBuffer sb = ByteBuffer.wrap(strings);
-            ch.read(sb);
-            DbcFile f = new DbcFile(fieldCount, recordSize, strings);
-            int ints = recordSize / 4;
-            for (int r = 0; r < recordCount; r++) {
-                int[] row = new int[ints];
-                for (int i = 0; i < ints; i++) {
-                    row[i] = rec.getInt();
-                }
-                f.records.add(row);
-            }
-            return f;
+        return read(Files.readAllBytes(path), String.valueOf(path));
+    }
+
+    public static DbcFile read(byte[] all) throws IOException {
+        return read(all, "bytes");
+    }
+
+    private static DbcFile read(byte[] all, String source) throws IOException {
+        if (all == null || all.length < 20) {
+            throw new IOException("not WDBC: " + source);
         }
+        ByteBuffer buf = ByteBuffer.wrap(all).order(ByteOrder.LITTLE_ENDIAN);
+        int magic = buf.getInt();
+        if (magic != 0x43424457) {
+            throw new IOException("not WDBC: " + source);
+        }
+        int recordCount = buf.getInt();
+        int fieldCount = buf.getInt();
+        int recordSize = buf.getInt();
+        int stringSize = buf.getInt();
+        int recBytes = recordCount * recordSize;
+        if (recBytes < 0 || stringSize < 0 || 20L + recBytes + stringSize > all.length) {
+            throw new IOException("truncated WDBC: " + source);
+        }
+        byte[] strings = new byte[stringSize];
+        System.arraycopy(all, 20 + recBytes, strings, 0, stringSize);
+        DbcFile f = new DbcFile(fieldCount, recordSize, strings);
+        int ints = recordSize / 4;
+        ByteBuffer rec = ByteBuffer.wrap(all, 20, recBytes).order(ByteOrder.LITTLE_ENDIAN);
+        for (int r = 0; r < recordCount; r++) {
+            int[] row = new int[ints];
+            for (int i = 0; i < ints; i++) {
+                row[i] = rec.getInt();
+            }
+            f.records.add(row);
+        }
+        return f;
     }
 
     public String str(int offset) {

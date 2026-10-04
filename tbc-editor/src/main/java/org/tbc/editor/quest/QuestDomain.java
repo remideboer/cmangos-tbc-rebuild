@@ -24,6 +24,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
+import java.awt.event.ItemEvent;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -140,7 +141,12 @@ public final class QuestDomain implements EditorDomain {
         validateBtn.addActionListener(e -> refreshValidation());
         publishBtn.addActionListener(e -> publish());
         tools.addActionListener(e -> canvas.model().setTool((QuestMapModel.Tool) tools.getSelectedItem()));
-        mapCombo.addActionListener(e -> applySelectedMap());
+        mapCombo.addItemListener(e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED) {
+                applySelectedMap();
+            }
+        });
+        mapCombo.getEditor().addActionListener(e -> applySelectedMap());
         canvas.setHoverListener(status);
 
         zoneQuestList.setVisibleRowCount(6);
@@ -317,8 +323,12 @@ public final class QuestDomain implements EditorDomain {
     }
 
     private void applySelectedMap() {
+        Object sel = mapCombo.getSelectedItem();
         WorldMapArea area = selectedArea();
         if (area == null) {
+            if (sel != null && !sel.toString().isBlank()) {
+                status.accept("Unknown map: " + sel);
+            }
             return;
         }
         doc.setMapId(area.mapId());

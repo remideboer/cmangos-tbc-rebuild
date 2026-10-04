@@ -33,15 +33,33 @@ public final class WorldMapBlp {
             "common.MPQ"
     };
 
-    /** WorldMapOverlay 1127 on the 1024×768 Eversong sheet, padded to the create point. */
+    /**
+     * WorldMapOverlay 1127 on the 1024×768 Eversong sheet.
+     * The crop is wider than the 512px overlay so the create point (about x=732) stays inside.
+     * {@link WorldMapAreas#SUNSTRIDER} loc* are the world rectangle of this window.
+     */
     static final int SUNSTRIDER_OX = 195;
     static final int SUNSTRIDER_OY = 5;
     static final int CROP_X0 = 187;
     static final int CROP_Y0 = 0;
-    static final int CROP_X1 = 715;
+    static final int CROP_X1 = 748;
     static final int CROP_Y1 = 557;
 
     private WorldMapBlp() {}
+
+    /**
+     * Fills zones that are not in a loose {@code dbc/WorldMapArea.dbc}.
+     * The 8606 client keeps that table in locale MPQs. Returns how many rows were added.
+     */
+    public static int mergeClientAreas(Path dataDir, WorldMapAreas areas) {
+        if (areas == null) {
+            return 0;
+        }
+        return areas.addClientDbcs(
+                readNamed(dataDir, "DBFilesClient\\WorldMapArea.dbc"),
+                readNamed(dataDir, "DBFilesClient\\AreaTable.dbc"),
+                readNamed(dataDir, "DBFilesClient\\Map.dbc"));
+    }
 
     public static RegionMinimap.Raster load(Path dataDir, WorldMapArea area) {
         if (area == null) {
