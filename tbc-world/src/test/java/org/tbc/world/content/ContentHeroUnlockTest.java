@@ -21,6 +21,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Branch coverage for Hero warrior unlock (Content is JaCoCo-gated). */
@@ -102,6 +105,84 @@ class ContentHeroUnlockTest {
         allowed.putU32(HeroClassUnlock.QUEST_RALLY_THE_LINE);
         content.acceptQuest(p, map, allowed, this::capture);
         assertEquals(HeroClassUnlock.QUEST_RALLY_THE_LINE, p.questLogId[0]);
+    }
+
+    @Test
+    void creditTextEmoteNearNpcWhenNoRallyQuestShouldIgnore() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        spawnTrainer();
+        assertNull(content.creditTextEmoteNearNpc(p, map, HeroClassUnlock.TEXT_EMOTE_ROAR, this::capture));
+        takeQuest();
+        assertNull(content.creditTextEmoteNearNpc(p, map, HeroClassUnlock.TEXT_EMOTE_ROAR, this::capture));
+    }
+
+    @Test
+    void creditTextEmoteNearNpcWhenWrongEmoteOrCompleteShouldIgnore() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        takeRally();
+        spawnTrainer();
+        assertNull(content.creditTextEmoteNearNpc(p, map, 1, this::capture));
+        p.questLogState[0] = Content.QUEST_STATE_COMPLETE;
+        assertNull(content.creditTextEmoteNearNpc(p, map, HeroClassUnlock.TEXT_EMOTE_ROAR, this::capture));
+    }
+
+    @Test
+    void creditTextEmoteNearNpcWhenTrainerOutOfRangeShouldIgnore() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        takeRally();
+        Creature trainer = null;
+        for (Creature c : map.creatures.values()) {
+            if (c.entry == HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER) {
+                trainer = c;
+                break;
+            }
+        }
+        assertNotNull(trainer);
+        float ox = trainer.x;
+        float oy = trainer.y;
+        trainer.relocate(40f, 0f, 0f, 0f);
+        map.reindex(trainer, ox, oy);
+        spawn(HeroClassUnlock.CREATURE_MANA_WYRM);
+        assertNull(content.creditTextEmoteNearNpc(p, map, HeroClassUnlock.TEXT_EMOTE_ROAR, this::capture));
+        assertEquals(0, p.questLogCounts[0][HeroClassUnlock.RALLY_ROAR_COUNT_SLOT]);
+    }
+
+    @Test
+    void creditTextEmoteNearNpcWhenRoarBeforeKillShouldNotComplete() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        takeRally();
+        spawnTrainer();
+        var obj = content.creditTextEmoteNearNpc(p, map, HeroClassUnlock.TEXT_EMOTE_ROAR, this::capture);
+        assertNotNull(obj);
+        assertEquals(Content.SPELL_BATTLE_SHOUT, obj.castSpellId());
+        assertEquals(1, p.questLogCounts[0][HeroClassUnlock.RALLY_ROAR_COUNT_SLOT]);
+        assertEquals(0, p.questLogState[0]);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTUPDATE_ADD_KILL));
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+        ops.clear();
+        assertNull(content.creditTextEmoteNearNpc(p, map, HeroClassUnlock.TEXT_EMOTE_ROAR, this::capture));
+    }
+
+    @Test
+    void creditTextEmoteNearNpcWhenRoarAfterKillShouldComplete() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        takeRally();
+        spawnTrainer();
+        p.questLogCounts[0][0] = 1;
+        var obj = content.creditTextEmoteNearNpc(p, map, HeroClassUnlock.TEXT_EMOTE_ROAR, this::capture);
+        assertSame(mgr.questEmoteNearNpc.get(HeroClassUnlock.QUEST_RALLY_THE_LINE), obj);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+        assertTrue(ops.contains(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
+    }
+
+    @Test
+    void killedMonsterCreditWhenRallyMissingRoarShouldNotComplete() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        takeRally();
+        content.killedMonsterCredit(p, map, spawnWyrm(), this::capture);
+        assertEquals(1, p.questLogCounts[0][0]);
+        assertEquals(0, p.questLogState[0]);
+        assertFalse(ops.contains(Opcodes.SMSG_QUESTUPDATE_COMPLETE));
     }
 
     @Test
@@ -280,6 +361,17 @@ class ContentHeroUnlockTest {
         WowBuffer in = new WowBuffer(12);
         in.putU64(trainer.guid);
         in.putU32(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        content.acceptQuest(p, map, in, this::capture);
+        ops.clear();
+        last.clear();
+    }
+
+    private void takeRally() {
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        Creature trainer = spawnTrainer();
+        WowBuffer in = new WowBuffer(12);
+        in.putU64(trainer.guid);
+        in.putU32(HeroClassUnlock.QUEST_RALLY_THE_LINE);
         content.acceptQuest(p, map, in, this::capture);
         ops.clear();
         last.clear();

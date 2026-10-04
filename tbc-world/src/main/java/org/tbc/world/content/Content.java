@@ -717,6 +717,10 @@ public final class Content {
         if (hits != null && p.questLogCounts[slot][1] < hits.count()) {
             return false;
         }
+        ObjectMgr.EmoteNearNpcObjective emote = mgr.questEmoteNearNpc.get(q.id());
+        if (emote != null && p.questLogCounts[slot][org.tbc.world.classless.HeroClassUnlock.RALLY_ROAR_COUNT_SLOT] < 1) {
+            return false;
+        }
         ObjectMgr.QuestExtras extra = mgr.questExtras.get(q.id());
         if (extra == null) {
             return true;
@@ -1301,6 +1305,63 @@ public final class Content {
                 questGiverStatusMultiple(p, map, send);
             }
         }
+    }
+
+    /**
+     * CMaNGOS {@code CreatureAI::ReceiveEmote}: Hero /roar near the named trainer.
+     * Returns the NPC and spell to cast, or null.
+     */
+    public ObjectMgr.EmoteNearNpcObjective creditTextEmoteNearNpc(Player p, GameMap map, int textEmote,
+                                           BiConsumer<Integer, byte[]> send) {
+        for (int slot = 0; slot < p.questLogId.length; slot++) {
+            int questId = p.questLogId[slot];
+            if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
+                continue;
+            }
+            ObjectMgr.EmoteNearNpcObjective obj = mgr.questEmoteNearNpc.get(questId);
+            if (obj == null || obj.textEmote() != textEmote) {
+                continue;
+            }
+            int roarSlot = org.tbc.world.classless.HeroClassUnlock.RALLY_ROAR_COUNT_SLOT;
+            if (p.questLogCounts[slot][roarSlot] >= 1) {
+                continue;
+            }
+            Creature npc = nearestNpc(p, map, obj.npcEntry());
+            if (npc == null) {
+                return null;
+            }
+            p.questLogCounts[slot][roarSlot] = 1;
+            WowBuffer add = new WowBuffer(24);
+            add.putU32(questId);
+            add.putU32(obj.npcEntry());
+            add.putU32(1);
+            add.putU32(1);
+            add.putU64(npc.guid);
+            send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
+            writeLogField(p, slot);
+            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            boolean done = objectivesMet(p, slot, q);
+            if (done) {
+                p.questLogState[slot] = QUEST_STATE_COMPLETE;
+                writeLogField(p, slot);
+                send.accept(Opcodes.SMSG_QUESTUPDATE_COMPLETE, u32(questId));
+            }
+            sendLogUpdate(p, slot, send);
+            if (done) {
+                questGiverStatusMultiple(p, map, send);
+            }
+            return obj;
+        }
+        return null;
+    }
+
+    private static Creature nearestNpc(Player p, GameMap map, int entry) {
+        for (Creature c : map.creatures.values()) {
+            if (c.entry == entry && p.distance2d(c) <= INTERACT_RANGE) {
+                return c;
+            }
+        }
+        return null;
     }
 
     /** First matching creature slot that still needs a kill, or -1. */

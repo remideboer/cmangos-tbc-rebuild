@@ -1,6 +1,7 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.PlayerNames;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -536,6 +537,22 @@ public final class ChannelHandler {
         Player other = world.playerByGuid(target);
         if (other != null && other.session != null) {
             other.session.send(Opcodes.SMSG_TEXT_EMOTE, payload);
+        }
+        if (p != null) {
+            var map = world.map(p.mapId, p.instanceId);
+            var obj = world.content.creditTextEmoteNearNpc(p, map, emote, s::send);
+            if (obj != null && obj.castSpellId() > 0) {
+                Creature caster = null;
+                for (Creature c : map.creatures.values()) {
+                    if (c.entry == obj.npcEntry() && p.distance2d(c) <= org.tbc.world.content.Content.INTERACT_RANGE) {
+                        caster = c;
+                        break;
+                    }
+                }
+                if (caster != null) {
+                    world.creatureCast(caster, p, obj.castSpellId());
+                }
+            }
         }
     }
 

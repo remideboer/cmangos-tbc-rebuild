@@ -1187,6 +1187,27 @@ class Slice35P0Test {
                 world.scripts);
         world.map(p.mapId, p.instanceId).add(wyrm);
         world.onCreatureKilled(p, wyrm);
+        assertEquals(0, p.questLogState[0], "90002 also requires /roar near the warrior trainer");
+
+        p.relocate(trainer.x + 40f, trainer.y, trainer.z, trainer.o);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TEXT_EMOTE, textEmote(HeroClassUnlock.TEXT_EMOTE_ROAR, 0L).array());
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO), "roar out of range does not rally");
+        assertEquals(0, p.questLogState[0]);
+
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TEXT_EMOTE, textEmote(1, trainer.guid).array());
+        assertFalse(client.saw(Opcodes.SMSG_SPELL_GO), "wave is not the rally roar");
+        assertEquals(0, p.questLogState[0]);
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TEXT_EMOTE, textEmote(HeroClassUnlock.TEXT_EMOTE_ROAR, trainer.guid).array());
+        assertTrue(client.saw(Opcodes.SMSG_SPELL_GO));
+        byte[] go = client.payload(Opcodes.SMSG_SPELL_GO);
+        assertEquals(trainer.guid, packedGuid(go, 0), "warrior trainer casts the shout");
+        assertEquals(Content.SPELL_BATTLE_SHOUT, spellGoId(go));
+        assertTrue(p.auras.stream().anyMatch(a -> a.spellId() == Content.SPELL_BATTLE_SHOUT));
         assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
 
         client.clear();
@@ -2779,6 +2800,31 @@ class Slice35P0Test {
             }
         }
         return null;
+    }
+
+    private static WowBuffer textEmote(int textEmote, long target) {
+        WowBuffer emote = new WowBuffer(16);
+        emote.putU32(textEmote);
+        emote.putU32(0);
+        emote.putU64(target);
+        return emote;
+    }
+
+    private static int spellGoId(byte[] p) {
+        int off = WowClientDouble.skipPackedGuid(p, 0);
+        off = WowClientDouble.skipPackedGuid(p, off);
+        return WowClientDouble.u32le(p, off);
+    }
+
+    private static long packedGuid(byte[] p, int off) {
+        int mask = p[off++] & 0xFF;
+        long g = 0;
+        for (int i = 0; i < 8; i++) {
+            if ((mask & (1 << i)) != 0) {
+                g |= (long) (p[off++] & 0xFF) << (8 * i);
+            }
+        }
+        return g;
     }
 
     private static WowBuffer charCreate(String name, int race, int clazz) {

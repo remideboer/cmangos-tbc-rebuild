@@ -16,6 +16,10 @@ import java.util.Map;
 public final class HeroClassUnlock {
     public static final int QUEST_HEROS_FIRST_LESSON = 90001;
     public static final int QUEST_RALLY_THE_LINE = 90002;
+    /** SharedDefines.h TEXTEMOTE_ROAR — Rally the Line extra objective (`CMSG_TEXT_EMOTE`). */
+    public static final int TEXT_EMOTE_ROAR = 75;
+    /** questLogCounts slot for the Rally roar (kill uses 0; melee-hit uses 1). */
+    public static final int RALLY_ROAR_COUNT_SLOT = 2;
     public static final int QUEST_CLOSE_THE_DISTANCE = 90003;
     public static final int QUEST_A_WOUND_TO_REMEMBER = 90004;
     public static final int QUEST_A_VOW_TESTED = 90005;

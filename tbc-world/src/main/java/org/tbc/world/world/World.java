@@ -62,6 +62,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -1397,6 +1398,14 @@ public final class World implements Runnable {
         }
     }
 
+    /** NPC casts on a unit (trainer Rally shout, EventAI). */
+    public void creatureCast(Creature caster, Unit target, int spellId) {
+        if (caster == null || spellId == 0) {
+            return;
+        }
+        sendEventAiCast(map(caster.mapId, target instanceof Player p ? p.instanceId : 0), caster, target, spellId);
+    }
+
     private void sendEventAiCast(GameMap m, Creature cr, Unit t, int spell) {
         SpellCastTargets tgt = new SpellCastTargets();
         Unit target = t == null ? cr : t;
@@ -1408,22 +1417,29 @@ public final class World implements Runnable {
             dmg = spells.apply(cr, target, info, nowMs());
         }
         byte[] go = spells.encodeGo(cr.guid, hit, spell, nowMs(), tgt);
+        LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
+        if (target instanceof Player tp && tp.session != null) {
+            viewers.put(tp.guid, tp);
+        }
         for (Player pl : m.nearbyPlayers(cr, GameMap.VISIBILITY)) {
             if (pl.session != null) {
-                pl.session.send(Opcodes.SMSG_SPELL_START, start);
-                pl.session.send(Opcodes.SMSG_SPELL_GO, go);
-                if (dmg > 0) {
-                    pl.session.send(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG,
-                            spells.encodeDamageLog(hit, cr.guid, info, dmg));
-                    var hp = UpdateBuilder.maybeCompress(
-                            UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
-                    pl.session.send(hp.opcode(), hp.payload());
-                }
-                if (info != null && info.effect() == SpellEngine.EFFECT_APPLY_AURA) {
-                    int dur = info.durationMs() > 0 ? info.durationMs() : 30_000;
-                    AuraSlots.sendApply(target, cr, spell, dur, dur, pl.session::send);
-                    SpellEngine.sendAuraStatValues(target, info, pl.session::send);
-                }
+                viewers.putIfAbsent(pl.guid, pl);
+            }
+        }
+        for (Player pl : viewers.values()) {
+            pl.session.send(Opcodes.SMSG_SPELL_START, start);
+            pl.session.send(Opcodes.SMSG_SPELL_GO, go);
+            if (dmg > 0) {
+                pl.session.send(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG,
+                        spells.encodeDamageLog(hit, cr.guid, info, dmg));
+                var hp = UpdateBuilder.maybeCompress(
+                        UpdateBuilder.values(target, UpdateFields.UNIT_FIELD_HEALTH));
+                pl.session.send(hp.opcode(), hp.payload());
+            }
+            if (info != null && info.effect() == SpellEngine.EFFECT_APPLY_AURA) {
+                int dur = info.durationMs() > 0 ? info.durationMs() : 30_000;
+                AuraSlots.sendApply(target, cr, spell, dur, dur, pl.session::send);
+                SpellEngine.sendAuraStatValues(target, info, pl.session::send);
             }
         }
     }

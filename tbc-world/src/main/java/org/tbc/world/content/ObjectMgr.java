@@ -1606,7 +1606,10 @@ public final class ObjectMgr {
     public final Map<Integer, QuestExtras> questExtras = new HashMap<>();
     /** Hero unlock: landed melee hits on creature (not kill credit). */
     public record CreatureHitObjective(int creatureEntry, int count) {}
+    /** Hero quest: text emote (`EmotesText.dbc`) within interact range of an NPC, who then casts. */
+    public record EmoteNearNpcObjective(int textEmote, int npcEntry, int castSpellId) {}
     public final Map<Integer, CreatureHitObjective> questCreatureHits = new HashMap<>();
+    public final Map<Integer, EmoteNearNpcObjective> questEmoteNearNpc = new HashMap<>();
     /** quest_template.RewSpell / RewSpellCast. */
     public final Map<Integer, Integer> questRewSpell = new HashMap<>();
     public final Map<Integer, Integer> areaTriggerQuests = new HashMap<>();
@@ -3457,12 +3460,15 @@ public final class ObjectMgr {
 
         int rally = org.tbc.world.classless.HeroClassUnlock.QUEST_RALLY_THE_LINE;
         quests.putIfAbsent(rally, heroFollowUpQuest(rally, "Rally the Line",
-                "Gather your will at the trainer's banner, then defeat a Mana Wyrm.",
-                "Defeat 1 Mana Wyrm.",
+                "Roar at the trainer's banner so the line hears you, then defeat a Mana Wyrm.",
+                "Use /roar near the Warrior Trainer. Defeat 1 Mana Wyrm.",
                 wyrm, 1, 0, 0, unlockQuest));
         addQuestRelation(questGivers, trainer, rally);
         addQuestRelation(questInvolved, trainer, rally);
         questRewSpell.putIfAbsent(rally, Content.SPELL_BATTLE_SHOUT);
+        questEmoteNearNpc.putIfAbsent(rally, new EmoteNearNpcObjective(
+                org.tbc.world.classless.HeroClassUnlock.TEXT_EMOTE_ROAR,
+                trainer, Content.SPELL_BATTLE_SHOUT));
 
         int chargeQ = org.tbc.world.classless.HeroClassUnlock.QUEST_CLOSE_THE_DISTANCE;
         quests.putIfAbsent(chargeQ, heroFollowUpQuest(chargeQ, "Close the Distance",
