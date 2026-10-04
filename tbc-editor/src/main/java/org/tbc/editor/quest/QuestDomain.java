@@ -8,7 +8,9 @@ import org.tbc.world.map.WorldMapArea;
 import org.tbc.world.map.WorldMapAreas;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -26,8 +28,10 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -51,6 +55,23 @@ public final class QuestDomain implements EditorDomain {
     private final JTextField giver = new JTextField(8);
     private final JTextField turnIn = new JTextField(8);
     private final JTextField prevQuest = new JTextField(8);
+    private final JLabel idCaption = new JLabel(" ");
+    private final JButton copyDraft = new JButton("Copy as draft");
+    private final DefaultListModel<QuestService.ZoneQuest> zoneQuestModel = new DefaultListModel<>();
+    private final JList<QuestService.ZoneQuest> zoneQuestList = new JList<>(zoneQuestModel);
+    private final DefaultListModel<QuestService.ZoneNpc> zoneNpcModel = new DefaultListModel<>();
+    private final JList<QuestService.ZoneNpc> zoneNpcList = new JList<>(zoneNpcModel);
+    private final DefaultListModel<QuestService.CreatureHit> searchModel = new DefaultListModel<>();
+    private final JList<QuestService.CreatureHit> searchList = new JList<>(searchModel);
+    private final JTextField creatureQuery = new JTextField(12);
+    private final JTextField minLevel = new JTextField(4);
+    private final JTextField maxLevel = new JTextField(4);
+    private final JTextField factionFilter = new JTextField(6);
+    private final JComboBox<TypeChoice> creatureType = new JComboBox<>(TypeChoice.values());
+    private final JCheckBox zoneOnly = new JCheckBox("This zone only", true);
+    private boolean catalogView;
+    private boolean refreshingLists;
+    private int catalogQuestId;
     private final JTextArea issues = new JTextArea(8, 28);
     private final JTextArea preview = new JTextArea(8, 28);
     private final JCheckBox ackDup = new JCheckBox("Acknowledge near-duplicate spawns");
@@ -119,43 +140,103 @@ public final class QuestDomain implements EditorDomain {
         mapCombo.addActionListener(e -> applySelectedMap());
         canvas.setHoverListener(status);
 
-        JPanel inspector = new JPanel(new GridLayout(0, 2, 4, 4));
-        inspector.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        inspector.add(new JLabel("Title"));
-        inspector.add(title);
-        inspector.add(new JLabel("Giver NPC"));
-        inspector.add(giver);
-        inspector.add(new JLabel("Turn-in NPC"));
-        inspector.add(turnIn);
-        inspector.add(new JLabel("Prev quest"));
-        inspector.add(prevQuest);
-        inspector.add(new JLabel("Details"));
-        inspector.add(new JScrollPane(details));
+        zoneQuestList.setVisibleRowCount(6);
+        zoneNpcList.setVisibleRowCount(6);
+        searchList.setVisibleRowCount(6);
+        searchList.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                                                                   boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof QuestService.CreatureHit hit) {
+                    setText(hit.label());
+                }
+                return this;
+            }
+        });
+        zoneQuestList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && !refreshingLists) {
+                openZoneQuest(zoneQuestList.getSelectedValue());
+            }
+        });
+        copyDraft.setEnabled(false);
+        copyDraft.addActionListener(e -> copySelectedCatalog());
+
+        JPanel thisQuest = new JPanel(new GridLayout(0, 2, 4, 4));
+        thisQuest.add(new JLabel("Title"));
+        thisQuest.add(title);
+        thisQuest.add(new JLabel("Id"));
+        thisQuest.add(idCaption);
+        thisQuest.add(new JLabel("Previous quest"));
+        thisQuest.add(prevQuest);
+        thisQuest.add(new JLabel("Details"));
+        thisQuest.add(new JScrollPane(details));
+        thisQuest.add(new JLabel(" "));
+        thisQuest.add(copyDraft);
+
+        JPanel who = new JPanel(new GridLayout(0, 2, 4, 4));
+        who.add(new JLabel("Giver"));
+        who.add(giver);
+        who.add(new JLabel("Turn-in"));
+        who.add(turnIn);
+
+        JPanel zoneLists = new JPanel(new GridLayout(2, 1, 4, 4));
+        zoneLists.add(labeledScroll("Quests", zoneQuestList));
+        JPanel npcBox = new JPanel(new BorderLayout());
+        npcBox.add(labeledScroll("NPCs", zoneNpcList), BorderLayout.CENTER);
+        JPanel npcButtons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton asGiver = new JButton("Use as giver");
+        JButton asTurnIn = new JButton("Use as turn-in");
+        asGiver.addActionListener(e -> useNpc(zoneNpcList.getSelectedValue(), true));
+        asTurnIn.addActionListener(e -> useNpc(zoneNpcList.getSelectedValue(), false));
+        npcButtons.add(asGiver);
+        npcButtons.add(asTurnIn);
+        npcBox.add(npcButtons, BorderLayout.SOUTH);
+        zoneLists.add(npcBox);
+
+        JPanel find = new JPanel(new BorderLayout());
+        JPanel filters = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        filters.add(creatureQuery);
+        filters.add(creatureType);
+        filters.add(new JLabel("Lv"));
+        filters.add(minLevel);
+        filters.add(new JLabel("–"));
+        filters.add(maxLevel);
+        filters.add(new JLabel("Faction"));
+        filters.add(factionFilter);
+        filters.add(zoneOnly);
+        JButton searchBtn = new JButton("Search");
+        searchBtn.addActionListener(e -> runCreatureSearch());
+        filters.add(searchBtn);
+        find.add(filters, BorderLayout.NORTH);
+        find.add(new JScrollPane(searchList), BorderLayout.CENTER);
+        JPanel findButtons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton searchGiver = new JButton("Use as giver");
+        JButton searchTurn = new JButton("Use as turn-in");
+        JButton searchKill = new JButton("Add as kill objective");
+        searchGiver.addActionListener(e -> useSearch(true));
+        searchTurn.addActionListener(e -> useSearch(false));
+        searchKill.addActionListener(e -> addKillFromSearch());
+        findButtons.add(searchGiver);
+        findButtons.add(searchTurn);
+        findButtons.add(searchKill);
+        find.add(findButtons, BorderLayout.SOUTH);
+
+        JPanel stack = new JPanel();
+        stack.setLayout(new BoxLayout(stack, BoxLayout.Y_AXIS));
+        stack.add(section("This quest", thisQuest));
+        stack.add(section("Who", who));
+        stack.add(section("In this zone", zoneLists));
+        stack.add(section("Find a creature", find));
 
         JPanel east = new JPanel(new BorderLayout());
-        east.add(inspector, BorderLayout.NORTH);
-        JSplitPane reports = new JSplitPane(JSplitPane.VERTICAL_SPLIT, new JScrollPane(issues), new JScrollPane(preview));
-        reports.setResizeWeight(0.5);
-        east.add(reports, BorderLayout.CENTER);
-        east.setPreferredSize(new Dimension(360, 0));
-
-        JList<String> lookup = new JList<>();
-        JTextField lookupQ = new JTextField();
-        JButton lookupBtn = new JButton("Lookup NPC");
-        lookupBtn.addActionListener(e -> {
-            var hits = service.lookupCreatures(lookupQ.getText());
-            String[] rows = hits.stream()
-                    .map(h -> h.entry() + " " + h.name() + " fac=" + h.faction())
-                    .toArray(String[]::new);
-            lookup.setListData(rows);
-        });
-        JPanel south = new JPanel(new BorderLayout());
-        JPanel lookBar = new JPanel(new BorderLayout());
-        lookBar.add(lookupQ, BorderLayout.CENTER);
-        lookBar.add(lookupBtn, BorderLayout.EAST);
-        south.add(lookBar, BorderLayout.NORTH);
-        south.add(new JScrollPane(lookup), BorderLayout.CENTER);
-        east.add(south, BorderLayout.SOUTH);
+        east.add(new JScrollPane(stack), BorderLayout.CENTER);
+        JSplitPane reports = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                section("Checks", new JScrollPane(issues)), new JScrollPane(preview));
+        reports.setResizeWeight(0.6);
+        reports.setPreferredSize(new Dimension(420, 180));
+        east.add(reports, BorderLayout.SOUTH);
+        east.setPreferredSize(new Dimension(420, 0));
 
         graphCanvas.setModel(graphModel);
         graphCanvas.setJumpToMap(() -> tabs.setSelectedIndex(0));
@@ -241,6 +322,7 @@ public final class QuestDomain implements EditorDomain {
         doc.setZoneOrSort(area.areaId());
         RegionMinimap.Raster image = raster.apply(area);
         canvas.loadRegion(area, image);
+        refreshZoneLists();
         boolean missing = image == null || image.empty()
                 || allDark(image);
         status.accept(missing
@@ -282,6 +364,10 @@ public final class QuestDomain implements EditorDomain {
     }
 
     private void save() {
+        if (catalogView) {
+            status.accept("Catalog quests are read-only. Copy as draft first.");
+            return;
+        }
         try {
             pushToDoc();
             service.saveDraft(doc);
@@ -328,6 +414,10 @@ public final class QuestDomain implements EditorDomain {
     }
 
     private void publish() {
+        if (catalogView) {
+            status.accept("Catalog quests are read-only. Copy as draft first.");
+            return;
+        }
         try {
             pushToDoc();
             service.publish(doc, ackDup.isSelected());
@@ -340,6 +430,7 @@ public final class QuestDomain implements EditorDomain {
 
     private void pullFromDoc() {
         idField.setText(Integer.toString(doc.id()));
+        idCaption.setText(Integer.toString(doc.id()));
         title.setText(doc.title());
         details.setText(doc.details());
         giver.setText(Integer.toString(doc.giverNpc()));
@@ -424,6 +515,7 @@ public final class QuestDomain implements EditorDomain {
         }
         graphCanvas.armTurnIn(npc);
         graphCanvas.armPrerequisite(parseInt(prevQuest.getText()));
+        graphModel.setCreatureNames(creatureNames());
         graphModel.rebuild(doc, loadChain());
         graphCanvas.repaint();
     }
@@ -441,6 +533,205 @@ public final class QuestDomain implements EditorDomain {
             chain.add(doc);
         }
         return chain;
+    }
+
+    private void refreshZoneLists() {
+        refreshingLists = true;
+        zoneQuestModel.clear();
+        zoneNpcModel.clear();
+        WorldMapArea area = selectedArea();
+        if (area != null) {
+            for (QuestService.ZoneQuest q : service.questsInArea(area)) {
+                zoneQuestModel.addElement(q);
+            }
+            for (QuestService.ZoneNpc n : service.npcsInArea(area)) {
+                zoneNpcModel.addElement(n);
+            }
+        }
+        refreshingLists = false;
+    }
+
+    private void openZoneQuest(QuestService.ZoneQuest row) {
+        if (row == null) {
+            return;
+        }
+        if (row.draft()) {
+            try {
+                catalogView = false;
+                catalogQuestId = 0;
+                copyDraft.setEnabled(false);
+                doc = service.loadDraft(row.id());
+                pullFromDoc();
+                applySelectedMap();
+                status.accept("Draft " + row.id());
+            } catch (Exception ex) {
+                status.accept(message(ex));
+            }
+            return;
+        }
+        catalogView = true;
+        catalogQuestId = row.id();
+        copyDraft.setEnabled(true);
+        QuestDocument preview = service.copyCatalogQuest(row.id(), QuestDocument.MIN_OWNED_ID);
+        title.setText(preview.title());
+        details.setText(preview.details());
+        giver.setText(Integer.toString(preview.giverNpc()));
+        turnIn.setText(Integer.toString(preview.turnInNpc()));
+        prevQuest.setText(Integer.toString(preview.prevQuestId()));
+        idCaption.setText(row.id() + " catalog");
+        status.accept(row.title() + " is a catalog quest. Copy as draft to edit it.");
+    }
+
+    private void copySelectedCatalog() {
+        if (!catalogView || catalogQuestId == 0) {
+            return;
+        }
+        try {
+            int id = service.nextOwnedId();
+            if (doc != null && id == doc.id()) {
+                id++;
+            }
+            doc = service.copyCatalogQuest(catalogQuestId, id);
+            WorldMapArea area = selectedArea();
+            if (area != null && doc.mapId() == 0) {
+                doc.setMapId(area.mapId());
+            }
+            catalogView = false;
+            catalogQuestId = 0;
+            copyDraft.setEnabled(false);
+            pullFromDoc();
+            rebuildGraph();
+            status.accept("Draft " + doc.id() + " (not published)");
+        } catch (Exception ex) {
+            status.accept(message(ex));
+        }
+    }
+
+    private void useNpc(QuestService.ZoneNpc npc, boolean giverRole) {
+        if (npc == null || catalogView) {
+            status.accept(catalogView ? "Copy as draft before assigning an NPC." : "Select an NPC in this zone.");
+            return;
+        }
+        pushToDoc();
+        if (giverRole) {
+            doc.setGiverNpc(npc.entry());
+            giver.setText(Integer.toString(npc.entry()));
+        } else {
+            doc.setTurnInNpc(npc.entry());
+            turnIn.setText(Integer.toString(npc.entry()));
+        }
+        rebuildGraph();
+    }
+
+    private void useSearch(boolean giverRole) {
+        QuestService.CreatureHit hit = searchList.getSelectedValue();
+        if (hit == null) {
+            return;
+        }
+        useNpc(new QuestService.ZoneNpc(hit.entry(), hit.name(), hit.level(), hit.faction()), giverRole);
+    }
+
+    private void addKillFromSearch() {
+        QuestService.CreatureHit hit = searchList.getSelectedValue();
+        if (hit == null || catalogView) {
+            return;
+        }
+        pushToDoc();
+        for (int i = 0; i < 4; i++) {
+            if (doc.reqCreatureId(i) == 0) {
+                doc.setReqCreature(i, hit.entry(), 1);
+                rebuildGraph();
+                status.accept("Kill objective " + hit.name());
+                return;
+            }
+        }
+        status.accept("All four kill objectives are already set.");
+    }
+
+    private void runCreatureSearch() {
+        WorldMapArea zone = zoneOnly.isSelected() ? selectedArea() : null;
+        Integer min = blankToNull(minLevel.getText());
+        Integer max = blankToNull(maxLevel.getText());
+        Integer faction = blankToNull(factionFilter.getText());
+        TypeChoice type = (TypeChoice) creatureType.getSelectedItem();
+        int typeId = type == null ? -1 : type.type;
+        List<QuestService.CreatureHit> hits = service.searchCreatures(new QuestService.CreatureQuery(
+                creatureQuery.getText(), typeId, min, max, faction, zone));
+        searchModel.clear();
+        for (QuestService.CreatureHit hit : hits) {
+            searchModel.addElement(hit);
+        }
+        status.accept(hits.size() + " creatures");
+    }
+
+    private Map<Integer, String> creatureNames() {
+        Map<Integer, String> names = new HashMap<>();
+        remember(names, doc.giverNpc());
+        remember(names, doc.turnInNpc());
+        for (int i = 0; i < 4; i++) {
+            remember(names, doc.reqCreatureId(i));
+        }
+        return names;
+    }
+
+    private void remember(Map<Integer, String> names, int entry) {
+        String name = service.creatureName(entry);
+        if (name != null) {
+            names.put(entry, name);
+        }
+    }
+
+    private static Integer blankToNull(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(text.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static JPanel section(String title, java.awt.Component body) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(title));
+        panel.add(body, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private static JScrollPane labeledScroll(String title, JList<?> list) {
+        JScrollPane pane = new JScrollPane(list);
+        pane.setBorder(BorderFactory.createTitledBorder(title));
+        return pane;
+    }
+
+    private enum TypeChoice {
+        ANY(-1, "Any type"),
+        BEAST(1, "Beast"),
+        DRAGONKIN(2, "Dragonkin"),
+        DEMON(3, "Demon"),
+        ELEMENTAL(4, "Elemental"),
+        GIANT(5, "Giant"),
+        UNDEAD(6, "Undead"),
+        HUMANOID(7, "Humanoid"),
+        CRITTER(8, "Critter"),
+        MECHANICAL(9, "Mechanical"),
+        TOTEM(11, "Totem"),
+        PET(12, "Non-combat Pet"),
+        GAS(13, "Gas Cloud");
+
+        final int type;
+        final String label;
+
+        TypeChoice(int type, String label) {
+            this.type = type;
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     private static int parseInt(String s) {

@@ -35,6 +35,19 @@ class QuestGraphModelTest {
         assertTrue(turnIn.x() > quest.x());
         assertTrue(graph.node("quest:95000").y() < quest.y());
         assertTrue(graph.node("quest:95002").y() > quest.y());
+        assertEquals("Errand", quest.title());
+        assertEquals("95001", quest.subtitle());
+    }
+
+    @Test
+    void rebuildWhenCreatureNameKnownShouldPreferNameAndKeepEntrySubtitle() {
+        QuestDocument focus = quest(95001, "Errand");
+        focus.setGiverNpc(823);
+        QuestGraphModel graph = new QuestGraphModel();
+        graph.setCreatureNames(java.util.Map.of(823, "Marshal McBride"));
+        graph.rebuild(focus, List.of(focus));
+        assertEquals("Marshal McBride", graph.node("giver:95001").title());
+        assertEquals("823", graph.node("giver:95001").subtitle());
     }
 
     @Test

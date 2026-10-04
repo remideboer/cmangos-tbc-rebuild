@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.tbc.editor.EditorException;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.map.WorldMapAreas;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -118,6 +119,60 @@ class QuestServiceTest {
         assertFalse(yaml.contains("secret"));
         assertFalse(yaml.contains("editor:"));
         assertTrue(svc.publishDiff(doc).contains("Errand"));
+    }
+
+    @Test
+    void questsInAreaWhenZoneMatchesShouldIncludeCatalogAndDraftAndSkipOtherZones() {
+        QuestDocument draft = svc.create(95020);
+        draft.setTitle("Goldshire Extra");
+        draft.setZoneOrSort(Content.ZONE_ELWYNN);
+        svc.saveDraft(draft);
+        List<QuestService.ZoneQuest> rows = svc.questsInArea(WorldMapAreas.ELWYNN);
+        assertTrue(rows.stream().anyMatch(z -> z.id() == Content.QUEST_KOBOLD_CAMP_CLEANUP && !z.draft()));
+        assertTrue(rows.stream().anyMatch(z -> z.id() == 95020 && z.draft()));
+        assertTrue(rows.stream().noneMatch(z -> z.id() == Content.QUEST_A_THREAT_WITHIN));
+    }
+
+    @Test
+    void npcsInAreaWhenSpawnInsideElwynnShouldIncludeItAndSkipOutside() {
+        mgr.creatures.put(70001, creature(70001, "Ridge Wolf", 14, 5, 1));
+        mgr.creatures.put(70002, creature(70002, "Far Imp", 90, 20, 3));
+        mgr.spawns.add(new ObjectMgr.Spawn(900001, 70001, 0, -9465f, 62f, 50f, 0f));
+        mgr.spawns.add(new ObjectMgr.Spawn(900002, 70002, 0, 0f, 0f, 0f, 0f));
+        List<QuestService.ZoneNpc> rows = svc.npcsInArea(WorldMapAreas.ELWYNN);
+        assertTrue(rows.stream().anyMatch(n -> n.entry() == 70001));
+        assertTrue(rows.stream().noneMatch(n -> n.entry() == 70002));
+    }
+
+    @Test
+    void searchCreaturesWhenTypeLevelFactionAndZoneShouldFilter() {
+        mgr.creatures.put(70001, creature(70001, "Ridge Wolf", 14, 5, 1));
+        mgr.creatures.put(70002, creature(70002, "Far Imp", 90, 20, 3));
+        mgr.creatures.put(70003, creature(70003, "Elder Wolf", 14, 40, 1));
+        mgr.spawns.add(new ObjectMgr.Spawn(900001, 70001, 0, -9465f, 62f, 50f, 0f));
+        mgr.spawns.add(new ObjectMgr.Spawn(900002, 70002, 0, 0f, 0f, 0f, 0f));
+        mgr.spawns.add(new ObjectMgr.Spawn(900003, 70003, 0, -9460f, 60f, 50f, 0f));
+        List<QuestService.CreatureHit> hits = svc.searchCreatures(
+                new QuestService.CreatureQuery("", 1, 1, 10, 14, WorldMapAreas.ELWYNN));
+        assertEquals(1, hits.size());
+        assertEquals(70001, hits.get(0).entry());
+        assertEquals("Beast", QuestService.creatureTypeName(hits.get(0).type()));
+    }
+
+    @Test
+    void copyCatalogQuestWhenCalledShouldAssignOwnedIdAndNotPublish() {
+        QuestDocument copy = svc.copyCatalogQuest(Content.QUEST_KOBOLD_CAMP_CLEANUP, 0);
+        assertTrue(QuestDocument.ownedRange(copy.id()));
+        assertEquals("Kobold Camp Cleanup", copy.title());
+        assertEquals(Content.NPC_KOBOLD_VERMIN, copy.reqCreatureId(0));
+        assertEquals(Content.NPC_MARSHAL_MCBRIDE, copy.giverNpc());
+        assertFalse(Files.exists(svc.store().publishedFile(copy.id())));
+        assertFalse(Files.exists(svc.store().draftFile(copy.id())));
+    }
+
+    private static ObjectMgr.CreatureTemplate creature(int entry, String name, int faction, int level, int type) {
+        return new ObjectMgr.CreatureTemplate(entry, name, 1, faction, 40, level, 0, "", "", 0,
+                "", "", 0, 0, 0, 0, type, 0, 0, 0, 1f, 1f, 0);
     }
 
     private static QuestDocument validGiver(QuestDocument doc) {

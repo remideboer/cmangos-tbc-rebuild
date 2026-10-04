@@ -21,16 +21,18 @@ public final class QuestGraphModel {
         private final Kind kind;
         private final int questId;
         private final String title;
+        private final String subtitle;
         private final String hover;
         private double x;
         private double y;
         private boolean issue;
 
-        Node(String id, Kind kind, int questId, String title, String hover, double x, double y) {
+        Node(String id, Kind kind, int questId, String title, String subtitle, String hover, double x, double y) {
             this.id = id;
             this.kind = kind;
             this.questId = questId;
             this.title = title;
+            this.subtitle = subtitle == null ? "" : subtitle;
             this.hover = hover;
             this.x = x;
             this.y = y;
@@ -50,6 +52,10 @@ public final class QuestGraphModel {
 
         public String title() {
             return title;
+        }
+
+        public String subtitle() {
+            return subtitle;
         }
 
         public String hover() {
@@ -84,10 +90,15 @@ public final class QuestGraphModel {
 
     private QuestDocument focus;
     private List<QuestDocument> chain = List.of();
+    private Map<Integer, String> creatureNames = Map.of();
     private final List<Node> nodes = new ArrayList<>();
     private final List<Edge> edges = new ArrayList<>();
     private String selectedId = "";
     private final Set<Integer> issueQuests = new HashSet<>();
+
+    public void setCreatureNames(Map<Integer, String> names) {
+        this.creatureNames = names == null ? Map.of() : Map.copyOf(names);
+    }
 
     public void rebuild(QuestDocument focus, List<QuestDocument> chain) {
         this.focus = focus;
@@ -107,12 +118,14 @@ public final class QuestGraphModel {
 
         placeQuest(focus, 0, 0);
         if (focus.giverNpc() != 0) {
-            Node giver = place("giver:" + focus.id(), Kind.GIVER, focus.id(), "Giver " + focus.giverNpc(),
+            Node giver = place("giver:" + focus.id(), Kind.GIVER, focus.id(),
+                    creatureTitle(focus.giverNpc(), "Giver"), String.valueOf(focus.giverNpc()),
                     hover(focus), -STEP, 0);
             edges.add(new Edge(giver.id(), questId(focus.id()), EdgeKind.START));
         }
         if (focus.turnInNpc() != 0 && !hideChildren) {
-            Node turn = place("turnin:" + focus.id(), Kind.TURN_IN, focus.id(), "Turn-in " + focus.turnInNpc(),
+            Node turn = place("turnin:" + focus.id(), Kind.TURN_IN, focus.id(),
+                    creatureTitle(focus.turnInNpc(), "Turn-in"), String.valueOf(focus.turnInNpc()),
                     hover(focus), STEP, 0);
             edges.add(new Edge(questId(focus.id()), turn.id(), EdgeKind.TURN_IN));
         }
@@ -135,7 +148,8 @@ public final class QuestGraphModel {
                     String id = "obj:" + focus.id() + ":" + obj;
                     double ang = -Math.PI / 4 + obj * 0.45;
                     Node n = place(id, Kind.OBJECTIVE, focus.id(),
-                            "Kill " + focus.reqCreatureId(i) + " x" + focus.reqCreatureCount(i),
+                            killTitle(focus.reqCreatureId(i), focus.reqCreatureCount(i)),
+                            String.valueOf(focus.reqCreatureId(i)),
                             hover(focus), Math.cos(ang) * 140, Math.sin(ang) * 140);
                     edges.add(new Edge(questId(focus.id()), n.id(), EdgeKind.OBJECTIVE));
                     obj++;
@@ -145,6 +159,7 @@ public final class QuestGraphModel {
                     double ang = -Math.PI / 4 + obj * 0.45;
                     Node n = place(id, Kind.OBJECTIVE, focus.id(),
                             "Item " + focus.reqItemId(i) + " x" + focus.reqItemCount(i),
+                            String.valueOf(focus.reqItemId(i)),
                             hover(focus), Math.cos(ang) * 140, Math.sin(ang) * 140);
                     edges.add(new Edge(questId(focus.id()), n.id(), EdgeKind.OBJECTIVE));
                     obj++;
@@ -268,7 +283,7 @@ public final class QuestGraphModel {
     public Node hit(double x, double y) {
         Node found = null;
         for (Node n : nodes) {
-            if (Math.abs(n.x() - x) <= 70 && Math.abs(n.y() - y) <= 28) {
+            if (Math.abs(n.x() - x) <= 72 && Math.abs(n.y() - y) <= 28) {
                 found = n;
             }
         }
@@ -335,15 +350,28 @@ public final class QuestGraphModel {
         if (node(id) != null) {
             return;
         }
-        place(id, Kind.QUEST, doc.id(), doc.title().isBlank() ? id : doc.title(), hover(doc), x, y);
+        String title = doc.title().isBlank() ? "Quest" : doc.title();
+        place(id, Kind.QUEST, doc.id(), title, String.valueOf(doc.id()), hover(doc), x, y);
     }
 
-    private Node place(String id, Kind kind, int questId, String title, String hover, double x, double y) {
+    private String creatureTitle(int entry, String fallback) {
+        String name = creatureNames.get(entry);
+        return name == null || name.isBlank() ? fallback : name;
+    }
+
+    private String killTitle(int entry, int count) {
+        String name = creatureNames.get(entry);
+        String who = name == null || name.isBlank() ? "creature " + entry : name;
+        return "Kill " + who + " x" + count;
+    }
+
+    private Node place(String id, Kind kind, int questId, String title, String subtitle, String hover,
+                       double x, double y) {
         Node existing = node(id);
         if (existing != null) {
             return existing;
         }
-        Node n = new Node(id, kind, questId, title, hover, x, y);
+        Node n = new Node(id, kind, questId, title, subtitle, hover, x, y);
         nodes.add(n);
         return n;
     }

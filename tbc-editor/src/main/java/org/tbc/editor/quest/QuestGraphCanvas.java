@@ -261,16 +261,23 @@ public final class QuestGraphCanvas extends JPanel {
             int x = (int) (ox + n.x() * zoom);
             int y = (int) (oy + n.y() * zoom);
             g2.setColor(fill(n));
-            g2.fillRoundRect(x - 64, y - 22, 128, 44, 12, 12);
+            g2.fillRoundRect(x - 72, y - 28, 144, 56, 12, 12);
             g2.setColor(n.id().equals(model.selectedId()) ? Color.WHITE : new Color(40, 44, 52));
-            g2.drawRoundRect(x - 64, y - 22, 128, 44, 12, 12);
+            g2.drawRoundRect(x - 72, y - 28, 144, 56, 12, 12);
             g2.setColor(Color.WHITE);
-            String title = n.title();
-            if (title.length() > 18) {
-                title = title.substring(0, 17) + "…";
-            }
-            g2.drawString(title, x - 56, y + 4);
+            g2.setFont(g2.getFont().deriveFont(java.awt.Font.BOLD, 12f));
+            g2.drawString(clip(n.title(), 18), x - 64, y - 4);
+            g2.setFont(g2.getFont().deriveFont(java.awt.Font.PLAIN, 11f));
+            g2.setColor(new Color(210, 214, 220));
+            g2.drawString(clip(n.subtitle(), 22), x - 64, y + 14);
         }
+    }
+
+    private static String clip(String text, int max) {
+        if (text == null) {
+            return "";
+        }
+        return text.length() > max ? text.substring(0, max - 1) + "…" : text;
     }
 
     private static Color fill(QuestGraphModel.Node n) {
