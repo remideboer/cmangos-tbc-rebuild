@@ -27,6 +27,30 @@ class HeroClassUnlockTest {
         assertEquals(Player.CLASS_WARRIOR, HeroClassUnlock.WARRIOR.classId());
         assertEquals(SpellEngine.HEROIC_STRIKE, HeroClassUnlock.WARRIOR.starterSpell());
         assertEquals(15274, HeroClassUnlock.WARRIOR.targetCreature());
+        assertEquals(-HeroClassUnlock.QUEST_SORT_WARRIOR,
+                HeroClassUnlock.questLogZoneOrSort(Player.CLASS_WARRIOR));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_PALADIN,
+                HeroClassUnlock.questLogZoneOrSort(Player.CLASS_PALADIN));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_HUNTER,
+                HeroClassUnlock.questLogZoneOrSort(Player.CLASS_HUNTER));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_ROGUE,
+                HeroClassUnlock.questLogZoneOrSort(Player.CLASS_ROGUE));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_PRIEST,
+                HeroClassUnlock.questLogZoneOrSort(Player.CLASS_PRIEST));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_MAGE,
+                HeroClassUnlock.questLogZoneOrSort(Player.CLASS_MAGE));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_WARLOCK,
+                HeroClassUnlock.questLogZoneOrSort(Player.CLASS_WARLOCK));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_SHAMAN,
+                HeroClassUnlock.questLogZoneOrSort(Player.CLASS_SHAMAN));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_DRUID,
+                HeroClassUnlock.questLogZoneOrSort(Player.CLASS_DRUID));
+        assertEquals(0, HeroClassUnlock.questLogZoneOrSort(99));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_WARRIOR,
+                HeroClassUnlock.questLogZoneOrSortForQuest(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
+        assertEquals(-HeroClassUnlock.QUEST_SORT_WARRIOR,
+                HeroClassUnlock.questLogZoneOrSortForQuest(HeroClassUnlock.QUEST_RALLY_THE_LINE));
+        assertEquals(0, HeroClassUnlock.questLogZoneOrSortForQuest(783));
         assertEquals(5, HeroClassUnlock.WARRIOR.requiredHits());
         assertEquals(1, HeroClassUnlock.WARRIOR.requiredKills());
         assertEquals(HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER, HeroClassUnlock.WARRIOR.trainerEntry());

@@ -517,6 +517,50 @@ public final class HeroClassUnlock {
         return forQuest(questId) != null || FOLLOW_UP_BY_QUEST.containsKey(questId);
     }
 
+    /** QuestSort.dbc ids (SharedDefines.h). ZoneOrSort on the wire is the negated sort. */
+    public static final int QUEST_SORT_WARLOCK = 61;
+    public static final int QUEST_SORT_WARRIOR = 81;
+    public static final int QUEST_SORT_SHAMAN = 82;
+    public static final int QUEST_SORT_PALADIN = 141;
+    public static final int QUEST_SORT_MAGE = 161;
+    public static final int QUEST_SORT_ROGUE = 162;
+    public static final int QUEST_SORT_HUNTER = 261;
+    public static final int QUEST_SORT_PRIEST = 262;
+    public static final int QUEST_SORT_DRUID = 263;
+
+    /** Quest log header: negative QuestSort so the 8606 client groups under Warrior, Paladin, … */
+    public static int questLogZoneOrSort(int classId) {
+        int sort = questSortId(classId);
+        return sort == 0 ? 0 : -sort;
+    }
+
+    public static int questLogZoneOrSortForQuest(int questId) {
+        HeroClassUnlock unlock = forQuest(questId);
+        if (unlock != null) {
+            return questLogZoneOrSort(unlock.classId);
+        }
+        FollowUp followUp = FOLLOW_UP_BY_QUEST.get(questId);
+        if (followUp != null) {
+            return questLogZoneOrSort(followUp.trainerClass());
+        }
+        return 0;
+    }
+
+    static int questSortId(int classId) {
+        return switch (classId) {
+            case Player.CLASS_WARRIOR -> QUEST_SORT_WARRIOR;
+            case Player.CLASS_PALADIN -> QUEST_SORT_PALADIN;
+            case Player.CLASS_HUNTER -> QUEST_SORT_HUNTER;
+            case Player.CLASS_ROGUE -> QUEST_SORT_ROGUE;
+            case Player.CLASS_PRIEST -> QUEST_SORT_PRIEST;
+            case Player.CLASS_MAGE -> QUEST_SORT_MAGE;
+            case Player.CLASS_WARLOCK -> QUEST_SORT_WARLOCK;
+            case Player.CLASS_SHAMAN -> QUEST_SORT_SHAMAN;
+            case Player.CLASS_DRUID -> QUEST_SORT_DRUID;
+            default -> 0;
+        };
+    }
+
     /**
      * Class trainers without a Hero unlock path stay open. Warrior through Druid require their
      * unlock quest rewarded.

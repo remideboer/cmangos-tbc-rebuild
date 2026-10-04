@@ -54,6 +54,24 @@ class ContentHeroUnlockTest {
     }
 
     @Test
+    void seedWhenHeroQuestsShouldCarryClassQuestSortHeader() {
+        assertEquals(-81, mgr.quests.get(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON).zoneOrSort());
+        assertEquals(-81, mgr.quests.get(HeroClassUnlock.QUEST_RALLY_THE_LINE).zoneOrSort());
+        assertEquals(-141, mgr.quests.get(HeroClassUnlock.QUEST_A_VOW_TESTED).zoneOrSort());
+        assertEquals(-261, mgr.quests.get(HeroClassUnlock.QUEST_THE_MARKED_TRAIL).zoneOrSort());
+        assertEquals(-162, mgr.quests.get(HeroClassUnlock.QUEST_A_QUIET_HAND).zoneOrSort());
+        assertEquals(-262, mgr.quests.get(HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT).zoneOrSort());
+        assertEquals(-161, mgr.quests.get(HeroClassUnlock.QUEST_A_CONTROLLED_SPARK).zoneOrSort());
+        assertEquals(-61, mgr.quests.get(HeroClassUnlock.QUEST_THE_BOUND_FLAME).zoneOrSort());
+        assertEquals(-82, mgr.quests.get(HeroClassUnlock.QUEST_LISTEN_TO_THE_ELEMENTS).zoneOrSort());
+        assertEquals(-263, mgr.quests.get(HeroClassUnlock.QUEST_A_LIVING_BALANCE).zoneOrSort());
+        for (HeroClassUnlock.FollowUp fu : HeroClassUnlock.followUps()) {
+            int expected = mgr.quests.get(fu.requiresQuest()).zoneOrSort();
+            assertEquals(expected, mgr.quests.get(fu.questId()).zoneOrSort(), "follow-up " + fu.questId());
+        }
+    }
+
+    @Test
     void canTakeWhenOrdinaryClassShouldRefuseHeroUnlockQuest() {
         p.clazz = Player.CLASS_WARRIOR;
         ObjectMgr.QuestTemplate q = mgr.quests.get(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);

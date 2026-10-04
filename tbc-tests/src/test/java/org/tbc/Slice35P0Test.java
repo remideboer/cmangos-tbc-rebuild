@@ -2849,6 +2849,32 @@ class Slice35P0Test {
         }
     }
 
+    /**
+     * TP-SL35-067 — {@code SMSG_QUEST_QUERY_RESPONSE} ZoneOrSort is the class QuestSort
+     * (negative, QuestDef.h / SharedDefines.h) so the 8606 log shows a Warrior/Paladin/… header.
+     */
+    @Test
+    void tpSl35HeroQuestQueryShouldCarryClassSortHeader() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Loghead", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        client.clear();
+        WowBuffer in = new WowBuffer(4);
+        in.putU32(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        client.handle(world, Opcodes.CMSG_QUEST_QUERY, in.array());
+        byte[] payload = client.payload(Opcodes.SMSG_QUEST_QUERY_RESPONSE);
+        assertEquals(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON, WowClientDouble.u32le(payload, 0));
+        assertEquals(-81, WowClientDouble.u32le(payload, 12));
+        client.clear();
+        WowBuffer pal = new WowBuffer(4);
+        pal.putU32(HeroClassUnlock.QUEST_A_VOW_TESTED);
+        client.handle(world, Opcodes.CMSG_QUEST_QUERY, pal.array());
+        assertEquals(-141, WowClientDouble.u32le(client.payload(Opcodes.SMSG_QUEST_QUERY_RESPONSE), 12));
+    }
+
     private static Creature findOn(World world, int mapId, int entry) {
         for (Creature c : world.map(mapId, 0).creatures.values()) {
             if (c.entry == entry) {

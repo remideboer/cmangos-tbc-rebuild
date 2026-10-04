@@ -3480,11 +3480,10 @@ public final class ObjectMgr {
                 new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
                         org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
                         org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_PLATE));
-        quests.putIfAbsent(questId, new QuestTemplate(questId, "The Hero's First Lesson", 1, 0,
-                0,
+        quests.putIfAbsent(questId, heroFollowUpQuest(questId, "The Hero's First Lesson",
                 "Practice with your weapon on the Mana Wyrms, then prove you can finish one. Return alive.",
                 "Land 5 weapon hits on a Mana Wyrm and defeat 1 Mana Wyrm.",
-                wyrm, org.tbc.world.classless.HeroClassUnlock.REQUIRED_KILLS));
+                wyrm, org.tbc.world.classless.HeroClassUnlock.REQUIRED_KILLS, 0, 0, 0));
         questCreatureHits.putIfAbsent(questId, new CreatureHitObjective(wyrm,
                 org.tbc.world.classless.HeroClassUnlock.REQUIRED_HITS));
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.HEROIC_STRIKE);
@@ -3538,7 +3537,8 @@ public final class ObjectMgr {
                 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0,
-                prevQuestId, 0);
+                prevQuestId, 0,
+                org.tbc.world.classless.HeroClassUnlock.questLogZoneOrSortForQuest(id));
     }
 
     private void seedHeroPaladinUnlock() {
@@ -3921,11 +3921,10 @@ public final class ObjectMgr {
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_AUTO_SHOT, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SERPENT_STING, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_SHOT, 100, 1));
-        quests.putIfAbsent(questId, new QuestTemplate(questId, "The Marked Trail", 1, 0,
-                0,
+        quests.putIfAbsent(questId, heroFollowUpQuest(questId, "The Marked Trail",
                 "Track the local prey, land three solid hits, then finish one. Return alive.",
                 "Land 3 weapon hits on a Mana Wyrm and defeat 1 Mana Wyrm.",
-                wyrm, org.tbc.world.classless.HeroClassUnlock.REQUIRED_KILLS));
+                wyrm, org.tbc.world.classless.HeroClassUnlock.REQUIRED_KILLS, 0, 0, 0));
         questCreatureHits.putIfAbsent(questId, new CreatureHitObjective(wyrm,
                 org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_MARKED_HITS));
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.HUNTERS_MARK);
