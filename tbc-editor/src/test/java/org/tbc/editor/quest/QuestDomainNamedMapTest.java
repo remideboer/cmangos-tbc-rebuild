@@ -24,6 +24,8 @@ class QuestDomainNamedMapTest {
         assertEquals(AreaTable.EVERSONG_WOODS, domain.document().zoneOrSort());
         assertNotNull(domain.canvas().model().region());
         assertEquals(AreaTable.EVERSONG_WOODS, domain.canvas().model().region().areaId());
+        assertEquals("Map", domain.tabTitle(0));
+        assertEquals("Graph", domain.tabTitle(1));
     }
 
     @Test

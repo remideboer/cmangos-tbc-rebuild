@@ -14,6 +14,7 @@ public final class QuestDocument {
         private String notes = "";
         private String calibrationAnchors = "";
         private final List<MarkerSurface> surfaces = new ArrayList<>();
+        private final GraphView graph = new GraphView();
 
         public String overlayPath() {
             return overlayPath;
@@ -49,6 +50,82 @@ public final class QuestDocument {
 
         public List<MarkerSurface> surfaces() {
             return surfaces;
+        }
+
+        public GraphView graph() {
+            return graph;
+        }
+    }
+
+    public static final class GraphNodePos {
+        private final String id;
+        private double x;
+        private double y;
+
+        public GraphNodePos(String id, double x, double y) {
+            this.id = id;
+            this.x = x;
+            this.y = y;
+        }
+
+        public String id() {
+            return id;
+        }
+
+        public double x() {
+            return x;
+        }
+
+        public double y() {
+            return y;
+        }
+
+        public void set(double x, double y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    public static final class GraphView {
+        private double panX;
+        private double panY;
+        private double zoom = 1;
+        private final List<String> collapsed = new ArrayList<>();
+        private final List<GraphNodePos> nodes = new ArrayList<>();
+
+        public double panX() {
+            return panX;
+        }
+
+        public double panY() {
+            return panY;
+        }
+
+        public double zoom() {
+            return zoom;
+        }
+
+        public void setView(double panX, double panY, double zoom) {
+            this.panX = panX;
+            this.panY = panY;
+            this.zoom = zoom <= 0 ? 1 : zoom;
+        }
+
+        public List<String> collapsed() {
+            return collapsed;
+        }
+
+        public List<GraphNodePos> nodes() {
+            return nodes;
+        }
+
+        public GraphNodePos node(String id) {
+            for (GraphNodePos n : nodes) {
+                if (id.equals(n.id())) {
+                    return n;
+                }
+            }
+            return null;
         }
     }
 

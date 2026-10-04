@@ -56,4 +56,34 @@ class QuestDocumentIoTest {
         assertTrue(Files.exists(store.publishedFile(95001)));
         assertTrue(Files.notExists(store.publishedFile(95001).resolveSibling("95001.yaml.tmp")));
     }
+
+    @Test
+    void saveDraftWhenGraphLayoutShouldRoundTripAndStayOffPublishedYaml() throws Exception {
+        QuestYamlStore store = new QuestYamlStore(tmp.resolve("content"));
+        QuestDocument doc = QuestDocument.newOwned(95040);
+        doc.setTitle("Graph");
+        doc.setDetails("d");
+        doc.setObjectives("o");
+        doc.setGiverNpc(823);
+        doc.setTurnInNpc(823);
+        doc.editor().graph().setView(4, 5, 1.5);
+        doc.editor().graph().collapsed().add("quest:95040");
+        doc.editor().graph().nodes().add(new QuestDocument.GraphNodePos("quest:95040", 12, 34));
+
+        store.saveDraft(doc);
+        QuestDocument loaded = store.loadDraft(95040);
+        assertEquals(4, loaded.editor().graph().panX(), 1e-6);
+        assertEquals(5, loaded.editor().graph().panY(), 1e-6);
+        assertEquals(1.5, loaded.editor().graph().zoom(), 1e-6);
+        assertEquals("quest:95040", loaded.editor().graph().collapsed().get(0));
+        assertEquals(12, loaded.editor().graph().nodes().get(0).x(), 1e-6);
+        assertEquals(34, loaded.editor().graph().nodes().get(0).y(), 1e-6);
+
+        String published = store.runtimeYaml(doc);
+        assertFalse(published.contains("graph:"));
+        assertFalse(published.contains("quest:95040"));
+        store.publishAtomic(doc);
+        String onDisk = Files.readString(store.publishedFile(95040));
+        assertFalse(onDisk.contains("graph:"));
+    }
 }

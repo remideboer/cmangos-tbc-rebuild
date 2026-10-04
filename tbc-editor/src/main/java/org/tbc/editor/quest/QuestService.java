@@ -50,7 +50,22 @@ public final class QuestService {
     }
 
     public QuestValidator.Report validate(QuestDocument doc) {
-        return validator.validate(doc);
+        return validator.validate(doc, chainFor(doc));
+    }
+
+    private List<QuestDocument> chainFor(QuestDocument doc) {
+        List<QuestDocument> chain = new ArrayList<>();
+        try {
+            for (QuestDocument other : store.loadAllDrafts()) {
+                chain.add(other.id() == doc.id() ? doc : other);
+            }
+        } catch (RuntimeException ignored) {
+            chain.clear();
+        }
+        if (chain.stream().noneMatch(d -> d.id() == doc.id())) {
+            chain.add(doc);
+        }
+        return chain;
     }
 
     public String previewRuntimeYaml(QuestDocument doc) {

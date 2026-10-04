@@ -61,6 +61,10 @@ public final class QuestValidator {
     }
 
     public Report validate(QuestDocument doc) {
+        return validate(doc, java.util.List.of(doc));
+    }
+
+    public Report validate(QuestDocument doc, java.util.List<QuestDocument> chain) {
         List<Issue> issues = new ArrayList<>();
         if (doc == null) {
             issues.add(err(null, "Quest document is missing."));
@@ -82,6 +86,9 @@ public final class QuestValidator {
         }
         if (doc.turnInNpc() == 0) {
             issues.add(err(null, "Turn-in NPC is required."));
+            if (doc.giverNpc() != 0) {
+                issues.add(warn("quest:" + doc.id(), "Disconnected flow: giver is set and turn-in is missing."));
+            }
         } else if (!npcKnown(doc, doc.turnInNpc())) {
             issues.add(err(null, "Turn-in NPC is missing from templates."));
         }
@@ -109,8 +116,12 @@ public final class QuestValidator {
         if (doc.rewSpell() < 0) {
             issues.add(err(null, "Reward spell id is invalid."));
         }
-        if (doc.prevQuestId() != 0 && mgr != null && mgr.quests.get(doc.prevQuestId()) == null) {
+        boolean prevInChain = chain != null && chain.stream().anyMatch(d -> d.id() == doc.prevQuestId());
+        if (doc.prevQuestId() != 0 && !prevInChain && mgr != null && mgr.quests.get(doc.prevQuestId()) == null) {
             issues.add(err(null, "Prerequisite quest reference is missing."));
+        }
+        if (chain != null && QuestGraphModel.cycleTouches(doc.id(), chain)) {
+            issues.add(err("quest:" + doc.id(), "Prerequisite quest chain has a cycle."));
         }
         for (QuestDocument.NpcDraft n : doc.npcDrafts()) {
             if (n.display() <= 0) {

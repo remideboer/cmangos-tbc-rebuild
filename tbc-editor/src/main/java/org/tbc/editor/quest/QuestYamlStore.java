@@ -52,6 +52,23 @@ public final class QuestYamlStore {
         }
     }
 
+    public List<QuestDocument> loadAllDrafts() {
+        if (!Files.isDirectory(draftsDir())) {
+            return List.of();
+        }
+        List<QuestDocument> out = new ArrayList<>();
+        try (var files = Files.list(draftsDir())) {
+            for (Path file : files.filter(p -> p.getFileName().toString().endsWith(".yaml")).toList()) {
+                String name = file.getFileName().toString();
+                int id = Integer.parseInt(name.substring(0, name.length() - ".yaml".length()));
+                out.add(loadDraft(id));
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return out;
+    }
+
     public QuestDocument loadDraft(int id) {
         try {
             Path file = draftFile(id);
@@ -80,6 +97,7 @@ public final class QuestYamlStore {
                             }
                         }
                     }
+                    readGraph(doc, em.get("graph"));
                 }
                 return doc;
             }
@@ -181,7 +199,26 @@ public final class QuestYamlStore {
             surfaces.add(row);
         }
         editor.put("surfaces", surfaces);
+        editor.put("graph", graphMap(doc.editor().graph()));
         return editor;
+    }
+
+    private static Map<String, Object> graphMap(QuestDocument.GraphView view) {
+        Map<String, Object> graph = new LinkedHashMap<>();
+        graph.put("panX", view.panX());
+        graph.put("panY", view.panY());
+        graph.put("zoom", view.zoom());
+        graph.put("collapsed", new ArrayList<>(view.collapsed()));
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        for (QuestDocument.GraphNodePos pos : view.nodes()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", pos.id());
+            row.put("x", pos.x());
+            row.put("y", pos.y());
+            nodes.add(row);
+        }
+        graph.put("nodes", nodes);
+        return graph;
     }
 
     private static String dump(Map<String, Object> map) {
@@ -201,8 +238,38 @@ public final class QuestYamlStore {
         }
     }
 
+    private static void readGraph(QuestDocument doc, Object raw) {
+        if (!(raw instanceof Map<?, ?> graph)) {
+            return;
+        }
+        doc.editor().graph().setView(doubleVal(graph.get("panX")), doubleVal(graph.get("panY")),
+                doubleVal(graph.get("zoom")));
+        Object collapsed = graph.get("collapsed");
+        if (collapsed instanceof List<?> list) {
+            for (Object id : list) {
+                doc.editor().graph().collapsed().add(str(id));
+            }
+        }
+        Object nodes = graph.get("nodes");
+        if (nodes instanceof List<?> list) {
+            for (Object row : list) {
+                if (row instanceof Map<?, ?> nm) {
+                    doc.editor().graph().nodes().add(new QuestDocument.GraphNodePos(
+                            str(nm.get("id")), doubleVal(nm.get("x")), doubleVal(nm.get("y"))));
+                }
+            }
+        }
+    }
+
     private static String str(Object o) {
         return o == null ? "" : String.valueOf(o);
+    }
+
+    private static double doubleVal(Object o) {
+        if (o instanceof Number n) {
+            return n.doubleValue();
+        }
+        return 0d;
     }
 
     private static float floatVal(Object o) {

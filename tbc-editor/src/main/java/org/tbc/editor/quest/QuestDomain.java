@@ -18,12 +18,17 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -35,6 +40,9 @@ public final class QuestDomain implements EditorDomain {
     private final Function<WorldMapArea, RegionMinimap.Raster> raster;
     private final JPanel root = new JPanel(new BorderLayout());
     private final QuestMapCanvas canvas = new QuestMapCanvas();
+    private final QuestGraphModel graphModel = new QuestGraphModel();
+    private final QuestGraphCanvas graphCanvas = new QuestGraphCanvas();
+    private final JTabbedPane tabs = new JTabbedPane();
     private final JComboBox<WorldMapArea> mapCombo;
     private final JLabel zoneLabel = new JLabel("Zone");
     private final JTextField idField = new JTextField("95001", 8);
@@ -42,6 +50,7 @@ public final class QuestDomain implements EditorDomain {
     private final JTextArea details = new JTextArea(4, 20);
     private final JTextField giver = new JTextField(8);
     private final JTextField turnIn = new JTextField(8);
+    private final JTextField prevQuest = new JTextField(8);
     private final JTextArea issues = new JTextArea(8, 28);
     private final JTextArea preview = new JTextArea(8, 28);
     private final JCheckBox ackDup = new JCheckBox("Acknowledge near-duplicate spawns");
@@ -118,6 +127,8 @@ public final class QuestDomain implements EditorDomain {
         inspector.add(giver);
         inspector.add(new JLabel("Turn-in NPC"));
         inspector.add(turnIn);
+        inspector.add(new JLabel("Prev quest"));
+        inspector.add(prevQuest);
         inspector.add(new JLabel("Details"));
         inspector.add(new JScrollPane(details));
 
@@ -146,11 +157,35 @@ public final class QuestDomain implements EditorDomain {
         south.add(new JScrollPane(lookup), BorderLayout.CENTER);
         east.add(south, BorderLayout.SOUTH);
 
+        graphCanvas.setModel(graphModel);
+        graphCanvas.setJumpToMap(() -> tabs.setSelectedIndex(0));
+        graphCanvas.setInspectQuest(this::showQuest);
+        graphCanvas.setCreateChild(this::createChild);
+        JPanel graphBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton fitGraph = new JButton("Fit");
+        JButton collapseGraph = new JButton("Collapse");
+        fitGraph.addActionListener(e -> {
+            graphModel.fit();
+            graphCanvas.repaint();
+        });
+        collapseGraph.addActionListener(e -> {
+            graphModel.collapseSelected();
+            graphCanvas.repaint();
+        });
+        graphBar.add(fitGraph);
+        graphBar.add(collapseGraph);
+        JPanel graphPage = new JPanel(new BorderLayout());
+        graphPage.add(graphBar, BorderLayout.NORTH);
+        graphPage.add(graphCanvas, BorderLayout.CENTER);
+        tabs.addTab("Map", canvas);
+        tabs.addTab("Graph", graphPage);
+
         root.add(north, BorderLayout.NORTH);
-        root.add(canvas, BorderLayout.CENTER);
+        root.add(tabs, BorderLayout.CENTER);
         root.add(east, BorderLayout.EAST);
         pullFromDoc();
         applySelectedMap();
+        rebuildGraph();
     }
 
     @Override
@@ -177,6 +212,14 @@ public final class QuestDomain implements EditorDomain {
 
     public JLabel zoneLabel() {
         return zoneLabel;
+    }
+
+    public String tabTitle(int index) {
+        return tabs.getTitleAt(index);
+    }
+
+    public QuestGraphCanvas graphCanvas() {
+        return graphCanvas;
     }
 
     public void selectNamedMap(String displayName) {
@@ -231,6 +274,7 @@ public final class QuestDomain implements EditorDomain {
             doc = service.create(Integer.parseInt(idField.getText().trim()));
             pullFromDoc();
             applySelectedMap();
+            rebuildGraph();
             status.accept("New quest " + doc.id());
         } catch (Exception ex) {
             status.accept(message(ex));
@@ -241,6 +285,7 @@ public final class QuestDomain implements EditorDomain {
         try {
             pushToDoc();
             service.saveDraft(doc);
+            rebuildGraph();
             status.accept("Draft saved.");
         } catch (Exception ex) {
             status.accept(message(ex));
@@ -252,6 +297,7 @@ public final class QuestDomain implements EditorDomain {
             doc = service.loadDraft(Integer.parseInt(idField.getText().trim()));
             pullFromDoc();
             applySelectedMap();
+            rebuildGraph();
             status.accept("Draft loaded.");
         } catch (Exception ex) {
             status.accept(message(ex));
@@ -271,6 +317,14 @@ public final class QuestDomain implements EditorDomain {
         }
         issues.setText(sb.toString());
         preview.setText(service.publishDiff(doc));
+        Set<Integer> flagged = new HashSet<>();
+        for (QuestValidator.Issue i : r.issues()) {
+            if (i.markerId() != null && i.markerId().startsWith("quest:")) {
+                flagged.add(parseInt(i.markerId().substring("quest:".length())));
+            }
+        }
+        graphModel.markIssues(flagged);
+        graphCanvas.repaint();
     }
 
     private void publish() {
@@ -290,6 +344,7 @@ public final class QuestDomain implements EditorDomain {
         details.setText(doc.details());
         giver.setText(Integer.toString(doc.giverNpc()));
         turnIn.setText(Integer.toString(doc.turnInNpc()));
+        prevQuest.setText(Integer.toString(doc.prevQuestId()));
         WorldMapArea hit = maps.byAreaId(doc.zoneOrSort());
         if (hit == null) {
             hit = maps.byMapAndArea(doc.mapId(), doc.zoneOrSort());
@@ -310,8 +365,82 @@ public final class QuestDomain implements EditorDomain {
         }
         doc.setGiverNpc(parseInt(giver.getText()));
         doc.setTurnInNpc(parseInt(turnIn.getText()));
+        doc.setPrevQuestId(parseInt(prevQuest.getText()));
         doc.setMinLevel(Math.max(1, doc.minLevel()));
         doc.setQuestLevel(Math.max(1, doc.questLevel()));
+    }
+
+    private void showQuest(int questId) {
+        if (questId == doc.id()) {
+            title.requestFocusInWindow();
+            return;
+        }
+        pushToDoc();
+        for (QuestDocument other : loadChain()) {
+            if (other.id() == questId) {
+                doc = other;
+                pullFromDoc();
+                rebuildGraph();
+                title.requestFocusInWindow();
+                return;
+            }
+        }
+    }
+
+    private void createChild() {
+        try {
+            pushToDoc();
+            int next = nextOwnedId();
+            QuestDocument child = service.create(next);
+            child.setPrevQuestId(doc.id());
+            child.setTitle("Follow-up " + next);
+            child.setMapId(doc.mapId());
+            child.setZoneOrSort(doc.zoneOrSort());
+            service.saveDraft(child);
+            rebuildGraph();
+            status.accept("Child quest " + next + " (draft, not published)");
+        } catch (Exception ex) {
+            status.accept(message(ex));
+        }
+    }
+
+    private int nextOwnedId() {
+        int next = QuestDocument.MIN_OWNED_ID;
+        for (QuestDocument other : loadChain()) {
+            if (other.id() >= next) {
+                next = other.id() + 1;
+            }
+        }
+        if (next > QuestDocument.MAX_OWNED_ID) {
+            throw new EditorException("No free quest id in the server-owned range.");
+        }
+        return next;
+    }
+
+    private void rebuildGraph() {
+        int npc = parseInt(turnIn.getText());
+        if (npc == 0) {
+            npc = parseInt(giver.getText());
+        }
+        graphCanvas.armTurnIn(npc);
+        graphCanvas.armPrerequisite(parseInt(prevQuest.getText()));
+        graphModel.rebuild(doc, loadChain());
+        graphCanvas.repaint();
+    }
+
+    private List<QuestDocument> loadChain() {
+        List<QuestDocument> chain = new ArrayList<>();
+        try {
+            for (QuestDocument other : service.store().loadAllDrafts()) {
+                chain.add(other.id() == doc.id() ? doc : other);
+            }
+        } catch (RuntimeException ignored) {
+            chain.clear();
+        }
+        if (chain.stream().noneMatch(d -> d.id() == doc.id())) {
+            chain.add(doc);
+        }
+        return chain;
     }
 
     private static int parseInt(String s) {
