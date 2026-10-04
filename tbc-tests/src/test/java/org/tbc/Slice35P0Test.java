@@ -2793,6 +2793,71 @@ class Slice35P0Test {
         client.handle(world, Opcodes.CMSG_ATTACKSTOP, stop.array());
     }
 
+    /**
+     * TP-SL35-066 — Blood Elf Sunstrider Hero trainers 91001–91009 all offer unlock quests
+     * with yellow ! ({@code DIALOG_STATUS_AVAILABLE}).
+     */
+    @Test
+    void tpSl35SunstriderHeroTrainersShouldShowUnlockExclamation() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Sunhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature warrior = findOn(world, 530, HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER);
+        assertNotNull(warrior);
+        world.map(p.mapId, p.instanceId).remove(p);
+        p.mapId = 530;
+        p.relocate(warrior.x, warrior.y, warrior.z, warrior.o);
+        world.map(530, 0).add(p);
+        int[] trainers = {
+                HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER,
+                HeroClassUnlock.NPC_HERO_PALADIN_TRAINER,
+                HeroClassUnlock.NPC_HERO_HUNTER_TRAINER,
+                HeroClassUnlock.NPC_HERO_ROGUE_TRAINER,
+                HeroClassUnlock.NPC_HERO_PRIEST_TRAINER,
+                HeroClassUnlock.NPC_HERO_MAGE_TRAINER,
+                HeroClassUnlock.NPC_HERO_WARLOCK_TRAINER,
+                HeroClassUnlock.NPC_HERO_SHAMAN_TRAINER,
+                HeroClassUnlock.NPC_HERO_DRUID_TRAINER
+        };
+        java.util.Map<Integer, Long> guids = new java.util.HashMap<>();
+        for (int entry : trainers) {
+            Creature c = findOn(world, 530, entry);
+            assertNotNull(c, "Sunstrider trainer " + entry);
+            guids.put(entry, c.guid);
+        }
+        client.clear();
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY, new byte[0]);
+        assertTrue(client.saw(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        WowBuffer st = new WowBuffer(client.payload(Opcodes.SMSG_QUESTGIVER_STATUS_MULTIPLE));
+        int count = st.getU32();
+        java.util.Set<Integer> available = new java.util.HashSet<>();
+        for (int i = 0; i < count; i++) {
+            long guid = st.getU64();
+            int status = st.getU8() & 0xFF;
+            for (int entry : trainers) {
+                if (guid == guids.get(entry) && status == Content.DIALOG_STATUS_AVAILABLE) {
+                    available.add(entry);
+                }
+            }
+        }
+        for (int entry : trainers) {
+            assertTrue(available.contains(entry), "yellow ! missing for " + entry);
+        }
+    }
+
+    private static Creature findOn(World world, int mapId, int entry) {
+        for (Creature c : world.map(mapId, 0).creatures.values()) {
+            if (c.entry == entry) {
+                return c;
+            }
+        }
+        return null;
+    }
+
     private static Creature find(World world, int entry) {
         for (Creature c : world.map(0, 0).creatures.values()) {
             if (c.entry == entry) {

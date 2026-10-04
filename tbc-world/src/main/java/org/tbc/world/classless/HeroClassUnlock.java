@@ -245,6 +245,17 @@ public final class HeroClassUnlock {
     public static final float SUNSTRIDER_DRUID_Y = -6389.23f;
     public static final float SUNSTRIDER_DRUID_Z = 38.5306f;
     public static final float SUNSTRIDER_DRUID_O = 3.74096f;
+    /** High spawn GUIDs so SQL worlds do not steal tbc-db creature rows 16–33. */
+    public static final int SPAWN_GUID_BASE_MAP0 = 9_000_000;
+    public static final int SPAWN_GUID_BASE_SUNSTRIDER = 9_100_000;
+
+    public static int map0SpawnGuid(int npcEntry) {
+        return SPAWN_GUID_BASE_MAP0 + npcEntry;
+    }
+
+    public static int sunstriderSpawnGuid(int npcEntry) {
+        return SPAWN_GUID_BASE_SUNSTRIDER + npcEntry;
+    }
 
     public static final HeroClassUnlock WARRIOR = new HeroClassUnlock(
             Player.CLASS_WARRIOR,

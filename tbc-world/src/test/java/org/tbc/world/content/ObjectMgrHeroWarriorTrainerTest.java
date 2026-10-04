@@ -2,6 +2,7 @@ package org.tbc.world.content;
 
 import org.junit.jupiter.api.Test;
 import org.tbc.world.classless.HeroClassUnlock;
+import org.tbc.world.content.Content;
 import org.tbc.world.combat.FactionTemplate;
 import org.tbc.world.combat.Factions;
 import org.tbc.world.entity.Creature;
@@ -48,7 +49,7 @@ class ObjectMgrHeroWarriorTrainerTest {
         mgr.load(null, null);
         ObjectMgr.Spawn sun = null;
         for (ObjectMgr.Spawn s : mgr.spawns) {
-            if (s.guid() == 17) {
+            if (s.entry() == HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER && s.map() == 530) {
                 sun = s;
                 break;
             }
@@ -60,6 +61,51 @@ class ObjectMgrHeroWarriorTrainerTest {
         assertEquals(HeroClassUnlock.SUNSTRIDER_SPAWN_Y, sun.y(), 0.01f);
         assertEquals(HeroClassUnlock.SUNSTRIDER_SPAWN_Z, sun.z(), 0.01f);
         assertEquals(HeroClassUnlock.SUNSTRIDER_SPAWN_O, sun.o(), 0.01f);
+    }
+
+    @Test
+    void seedQueryDefaultsWhenSqlWorldShouldPlaceEveryHeroTrainerOnSunstriderWithUnlockQuest() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.seedQueryDefaults();
+        int[] trainers = {
+                HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER,
+                HeroClassUnlock.NPC_HERO_PALADIN_TRAINER,
+                HeroClassUnlock.NPC_HERO_HUNTER_TRAINER,
+                HeroClassUnlock.NPC_HERO_ROGUE_TRAINER,
+                HeroClassUnlock.NPC_HERO_PRIEST_TRAINER,
+                HeroClassUnlock.NPC_HERO_MAGE_TRAINER,
+                HeroClassUnlock.NPC_HERO_WARLOCK_TRAINER,
+                HeroClassUnlock.NPC_HERO_SHAMAN_TRAINER,
+                HeroClassUnlock.NPC_HERO_DRUID_TRAINER
+        };
+        int[] unlocks = {
+                HeroClassUnlock.QUEST_HEROS_FIRST_LESSON,
+                HeroClassUnlock.QUEST_A_VOW_TESTED,
+                HeroClassUnlock.QUEST_THE_MARKED_TRAIL,
+                HeroClassUnlock.QUEST_A_QUIET_HAND,
+                HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT,
+                HeroClassUnlock.QUEST_A_CONTROLLED_SPARK,
+                HeroClassUnlock.QUEST_THE_BOUND_FLAME,
+                HeroClassUnlock.QUEST_LISTEN_TO_THE_ELEMENTS,
+                HeroClassUnlock.QUEST_A_LIVING_BALANCE
+        };
+        for (int i = 0; i < trainers.length; i++) {
+            int entry = trainers[i];
+            ObjectMgr.CreatureTemplate t = mgr.creatures.get(entry);
+            assertNotNull(t, "missing template " + entry);
+            assertTrue((t.npcFlags() & Content.UNIT_NPC_FLAG_QUESTGIVER) != 0, "questgiver " + entry);
+            ObjectMgr.Spawn sun = null;
+            for (ObjectMgr.Spawn s : mgr.spawns) {
+                if (s.entry() == entry && s.map() == 530) {
+                    sun = s;
+                    break;
+                }
+            }
+            assertNotNull(sun, "Sunstrider spawn " + entry);
+            java.util.List<Integer> offered = mgr.questGivers.get(entry);
+            assertNotNull(offered, "quest relation " + entry);
+            assertTrue(offered.contains(unlocks[i]), "unlock quest on " + entry);
+        }
     }
 
     @Test

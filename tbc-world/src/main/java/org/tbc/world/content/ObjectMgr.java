@@ -3395,6 +3395,10 @@ public final class ObjectMgr {
             eventGameObjects.put(Content.GAME_EVENT_MIDSUMMER, new ArrayList<>(List.of(
                     new Spawn(5470020, Content.GO_ICE_STONE, 547, -69.9045f, -162.245f, -2.36656f, 2.42601f))));
         }
+        seedAllHeroClassPaths();
+    }
+
+    void seedAllHeroClassPaths() {
         seedHeroWarriorUnlock();
         seedHeroPaladinUnlock();
         seedHeroHunterUnlock();
@@ -3446,8 +3450,8 @@ public final class ObjectMgr {
         seedHeroWarriorFollowUps(trainer, wyrm, questId);
         // Map-0 twin is for TP-SL35 find() only. Faction 1604 is Horde — keep it outside
         // abbey DetectOrAttack range (same rule as seeded hostiles).
-        addSpawnIfMissing(16, trainer, 0, -8400f, -400f, 80f, 0f);
-        replaceSpawn(17, trainer, 530,
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8400f, -400f, 80f, 0f);
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_X,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_Z,
@@ -3531,8 +3535,8 @@ public final class ObjectMgr {
         addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS);
         seedHeroPaladinFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(18, trainer, 0, -8402f, -402f, 80f, 0f);
-        replaceSpawn(19, trainer, 530,
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8402f, -402f, 80f, 0f);
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_X,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_Z,
@@ -3600,8 +3604,8 @@ public final class ObjectMgr {
         addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_WRATH);
         seedHeroDruidFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(32, trainer, 0, -8416f, -416f, 80f, 0f);
-        replaceSpawn(33, trainer, 530,
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8416f, -416f, 80f, 0f);
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_X,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_Z,
@@ -3671,8 +3675,8 @@ public final class ObjectMgr {
         addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_LIGHTNING_BOLT);
         seedHeroShamanFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(30, trainer, 0, -8414f, -414f, 80f, 0f);
-        replaceSpawn(31, trainer, 530,
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8414f, -414f, 80f, 0f);
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_X,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_Z,
@@ -3742,8 +3746,8 @@ public final class ObjectMgr {
         addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_CORRUPTION);
         seedHeroWarlockFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(28, trainer, 0, -8412f, -412f, 80f, 0f);
-        replaceSpawn(29, trainer, 530,
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8412f, -412f, 80f, 0f);
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_X,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_Z,
@@ -3813,8 +3817,8 @@ public final class ObjectMgr {
         addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.FIREBALL);
         seedHeroMageFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(26, trainer, 0, -8410f, -410f, 80f, 0f);
-        replaceSpawn(27, trainer, 530,
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8410f, -410f, 80f, 0f);
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_X,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_Z,
@@ -3882,8 +3886,8 @@ public final class ObjectMgr {
         addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_LESSER_HEAL);
         seedHeroPriestFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(24, trainer, 0, -8408f, -408f, 80f, 0f);
-        replaceSpawn(25, trainer, 530,
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8408f, -408f, 80f, 0f);
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_X,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_Z,
@@ -3950,8 +3954,8 @@ public final class ObjectMgr {
         addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_SINISTER_STRIKE);
         seedHeroRogueFollowUps(trainer, questId);
-        addSpawnIfMissing(22, trainer, 0, -8406f, -406f, 80f, 0f);
-        replaceSpawn(23, trainer, 530,
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8406f, -406f, 80f, 0f);
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_X,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_Z,
@@ -4023,8 +4027,8 @@ public final class ObjectMgr {
                 org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_MARKED_HITS));
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.HUNTERS_MARK);
         seedHeroHunterFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(20, trainer, 0, -8404f, -404f, 80f, 0f);
-        replaceSpawn(21, trainer, 530,
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8404f, -404f, 80f, 0f);
+        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_X,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_Y,
                 org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_Z,
@@ -4086,7 +4090,7 @@ public final class ObjectMgr {
                 org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT);
     }
 
-    private void seedQueryDefaults() {
+    void seedQueryDefaults() {
         creatures.putIfAbsent(6, seedKoboldVermin());
         // Mana Wyrm — Eversong; MinLevelMana for Mana Tap 28734 / client mana bar.
         creatures.putIfAbsent(15274, new CreatureTemplate(15274, "Mana Wyrm", 15404, 7, 55, 1, 0, "", "", 0));
@@ -4258,7 +4262,7 @@ public final class ObjectMgr {
         if (!hasPetitioner) {
             spawns.add(new Spawn(1_000_013, Content.NPC_REBECCA_LAUGHLIN, 0, -8916f, -126f, 80f, 0f));
         }
-        seedHeroWarriorUnlock();
+        seedAllHeroClassPaths();
         seedMenu0();
         seedFarleyGossip();
     }
