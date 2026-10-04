@@ -36,6 +36,7 @@ public final class QuestMapCanvas extends JPanel {
     private JPopupMenu contextMenu = new JPopupMenu();
     private List<MapSpawnLayer.Pin> spawns = List.of();
     private boolean showSpawns = true;
+    private MapSpawnLayer.Pin selectedSpawn;
 
     public QuestMapCanvas() {
         setPreferredSize(new Dimension(640, 480));
@@ -61,6 +62,14 @@ public final class QuestMapCanvas extends JPanel {
                     return;
                 }
                 if (e.getButton() == MouseEvent.BUTTON1) {
+                    MapSpawnLayer.Pin pin = pinAt(e.getX(), e.getY());
+                    if (pin != null) {
+                        if (e.getClickCount() >= 2) {
+                            selectedSpawn = pin;
+                        }
+                        repaint();
+                        return;
+                    }
                     float[] img = viewToImage(e.getX(), e.getY());
                     model.clickPixel(img[0], img[1]);
                     repaint();
@@ -100,15 +109,18 @@ public final class QuestMapCanvas extends JPanel {
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                float[] img = viewToImage(e.getX(), e.getY());
-                float[] world = model.viewToWorld(img[0], img[1]);
-                MapSpawnLayer.Pin pin = showSpawns
-                        ? MapSpawnLayer.nearest(spawns, world[0], world[1], hoverReachYards()) : null;
-                hoverText = pin == null
-                        ? String.format("X %.2f  Y %.2f", world[0], world[1])
-                        : pin.name() + " (" + pin.entry() + ")";
+                MapSpawnLayer.Pin pin = pinAt(e.getX(), e.getY());
+                if (pin == null) {
+                    float[] img = viewToImage(e.getX(), e.getY());
+                    float[] world = model.viewToWorld(img[0], img[1]);
+                    hoverText = String.format("X %.2f  Y %.2f", world[0], world[1]);
+                    setToolTipText(null);
+                } else {
+                    hoverText = pin.name() + "\n" + pin.typeName() + "\n" + pin.entry();
+                    setToolTipText("<html>" + escape(pin.name()) + "<br>" + escape(pin.typeName())
+                            + "<br>" + pin.entry() + "</html>");
+                }
                 hoverListener.accept(hoverText);
-                setToolTipText(hoverText);
                 repaint();
             }
 
@@ -182,6 +194,10 @@ public final class QuestMapCanvas extends JPanel {
         return hoverText;
     }
 
+    public MapSpawnLayer.Pin selectedSpawn() {
+        return selectedSpawn;
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -206,7 +222,13 @@ public final class QuestMapCanvas extends JPanel {
                 int py = oy + (int) (pix[1] * model.zoom());
                 g2.setColor(pin.kind() == MapSpawnLayer.Kind.CREATURE
                         ? new Color(80, 160, 255) : new Color(255, 170, 40));
-                g2.fillRect(px - 2, py - 2, 4, 4);
+                g2.fillOval(px - 5, py - 5, 10, 10);
+                g2.setColor(Color.BLACK);
+                g2.drawOval(px - 5, py - 5, 10, 10);
+                if (pin.equals(selectedSpawn)) {
+                    g2.setColor(Color.WHITE);
+                    g2.drawOval(px - 8, py - 8, 16, 16);
+                }
             }
         }
         if (overlayMissing()) {
@@ -282,6 +304,22 @@ public final class QuestMapCanvas extends JPanel {
             repaint();
         });
         menu.add(item);
+    }
+
+    private MapSpawnLayer.Pin pinAt(int viewX, int viewY) {
+        if (!showSpawns) {
+            return null;
+        }
+        float[] img = viewToImage(viewX, viewY);
+        float[] world = model.viewToWorld(img[0], img[1]);
+        return MapSpawnLayer.nearest(spawns, world[0], world[1], hoverReachYards());
+    }
+
+    private static String escape(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     /** At least 30 yards, or 8 screen pixels when the zone is zoomed out. */

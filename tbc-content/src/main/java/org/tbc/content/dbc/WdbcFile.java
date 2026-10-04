@@ -53,11 +53,21 @@ public final class WdbcFile {
     }
 
     public static WdbcFile load(Path path) throws IOException {
-        byte[] all = Files.readAllBytes(path);
+        return parse(Files.readAllBytes(path), String.valueOf(path));
+    }
+
+    public static WdbcFile read(byte[] all) throws IOException {
+        return parse(all, "bytes");
+    }
+
+    private static WdbcFile parse(byte[] all, String source) throws IOException {
+        if (all == null) {
+            throw new IOException("not WDBC: " + source);
+        }
         ByteBuffer buf = ByteBuffer.wrap(all).order(ByteOrder.LITTLE_ENDIAN);
         int magic = buf.getInt();
         if (magic != MAGIC) {
-            throw new IOException("not WDBC: " + path);
+            throw new IOException("not WDBC: " + source);
         }
         int recordCount = buf.getInt();
         int fieldCount = buf.getInt();
@@ -66,7 +76,7 @@ public final class WdbcFile {
         boolean packed = recordSize == fieldCount && fieldCount > 0;
         if (!packed && recordSize != fieldCount * 4) {
             throw new IOException("recordSize " + recordSize + " incompatible with fieldCount "
-                    + fieldCount + " in " + path);
+                    + fieldCount + " in " + source);
         }
         List<int[]> rows = new ArrayList<>(recordCount);
         for (int r = 0; r < recordCount; r++) {

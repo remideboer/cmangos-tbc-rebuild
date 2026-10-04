@@ -15,9 +15,8 @@ import java.util.List;
 /**
  * Client world-map tiles: {@code Interface\WorldMap\<name>\<name>1.blp} … {@code 12},
  * four columns by three rows, the same layout the 8606 map frame uses.
- * Sunstrider Isle is not its own WorldMapArea; the client draws
- * {@code Interface\WorldMap\EversongWoods\SunstriderIsleN.blp} on top of Eversong
- * (WorldMapOverlay id 1127: 512×512 at pixel 195, 5).
+ * Every WorldMapOverlay for the zone is stamped on that sheet. Sunstrider Isle
+ * is the Eversong sheet cropped after those overlays, including SunstriderIsle.
  */
 public final class WorldMapBlp {
     /** Highest-priority archive first. Locale files live under {@code Data/enUS}. */
@@ -51,7 +50,11 @@ public final class WorldMapBlp {
         if (area.areaId() == WorldMapAreas.SUNSTRIDER.areaId()) {
             return sunstrider(dataDir);
         }
-        return assemble(dataDir, area.internalName(), area.internalName(), 0, 0);
+        RegionMinimap.Raster sheet = assemble(dataDir, area.internalName(), area.internalName(), 0, 0);
+        if (sheet != null) {
+            paintOverlays(dataDir, sheet, area.internalName(), area.areaId());
+        }
+        return sheet;
     }
 
     /**
@@ -69,14 +72,46 @@ public final class WorldMapBlp {
         return crop;
     }
 
+    public static void stamp(RegionMinimap.Raster sheet, RegionMinimap.Raster overlay, int x, int y) {
+        if (sheet == null || overlay == null) {
+            return;
+        }
+        blitAlpha(sheet, overlay, x, y);
+    }
+
+    public static RegionMinimap.Raster sunstriderCrop(RegionMinimap.Raster sheet) {
+        if (sheet == null) {
+            return null;
+        }
+        return cropPixels(sheet, CROP_X0, CROP_Y0, CROP_X1, CROP_Y1);
+    }
+
     private static RegionMinimap.Raster sunstrider(Path dataDir) {
         String folder = WorldMapAreas.EVERSONG.internalName();
         RegionMinimap.Raster parent = assemble(dataDir, folder, folder, 4, 3);
-        RegionMinimap.Raster overlay = assemble(dataDir, folder, "SunstriderIsle", 2, 2);
         if (parent == null) {
-            return overlay;
+            return null;
         }
-        return sunstriderView(parent, overlay);
+        paintOverlays(dataDir, parent, folder, WorldMapAreas.EVERSONG.areaId());
+        return sunstriderCrop(parent);
+    }
+
+    private static void paintOverlays(Path dataDir, RegionMinimap.Raster sheet, String folder, int zoneAreaId) {
+        for (WorldMapOverlays.Overlay overlay : WorldMapOverlays.forZone(dataDir, zoneAreaId)) {
+            int cols = (overlay.width() + 255) / 256;
+            int rows = (overlay.height() + 255) / 256;
+            if (cols <= 0 || rows <= 0) {
+                continue;
+            }
+            RegionMinimap.Raster image = assemble(dataDir, folder, overlay.texture(), cols, rows);
+            if (image == null) {
+                continue;
+            }
+            int w = Math.min(overlay.width(), image.width());
+            int h = Math.min(overlay.height(), image.height());
+            RegionMinimap.Raster clipped = cropPixels(image, 0, 0, w, h);
+            blitAlpha(sheet, clipped, overlay.offsetX(), overlay.offsetY());
+        }
     }
 
     public static RegionMinimap.Raster crop(RegionMinimap.Raster full, WorldMapArea parent, WorldMapArea child) {
@@ -206,7 +241,10 @@ public final class WorldMapBlp {
     }
 
     private static byte[] readTile(Path dataDir, String folder, String prefix, int index) {
-        String relative = "Interface\\WorldMap\\" + folder + "\\" + prefix + index + ".blp";
+        return readNamed(dataDir, "Interface\\WorldMap\\" + folder + "\\" + prefix + index + ".blp");
+    }
+
+    static byte[] readNamed(Path dataDir, String relative) {
         for (Path root : roots(dataDir)) {
             Path loose = root.resolve(relative.replace('\\', java.io.File.separatorChar));
             if (Files.isRegularFile(loose)) {

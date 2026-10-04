@@ -56,4 +56,22 @@ class WorldMapBlpTest {
         assertEquals(br[0], isle.locBottom(), 0.05f);
         assertEquals(br[1], isle.locRight(), 0.05f);
     }
+
+    @Test
+    void sunstriderCropWhenTwoOverlaysShouldKeepOnlyTheOneInsideTheWindow() {
+        int[] sheetPx = new int[1024 * 768];
+        java.util.Arrays.fill(sheetPx, 0xFF224466);
+        RegionMinimap.Raster sheet = new RegionMinimap.Raster(1024, 768, sheetPx);
+        RegionMinimap.Raster inside = new RegionMinimap.Raster(2, 2, new int[]{0xFFFF0000, 0, 0, 0});
+        RegionMinimap.Raster outside = new RegionMinimap.Raster(2, 2, new int[]{0xFF00FF00, 0, 0, 0});
+        WorldMapBlp.stamp(sheet, inside, 200, 20);
+        WorldMapBlp.stamp(sheet, outside, 10, 20);
+        RegionMinimap.Raster view = WorldMapBlp.sunstriderCrop(sheet);
+        int ox = 200 - WorldMapBlp.CROP_X0;
+        int oy = 20 - WorldMapBlp.CROP_Y0;
+        assertEquals(0xFFFF0000, view.argb()[oy * view.width() + ox]);
+        for (int pixel : view.argb()) {
+            assertTrue((pixel & 0x00FFFFFF) != 0x0000FF00);
+        }
+    }
 }

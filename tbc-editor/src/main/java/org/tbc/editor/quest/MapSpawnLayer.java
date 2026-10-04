@@ -11,7 +11,7 @@ import java.util.List;
 public final class MapSpawnLayer {
     public enum Kind { CREATURE, OBJECT }
 
-    public record Pin(Kind kind, int entry, String name, float x, float y) {}
+    public record Pin(Kind kind, int entry, String name, String typeName, float x, float y) {}
 
     private static final int MAX_PINS = 8000;
 
@@ -53,7 +53,7 @@ public final class MapSpawnLayer {
             if (s.map() != area.mapId() || !mapper.contains(s.x(), s.y())) {
                 continue;
             }
-            pins.add(new Pin(kind, s.entry(), name(kind, mgr, s.entry()), s.x(), s.y()));
+            pins.add(new Pin(kind, s.entry(), name(kind, mgr, s.entry()), typeName(kind, mgr, s.entry()), s.x(), s.y()));
         }
     }
 
@@ -70,5 +70,56 @@ public final class MapSpawnLayer {
             }
         }
         return (kind == Kind.CREATURE ? "Creature " : "Object ") + entry;
+    }
+
+    private static String typeName(Kind kind, ObjectMgr mgr, int entry) {
+        if (kind == Kind.CREATURE) {
+            ObjectMgr.CreatureTemplate t = mgr.creatures.get(entry);
+            return QuestService.creatureTypeName(t == null ? -1 : t.type());
+        }
+        ObjectMgr.GameObjectTemplate t = mgr.gameObjects.get(entry);
+        return gameObjectTypeName(t == null ? -1 : t.type);
+    }
+
+    static String gameObjectTypeName(int type) {
+        return switch (type) {
+            case 0 -> "Door";
+            case 1 -> "Button";
+            case 2 -> "Questgiver";
+            case 3 -> "Chest";
+            case 4 -> "Binder";
+            case 5 -> "Generic";
+            case 6 -> "Trap";
+            case 7 -> "Chair";
+            case 8 -> "Spell focus";
+            case 9 -> "Text";
+            case 10 -> "Goober";
+            case 11 -> "Transport";
+            case 12 -> "Area damage";
+            case 13 -> "Camera";
+            case 14 -> "Map object";
+            case 15 -> "Mo transport";
+            case 16 -> "Duel arbiter";
+            case 17 -> "Fishing node";
+            case 18 -> "Ritual";
+            case 19 -> "Mailbox";
+            case 20 -> "Auction house";
+            case 21 -> "Guard post";
+            case 22 -> "Spellcaster";
+            case 23 -> "Meeting stone";
+            case 24 -> "Flag stand";
+            case 25 -> "Fishing hole";
+            case 26 -> "Flag drop";
+            case 27 -> "Mini game";
+            case 28 -> "Lottery kiosk";
+            case 29 -> "Capture point";
+            case 30 -> "Aura generator";
+            case 31 -> "Dungeon difficulty";
+            case 32 -> "Barber chair";
+            case 33 -> "Destructible building";
+            case 34 -> "Guild bank";
+            case 35 -> "Trapdoor";
+            default -> "Type " + type;
+        };
     }
 }
