@@ -1,5 +1,6 @@
 package org.tbc.launcher;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -44,6 +45,13 @@ class ServerProcessServiceTest {
         Files.writeString(home.resolve(ServerProcessService.LOCAL_MANGOSD), "mangosd");
         starter = new RecordingStarter();
         svc = new ServerProcessService(home, starter, jdk.toString(), userHome.toString(), 1L);
+    }
+
+    @AfterEach
+    void stopServersSoWindowsCanDeleteTempDir() {
+        if (svc != null) {
+            svc.stopServers();
+        }
     }
 
     @Test
@@ -172,6 +180,9 @@ class ServerProcessServiceTest {
         svc.startServers();
         assertCmd(starter.calls.get(0), AUTH_JAR, "realmd.conf", "auth.log", true);
         assertCmd(starter.calls.get(1), WORLD_JAR, "mangosd.conf", "world.log", true);
+        Path logs = home.resolve("logs");
+        svc.stopServers();
+        assertTrue(Files.notExists(logs) || deleteTree(logs));
     }
 
     @Test
@@ -289,6 +300,23 @@ class ServerProcessServiceTest {
         assertFalse(w4.forcibly);
     }
 
+    @Test
+    void joinPumpWhenCallerInterruptedShouldKeepTheInterruptFlag() throws Exception {
+        Thread blocker = new Thread(() -> {
+            try {
+                Thread.sleep(10_000);
+            } catch (InterruptedException ignored) {
+            }
+        }, "log-pump-block");
+        blocker.start();
+        Thread.currentThread().interrupt();
+        svc.joinPump(blocker);
+        assertTrue(Thread.currentThread().isInterrupted());
+        Thread.interrupted();
+        blocker.join(TimeUnit.SECONDS.toMillis(2));
+        assertTrue(!blocker.isAlive());
+    }
+
     private void assertCmd(StartCall call, String jar, String conf, String log, boolean pipeOutput) {
         assertEquals("-jar", call.command().get(1));
         assertTrue(call.command().get(2).replace('\\', '/').endsWith(jar), call.command().get(2));
@@ -296,6 +324,19 @@ class ServerProcessServiceTest {
         assertEquals(home.toAbsolutePath().normalize(), call.workDir());
         assertTrue(call.logFile().endsWith(Path.of("logs", log)));
         assertEquals(pipeOutput, call.pipeOutput());
+    }
+
+    private static boolean deleteTree(Path root) throws IOException {
+        if (!Files.exists(root)) {
+            return true;
+        }
+        try (var walk = Files.walk(root)) {
+            List<Path> paths = walk.sorted((a, b) -> b.getNameCount() - a.getNameCount()).toList();
+            for (Path p : paths) {
+                Files.delete(p);
+            }
+        }
+        return Files.notExists(root);
     }
 
     private void touch(String relative) throws IOException {

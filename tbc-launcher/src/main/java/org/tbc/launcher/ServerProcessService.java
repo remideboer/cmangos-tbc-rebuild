@@ -31,6 +31,9 @@ public final class ServerProcessService {
     private final long stopWaitMs;
     private Process auth;
     private Process world;
+    private Thread authPump;
+    private Thread worldPump;
+    private Thread lastPump;
     private volatile Consumer<String> authLogListener;
     private volatile Consumer<String> worldLogListener;
 
@@ -83,14 +86,20 @@ public final class ServerProcessService {
         notifyLog(authLogListener, jarStartLine("auth", authJar));
         notifyLog(worldLogListener, jarStartLine("world", worldJar));
         auth = spawn("auth", java, authJar, realmd, "auth.log", true, authLogListener);
+        authPump = lastPump;
         world = spawn("world", java, worldJar, mangosd, "world.log", true, worldLogListener);
+        worldPump = lastPump;
     }
 
     public void stopServers() {
         stop(world);
+        joinPump(worldPump);
         world = null;
+        worldPump = null;
         stop(auth);
+        joinPump(authPump);
         auth = null;
+        authPump = null;
     }
 
     public void restartServers() {
@@ -136,11 +145,10 @@ public final class ServerProcessService {
         }
         try {
             Process p = starter.start(command, home, log, pipeOutput);
-            if (pipeOutput) {
-                ProcessLogPump.start(name, p, log, onLine);
-            }
+            lastPump = pipeOutput ? ProcessLogPump.start(name, p, log, onLine) : null;
             return p;
         } catch (IOException e) {
+            lastPump = null;
             throw new LauncherException("Could not start " + name + ": " + e.getMessage(), e);
         }
     }
@@ -151,6 +159,18 @@ public final class ServerProcessService {
         }
         if (!alive(world)) {
             world = null;
+        }
+    }
+
+    void joinPump(Thread t) {
+        if (t == null) {
+            return;
+        }
+        t.interrupt();
+        try {
+            t.join(stopWaitMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
