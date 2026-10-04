@@ -721,6 +721,15 @@ public final class SpellEngine {
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(331, new SpellInfo(331, EFFECT_HEAL, 0, 3, 25, 34, 44, 40f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        // Earth Shock / Stoneskin Totem Rank 1 — Hero shaman follow-up rewards.
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_EARTH_SHOCK, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_EARTH_SHOCK, EFFECT_SCHOOL_DAMAGE,
+                0, 3, 30, 17, 19, 25f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_STONESKIN_TOTEM, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_STONESKIN_TOTEM, EFFECT_SUMMON,
+                0, 0, 0, 0, 0, 0f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(5176, new SpellInfo(5176, EFFECT_SCHOOL_DAMAGE, 0, 3, 20, 13, 16, 30f)
                 .withCastTime(CAST_TIME_INDEX_16_MS).withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(5185, new SpellInfo(5185, EFFECT_HEAL, 0, 3, 25, 37, 51, 40f)

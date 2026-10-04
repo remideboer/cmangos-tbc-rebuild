@@ -3399,6 +3399,7 @@ public final class ObjectMgr {
         seedHeroPriestUnlock();
         seedHeroMageUnlock();
         seedHeroWarlockUnlock();
+        seedHeroShamanUnlock();
     }
 
     private void seedHeroWarriorUnlock() {
@@ -3563,6 +3564,77 @@ public final class ObjectMgr {
         addQuestRelation(questGivers, trainer, mercy);
         addQuestRelation(questInvolved, trainer, mercy);
         questRewSpell.putIfAbsent(mercy, org.tbc.world.spell.SpellEngine.HOLY_LIGHT);
+    }
+
+    private void seedHeroShamanUnlock() {
+        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_SHAMAN_TRAINER;
+        int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_LISTEN_TO_THE_ELEMENTS;
+        int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
+        int token = org.tbc.world.classless.HeroClassUnlock.ITEM_ELEMENTAL_TOKEN;
+        creatures.put(trainer, new CreatureTemplate(trainer,
+                org.tbc.world.classless.HeroClassUnlock.NAME_TALAAN_STONESONG,
+                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
+                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                "Shaman Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
+        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(trainer, Player.CLASS_SHAMAN);
+        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_WAVE, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_EARTH_SHOCK, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_STONESKIN_TOTEM, 100, 1))));
+        items.putIfAbsent(token, ItemTemplate.heroQuestJunk(token, "Elemental Token"));
+        quests.putIfAbsent(questId, heroFollowUpQuest(questId, "Listen to the Elements",
+                "Recover a local elemental token, present it at the trainer's shrine, and defeat a Mana Wyrm that disturbs the site. Return alive.",
+                "Collect 1 Elemental Token. Defeat 1 Mana Wyrm.",
+                wyrm, 1, token, 1, 0));
+        addQuestRelation(questGivers, trainer, questId);
+        addQuestRelation(questInvolved, trainer, questId);
+        questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_LIGHTNING_BOLT);
+        seedHeroShamanFollowUps(trainer, wyrm, questId);
+        addSpawnIfMissing(30, trainer, 0, -8414f, -414f, 80f, 0f);
+        replaceSpawn(31, trainer, 530,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_X,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_Y,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_Z,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_O);
+    }
+
+    private void seedHeroShamanFollowUps(int trainer, int wyrm, int unlockQuest) {
+        int herbs = org.tbc.world.classless.HeroClassUnlock.ITEM_HEALING_HERBS;
+        int marker = org.tbc.world.classless.HeroClassUnlock.ITEM_ELEMENTAL_MARKER;
+        int earth = org.tbc.world.classless.HeroClassUnlock.ITEM_EARTH_SAMPLE;
+        items.putIfAbsent(herbs, ItemTemplate.heroQuestJunk(herbs, "Healing Herbs"));
+        items.putIfAbsent(marker, ItemTemplate.heroQuestJunk(marker, "Elemental Marker"));
+        items.putIfAbsent(earth, ItemTemplate.heroQuestJunk(earth, "Earth Sample"));
+
+        int mend = org.tbc.world.classless.HeroClassUnlock.QUEST_MEND_THE_WOUNDED;
+        quests.putIfAbsent(mend, heroFollowUpQuest(mend, "Mend the Wounded",
+                "Gather healing herbs for a wounded ally. Return alive.",
+                "Collect 1 Healing Herbs.",
+                0, 0, herbs, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, mend);
+        addQuestRelation(questInvolved, trainer, mend);
+        questRewSpell.putIfAbsent(mend, org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_WAVE);
+
+        int shock = org.tbc.world.classless.HeroClassUnlock.QUEST_ANSWERING_SHOCK;
+        quests.putIfAbsent(shock, heroFollowUpQuest(shock, "Answering Shock",
+                "Restore a disturbed elemental marker, then defeat its local threat with your existing kit. Return alive.",
+                "Collect 1 Elemental Marker. Defeat 1 Mana Wyrm.",
+                wyrm, 1, marker, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, shock);
+        addQuestRelation(questInvolved, trainer, shock);
+        questRewSpell.putIfAbsent(shock, org.tbc.world.classless.HeroClassUnlock.SPELL_EARTH_SHOCK);
+
+        int call = org.tbc.world.classless.HeroClassUnlock.QUEST_CALL_OF_EARTH;
+        quests.putIfAbsent(call, heroFollowUpQuest(call, "Call of Earth",
+                "Recover an earth sample from the trainer's shrine trial. Return alive.",
+                "Collect 1 Earth Sample.",
+                0, 0, earth, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, call);
+        addQuestRelation(questInvolved, trainer, call);
+        questRewSpell.putIfAbsent(call, org.tbc.world.classless.HeroClassUnlock.SPELL_STONESKIN_TOTEM);
     }
 
     private void seedHeroWarlockUnlock() {

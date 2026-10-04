@@ -137,4 +137,20 @@ class HeroClassUnlockTest {
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_MAGE));
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
     }
+
+    @Test
+    void trainerClassUnlockedWhenShamanShouldRequireListenToTheElements() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_SHAMAN));
+        assertSame(HeroClassUnlock.SHAMAN, HeroClassUnlock.forQuest(HeroClassUnlock.QUEST_LISTEN_TO_THE_ELEMENTS));
+        assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_MEND_THE_WOUNDED));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_LISTEN_TO_THE_ELEMENTS);
+        assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_SHAMAN));
+        assertFalse(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_HEALING_WAVE));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_MEND_THE_WOUNDED);
+        assertTrue(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_HEALING_WAVE));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARLOCK));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
+    }
 }

@@ -42,6 +42,10 @@ public final class HeroClassUnlock {
     public static final int QUEST_SHADOW_IN_RESERVE = 90026;
     public static final int QUEST_FEL_AT_THE_EDGE = 90027;
     public static final int QUEST_A_FAMILIARS_FIRST_TASK = 90028;
+    public static final int QUEST_LISTEN_TO_THE_ELEMENTS = 90029;
+    public static final int QUEST_MEND_THE_WOUNDED = 90030;
+    public static final int QUEST_ANSWERING_SHOCK = 90031;
+    public static final int QUEST_CALL_OF_EARTH = 90032;
 
     public static final int NPC_HERO_WARRIOR_TRAINER = 91001;
     public static final int NPC_HERO_PALADIN_TRAINER = 91002;
@@ -50,6 +54,7 @@ public final class HeroClassUnlock {
     public static final int NPC_HERO_PRIEST_TRAINER = 91005;
     public static final int NPC_HERO_MAGE_TRAINER = 91006;
     public static final int NPC_HERO_WARLOCK_TRAINER = 91007;
+    public static final int NPC_HERO_SHAMAN_TRAINER = 91008;
     /** Blood Elf Sunstrider Isle warrior trainer display name. */
     public static final String NAME_LORVAEN_BLOODFEATHER = "Lorvaen Bloodfeather";
     /** Blood Elf Sunstrider Isle paladin trainer display name. */
@@ -64,6 +69,8 @@ public final class HeroClassUnlock {
     public static final String NAME_ARYN_FLAMEWEAVE = "Aryn Flameweave";
     /** Blood Elf Sunstrider Isle warlock trainer display name. */
     public static final String NAME_VAELITH_DARKBIND = "Vaelith Darkbind";
+    /** Hero shaman trainer display name (Sunstrider rollout NPC). */
+    public static final String NAME_TALAAN_STONESONG = "Talaan Stonesong";
     public static final int CREATURE_MANA_WYRM = 15274;
     public static final int REQUIRED_HITS = 5;
     public static final int REQUIRED_KILLS = 1;
@@ -107,6 +114,14 @@ public final class HeroClassUnlock {
     public static final int ITEM_FEL_EMBER = 92017;
     /** Summon Imp follow-up: binding reagents. */
     public static final int ITEM_BINDING_REAGENTS = 92018;
+    /** Shaman unlock: elemental token. */
+    public static final int ITEM_ELEMENTAL_TOKEN = 92019;
+    /** Healing Wave follow-up: healing herbs. */
+    public static final int ITEM_HEALING_HERBS = 92020;
+    /** Earth Shock follow-up: elemental marker. */
+    public static final int ITEM_ELEMENTAL_MARKER = 92021;
+    /** Call of Earth follow-up: earth sample. */
+    public static final int ITEM_EARTH_SAMPLE = 92022;
     /** Charge Rank 1 (Spell.dbc 100). */
     public static final int SPELL_CHARGE = 100;
     /** Rend Rank 1 (Spell.dbc 772). */
@@ -142,6 +157,14 @@ public final class HeroClassUnlock {
     /** Summon Imp (Spell.dbc 688); EffectMiscValue creature 416. */
     public static final int SPELL_SUMMON_IMP = 688;
     public static final int CREATURE_IMP = 416;
+    /** Lightning Bolt Rank 1 (Spell.dbc 403). */
+    public static final int SPELL_LIGHTNING_BOLT = 403;
+    /** Healing Wave Rank 1 (Spell.dbc 331). */
+    public static final int SPELL_HEALING_WAVE = 331;
+    /** Earth Shock Rank 1 (Spell.dbc 8042). */
+    public static final int SPELL_EARTH_SHOCK = 8042;
+    /** Stoneskin Totem Rank 1 (Spell.dbc 8071) — Call of Earth reward. */
+    public static final int SPELL_STONESKIN_TOTEM = 8071;
     /** Jesthenis Sunstriker (15280) ModelId1. */
     public static final int DISPLAY_JESTHENIS = 15521;
     /** FactionTemplate Silvermoon City NPC (creature 15280). Reputation faction 911. */
@@ -185,6 +208,11 @@ public final class HeroClassUnlock {
     public static final float SUNSTRIDER_WARLOCK_Y = -6405.23f;
     public static final float SUNSTRIDER_WARLOCK_Z = 38.5306f;
     public static final float SUNSTRIDER_WARLOCK_O = 3.74096f;
+    /** Shaman trainer a few yards from the warrior trainer. */
+    public static final float SUNSTRIDER_SHAMAN_X = 10373.6f;
+    public static final float SUNSTRIDER_SHAMAN_Y = -6391.23f;
+    public static final float SUNSTRIDER_SHAMAN_Z = 38.5306f;
+    public static final float SUNSTRIDER_SHAMAN_O = 3.74096f;
 
     public static final HeroClassUnlock WARRIOR = new HeroClassUnlock(
             Player.CLASS_WARRIOR,
@@ -249,6 +277,15 @@ public final class HeroClassUnlock {
             0,
             REQUIRED_KILLS);
 
+    public static final HeroClassUnlock SHAMAN = new HeroClassUnlock(
+            Player.CLASS_SHAMAN,
+            QUEST_LISTEN_TO_THE_ELEMENTS,
+            NPC_HERO_SHAMAN_TRAINER,
+            SPELL_LIGHTNING_BOLT,
+            CREATURE_MANA_WYRM,
+            0,
+            REQUIRED_KILLS);
+
     /** Hero-only follow-up: teaches one spell on turn-in; gates that spell on trainers. */
     public record FollowUp(int questId, int rewardSpell, int requiresQuest, int trainerClass) {
     }
@@ -295,6 +332,12 @@ public final class HeroClassUnlock {
             QUEST_FEL_AT_THE_EDGE, SPELL_IMMOLATE, QUEST_THE_BOUND_FLAME, Player.CLASS_WARLOCK);
     public static final FollowUp A_FAMILIARS_FIRST_TASK = new FollowUp(
             QUEST_A_FAMILIARS_FIRST_TASK, SPELL_SUMMON_IMP, QUEST_THE_BOUND_FLAME, Player.CLASS_WARLOCK);
+    public static final FollowUp MEND_THE_WOUNDED = new FollowUp(
+            QUEST_MEND_THE_WOUNDED, SPELL_HEALING_WAVE, QUEST_LISTEN_TO_THE_ELEMENTS, Player.CLASS_SHAMAN);
+    public static final FollowUp ANSWERING_SHOCK = new FollowUp(
+            QUEST_ANSWERING_SHOCK, SPELL_EARTH_SHOCK, QUEST_LISTEN_TO_THE_ELEMENTS, Player.CLASS_SHAMAN);
+    public static final FollowUp CALL_OF_EARTH = new FollowUp(
+            QUEST_CALL_OF_EARTH, SPELL_STONESKIN_TOTEM, QUEST_LISTEN_TO_THE_ELEMENTS, Player.CLASS_SHAMAN);
 
     private static final List<FollowUp> FOLLOW_UPS = List.of(
             RALLY_THE_LINE, CLOSE_THE_DISTANCE, A_WOUND_TO_REMEMBER,
@@ -303,7 +346,8 @@ public final class HeroClassUnlock {
             DISAPPEAR_FROM_SIGHT, FINISH_THE_OPENING, KEEP_THE_ADVANTAGE,
             JUDGMENT_FROM_AFAR, A_GUARDING_WORD, PAIN_AS_WARNING,
             A_COOLER_HEAD, SHARE_THE_STUDY, A_SECOND_SCHOOL,
-            SHADOW_IN_RESERVE, FEL_AT_THE_EDGE, A_FAMILIARS_FIRST_TASK);
+            SHADOW_IN_RESERVE, FEL_AT_THE_EDGE, A_FAMILIARS_FIRST_TASK,
+            MEND_THE_WOUNDED, ANSWERING_SHOCK, CALL_OF_EARTH);
 
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_QUEST = new HashMap<>();
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_SPELL = new HashMap<>();
@@ -322,6 +366,7 @@ public final class HeroClassUnlock {
         UNLOCK_BY_QUEST.put(PRIEST.questId, PRIEST);
         UNLOCK_BY_QUEST.put(MAGE.questId, MAGE);
         UNLOCK_BY_QUEST.put(WARLOCK.questId, WARLOCK);
+        UNLOCK_BY_QUEST.put(SHAMAN.questId, SHAMAN);
         UNLOCK_BY_CLASS.put(WARRIOR.classId, WARRIOR);
         UNLOCK_BY_CLASS.put(PALADIN.classId, PALADIN);
         UNLOCK_BY_CLASS.put(HUNTER.classId, HUNTER);
@@ -329,6 +374,7 @@ public final class HeroClassUnlock {
         UNLOCK_BY_CLASS.put(PRIEST.classId, PRIEST);
         UNLOCK_BY_CLASS.put(MAGE.classId, MAGE);
         UNLOCK_BY_CLASS.put(WARLOCK.classId, WARLOCK);
+        UNLOCK_BY_CLASS.put(SHAMAN.classId, SHAMAN);
     }
 
     private final int classId;
@@ -399,7 +445,7 @@ public final class HeroClassUnlock {
     }
 
     /**
-     * Class trainers without a Hero unlock path stay open. Warrior through Warlock require their
+     * Class trainers without a Hero unlock path stay open. Warrior through Shaman require their
      * unlock quest rewarded.
      */
     public static boolean trainerClassUnlocked(Player p, int trainerClass) {
