@@ -106,20 +106,34 @@ public final class ServerProcessService {
     }
 
     public void openEditor() {
+        spawnEditor(null);
+    }
+
+    public void openQuestEditor() {
+        spawnEditor("--quest");
+    }
+
+    private void spawnEditor(String extraArg) {
         Path java = resolveJava();
         Path jar = requireJar(EDITOR_JAR, "tbc-editor", EDITOR_CLASS);
         Path conf = resolveConf(LOCAL_MANGOSD, MANGOSD);
-        spawn("editor", java, jar, conf, "editor.log", false, null);
+        spawn("editor", java, jar, conf, "editor.log", false, null, extraArg);
     }
 
     private Process spawn(String name, Path java, Path jar, Path conf, String logName,
             boolean pipeOutput, Consumer<String> onLine) {
+        return spawn(name, java, jar, conf, logName, pipeOutput, onLine, null);
+    }
+
+    private Process spawn(String name, Path java, Path jar, Path conf, String logName,
+            boolean pipeOutput, Consumer<String> onLine, String extraArg) {
         Path log = home.resolve("logs").resolve(logName);
-        List<String> command = List.of(
-                java.toString(),
-                "-jar",
-                relativize(jar),
-                relativize(conf));
+        List<String> command;
+        if (extraArg == null) {
+            command = List.of(java.toString(), "-jar", relativize(jar), relativize(conf));
+        } else {
+            command = List.of(java.toString(), "-jar", relativize(jar), relativize(conf), extraArg);
+        }
         try {
             Process p = starter.start(command, home, log, pipeOutput);
             if (pipeOutput) {

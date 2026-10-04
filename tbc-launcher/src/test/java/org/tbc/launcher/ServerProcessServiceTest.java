@@ -57,8 +57,12 @@ class ServerProcessServiceTest {
 
         svc.openAdmin();
         svc.openEditor();
+        svc.openQuestEditor();
         assertCmd(starter.calls.get(2), ADMIN_JAR, "local-realmd.conf", "admin.log", false);
         assertCmd(starter.calls.get(3), EDITOR_JAR, "local-mangosd.conf", "editor.log", false);
+        assertEquals(4, starter.calls.get(3).command().size());
+        assertCmd(starter.calls.get(4), EDITOR_JAR, "local-mangosd.conf", "editor.log", false);
+        assertEquals("--quest", starter.calls.get(4).command().get(4));
         assertTrue(svc.isAuthRunning());
 
         svc.stopServers();
@@ -68,7 +72,7 @@ class ServerProcessServiceTest {
 
         svc.restartServers();
         assertTrue(svc.isAuthRunning());
-        assertEquals(6, starter.calls.size());
+        assertEquals(7, starter.calls.size());
         svc.stopServers();
     }
 

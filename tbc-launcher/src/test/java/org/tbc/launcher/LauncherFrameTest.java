@@ -68,7 +68,7 @@ class LauncherFrameTest {
                 frame.setVisible(true);
                 frame.validate();
             });
-            for (String text : new String[]{"Open editor", "Start client", "Client path…"}) {
+            for (String text : new String[]{"Open editor", "Open quest editor", "Start client", "Client path…"}) {
                 JButton btn = findButton(frame, text);
                 assertNotNull(btn, text);
                 onEdt(() -> {
@@ -154,6 +154,24 @@ class LauncherFrameTest {
             String joined = String.join(" ", starter.calls.get(0)).replace('\\', '/');
             assertTrue(joined.contains("tbc-editor/"), joined);
             assertTrue(joined.contains("local-mangosd.conf"), joined);
+            assertFalse(joined.contains("--quest"), joined);
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
+    void givenOpenQuestEditorWhenClickedThenSpawnsEditorJarWithQuestFlag() throws Exception {
+        LauncherFrame frame = constructFrame();
+        try {
+            JButton editor = findButton(frame, "Open quest editor");
+            assertNotNull(editor, "Open quest editor");
+            onEdt(() -> editor.doClick());
+            awaitCalls(1);
+            String joined = String.join(" ", starter.calls.get(0)).replace('\\', '/');
+            assertTrue(joined.contains("tbc-editor/"), joined);
+            assertTrue(joined.contains("local-mangosd.conf"), joined);
+            assertTrue(joined.contains("--quest"), joined);
         } finally {
             onEdt(frame::dispose);
         }

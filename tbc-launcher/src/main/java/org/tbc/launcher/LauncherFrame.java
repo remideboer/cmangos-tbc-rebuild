@@ -38,6 +38,7 @@ public final class LauncherFrame extends JFrame {
     private final JButton restartBtn = new JButton("Restart servers");
     private final JButton adminBtn = new JButton("Open admin");
     private final JButton editorBtn = new JButton("Open editor");
+    private final JButton questEditorBtn = new JButton("Open quest editor");
     private final JButton clientBtn = new JButton("Start client");
     private final JButton clientPathBtn = new JButton("Client path…");
     private final ClientLauncher client;
@@ -54,7 +55,7 @@ public final class LauncherFrame extends JFrame {
         this.client = client;
         this.dialogs = dialogs != null ? dialogs : ClientPathDialogs.swing(this);
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-        setSize(640, 520);
+        setSize(720, 520);
         setLocationRelativeTo(null);
         JPanel servers = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         servers.add(startBtn);
@@ -63,6 +64,7 @@ public final class LauncherFrame extends JFrame {
         JPanel tools = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         tools.add(adminBtn);
         tools.add(editorBtn);
+        tools.add(questEditorBtn);
         tools.add(clientBtn);
         tools.add(clientPathBtn);
         JPanel buttons = new JPanel(new GridLayout(2, 1, 0, 0));
@@ -128,6 +130,10 @@ public final class LauncherFrame extends JFrame {
         editorBtn.addActionListener(e -> run("Opening editor…", () -> {
             service.openEditor();
             return "Editor opened.";
+        }));
+        questEditorBtn.addActionListener(e -> run("Opening quest editor…", () -> {
+            service.openQuestEditor();
+            return "Quest editor opened.";
         }));
         clientBtn.addActionListener(e -> onStartClient());
         clientPathBtn.addActionListener(e -> onClientPath());
@@ -309,6 +315,7 @@ public final class LauncherFrame extends JFrame {
         restartBtn.setEnabled(!busy);
         adminBtn.setEnabled(!busy);
         editorBtn.setEnabled(!busy);
+        questEditorBtn.setEnabled(!busy);
         clientBtn.setEnabled(!busy);
         clientPathBtn.setEnabled(!busy);
     }

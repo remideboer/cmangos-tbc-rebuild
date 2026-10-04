@@ -53,6 +53,18 @@ public final class EditorFrame extends JFrame {
         }
     }
 
+    public void selectDomain(String title) {
+        int idx = titles.indexOf(title);
+        if (idx < 0) {
+            return;
+        }
+        domainList.setSelectedIndex(idx);
+    }
+
+    int selectedDomainIndex() {
+        return domainList.getSelectedIndex();
+    }
+
     public void setStatus(String text) {
         status.setText(text);
     }

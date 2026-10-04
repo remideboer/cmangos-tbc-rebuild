@@ -19,8 +19,33 @@ import java.nio.file.Path;
 public final class EditorMain {
     private EditorMain() {}
 
+    static String confPath(String[] args) {
+        if (args == null) {
+            return "conf/mangosd.conf";
+        }
+        for (String arg : args) {
+            if (arg != null && !arg.isBlank() && !arg.startsWith("-")) {
+                return arg;
+            }
+        }
+        return "conf/mangosd.conf";
+    }
+
+    static boolean questFlag(String[] args) {
+        if (args == null) {
+            return false;
+        }
+        for (String arg : args) {
+            if ("--quest".equals(arg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void main(String[] args) throws Exception {
-        Path confFile = Path.of(args.length > 0 ? args[0] : "conf/mangosd.conf");
+        Path confFile = Path.of(confPath(args));
+        boolean openQuests = questFlag(args);
         Conf conf = Conf.load(confFile, "Mangosd_");
         DbPool login = new DbPool(conf.db("LoginDatabaseInfo"), "editor-login");
         DbPool worldDb = new DbPool(conf.db("WorldDatabaseInfo"), "editor-world");
@@ -61,6 +86,9 @@ public final class EditorMain {
                                 : MapSurfaceService.fromTerrain(Terrain.fromDataDir(Path.of(dataDir)), null);
                         QuestService quests = new QuestService(mgr, content, surfaces);
                         frame.addDomain(new QuestDomain(quests, frame::setStatus));
+                        if (openQuests) {
+                            frame.selectDomain("Quests");
+                        }
                         frame.setStatus("Ready.");
                     } catch (Exception e) {
                         Throwable c = e.getCause() == null ? e : e.getCause();
