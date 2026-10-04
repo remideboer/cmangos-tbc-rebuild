@@ -616,9 +616,9 @@ public final class SpellEngine {
         // Spell.dbc: +30 armor (EffectBasePoints+1), EffectMiscValue = SPELL_SCHOOL_NORMAL mask bit 0.
         spells.put(FROST_ARMOR, new SpellInfo(FROST_ARMOR, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 16, 60, 30, 30, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));
-        // ACID 1527402 Mana Wyrm — Spell.dbc 25602 Faerie Fire (armor aura 15).
+        // ACID 1527402 Mana Wyrm — Spell.dbc 25602: EffectBasePoints −9 + BaseDice 1 → −8 armor.
         spells.put(25602, new SpellInfo(25602, EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_DECREASE_ARMOR,
-                0, 0, -175, -175, 30f).withDuration(40_000));
+                0, 0, -8, -8, 30f).withDuration(40_000));
         // Spell.dbc 1243: +3 stamina (EffectBasePoints+1), EffectMiscValue = STAT_STAMINA (2), 30 min.
         spells.put(POWER_WORD_FORTITUDE, new SpellInfo(POWER_WORD_FORTITUDE, EFFECT_APPLY_AURA,
                 AuraEngine.SPELL_AURA_MOD_STAT, 2, 60, 3, 3, 30f, 2)

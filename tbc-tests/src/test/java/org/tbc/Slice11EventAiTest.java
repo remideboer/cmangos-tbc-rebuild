@@ -140,6 +140,7 @@ class Slice11EventAiTest {
         int slot = org.tbc.world.spell.AuraSlots.slotOf(p, 25602);
         assertTrue(slot >= 0, "visible Faerie Fire slot");
         assertEquals(25602, client.valuesField(p.guid, org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_AURA + slot));
+        assertEquals(-8, client.valuesField(p.guid, org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE));
     }
 
     @Test

@@ -51,6 +51,18 @@ class SpellEngineModResistanceTest {
         assertEquals(30, p.getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE));
     }
 
+    /**
+     * Spell.dbc 25602 (Mana Wyrm): EffectBasePoints −9 + EffectBaseDice 1 → −8 armor.
+     * Inspect uses UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE, not player Faerie Fire rank 1 (−175).
+     */
+    @Test
+    void applyWhenManaWyrmFaerieFireShouldReducePhysicalArmorByEight() {
+        engine.apply(p, p, engine.info(25602));
+        assertEquals(32, p.getInt(UpdateFields.UNIT_FIELD_RESISTANCES));
+        assertEquals(-8, p.getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE));
+        assertEquals(-8, engine.info(25602).minDmg());
+    }
+
     @Test
     void castWhenFrostArmorShouldSendResistanceValues() {
         p.spells.add(SpellEngine.FROST_ARMOR);
