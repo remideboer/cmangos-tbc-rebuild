@@ -1764,6 +1764,7 @@ public final class ObjectMgr {
             levelStats.loadGt(dataDir);
             DurabilityCosts.load(dataDir);
             skillLineAbilities.loadFromDataDir(dataDir);
+            loadPublishedQuestOverlays();
             return;
         }
         try (Connection c = world.get()) {
@@ -1870,7 +1871,78 @@ public final class ObjectMgr {
         levelStats.loadGt(dataDir);
         DurabilityCosts.load(dataDir);
         skillLineAbilities.loadFromDataDir(dataDir);
+        loadPublishedQuestOverlays();
     }
+
+    public void loadPublishedQuestOverlays() {
+        loadPublishedQuestOverlays(Path.of("content", "quests", "published"));
+    }
+
+    public void loadPublishedQuestOverlays(Path dir) {
+        if (dir == null || !Files.isDirectory(dir)) {
+            return;
+        }
+        try (java.util.stream.Stream<Path> stream = Files.list(dir)) {
+            List<Path> files = stream
+                    .filter(p -> {
+                        String n = p.getFileName().toString().toLowerCase();
+                        return Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"));
+                    })
+                    .sorted()
+                    .toList();
+            for (Path file : files) {
+                try {
+                    applyQuestOverlay(QuestOverlayYaml.read(file));
+                } catch (Exception e) {
+                    log.warn("quest overlay {}: {}", file, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.debug("quest overlay dir skipped: {}", e.getMessage());
+        }
+    }
+
+    void applyQuestOverlay(QuestOverlayYaml.Overlay o) {
+        if (o == null || o.id <= 0) {
+            return;
+        }
+        quests.put(o.id, new QuestTemplate(
+                o.id, o.title, o.minLevel, o.type, o.rewMoney, o.details, o.objectives,
+                o.reqCreatureId[0], o.reqCreatureCount[0], o.reqItemId[0], o.reqItemCount[0],
+                o.questLevel, 0, o.rewItemId, o.rewItemCount, 0, 0, 0, 0,
+                o.reqCreatureId[1], o.reqCreatureCount[1],
+                o.reqCreatureId[2], o.reqCreatureCount[2],
+                o.reqCreatureId[3], o.reqCreatureCount[3],
+                o.reqItemId[1], o.reqItemCount[1], o.reqItemId[2], o.reqItemCount[2],
+                o.reqItemId[3], o.reqItemCount[3], o.prevQuestId, o.requiredRaces, o.zoneOrSort));
+        if (o.giverNpc != 0) {
+            addQuestRelation(questGivers, o.giverNpc, o.id);
+        }
+        if (o.turnInNpc != 0) {
+            addQuestRelation(questInvolved, o.turnInNpc, o.id);
+        }
+        if (o.rewSpell != 0) {
+            questRewSpell.put(o.id, o.rewSpell);
+        }
+        for (QuestOverlayYaml.CreatureOverlay c : o.creatures) {
+            creatures.put(c.entry(), new CreatureTemplate(c.entry(), c.name(), c.display(), c.faction(),
+                    100, 1, c.npcFlags(), "", "", 0));
+        }
+        for (QuestOverlayYaml.SpawnOverlay s : o.spawns) {
+            boolean present = false;
+            for (Spawn existing : spawns) {
+                if (existing.guid() == s.guid()) {
+                    present = true;
+                    break;
+                }
+            }
+            if (!present) {
+                spawns.add(new Spawn(s.guid(), s.entry(), s.map(), s.x(), s.y(), s.z(), s.o(),
+                        0f, s.movementType()));
+            }
+        }
+    }
+
 
     private void loadCreate(Connection c) throws Exception {
         PreparedStatement ps = c.prepareStatement(

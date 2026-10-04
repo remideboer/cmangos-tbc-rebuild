@@ -29,6 +29,7 @@ public final class YamlDeltaLoader {
                     })
                     .filter(p -> !p.toString().replace('\\', '/').contains("/out/"))
                     .filter(p -> !p.toString().replace('\\', '/').contains("/bindings/"))
+                    .filter(p -> !underQuests(contentRoot, p))
                     .sorted()
                     .toList();
             for (Path file : files) {
@@ -97,5 +98,17 @@ public final class YamlDeltaLoader {
             throw new IllegalArgumentException(source + ": id=" + id + " has empty client and server");
         }
         return new ContentDelta(kind, id, source, client, server);
+    }
+
+    /** Quest drafts/published are not spell-shaped ContentDelta documents. */
+    static boolean underQuests(Path contentRoot, Path file) {
+        if (contentRoot == null || file == null) {
+            return false;
+        }
+        Path rel = contentRoot.toAbsolutePath().normalize().relativize(file.toAbsolutePath().normalize());
+        if (rel.getNameCount() == 0) {
+            return false;
+        }
+        return "quests".equalsIgnoreCase(rel.getName(0).toString());
     }
 }

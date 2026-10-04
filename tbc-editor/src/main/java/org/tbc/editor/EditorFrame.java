@@ -14,7 +14,7 @@ import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Shell: domain list + card panel. v1 registers Characters only. */
+/** Shell: domain list + card panel. */
 public final class EditorFrame extends JFrame {
     private final JLabel status = new JLabel(" ");
     private final DefaultListModel<String> titles = new DefaultListModel<>();
@@ -23,7 +23,7 @@ public final class EditorFrame extends JFrame {
     private final List<EditorDomain> domains = new ArrayList<>();
 
     public EditorFrame() {
-        super("TBC Character Editor");
+        super("TBC Editor");
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(1100, 640);
         setLocationRelativeTo(null);

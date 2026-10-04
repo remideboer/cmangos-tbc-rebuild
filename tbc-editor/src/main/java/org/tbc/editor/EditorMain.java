@@ -2,7 +2,11 @@ package org.tbc.editor;
 
 import org.tbc.common.Conf;
 import org.tbc.common.DbPool;
+import org.tbc.editor.quest.QuestDomain;
+import org.tbc.editor.quest.QuestService;
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.map.MapSurfaceService;
+import org.tbc.world.map.Terrain;
 import org.tbc.world.persist.CharacterStore;
 
 import javax.swing.SwingUtilities;
@@ -50,6 +54,13 @@ public final class EditorMain {
                     try {
                         CharacterService service = get();
                         frame.addDomain(new CharacterDomain(service, frame::setStatus));
+                        Path content = Path.of("content");
+                        String dataDir = conf.get("DataDir", "");
+                        MapSurfaceService surfaces = dataDir.isBlank()
+                                ? MapSurfaceService.unavailable()
+                                : MapSurfaceService.fromTerrain(Terrain.fromDataDir(Path.of(dataDir)), null);
+                        QuestService quests = new QuestService(mgr, content, surfaces);
+                        frame.addDomain(new QuestDomain(quests, frame::setStatus));
                         frame.setStatus("Ready.");
                     } catch (Exception e) {
                         Throwable c = e.getCause() == null ? e : e.getCause();
