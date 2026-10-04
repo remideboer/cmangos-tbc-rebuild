@@ -1,0 +1,145 @@
+package org.tbc.editor.quest;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Unsaved NPC edits. Position is one creature guid. Name, display, and gear are the shared template entry.
+ * Clear copies the snapshot back. Save reads {@link #moved()} and {@link #changedLooks()}.
+ */
+public final class NpcEditSession {
+    public record Pose(int guid, int entry, float x, float y, float z) {}
+
+    public record Look(int entry, String name, int displayId, int equipmentId) {}
+
+    private final Map<Integer, Pose> originalPose = new LinkedHashMap<>();
+    private final Map<Integer, Pose> pose = new LinkedHashMap<>();
+    private final Map<Integer, Look> originalLook = new LinkedHashMap<>();
+    private final Map<Integer, Look> look = new LinkedHashMap<>();
+
+    public void remember(MapSpawnLayer.Pin pin, int displayId, int equipmentId) {
+        if (pin == null || pin.kind() != MapSpawnLayer.Kind.CREATURE || pin.guid() == 0) {
+            return;
+        }
+        String name = pin.name() == null ? "" : pin.name();
+        originalPose.putIfAbsent(pin.guid(), new Pose(pin.guid(), pin.entry(), pin.x(), pin.y(), pin.z()));
+        pose.putIfAbsent(pin.guid(), originalPose.get(pin.guid()));
+        originalLook.putIfAbsent(pin.entry(), new Look(pin.entry(), name, displayId, equipmentId));
+        look.putIfAbsent(pin.entry(), originalLook.get(pin.entry()));
+    }
+
+    public void move(int guid, float x, float y, float z) {
+        Pose cur = pose.get(guid);
+        if (cur == null) {
+            return;
+        }
+        pose.put(guid, new Pose(guid, cur.entry(), x, y, z));
+    }
+
+    public void rename(int entry, String name) {
+        Look cur = look.get(entry);
+        if (cur == null) {
+            return;
+        }
+        look.put(entry, new Look(entry, name == null ? "" : name, cur.displayId(), cur.equipmentId()));
+    }
+
+    public void setDisplay(int entry, int displayId) {
+        Look cur = look.get(entry);
+        if (cur == null) {
+            return;
+        }
+        look.put(entry, new Look(entry, cur.name(), displayId, cur.equipmentId()));
+    }
+
+    public void setEquipment(int entry, int equipmentId) {
+        Look cur = look.get(entry);
+        if (cur == null) {
+            return;
+        }
+        look.put(entry, new Look(entry, cur.name(), cur.displayId(), equipmentId));
+    }
+
+    public Look look(int entry) {
+        return look.get(entry);
+    }
+
+    public boolean dirty() {
+        return !moved().isEmpty() || !changedLooks().isEmpty();
+    }
+
+    public List<Pose> moved() {
+        List<Pose> out = new ArrayList<>();
+        for (Map.Entry<Integer, Pose> e : pose.entrySet()) {
+            Pose was = originalPose.get(e.getKey());
+            Pose now = e.getValue();
+            if (was != null && shifted(was, now)) {
+                out.add(now);
+            }
+        }
+        return out;
+    }
+
+    public List<Look> changedLooks() {
+        List<Look> out = new ArrayList<>();
+        for (Map.Entry<Integer, Look> e : look.entrySet()) {
+            Look was = originalLook.get(e.getKey());
+            Look now = e.getValue();
+            if (was != null && !sameLook(was, now)) {
+                out.add(now);
+            }
+        }
+        return out;
+    }
+
+    /** Drop unsaved edits. Does not touch the database. */
+    public void revert() {
+        pose.clear();
+        pose.putAll(originalPose);
+        look.clear();
+        look.putAll(originalLook);
+    }
+
+    /** After a successful save, the current values are the new snapshot. */
+    public void accept() {
+        originalPose.clear();
+        originalPose.putAll(pose);
+        originalLook.clear();
+        originalLook.putAll(look);
+    }
+
+    /** Paint unsaved positions and names onto pins rebuilt from the loaded spawns. */
+    public List<MapSpawnLayer.Pin> overlay(List<MapSpawnLayer.Pin> pins) {
+        List<MapSpawnLayer.Pin> out = new ArrayList<>();
+        if (pins == null) {
+            return out;
+        }
+        for (MapSpawnLayer.Pin pin : pins) {
+            MapSpawnLayer.Pin next = pin;
+            Pose at = pose.get(pin.guid());
+            if (pin.kind() == MapSpawnLayer.Kind.CREATURE && at != null) {
+                next = next.moved(at.x(), at.y(), at.z());
+            }
+            Look named = look.get(pin.entry());
+            if (pin.kind() == MapSpawnLayer.Kind.CREATURE && named != null) {
+                next = next.named(named.name());
+            }
+            out.add(next);
+        }
+        return out;
+    }
+
+    private static boolean shifted(Pose was, Pose now) {
+        return Math.abs(was.x() - now.x()) > 0.05f
+                || Math.abs(was.y() - now.y()) > 0.05f
+                || Math.abs(was.z() - now.z()) > 0.05f;
+    }
+
+    private static boolean sameLook(Look was, Look now) {
+        return was.displayId() == now.displayId()
+                && was.equipmentId() == now.equipmentId()
+                && was.name().equals(now.name());
+    }
+}

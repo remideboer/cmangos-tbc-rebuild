@@ -91,7 +91,7 @@ public final class EditorMain {
                         Terrain terrain = dataPath == null ? null : Terrain.fromDataDir(dataPath);
                         WorldMapAreas namedMaps = WorldMapAreas.fromDbc(dataPath);
                         WorldMapBlp.mergeClientAreas(dataPath, namedMaps);
-                        QuestService quests = new QuestService(mgr, content, surfaces);
+                        QuestService quests = new QuestService(mgr, content, surfaces, worldDb);
                         frame.addDomain(new QuestDomain(quests, frame::setStatus, namedMaps, area -> {
                             RegionMinimap.Raster clientMap = WorldMapBlp.load(dataPath, area);
                             if (clientMap != null) {

@@ -100,6 +100,25 @@ public final class Creature extends Unit {
         applyCombatStats(1f, 3f, 2000, 1.5f);
     }
 
+    /** CMaNGOS Creature::SetVirtualItem — display id plus class/subclass/material and inventory/sheath bytes. */
+    public void setVirtualItem(int slot, int displayId, int itemClass, int subClass, int unk0, int material,
+                               int inventoryType, int sheath) {
+        setInt(UpdateFields.UNIT_VIRTUAL_ITEM_SLOT_DISPLAY + slot, displayId);
+        setInt(UpdateFields.UNIT_VIRTUAL_ITEM_INFO + slot * 2,
+                b(itemClass) | (b(subClass) << 8) | (b(unk0) << 16) | (b(material) << 24));
+        setInt(UpdateFields.UNIT_VIRTUAL_ITEM_INFO + slot * 2 + 1, b(inventoryType) | (b(sheath) << 8));
+    }
+
+    public void clearVirtualItem(int slot) {
+        setInt(UpdateFields.UNIT_VIRTUAL_ITEM_SLOT_DISPLAY + slot, 0);
+        setInt(UpdateFields.UNIT_VIRTUAL_ITEM_INFO + slot * 2, 0);
+        setInt(UpdateFields.UNIT_VIRTUAL_ITEM_INFO + slot * 2 + 1, 0);
+    }
+
+    private static int b(int v) {
+        return v & 0xFF;
+    }
+
     public void applyCombatStats(float minDmg, float maxDmg, int attackTime, float reach) {
         if (minDmg <= 0f && maxDmg <= 0f) {
             minDmg = 1f;

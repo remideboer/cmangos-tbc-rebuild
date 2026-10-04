@@ -1,5 +1,6 @@
 package org.tbc.editor.quest;
 
+import org.tbc.common.DbPool;
 import org.tbc.editor.EditorException;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.map.FloorCandidates;
@@ -8,6 +9,9 @@ import org.tbc.world.map.WorldMapArea;
 import org.tbc.world.map.WorldMapAreaMapper;
 
 import java.nio.file.Files;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -45,20 +49,30 @@ public final class QuestService {
     private final QuestYamlStore store;
     private final MapSurfaceService surfaces;
     private final QuestValidator validator;
+    private final DbPool world;
 
     public QuestService(ObjectMgr mgr, java.nio.file.Path contentRoot) {
         this(mgr, contentRoot, MapSurfaceService.unavailable());
     }
 
     public QuestService(ObjectMgr mgr, java.nio.file.Path contentRoot, MapSurfaceService surfaces) {
+        this(mgr, contentRoot, surfaces, null);
+    }
+
+    public QuestService(ObjectMgr mgr, java.nio.file.Path contentRoot, MapSurfaceService surfaces, DbPool world) {
         this.mgr = mgr;
         this.store = new QuestYamlStore(contentRoot);
         this.surfaces = surfaces == null ? MapSurfaceService.unavailable() : surfaces;
         this.validator = new QuestValidator(mgr, this.surfaces);
+        this.world = world;
     }
 
     public ObjectMgr creatures() {
         return mgr;
+    }
+
+    public MapSurfaceService surfaces() {
+        return surfaces;
     }
 
     public QuestYamlStore store() {
@@ -360,6 +374,63 @@ public final class QuestService {
             return false;
         }
         return new WorldMapAreaMapper(area).contains(spawn.x(), spawn.y());
+    }
+
+    /**
+     * Writes moved guids and edited templates, then updates the in-memory catalog.
+     * A logged-in world process keeps its own copy until it restarts.
+     */
+    public void saveNpcEdits(NpcEditSession session) {
+        if (session == null || !session.dirty()) {
+            return;
+        }
+        if (world == null) {
+            throw new EditorException("No world database.");
+        }
+        try (Connection c = world.get()) {
+            NpcEditStore.save((sql, args) -> {
+                try (PreparedStatement ps = c.prepareStatement(sql)) {
+                    for (int i = 0; i < args.length; i++) {
+                        ps.setObject(i + 1, args[i]);
+                    }
+                    ps.executeUpdate();
+                }
+            }, session);
+        } catch (SQLException e) {
+            throw new EditorException(e.getMessage() == null ? "NPC save failed." : e.getMessage());
+        }
+        applyNpcEdits(session);
+        session.accept();
+    }
+
+    /** Replace matching spawns and templates in memory. Does not touch MySQL. */
+    public void applyNpcEdits(NpcEditSession session) {
+        if (session == null || mgr == null) {
+            return;
+        }
+        for (NpcEditSession.Pose pose : session.moved()) {
+            for (int i = 0; i < mgr.spawns.size(); i++) {
+                ObjectMgr.Spawn spawn = mgr.spawns.get(i);
+                if (spawn.guid() != pose.guid()) {
+                    continue;
+                }
+                mgr.spawns.set(i, new ObjectMgr.Spawn(spawn.guid(), spawn.entry(), spawn.map(),
+                        pose.x(), pose.y(), pose.z(), spawn.o(), spawn.spawnDist(), spawn.movementType(),
+                        spawn.respawnMinSecs(), spawn.respawnMaxSecs()));
+                break;
+            }
+        }
+        for (NpcEditSession.Look look : session.changedLooks()) {
+            ObjectMgr.CreatureTemplate template = mgr.creatures.get(look.entry());
+            if (template != null) {
+                mgr.creatures.put(look.entry(), template.withNameAndDisplay(look.name(), look.displayId()));
+            }
+            if (look.equipmentId() <= 0) {
+                mgr.equipmentByEntry.remove(look.entry());
+            } else {
+                mgr.equipmentByEntry.put(look.entry(), look.equipmentId());
+            }
+        }
     }
 
     private static CreatureHit hit(ObjectMgr.CreatureTemplate t, float x, float y) {

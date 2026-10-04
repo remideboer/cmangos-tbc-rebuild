@@ -88,6 +88,15 @@ public final class ObjectMgr {
                     "", 0, 1f, 3f, 2000, 1.5f, 0, 0, 0,
                     org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT);
         }
+
+        /** Same template with a new name and primary display. Other columns stay as loaded. */
+        public CreatureTemplate withNameAndDisplay(String name, int display) {
+            return new CreatureTemplate(entry, name, display, faction, hp, level, npcFlags, scriptName, gossip,
+                    trainerType, subName, iconName, display2, display3, display4, typeFlags, type, family, rank,
+                    petSpellDataId, healthMultiplier, powerMultiplier, racialLeader, aiName, extraFlags,
+                    minMeleeDmg, maxMeleeDmg, meleeAttackTime, combatReach, lootId, minLootGold, maxLootGold,
+                    inhabitType);
+        }
     }
 
     public record QuestTemplate(int id, String title, int minLevel, int type, int rewMoney, String details, String objectives,
@@ -1595,6 +1604,10 @@ public final class ObjectMgr {
     public final Map<Integer, Float> modelCombatReach = new HashMap<>();
     public final Map<Integer, QuestTemplate> quests = new HashMap<>();
     public final Map<Integer, ItemTemplate> items = new HashMap<>();
+    /** creature_template.EquipmentTemplateId by creature entry. Missing or 0 means no virtual gear. */
+    public final Map<Integer, Integer> equipmentByEntry = new HashMap<>();
+    /** creature_equip_template.entry → equipentry1..3 item ids. */
+    public final Map<Integer, int[]> equipmentItems = new HashMap<>();
     public final Map<Integer, GameObjectTemplate> gameObjects = new HashMap<>();
     public final Map<Integer, PageText> pageTexts = new HashMap<>();
     /** Character DB `item_text` (ObjectMgr::GetItemText). */
@@ -1791,6 +1804,7 @@ public final class ObjectMgr {
             }
             levelStats.load(c);
             loadCreatures(c);
+            loadEquipment(c);
             loadCreatureMana(c);
             loadModelInfo(c);
             loadCreatureLoot(c);
@@ -2130,6 +2144,31 @@ public final class ObjectMgr {
         }
         CreatureTemplate t = creatures.get(entry);
         return t == null ? 0 : t.trainerType();
+    }
+
+    /** Side-load gear ids. A missing column must not fail the creature_template name/display load. */
+    private void loadEquipment(Connection c) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT Entry, EquipmentTemplateId FROM creature_template");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                int id = rs.getInt(2);
+                if (id > 0) {
+                    equipmentByEntry.put(rs.getInt(1), id);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("creature equipment id load failed: {}", e.getMessage());
+        }
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT entry, equipentry1, equipentry2, equipentry3 FROM creature_equip_template");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                equipmentItems.put(rs.getInt(1), new int[] {rs.getInt(2), rs.getInt(3), rs.getInt(4)});
+            }
+        } catch (Exception e) {
+            log.warn("creature_equip_template load failed: {}", e.getMessage());
+        }
     }
 
     private void loadCreatures(Connection c) {
@@ -5075,6 +5114,7 @@ public final class ObjectMgr {
         c.extraFlags = t.extraFlags();
         c.inhabitType = t.inhabitType() > 0 ? t.inhabitType() : org.tbc.world.map.CreatureGrounding.DEFAULT_INHABIT;
         c.applyTemplate(entry, t.name(), t.display(), t.faction(), t.hp(), t.level());
+        applyEquipment(c, entry);
         applyHeroWarriorTrainerVirtualItems(c, entry);
         c.applyCombatStats(t.minMeleeDmg(), t.maxMeleeDmg(), t.meleeAttackTime(), combatReach(t));
         applyCreatureMana(c, t);
@@ -5111,6 +5151,34 @@ public final class ObjectMgr {
         }
         fireEventAiSpawned(c);
         return c;
+    }
+
+    /**
+     * CMaNGOS Creature::LoadEquipment from the template's EquipmentTemplateId.
+     * A missing item id leaves the slot empty. The hero-trainer override still runs after this.
+     */
+    private void applyEquipment(Creature c, int entry) {
+        Integer set = equipmentByEntry.get(entry);
+        if (set == null || set <= 0) {
+            return;
+        }
+        int[] slots = equipmentItems.get(set);
+        if (slots == null) {
+            return;
+        }
+        for (int i = 0; i < 3 && i < slots.length; i++) {
+            int itemId = slots[i];
+            if (itemId <= 0) {
+                c.clearVirtualItem(i);
+                continue;
+            }
+            ItemTemplate item = items.get(itemId);
+            if (item == null) {
+                continue;
+            }
+            c.setVirtualItem(i, item.displayId, item.itemClass, item.subClass, item.unk, item.material,
+                    item.inventoryType, item.sheath);
+        }
     }
 
     private static void applyHeroWarriorTrainerVirtualItems(Creature c, int entry) {

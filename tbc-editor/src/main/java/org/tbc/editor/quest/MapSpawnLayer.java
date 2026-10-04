@@ -11,7 +11,15 @@ import java.util.List;
 public final class MapSpawnLayer {
     public enum Kind { CREATURE, OBJECT }
 
-    public record Pin(Kind kind, int entry, String name, String typeName, float x, float y) {}
+    public record Pin(Kind kind, int guid, int entry, String name, String typeName, float x, float y, float z) {
+        public Pin moved(float x, float y, float z) {
+            return new Pin(kind, guid, entry, name, typeName, x, y, z);
+        }
+
+        public Pin named(String name) {
+            return new Pin(kind, guid, entry, name == null ? "" : name, typeName, x, y, z);
+        }
+    }
 
     private static final int MAX_PINS = 8000;
 
@@ -53,7 +61,8 @@ public final class MapSpawnLayer {
             if (s.map() != area.mapId() || !mapper.contains(s.x(), s.y())) {
                 continue;
             }
-            pins.add(new Pin(kind, s.entry(), name(kind, mgr, s.entry()), typeName(kind, mgr, s.entry()), s.x(), s.y()));
+            pins.add(new Pin(kind, s.guid(), s.entry(), name(kind, mgr, s.entry()), typeName(kind, mgr, s.entry()),
+                    s.x(), s.y(), s.z()));
         }
     }
 

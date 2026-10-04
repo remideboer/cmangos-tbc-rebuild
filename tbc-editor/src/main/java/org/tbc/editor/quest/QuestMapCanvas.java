@@ -1,5 +1,6 @@
 package org.tbc.editor.quest;
 
+import org.tbc.world.map.FloorCandidates;
 import org.tbc.world.map.RegionMinimap;
 import org.tbc.world.map.WorldMapArea;
 
@@ -18,6 +19,7 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -34,9 +36,17 @@ public final class QuestMapCanvas extends JPanel {
     private float popupImgX;
     private float popupImgY;
     private JPopupMenu contextMenu = new JPopupMenu();
-    private List<MapSpawnLayer.Pin> spawns = List.of();
+    private final List<MapSpawnLayer.Pin> spawns = new ArrayList<>();
     private boolean showSpawns = true;
     private MapSpawnLayer.Pin selectedSpawn;
+    private boolean draggingSpawn;
+    private boolean spawnDragged;
+    private Consumer<MapSpawnLayer.Pin> selectionListener = pin -> {};
+    private Consumer<SpawnMove> spawnMoved = move -> {};
+    private NpcGround.Query ground = (map, x, y) -> FloorCandidates.unresolved();
+
+    /** A creature pin after a drag, and whether an ADT floor supplied the height. */
+    public record SpawnMove(MapSpawnLayer.Pin pin, boolean heightFound) {}
 
     public QuestMapCanvas() {
         setPreferredSize(new Dimension(640, 480));
@@ -66,6 +76,11 @@ public final class QuestMapCanvas extends JPanel {
                     if (pin != null) {
                         if (e.getClickCount() >= 2) {
                             selectedSpawn = pin;
+                            selectionListener.accept(pin);
+                        }
+                        if (canDrag(pin)) {
+                            draggingSpawn = true;
+                            spawnDragged = false;
                         }
                         repaint();
                         return;
@@ -78,6 +93,14 @@ public final class QuestMapCanvas extends JPanel {
 
             @Override
             public void mouseReleased(MouseEvent e) {
+                if (e.getButton() == MouseEvent.BUTTON1 && draggingSpawn) {
+                    boolean moved = spawnDragged;
+                    draggingSpawn = false;
+                    spawnDragged = false;
+                    if (moved) {
+                        finishSpawnDrag();
+                    }
+                }
                 if (e.getButton() == MouseEvent.BUTTON2) {
                     panning = false;
                     setCursor(Cursor.getDefaultCursor());
@@ -95,6 +118,17 @@ public final class QuestMapCanvas extends JPanel {
 
             @Override
             public void mouseDragged(MouseEvent e) {
+                if (draggingSpawn && (e.getModifiersEx() & MouseEvent.BUTTON1_DOWN_MASK) != 0) {
+                    float[] img = viewToImage(e.getX(), e.getY());
+                    float[] world = model.viewToWorld(img[0], img[1]);
+                    MapSpawnLayer.Pin pin = selectedSpawn;
+                    if (pin != null) {
+                        putPin(pin.moved(world[0], world[1], pin.z()));
+                        spawnDragged = true;
+                        repaint();
+                    }
+                    return;
+                }
                 if (!panning && (e.getModifiersEx() & MouseEvent.BUTTON2_DOWN_MASK) == 0) {
                     return;
                 }
@@ -167,13 +201,59 @@ public final class QuestMapCanvas extends JPanel {
         repaint();
     }
 
-    public void setSpawns(List<MapSpawnLayer.Pin> spawns) {
-        this.spawns = spawns == null ? List.of() : List.copyOf(spawns);
+    public void setSpawns(List<MapSpawnLayer.Pin> next) {
+        MapSpawnLayer.Pin previous = selectedSpawn;
+        int guid = previous == null ? 0 : previous.guid();
+        MapSpawnLayer.Kind kind = previous == null ? null : previous.kind();
+        spawns.clear();
+        if (next != null) {
+            spawns.addAll(next);
+        }
+        selectedSpawn = null;
+        if (guid != 0 && kind != null) {
+            for (MapSpawnLayer.Pin pin : spawns) {
+                if (pin.kind() == kind && pin.guid() == guid) {
+                    selectedSpawn = pin;
+                    break;
+                }
+            }
+        }
+        if (previous != selectedSpawn) {
+            selectionListener.accept(selectedSpawn);
+        }
         repaint();
     }
 
     public List<MapSpawnLayer.Pin> spawns() {
-        return spawns;
+        return List.copyOf(spawns);
+    }
+
+    public void setSelectionListener(Consumer<MapSpawnLayer.Pin> selectionListener) {
+        this.selectionListener = selectionListener == null ? pin -> {} : selectionListener;
+    }
+
+    public void setSpawnMoved(Consumer<SpawnMove> spawnMoved) {
+        this.spawnMoved = spawnMoved == null ? move -> {} : spawnMoved;
+    }
+
+    public void setGround(NpcGround.Query ground) {
+        this.ground = ground == null ? (map, x, y) -> FloorCandidates.unresolved() : ground;
+    }
+
+    /** Rename every creature pin of this entry so the map matches the shared template name. */
+    public void renameEntry(int entry, String name) {
+        for (int i = 0; i < spawns.size(); i++) {
+            MapSpawnLayer.Pin pin = spawns.get(i);
+            if (pin.kind() != MapSpawnLayer.Kind.CREATURE || pin.entry() != entry) {
+                continue;
+            }
+            MapSpawnLayer.Pin next = pin.named(name);
+            spawns.set(i, next);
+            if (selectedSpawn != null && selectedSpawn.guid() == pin.guid()) {
+                selectedSpawn = next;
+            }
+        }
+        repaint();
     }
 
     public void setShowSpawns(boolean showSpawns) {
@@ -304,6 +384,42 @@ public final class QuestMapCanvas extends JPanel {
             repaint();
         });
         menu.add(item);
+    }
+
+    private boolean canDrag(MapSpawnLayer.Pin pin) {
+        return pin.kind() == MapSpawnLayer.Kind.CREATURE
+                && pin.guid() != 0
+                && selectedSpawn != null
+                && selectedSpawn.kind() == MapSpawnLayer.Kind.CREATURE
+                && selectedSpawn.guid() == pin.guid();
+    }
+
+    private void putPin(MapSpawnLayer.Pin next) {
+        for (int i = 0; i < spawns.size(); i++) {
+            MapSpawnLayer.Pin pin = spawns.get(i);
+            if (pin.kind() == next.kind() && pin.guid() == next.guid() && next.guid() != 0) {
+                spawns.set(i, next);
+                if (selectedSpawn != null && selectedSpawn.kind() == next.kind()
+                        && selectedSpawn.guid() == next.guid()) {
+                    selectedSpawn = next;
+                }
+                return;
+            }
+        }
+    }
+
+    private void finishSpawnDrag() {
+        MapSpawnLayer.Pin pin = selectedSpawn;
+        WorldMapArea area = model.region();
+        if (pin == null || area == null) {
+            return;
+        }
+        FloorCandidates floors = ground.at(area.mapId(), pin.x(), pin.y());
+        float z = NpcGround.snap(floors, pin.z());
+        MapSpawnLayer.Pin moved = pin.moved(pin.x(), pin.y(), z);
+        putPin(moved);
+        spawnMoved.accept(new SpawnMove(moved, NpcGround.found(floors)));
+        repaint();
     }
 
     private MapSpawnLayer.Pin pinAt(int viewX, int viewY) {

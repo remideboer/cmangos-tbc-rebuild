@@ -2,6 +2,7 @@ package org.tbc.editor.quest;
 
 import org.junit.jupiter.api.Test;
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.map.FloorCandidates;
 import org.tbc.world.map.WorldMapAreas;
 
 import java.awt.event.MouseEvent;
@@ -24,7 +25,8 @@ class MapSpawnLayerTest {
         mgr.spawns.add(new ObjectMgr.Spawn(2, 15271, 530, 9000f, -8000f, 20f, 0f));
         mgr.goSpawns.add(new ObjectMgr.Spawn(3, 1, 530, 10360f, -6360f, 33f, 0f));
         List<MapSpawnLayer.Pin> pins = MapSpawnLayer.inArea(mgr, WorldMapAreas.SUNSTRIDER);
-        assertTrue(pins.stream().anyMatch(p -> p.kind() == MapSpawnLayer.Kind.CREATURE && p.entry() == 15271
+        assertTrue(pins.stream().anyMatch(p -> p.kind() == MapSpawnLayer.Kind.CREATURE && p.guid() == 1
+                && p.entry() == 15271 && p.z() == 33f
                 && "Mana Wyrm".equals(p.name()) && "Beast".equals(p.typeName())));
         assertTrue(pins.stream().anyMatch(p -> p.kind() == MapSpawnLayer.Kind.OBJECT
                 && "Sunstrider Crate".equals(p.name()) && "Chest".equals(p.typeName())));
@@ -39,7 +41,7 @@ class MapSpawnLayerTest {
                         org.tbc.world.map.Terrain.NONE, 200, 100));
         canvas.setSize(200, 100);
         canvas.setSpawns(List.of(new MapSpawnLayer.Pin(
-                MapSpawnLayer.Kind.CREATURE, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f)));
+                MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f, 33f)));
         float[] pix = canvas.model().worldToPixel(10349.6f, -6357.29f);
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_MOVED, 0L, 0,
                 (int) pix[0], (int) pix[1], 0, false, MouseEvent.NOBUTTON));
@@ -59,7 +61,7 @@ class MapSpawnLayerTest {
         canvas.setSize(200, 100);
         canvas.model().setTool(QuestMapModel.Tool.PLACE_NOTE);
         canvas.setSpawns(List.of(new MapSpawnLayer.Pin(
-                MapSpawnLayer.Kind.CREATURE, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f)));
+                MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f, 33f)));
         float[] pix = canvas.model().worldToPixel(10349.6f, -6357.29f);
         int x = (int) pix[0];
         int y = (int) pix[1];
@@ -73,5 +75,83 @@ class MapSpawnLayerTest {
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0L, 0,
                 2, 2, 1, false, MouseEvent.BUTTON1));
         assertEquals(1, canvas.model().markers().size());
+    }
+
+    @Test
+    void dragWhenSelectedCreatureShouldMoveAndSnapToTheSurface() {
+        QuestMapCanvas canvas = sunstrider(new MapSpawnLayer.Pin(
+                MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f, 33f));
+        canvas.setGround((map, x, y) -> FloorCandidates.unique(List.of(), 12.5f));
+        float[] pix = canvas.model().worldToPixel(10349.6f, -6357.29f);
+        int x = (int) pix[0];
+        int y = (int) pix[1];
+        int tx = x + 30;
+        int ty = y + 15;
+        press(canvas, x, y, 2);
+        drag(canvas, tx, ty);
+        float[] world = canvas.model().viewToWorld(tx, ty);
+        MapSpawnLayer.Pin pin = canvas.spawns().get(0);
+        assertEquals(world[0], pin.x(), 0.05f);
+        assertEquals(world[1], pin.y(), 0.05f);
+        assertEquals(12.5f, pin.z(), 0.01f);
+        assertEquals(0, canvas.model().markers().size());
+    }
+
+    @Test
+    void dragWhenFloorMissingShouldKeepTheOldHeight() {
+        QuestMapCanvas canvas = sunstrider(new MapSpawnLayer.Pin(
+                MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f, 33f));
+        canvas.setGround((map, x, y) -> FloorCandidates.unresolved());
+        float[] pix = canvas.model().worldToPixel(10349.6f, -6357.29f);
+        int tx = (int) pix[0] + 30;
+        int ty = (int) pix[1] + 15;
+        press(canvas, (int) pix[0], (int) pix[1], 2);
+        drag(canvas, tx, ty);
+        assertEquals(33f, canvas.spawns().get(0).z(), 0.01f);
+        assertEquals(0, canvas.model().markers().size());
+    }
+
+    @Test
+    void dragWhenGameObjectShouldLeaveItInPlace() {
+        MapSpawnLayer.Pin creature = new MapSpawnLayer.Pin(
+                MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f, 33f);
+        MapSpawnLayer.Pin chest = new MapSpawnLayer.Pin(
+                MapSpawnLayer.Kind.OBJECT, 3, 1, "Sunstrider Crate", "Chest", 10420f, -6200f, 33f);
+        QuestMapCanvas canvas = sunstrider(creature, chest);
+        float[] creaturePix = canvas.model().worldToPixel(creature.x(), creature.y());
+        press(canvas, (int) creaturePix[0], (int) creaturePix[1], 2);
+        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_RELEASED, 0L, 0,
+                (int) creaturePix[0], (int) creaturePix[1], 1, false, MouseEvent.BUTTON1));
+        float[] chestPix = canvas.model().worldToPixel(chest.x(), chest.y());
+        press(canvas, (int) chestPix[0], (int) chestPix[1], 1);
+        drag(canvas, (int) chestPix[0] + 40, (int) chestPix[1] + 10);
+        MapSpawnLayer.Pin stayed = canvas.spawns().stream()
+                .filter(p -> p.kind() == MapSpawnLayer.Kind.OBJECT).findFirst().orElseThrow();
+        assertEquals(10420f, stayed.x(), 0.01f);
+        assertEquals(-6200f, stayed.y(), 0.01f);
+        assertEquals(0, canvas.model().markers().size());
+    }
+
+    private static QuestMapCanvas sunstrider(MapSpawnLayer.Pin... pins) {
+        QuestMapCanvas canvas = new QuestMapCanvas();
+        canvas.loadRegion(WorldMapAreas.SUNSTRIDER,
+                org.tbc.world.map.RegionMinimap.render(WorldMapAreas.SUNSTRIDER,
+                        org.tbc.world.map.Terrain.NONE, 200, 100));
+        canvas.setSize(200, 100);
+        canvas.model().setTool(QuestMapModel.Tool.PLACE_NOTE);
+        canvas.setSpawns(List.of(pins));
+        return canvas;
+    }
+
+    private static void press(QuestMapCanvas canvas, int x, int y, int clicks) {
+        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0L, 0,
+                x, y, clicks, false, MouseEvent.BUTTON1));
+    }
+
+    private static void drag(QuestMapCanvas canvas, int x, int y) {
+        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_DRAGGED, 0L,
+                MouseEvent.BUTTON1_DOWN_MASK, x, y, 0, false, MouseEvent.NOBUTTON));
+        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_RELEASED, 0L, 0,
+                x, y, 1, false, MouseEvent.BUTTON1));
     }
 }

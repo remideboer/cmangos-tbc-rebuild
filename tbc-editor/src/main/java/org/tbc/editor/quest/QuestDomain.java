@@ -23,6 +23,8 @@ import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.event.ItemEvent;
 import java.awt.Dimension;
@@ -77,6 +79,15 @@ public final class QuestDomain implements EditorDomain {
     private final JTextArea preview = new JTextArea(8, 28);
     private final JCheckBox ackDup = new JCheckBox("Acknowledge near-duplicate spawns");
     private final JComboBox<QuestMapModel.Tool> tools = new JComboBox<>(QuestMapModel.Tool.values());
+    private final NpcEditSession npcEdits = new NpcEditSession();
+    private final JTextField npcName = new JTextField(16);
+    private final JComboBox<NpcRaces.Race> npcRace = new JComboBox<>();
+    private final JComboBox<Object> npcGear = new JComboBox<>();
+    private final JButton saveNpc = new JButton("Save changes");
+    private final JButton clearNpc = new JButton("Clear changes");
+    private final List<NpcRaces.Race> races = NpcRaces.load(null);
+    private List<NpcGear.Gear> gearChoices = List.of();
+    private boolean fillingNpc;
     private QuestDocument doc;
 
     public QuestDomain(QuestService service, Consumer<String> status) {
@@ -148,6 +159,13 @@ public final class QuestDomain implements EditorDomain {
         });
         mapCombo.getEditor().addActionListener(e -> applySelectedMap());
         canvas.setHoverListener(status);
+        canvas.setSelectionListener(this::showNpc);
+        canvas.setSpawnMoved(this::noteSpawnMove);
+        canvas.setGround((map, x, y) -> service.surfaces().candidateFloors(map, x, y));
+        gearChoices = NpcGear.choices(service.creatures());
+        for (NpcGear.Gear gear : gearChoices) {
+            npcGear.addItem(gear);
+        }
 
         zoneQuestList.setVisibleRowCount(6);
         zoneNpcList.setVisibleRowCount(6);
@@ -236,6 +254,7 @@ public final class QuestDomain implements EditorDomain {
         stack.add(section("This quest", thisQuest));
         stack.add(section("Who", who));
         stack.add(section("In this zone", zoneLists));
+        stack.add(section("Selected NPC", selectedNpcPanel()));
         stack.add(section("Find a creature", find));
 
         JPanel east = new JPanel(new BorderLayout());
@@ -335,7 +354,7 @@ public final class QuestDomain implements EditorDomain {
         doc.setZoneOrSort(area.areaId());
         RegionMinimap.Raster image = raster.apply(area);
         canvas.loadRegion(area, image);
-        canvas.setSpawns(MapSpawnLayer.inArea(service.creatures(), area));
+        canvas.setSpawns(npcEdits.overlay(MapSpawnLayer.inArea(service.creatures(), area)));
         refreshZoneLists();
         boolean missing = image == null || image.empty()
                 || allDark(image);
@@ -746,6 +765,229 @@ public final class QuestDomain implements EditorDomain {
         public String toString() {
             return label;
         }
+    }
+
+    private JPanel selectedNpcPanel() {
+        JPanel form = new JPanel(new GridLayout(0, 2, 4, 4));
+        form.add(new JLabel("Name"));
+        form.add(npcName);
+        form.add(new JLabel("Race"));
+        form.add(npcRace);
+        form.add(new JLabel("Gear"));
+        form.add(npcGear);
+        form.add(clearNpc);
+        form.add(saveNpc);
+        npcGear.setEditable(true);
+        npcName.setEnabled(false);
+        npcRace.setEnabled(false);
+        npcGear.setEnabled(false);
+        saveNpc.setEnabled(false);
+        clearNpc.setEnabled(false);
+        npcName.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                npcNameChanged();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                npcNameChanged();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                npcNameChanged();
+            }
+        });
+        npcRace.addItemListener(e -> {
+            if (fillingNpc || e.getStateChange() != ItemEvent.SELECTED) {
+                return;
+            }
+            MapSpawnLayer.Pin pin = canvas.selectedSpawn();
+            NpcRaces.Race race = (NpcRaces.Race) npcRace.getSelectedItem();
+            if (pin == null || race == null) {
+                return;
+            }
+            npcEdits.setDisplay(pin.entry(), race.displayId());
+            refreshNpcButtons();
+        });
+        npcGear.addItemListener(e -> {
+            if (fillingNpc || e.getStateChange() != ItemEvent.SELECTED) {
+                return;
+            }
+            applyGearFromCombo();
+        });
+        npcGear.getEditor().addActionListener(e -> {
+            if (!fillingNpc) {
+                applyGearFromCombo();
+            }
+        });
+        saveNpc.addActionListener(e -> saveNpcEdits());
+        clearNpc.addActionListener(e -> clearNpcEdits());
+        JPanel wrap = new JPanel(new BorderLayout(0, 4));
+        wrap.add(new JLabel("<html>Name, race, and gear change every NPC of this entry. "
+                + "The dragged position changes this spawn only.</html>"), BorderLayout.NORTH);
+        wrap.add(form, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private void npcNameChanged() {
+        if (fillingNpc) {
+            return;
+        }
+        MapSpawnLayer.Pin pin = canvas.selectedSpawn();
+        if (pin == null || pin.kind() != MapSpawnLayer.Kind.CREATURE) {
+            return;
+        }
+        npcEdits.rename(pin.entry(), npcName.getText());
+        canvas.renameEntry(pin.entry(), npcName.getText());
+        refreshNpcButtons();
+    }
+
+    private void showNpc(MapSpawnLayer.Pin pin) {
+        if (pin == null || pin.kind() != MapSpawnLayer.Kind.CREATURE) {
+            npcName.setEnabled(false);
+            npcRace.setEnabled(false);
+            npcGear.setEnabled(false);
+            saveNpc.setEnabled(false);
+            clearNpc.setEnabled(false);
+            return;
+        }
+        org.tbc.world.content.ObjectMgr mgr = service.creatures();
+        org.tbc.world.content.ObjectMgr.CreatureTemplate template = mgr.creatures.get(pin.entry());
+        int display = template == null ? 0 : template.display();
+        int equipment = mgr.equipmentByEntry.getOrDefault(pin.entry(), 0);
+        npcEdits.remember(pin, display, equipment);
+        NpcEditSession.Look look = npcEdits.look(pin.entry());
+        fillingNpc = true;
+        try {
+            npcName.setText(look == null ? pin.name() : look.name());
+            fillRace(look == null ? display : look.displayId());
+            selectGear(look == null ? equipment : look.equipmentId());
+            npcName.setEnabled(true);
+            npcRace.setEnabled(true);
+            npcGear.setEnabled(true);
+        } finally {
+            fillingNpc = false;
+        }
+        refreshNpcButtons();
+    }
+
+    void noteSpawnMove(QuestMapCanvas.SpawnMove move) {
+        if (move == null || move.pin() == null) {
+            return;
+        }
+        MapSpawnLayer.Pin pin = move.pin();
+        org.tbc.world.content.ObjectMgr mgr = service.creatures();
+        org.tbc.world.content.ObjectMgr.CreatureTemplate template = mgr.creatures.get(pin.entry());
+        npcEdits.remember(pin, template == null ? 0 : template.display(),
+                mgr.equipmentByEntry.getOrDefault(pin.entry(), 0));
+        npcEdits.move(pin.guid(), pin.x(), pin.y(), pin.z());
+        if (!move.heightFound()) {
+            status.accept("No terrain height; kept the previous height.");
+        }
+        refreshNpcButtons();
+    }
+
+    private void fillRace(int displayId) {
+        npcRace.removeAllItems();
+        boolean found = false;
+        for (NpcRaces.Race race : races) {
+            npcRace.addItem(race);
+            if (race.displayId() == displayId) {
+                found = true;
+            }
+        }
+        if (!found) {
+            npcRace.insertItemAt(new NpcRaces.Race("Current model (" + displayId + ")", displayId), 0);
+        }
+        for (int i = 0; i < npcRace.getItemCount(); i++) {
+            if (npcRace.getItemAt(i).displayId() == displayId) {
+                npcRace.setSelectedIndex(i);
+                return;
+            }
+        }
+    }
+
+    private void selectGear(int id) {
+        for (int i = 0; i < npcGear.getItemCount(); i++) {
+            if (npcGear.getItemAt(i) instanceof NpcGear.Gear gear && gear.id() == id) {
+                npcGear.setSelectedIndex(i);
+                return;
+            }
+        }
+        npcGear.setSelectedItem(new NpcGear.Gear(id, id == 0 ? "None" : Integer.toString(id)));
+    }
+
+    private void applyGearFromCombo() {
+        MapSpawnLayer.Pin pin = canvas.selectedSpawn();
+        if (pin == null || pin.kind() != MapSpawnLayer.Kind.CREATURE) {
+            return;
+        }
+        int id = gearId(npcGear.getEditor().getItem());
+        if (id < 0) {
+            id = gearId(npcGear.getSelectedItem());
+        }
+        if (id < 0) {
+            return;
+        }
+        npcEdits.setEquipment(pin.entry(), id);
+        refreshNpcButtons();
+    }
+
+    private static int gearId(Object selected) {
+        if (selected instanceof NpcGear.Gear gear) {
+            return gear.id();
+        }
+        if (selected == null) {
+            return -1;
+        }
+        String text = selected.toString().trim();
+        if (text.isEmpty() || text.equalsIgnoreCase("none")) {
+            return 0;
+        }
+        int colon = text.indexOf(':');
+        String head = colon > 0 ? text.substring(0, colon).trim() : text;
+        try {
+            return Integer.parseInt(head);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    private void refreshNpcButtons() {
+        MapSpawnLayer.Pin pin = canvas.selectedSpawn();
+        boolean creature = pin != null && pin.kind() == MapSpawnLayer.Kind.CREATURE;
+        boolean dirty = npcEdits.dirty();
+        saveNpc.setEnabled(creature && dirty);
+        clearNpc.setEnabled(creature && dirty);
+    }
+
+    private void saveNpcEdits() {
+        MapSpawnLayer.Pin pin = canvas.selectedSpawn();
+        if (pin != null) {
+            npcEdits.rename(pin.entry(), npcName.getText());
+            applyGearFromCombo();
+        }
+        try {
+            service.saveNpcEdits(npcEdits);
+            WorldMapArea area = selectedArea();
+            if (area != null) {
+                canvas.setSpawns(MapSpawnLayer.inArea(service.creatures(), area));
+            }
+            showNpc(canvas.selectedSpawn());
+            status.accept("Saved. Restart the world server to see it in game. "
+                    + "Name, race, and gear apply to every NPC of this entry.");
+        } catch (RuntimeException ex) {
+            status.accept(message(ex));
+        }
+    }
+
+    private void clearNpcEdits() {
+        npcEdits.revert();
+        canvas.setSpawns(npcEdits.overlay(canvas.spawns()));
+        showNpc(canvas.selectedSpawn());
+        status.accept("Cleared unsaved NPC edits.");
     }
 
     private static int parseInt(String s) {
