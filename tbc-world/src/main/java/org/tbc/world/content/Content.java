@@ -1326,14 +1326,14 @@ public final class Content {
             if (p.questLogCounts[slot][roarSlot] >= 1) {
                 continue;
             }
-            Creature npc = nearestNpc(p, map, obj.npcEntry());
+            Creature npc = nearestNpc(p, map, org.tbc.world.classless.HeroStarterTrainers.warriorEntries());
             if (npc == null) {
                 return null;
             }
             p.questLogCounts[slot][roarSlot] = 1;
             WowBuffer add = new WowBuffer(24);
             add.putU32(questId);
-            add.putU32(obj.npcEntry());
+            add.putU32((int) npc.entry);
             add.putU32(1);
             add.putU32(1);
             add.putU64(npc.guid);
@@ -1355,10 +1355,15 @@ public final class Content {
         return null;
     }
 
-    private static Creature nearestNpc(Player p, GameMap map, int entry) {
+    private static Creature nearestNpc(Player p, GameMap map, int[] entries) {
         for (Creature c : map.creatures.values()) {
-            if (c.entry == entry && p.distance2d(c) <= INTERACT_RANGE) {
-                return c;
+            if (p.distance2d(c) > INTERACT_RANGE) {
+                continue;
+            }
+            for (int entry : entries) {
+                if (c.entry == entry) {
+                    return c;
+                }
             }
         }
         return null;

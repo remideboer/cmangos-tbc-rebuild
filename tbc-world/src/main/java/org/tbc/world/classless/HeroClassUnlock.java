@@ -56,12 +56,18 @@ public final class HeroClassUnlock {
     public static final int QUEST_A_GIFT_OF_THE_WILD = 90036;
 
     public static final int NPC_HERO_WARRIOR_TRAINER = 91001;
-    public static final int NPC_HERO_PALADIN_TRAINER = 91002;
-    public static final int NPC_HERO_HUNTER_TRAINER = 91003;
-    public static final int NPC_HERO_ROGUE_TRAINER = 91004;
-    public static final int NPC_HERO_PRIEST_TRAINER = 91005;
-    public static final int NPC_HERO_MAGE_TRAINER = 91006;
-    public static final int NPC_HERO_WARLOCK_TRAINER = 91007;
+    /** Jesthenis Sunstriker — native Sunstrider paladin trainer. */
+    public static final int NPC_HERO_PALADIN_TRAINER = 15280;
+    /** Ranger Sallina — native Sunstrider hunter trainer. */
+    public static final int NPC_HERO_HUNTER_TRAINER = 15513;
+    /** Pathstalker Kariel — native Sunstrider rogue trainer. */
+    public static final int NPC_HERO_ROGUE_TRAINER = 15285;
+    /** Matron Arena — native Sunstrider priest trainer. */
+    public static final int NPC_HERO_PRIEST_TRAINER = 15284;
+    /** Julia Sunstriker — native Sunstrider mage trainer. */
+    public static final int NPC_HERO_MAGE_TRAINER = 15279;
+    /** Summoner Teli'Larien — native Sunstrider warlock trainer. */
+    public static final int NPC_HERO_WARLOCK_TRAINER = 15283;
     public static final int NPC_HERO_SHAMAN_TRAINER = 91008;
     public static final int NPC_HERO_DRUID_TRAINER = 91009;
     /** Blood Elf Sunstrider Isle warrior trainer display name. */
@@ -78,10 +84,12 @@ public final class HeroClassUnlock {
     public static final String NAME_ARYN_FLAMEWEAVE = "Aryn Flameweave";
     /** Blood Elf Sunstrider Isle warlock trainer display name. */
     public static final String NAME_VAELITH_DARKBIND = "Vaelith Darkbind";
-    /** Hero shaman trainer display name (Sunstrider rollout NPC). */
-    public static final String NAME_TALAAN_STONESONG = "Talaan Stonesong";
-    /** Hero druid trainer display name (Sunstrider rollout NPC). */
-    public static final String NAME_LIRAEN_WILDLEAF = "Liraen Wildleaf";
+    /** Tauren shaman guest on Sunstrider Isle (Blood Elves have no shaman trainer). */
+    public static final String NAME_HUURUN_STONESONG = "Huurun Stonesong";
+    /** Tauren druid guest on Sunstrider Isle (Blood Elves have no druid trainer). */
+    public static final String NAME_MESA_WILDHOOF = "Mesa Wildhoof";
+    public static final String NAME_TALAAN_STONESONG = NAME_HUURUN_STONESONG;
+    public static final String NAME_LIRAEN_WILDLEAF = NAME_MESA_WILDHOOF;
     public static final int CREATURE_MANA_WYRM = 15274;
     public static final int REQUIRED_HITS = 5;
     public static final int REQUIRED_KILLS = 1;
@@ -201,10 +209,10 @@ public final class HeroClassUnlock {
     public static final int VIRTUAL_ITEM_SWORD_DISPLAY = 7487;
     /** Llane Beshere wooden buckler ItemDisplayInfo (item 1961). */
     public static final int VIRTUAL_ITEM_SHIELD_DISPLAY = 1685;
-    public static final float SUNSTRIDER_SPAWN_X = 10381.6f;
-    public static final float SUNSTRIDER_SPAWN_Y = -6399.23f;
-    public static final float SUNSTRIDER_SPAWN_Z = 38.5306f;
-    public static final float SUNSTRIDER_SPAWN_O = 3.74096f;
+    public static final float SUNSTRIDER_SPAWN_X = 10345.0f;
+    public static final float SUNSTRIDER_SPAWN_Y = -6412.0f;
+    public static final float SUNSTRIDER_SPAWN_Z = 38.62f;
+    public static final float SUNSTRIDER_SPAWN_O = 3.14f;
     /** Paladin trainer a few yards from the warrior trainer. */
     public static final float SUNSTRIDER_PALADIN_X = 10383.6f;
     public static final float SUNSTRIDER_PALADIN_Y = -6401.23f;
@@ -499,6 +507,10 @@ public final class HeroClassUnlock {
 
     public static HeroClassUnlock forQuest(int questId) {
         return UNLOCK_BY_QUEST.get(questId);
+    }
+
+    public static HeroClassUnlock forClass(int classId) {
+        return UNLOCK_BY_CLASS.get(classId);
     }
 
     public static boolean isHeroOnly(int questId) {

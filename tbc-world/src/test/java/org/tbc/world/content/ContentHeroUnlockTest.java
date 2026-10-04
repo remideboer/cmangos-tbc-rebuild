@@ -176,6 +176,21 @@ class ContentHeroUnlockTest {
     }
 
     @Test
+    void creditTextEmoteNearNpcWhenLlaneWarriorTrainerShouldCount() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON);
+        Creature llane = spawn(Content.NPC_LLANE_BESHERE);
+        WowBuffer in = new WowBuffer(12);
+        in.putU64(llane.guid);
+        in.putU32(HeroClassUnlock.QUEST_RALLY_THE_LINE);
+        content.acceptQuest(p, map, in, this::capture);
+        ops.clear();
+        last.clear();
+        assertNotNull(content.creditTextEmoteNearNpc(p, map, HeroClassUnlock.TEXT_EMOTE_ROAR, this::capture));
+        assertEquals(1, p.questLogCounts[0][HeroClassUnlock.RALLY_ROAR_COUNT_SLOT]);
+    }
+
+    @Test
     void killedMonsterCreditWhenRallyMissingRoarShouldNotComplete() {
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
         takeRally();

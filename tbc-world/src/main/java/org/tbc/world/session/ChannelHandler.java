@@ -543,9 +543,18 @@ public final class ChannelHandler {
             var obj = world.content.creditTextEmoteNearNpc(p, map, emote, s::send);
             if (obj != null && obj.castSpellId() > 0) {
                 Creature caster = null;
+                int[] warriors = org.tbc.world.classless.HeroStarterTrainers.warriorEntries();
                 for (Creature c : map.creatures.values()) {
-                    if (c.entry == obj.npcEntry() && p.distance2d(c) <= org.tbc.world.content.Content.INTERACT_RANGE) {
-                        caster = c;
+                    if (p.distance2d(c) > org.tbc.world.content.Content.INTERACT_RANGE) {
+                        continue;
+                    }
+                    for (int entry : warriors) {
+                        if (c.entry == entry) {
+                            caster = c;
+                            break;
+                        }
+                    }
+                    if (caster != null) {
                         break;
                     }
                 }

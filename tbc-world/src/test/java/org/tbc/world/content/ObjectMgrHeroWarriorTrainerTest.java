@@ -64,7 +64,7 @@ class ObjectMgrHeroWarriorTrainerTest {
     }
 
     @Test
-    void seedQueryDefaultsWhenSqlWorldShouldPlaceEveryHeroTrainerOnSunstriderWithUnlockQuest() {
+    void seedQueryDefaultsWhenSqlWorldShouldBindNativeSunstriderTrainersNotDuplicates() {
         ObjectMgr mgr = new ObjectMgr();
         mgr.seedQueryDefaults();
         int[] trainers = {
@@ -106,6 +106,15 @@ class ObjectMgrHeroWarriorTrainerTest {
             assertNotNull(offered, "quest relation " + entry);
             assertTrue(offered.contains(unlocks[i]), "unlock quest on " + entry);
         }
+        assertEquals("Jesthenis Sunstriker", mgr.creatures.get(HeroClassUnlock.NPC_HERO_PALADIN_TRAINER).name());
+        for (ObjectMgr.Spawn s : mgr.spawns) {
+            assertTrue(s.entry() != 91002 && s.entry() != 91003 && s.entry() != 91004
+                    && s.entry() != 91005 && s.entry() != 91006 && s.entry() != 91007,
+                    "duplicate custom trainer " + s.entry());
+        }
+        java.util.List<Integer> llane = mgr.questGivers.get(Content.NPC_LLANE_BESHERE);
+        assertNotNull(llane);
+        assertTrue(llane.contains(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
     }
 
     @Test

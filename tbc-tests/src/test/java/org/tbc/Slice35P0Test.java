@@ -2794,8 +2794,8 @@ class Slice35P0Test {
     }
 
     /**
-     * TP-SL35-066 — Blood Elf Sunstrider Hero trainers 91001–91009 all offer unlock quests
-     * with yellow ! ({@code DIALOG_STATUS_AVAILABLE}).
+     * TP-SL35-066 — Sunstrider native class trainers plus warrior/shaman/druid guests
+     * show yellow ! ({@code DIALOG_STATUS_AVAILABLE}) for Hero unlocks.
      */
     @Test
     void tpSl35SunstriderHeroTrainersShouldShowUnlockExclamation() {

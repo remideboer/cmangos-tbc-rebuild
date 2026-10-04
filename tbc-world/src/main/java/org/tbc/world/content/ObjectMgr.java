@@ -3410,20 +3410,64 @@ public final class ObjectMgr {
         seedHeroDruidUnlock();
     }
 
+    private void installHeroTrainer(org.tbc.world.classless.HeroStarterTrainers.Placement p,
+                                    java.util.List<TrainerSpell> spells) {
+        int flags = Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER;
+        CreatureTemplate t = new CreatureTemplate(p.entry(), p.name(), p.display(), p.faction(), 100, 5,
+                flags, "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                heroTrainerSubName(p.trainerClass()), "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0);
+        if (p.custom()) {
+            creatures.put(p.entry(), t);
+        } else {
+            creatures.putIfAbsent(p.entry(), t);
+        }
+        trainerTypeByEntry.putIfAbsent(p.entry(), org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(p.entry(), p.trainerClass());
+        trainerSpells.putIfAbsent(p.entry(), new ArrayList<>(spells));
+        if (p.trainerClass() == Player.CLASS_WARRIOR) {
+            ensureBattlecasterOnTrainer(p.entry());
+        }
+        boolean present = false;
+        for (Spawn s : spawns) {
+            if (s.entry() == p.entry() && s.map() == p.map()) {
+                present = true;
+                break;
+            }
+        }
+        if (!present) {
+            addSpawnIfMissing(p.spawnGuid(), p.entry(), p.map(), p.x(), p.y(), p.z(), p.o());
+        }
+        if (p.hasMap0Twin()) {
+            addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(p.entry()),
+                    p.entry(), 0, p.map0X(), p.map0Y(), 80f, 0f);
+        }
+    }
+
+    private void relateHeroQuests(int npcEntry, int... questIds) {
+        for (int questId : questIds) {
+            addQuestRelation(questGivers, npcEntry, questId);
+            addQuestRelation(questInvolved, npcEntry, questId);
+        }
+    }
+
+    private static String heroTrainerSubName(int trainerClass) {
+        return switch (trainerClass) {
+            case Player.CLASS_PALADIN -> "Paladin Trainer";
+            case Player.CLASS_HUNTER -> "Hunter Trainer";
+            case Player.CLASS_ROGUE -> "Rogue Trainer";
+            case Player.CLASS_PRIEST -> "Priest Trainer";
+            case Player.CLASS_SHAMAN -> "Shaman Trainer";
+            case Player.CLASS_MAGE -> "Mage Trainer";
+            case Player.CLASS_WARLOCK -> "Warlock Trainer";
+            case Player.CLASS_DRUID -> "Druid Trainer";
+            default -> "Warrior Trainer";
+        };
+    }
+
     private void seedHeroWarriorUnlock() {
-        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_HEROS_FIRST_LESSON;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
-        creatures.put(trainer, new CreatureTemplate(trainer,
-                org.tbc.world.classless.HeroClassUnlock.NAME_LORVAEN_BLOODFEATHER,
-                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
-                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
-                "Warrior Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
-        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
-        trainerClass.putIfAbsent(trainer, Player.CLASS_WARRIOR);
-        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+        java.util.List<TrainerSpell> spells = List.of(
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT, Content.TRAINER_SPELL_BATTLE_SHOUT_COST, 1),
                 new TrainerSpell(Content.SPELL_BATTLE_SHOUT_RANK2, 500, 12, 0, 0,
                         Content.SPELL_BATTLE_SHOUT, 0, 0, false),
@@ -3435,30 +3479,26 @@ public final class ObjectMgr {
                         org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_MAIL),
                 new TrainerSpell(org.tbc.world.classless.CasterArmorPolicy.SPELL_BATTLECASTER_PLATE,
                         org.tbc.world.classless.CasterArmorPolicy.TRAINER_COST_BATTLECASTER,
-                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_PLATE))));
-        ensureBattlecasterOnTrainer(trainer);
+                        org.tbc.world.classless.CasterArmorPolicy.REQ_LEVEL_BATTLECASTER_PLATE));
         quests.putIfAbsent(questId, new QuestTemplate(questId, "The Hero's First Lesson", 1, 0,
                 0,
                 "Practice with your weapon on the Mana Wyrms, then prove you can finish one. Return alive.",
                 "Land 5 weapon hits on a Mana Wyrm and defeat 1 Mana Wyrm.",
                 wyrm, org.tbc.world.classless.HeroClassUnlock.REQUIRED_KILLS));
-        addQuestRelation(questGivers, trainer, questId);
-        addQuestRelation(questInvolved, trainer, questId);
         questCreatureHits.putIfAbsent(questId, new CreatureHitObjective(wyrm,
                 org.tbc.world.classless.HeroClassUnlock.REQUIRED_HITS));
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.HEROIC_STRIKE);
-        seedHeroWarriorFollowUps(trainer, wyrm, questId);
-        // Map-0 twin is for TP-SL35 find() only. Faction 1604 is Horde — keep it outside
-        // abbey DetectOrAttack range (same rule as seeded hostiles).
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8400f, -400f, 80f, 0f);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_X,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_Y,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_Z,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SPAWN_O);
+        seedHeroWarriorFollowUps(wyrm, questId);
+        int rally = org.tbc.world.classless.HeroClassUnlock.QUEST_RALLY_THE_LINE;
+        int chargeQ = org.tbc.world.classless.HeroClassUnlock.QUEST_CLOSE_THE_DISTANCE;
+        int rendQ = org.tbc.world.classless.HeroClassUnlock.QUEST_A_WOUND_TO_REMEMBER;
+        for (var p : org.tbc.world.classless.HeroStarterTrainers.forClass(Player.CLASS_WARRIOR)) {
+            installHeroTrainer(p, spells);
+            relateHeroQuests(p.entry(), questId, rally, chargeQ, rendQ);
+        }
     }
 
-    private void seedHeroWarriorFollowUps(int trainer, int wyrm, int unlockQuest) {
+    private void seedHeroWarriorFollowUps(int wyrm, int unlockQuest) {
         int strip = org.tbc.world.classless.HeroClassUnlock.ITEM_TRAINING_STRIP;
         items.putIfAbsent(strip, ItemTemplate.heroTrainingStrip());
 
@@ -3467,20 +3507,16 @@ public final class ObjectMgr {
                 "Roar at the trainer's banner so the line hears you, then defeat a Mana Wyrm.",
                 "Use /roar near the Warrior Trainer. Defeat 1 Mana Wyrm.",
                 wyrm, 1, 0, 0, unlockQuest));
-        addQuestRelation(questGivers, trainer, rally);
-        addQuestRelation(questInvolved, trainer, rally);
         questRewSpell.putIfAbsent(rally, Content.SPELL_BATTLE_SHOUT);
         questEmoteNearNpc.putIfAbsent(rally, new EmoteNearNpcObjective(
                 org.tbc.world.classless.HeroClassUnlock.TEXT_EMOTE_ROAR,
-                trainer, Content.SPELL_BATTLE_SHOUT));
+                org.tbc.world.classless.HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER, Content.SPELL_BATTLE_SHOUT));
 
         int chargeQ = org.tbc.world.classless.HeroClassUnlock.QUEST_CLOSE_THE_DISTANCE;
         quests.putIfAbsent(chargeQ, heroFollowUpQuest(chargeQ, "Close the Distance",
                 "Close on a Mana Wyrm and land three solid weapon hits. Return alive.",
                 "Land 3 weapon hits on a Mana Wyrm.",
                 0, 0, 0, 0, unlockQuest));
-        addQuestRelation(questGivers, trainer, chargeQ);
-        addQuestRelation(questInvolved, trainer, chargeQ);
         questCreatureHits.putIfAbsent(chargeQ, new CreatureHitObjective(wyrm,
                 org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_CHARGE_HITS));
         questRewSpell.putIfAbsent(chargeQ, org.tbc.world.classless.HeroClassUnlock.SPELL_CHARGE);
@@ -3490,8 +3526,6 @@ public final class ObjectMgr {
                 "Recover a training strip from the practice ground and return alive.",
                 "Collect 1 Training Strip.",
                 0, 0, strip, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, rendQ);
-        addQuestRelation(questInvolved, trainer, rendQ);
         questRewSpell.putIfAbsent(rendQ, org.tbc.world.classless.HeroClassUnlock.SPELL_REND);
     }
 
@@ -3508,42 +3542,31 @@ public final class ObjectMgr {
     }
 
     private void seedHeroPaladinUnlock() {
-        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_PALADIN_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_A_VOW_TESTED;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
         int token = org.tbc.world.classless.HeroClassUnlock.ITEM_PROTECTIVE_TOKEN;
-        creatures.put(trainer, new CreatureTemplate(trainer,
-                org.tbc.world.classless.HeroClassUnlock.NAME_VELAARA_SUNWARD,
-                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
-                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
-                "Paladin Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
-        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
-        trainerClass.putIfAbsent(trainer, Player.CLASS_PALADIN);
-        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+        java.util.List<TrainerSpell> spells = List.of(
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.DEVOTION_AURA, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_BLESSING_OF_MIGHT, 100, 1),
-                new TrainerSpell(org.tbc.world.spell.SpellEngine.HOLY_LIGHT, 100, 1))));
+                new TrainerSpell(org.tbc.world.spell.SpellEngine.HOLY_LIGHT, 100, 1));
         items.putIfAbsent(token, ItemTemplate.heroQuestJunk(
                 token, "Protective Token"));
         quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Vow Tested",
                 "Recover the lost protective token and defeat a Mana Wyrm that threatens the ward. Return alive.",
                 "Collect 1 Protective Token. Defeat 1 Mana Wyrm.",
                 wyrm, 1, token, 1, 0));
-        addQuestRelation(questGivers, trainer, questId);
-        addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.SEAL_OF_RIGHTEOUSNESS);
-        seedHeroPaladinFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8402f, -402f, 80f, 0f);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_X,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_Y,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_Z,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PALADIN_O);
+        seedHeroPaladinFollowUps(wyrm, questId);
+        int stand = org.tbc.world.classless.HeroClassUnlock.QUEST_STAND_FAST;
+        int strength = org.tbc.world.classless.HeroClassUnlock.QUEST_STRENGTH_IN_SERVICE;
+        int mercy = org.tbc.world.classless.HeroClassUnlock.QUEST_MERCYS_LESSON;
+        for (var p : org.tbc.world.classless.HeroStarterTrainers.forClass(Player.CLASS_PALADIN)) {
+            installHeroTrainer(p, spells);
+            relateHeroQuests(p.entry(), questId, stand, strength, mercy);
+        }
     }
 
-    private void seedHeroPaladinFollowUps(int trainer, int wyrm, int unlockQuest) {
+    private void seedHeroPaladinFollowUps(int wyrm, int unlockQuest) {
         int blessing = org.tbc.world.classless.HeroClassUnlock.ITEM_BLESSING_TOKEN;
         int kit = org.tbc.world.classless.HeroClassUnlock.ITEM_HEALING_KIT;
         items.putIfAbsent(blessing, ItemTemplate.heroQuestJunk(blessing, "Blessing Token"));
@@ -3554,8 +3577,6 @@ public final class ObjectMgr {
                 "Hold the trainer's ward by defeating a Mana Wyrm. Return alive.",
                 "Defeat 1 Mana Wyrm.",
                 wyrm, 1, 0, 0, unlockQuest));
-        addQuestRelation(questGivers, trainer, stand);
-        addQuestRelation(questInvolved, trainer, stand);
         questRewSpell.putIfAbsent(stand, org.tbc.world.spell.SpellEngine.DEVOTION_AURA);
 
         int strength = org.tbc.world.classless.HeroClassUnlock.QUEST_STRENGTH_IN_SERVICE;
@@ -3563,8 +3584,6 @@ public final class ObjectMgr {
                 "Deliver the trainer's blessing token as proof of service. Return alive.",
                 "Collect 1 Blessing Token.",
                 0, 0, blessing, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, strength);
-        addQuestRelation(questInvolved, trainer, strength);
         questRewSpell.putIfAbsent(strength, org.tbc.world.classless.HeroClassUnlock.SPELL_BLESSING_OF_MIGHT);
 
         int mercy = org.tbc.world.classless.HeroClassUnlock.QUEST_MERCYS_LESSON;
@@ -3572,47 +3591,34 @@ public final class ObjectMgr {
                 "Recover a healing kit for a wounded trainee. Return alive.",
                 "Collect 1 Healing Kit.",
                 0, 0, kit, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, mercy);
-        addQuestRelation(questInvolved, trainer, mercy);
         questRewSpell.putIfAbsent(mercy, org.tbc.world.spell.SpellEngine.HOLY_LIGHT);
     }
 
     private void seedHeroDruidUnlock() {
-        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_DRUID_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_A_LIVING_BALANCE;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
         int seed = org.tbc.world.classless.HeroClassUnlock.ITEM_BLIGHTED_SEED;
-        creatures.put(trainer, new CreatureTemplate(trainer,
-                org.tbc.world.classless.HeroClassUnlock.NAME_LIRAEN_WILDLEAF,
-                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
-                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
-                "Druid Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
-        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
-        trainerClass.putIfAbsent(trainer, Player.CLASS_DRUID);
-        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+        java.util.List<TrainerSpell> spells = List.of(
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_TOUCH, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_MOONFIRE, 100, 1),
-                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_MARK_OF_THE_WILD, 100, 1))));
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_MARK_OF_THE_WILD, 100, 1));
         items.putIfAbsent(seed, ItemTemplate.heroQuestJunk(seed, "Blighted Seed"));
         quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Living Balance",
                 "Recover a blighted seed from the grove edge, then defeat a Mana Wyrm that feeds on it. Return alive.",
                 "Collect 1 Blighted Seed. Defeat 1 Mana Wyrm.",
                 wyrm, 1, seed, 1, 0));
-        addQuestRelation(questGivers, trainer, questId);
-        addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_WRATH);
-        seedHeroDruidFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8416f, -416f, 80f, 0f);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_X,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_Y,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_Z,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_DRUID_O);
+        seedHeroDruidFollowUps(wyrm, questId);
+        int touch = org.tbc.world.classless.HeroClassUnlock.QUEST_TOUCH_OF_THE_GROVE;
+        int silent = org.tbc.world.classless.HeroClassUnlock.QUEST_A_SILENT_MARK;
+        int gift = org.tbc.world.classless.HeroClassUnlock.QUEST_A_GIFT_OF_THE_WILD;
+        for (var p : org.tbc.world.classless.HeroStarterTrainers.forClass(Player.CLASS_DRUID)) {
+            installHeroTrainer(p, spells);
+            relateHeroQuests(p.entry(), questId, touch, silent, gift);
+        }
     }
 
-    private void seedHeroDruidFollowUps(int trainer, int wyrm, int unlockQuest) {
+    private void seedHeroDruidFollowUps(int wyrm, int unlockQuest) {
         int salve = org.tbc.world.classless.HeroClassUnlock.ITEM_GROVE_SALVE;
         int mark = org.tbc.world.classless.HeroClassUnlock.ITEM_MOONLIGHT_MARK;
         int offering = org.tbc.world.classless.HeroClassUnlock.ITEM_WILD_OFFERING;
@@ -3625,8 +3631,6 @@ public final class ObjectMgr {
                 "Gather grove salve for a wounded ally. Return alive.",
                 "Collect 1 Grove Salve.",
                 0, 0, salve, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, touch);
-        addQuestRelation(questInvolved, trainer, touch);
         questRewSpell.putIfAbsent(touch, org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_TOUCH);
 
         int silent = org.tbc.world.classless.HeroClassUnlock.QUEST_A_SILENT_MARK;
@@ -3634,8 +3638,6 @@ public final class ObjectMgr {
                 "Place a moonlight mark, then defeat its local threat with your existing kit. Return alive.",
                 "Collect 1 Moonlight Mark. Defeat 1 Mana Wyrm.",
                 wyrm, 1, mark, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, silent);
-        addQuestRelation(questInvolved, trainer, silent);
         questRewSpell.putIfAbsent(silent, org.tbc.world.classless.HeroClassUnlock.SPELL_MOONFIRE);
 
         int gift = org.tbc.world.classless.HeroClassUnlock.QUEST_A_GIFT_OF_THE_WILD;
@@ -3643,47 +3645,34 @@ public final class ObjectMgr {
                 "Recover a wild offering from the trainer's grove trial. Return alive.",
                 "Collect 1 Wild Offering.",
                 0, 0, offering, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, gift);
-        addQuestRelation(questInvolved, trainer, gift);
         questRewSpell.putIfAbsent(gift, org.tbc.world.classless.HeroClassUnlock.SPELL_MARK_OF_THE_WILD);
     }
 
     private void seedHeroShamanUnlock() {
-        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_SHAMAN_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_LISTEN_TO_THE_ELEMENTS;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
         int token = org.tbc.world.classless.HeroClassUnlock.ITEM_ELEMENTAL_TOKEN;
-        creatures.put(trainer, new CreatureTemplate(trainer,
-                org.tbc.world.classless.HeroClassUnlock.NAME_TALAAN_STONESONG,
-                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
-                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
-                "Shaman Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
-        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
-        trainerClass.putIfAbsent(trainer, Player.CLASS_SHAMAN);
-        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+        java.util.List<TrainerSpell> spells = List.of(
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_WAVE, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_EARTH_SHOCK, 100, 1),
-                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_STONESKIN_TOTEM, 100, 1))));
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_STONESKIN_TOTEM, 100, 1));
         items.putIfAbsent(token, ItemTemplate.heroQuestJunk(token, "Elemental Token"));
         quests.putIfAbsent(questId, heroFollowUpQuest(questId, "Listen to the Elements",
                 "Recover a local elemental token, present it at the trainer's shrine, and defeat a Mana Wyrm that disturbs the site. Return alive.",
                 "Collect 1 Elemental Token. Defeat 1 Mana Wyrm.",
                 wyrm, 1, token, 1, 0));
-        addQuestRelation(questGivers, trainer, questId);
-        addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_LIGHTNING_BOLT);
-        seedHeroShamanFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8414f, -414f, 80f, 0f);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_X,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_Y,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_Z,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_SHAMAN_O);
+        seedHeroShamanFollowUps(wyrm, questId);
+        int mend = org.tbc.world.classless.HeroClassUnlock.QUEST_MEND_THE_WOUNDED;
+        int shock = org.tbc.world.classless.HeroClassUnlock.QUEST_ANSWERING_SHOCK;
+        int call = org.tbc.world.classless.HeroClassUnlock.QUEST_CALL_OF_EARTH;
+        for (var p : org.tbc.world.classless.HeroStarterTrainers.forClass(Player.CLASS_SHAMAN)) {
+            installHeroTrainer(p, spells);
+            relateHeroQuests(p.entry(), questId, mend, shock, call);
+        }
     }
 
-    private void seedHeroShamanFollowUps(int trainer, int wyrm, int unlockQuest) {
+    private void seedHeroShamanFollowUps(int wyrm, int unlockQuest) {
         int herbs = org.tbc.world.classless.HeroClassUnlock.ITEM_HEALING_HERBS;
         int marker = org.tbc.world.classless.HeroClassUnlock.ITEM_ELEMENTAL_MARKER;
         int earth = org.tbc.world.classless.HeroClassUnlock.ITEM_EARTH_SAMPLE;
@@ -3696,8 +3685,6 @@ public final class ObjectMgr {
                 "Gather healing herbs for a wounded ally. Return alive.",
                 "Collect 1 Healing Herbs.",
                 0, 0, herbs, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, mend);
-        addQuestRelation(questInvolved, trainer, mend);
         questRewSpell.putIfAbsent(mend, org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_WAVE);
 
         int shock = org.tbc.world.classless.HeroClassUnlock.QUEST_ANSWERING_SHOCK;
@@ -3705,8 +3692,6 @@ public final class ObjectMgr {
                 "Restore a disturbed elemental marker, then defeat its local threat with your existing kit. Return alive.",
                 "Collect 1 Elemental Marker. Defeat 1 Mana Wyrm.",
                 wyrm, 1, marker, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, shock);
-        addQuestRelation(questInvolved, trainer, shock);
         questRewSpell.putIfAbsent(shock, org.tbc.world.classless.HeroClassUnlock.SPELL_EARTH_SHOCK);
 
         int call = org.tbc.world.classless.HeroClassUnlock.QUEST_CALL_OF_EARTH;
@@ -3714,47 +3699,34 @@ public final class ObjectMgr {
                 "Recover an earth sample from the trainer's shrine trial. Return alive.",
                 "Collect 1 Earth Sample.",
                 0, 0, earth, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, call);
-        addQuestRelation(questInvolved, trainer, call);
         questRewSpell.putIfAbsent(call, org.tbc.world.classless.HeroClassUnlock.SPELL_STONESKIN_TOTEM);
     }
 
     private void seedHeroWarlockUnlock() {
-        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_WARLOCK_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_THE_BOUND_FLAME;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
         int mark = org.tbc.world.classless.HeroClassUnlock.ITEM_BINDING_MARK;
-        creatures.put(trainer, new CreatureTemplate(trainer,
-                org.tbc.world.classless.HeroClassUnlock.NAME_VAELITH_DARKBIND,
-                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
-                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
-                "Warlock Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
-        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
-        trainerClass.putIfAbsent(trainer, Player.CLASS_WARLOCK);
-        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+        java.util.List<TrainerSpell> spells = List.of(
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_BOLT, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_IMMOLATE, 100, 1),
-                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SUMMON_IMP, 100, 1))));
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SUMMON_IMP, 100, 1));
         items.putIfAbsent(mark, ItemTemplate.heroQuestJunk(mark, "Binding Mark"));
         quests.putIfAbsent(questId, heroFollowUpQuest(questId, "The Bound Flame",
                 "Recover a binding mark from the local cult and contain a Mana Wyrm that threatens the site. Return alive.",
                 "Collect 1 Binding Mark. Defeat 1 Mana Wyrm.",
                 wyrm, 1, mark, 1, 0));
-        addQuestRelation(questGivers, trainer, questId);
-        addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_CORRUPTION);
-        seedHeroWarlockFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8412f, -412f, 80f, 0f);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_X,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_Y,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_Z,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_O);
+        seedHeroWarlockFollowUps(wyrm, questId);
+        int shadow = org.tbc.world.classless.HeroClassUnlock.QUEST_SHADOW_IN_RESERVE;
+        int fel = org.tbc.world.classless.HeroClassUnlock.QUEST_FEL_AT_THE_EDGE;
+        int familiar = org.tbc.world.classless.HeroClassUnlock.QUEST_A_FAMILIARS_FIRST_TASK;
+        for (var p : org.tbc.world.classless.HeroStarterTrainers.forClass(Player.CLASS_WARLOCK)) {
+            installHeroTrainer(p, spells);
+            relateHeroQuests(p.entry(), questId, shadow, fel, familiar);
+        }
     }
 
-    private void seedHeroWarlockFollowUps(int trainer, int wyrm, int unlockQuest) {
+    private void seedHeroWarlockFollowUps(int wyrm, int unlockQuest) {
         int page = org.tbc.world.classless.HeroClassUnlock.ITEM_SHADOWED_PAGE;
         int ember = org.tbc.world.classless.HeroClassUnlock.ITEM_FEL_EMBER;
         int reagents = org.tbc.world.classless.HeroClassUnlock.ITEM_BINDING_REAGENTS;
@@ -3767,8 +3739,6 @@ public final class ObjectMgr {
                 "Recover a shadowed page and defeat a marked target with your existing kit. Return alive.",
                 "Collect 1 Shadowed Page. Defeat 1 Mana Wyrm.",
                 wyrm, 1, page, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, shadow);
-        addQuestRelation(questInvolved, trainer, shadow);
         questRewSpell.putIfAbsent(shadow, org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_BOLT);
 
         int fel = org.tbc.world.classless.HeroClassUnlock.QUEST_FEL_AT_THE_EDGE;
@@ -3776,8 +3746,6 @@ public final class ObjectMgr {
                 "Collect a controlled fel ember from a local threat. Return alive.",
                 "Collect 1 Controlled Fel Ember.",
                 0, 0, ember, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, fel);
-        addQuestRelation(questInvolved, trainer, fel);
         questRewSpell.putIfAbsent(fel, org.tbc.world.classless.HeroClassUnlock.SPELL_IMMOLATE);
 
         int familiar = org.tbc.world.classless.HeroClassUnlock.QUEST_A_FAMILIARS_FIRST_TASK;
@@ -3785,47 +3753,34 @@ public final class ObjectMgr {
                 "Recover the trainer's binding reagents. Return alive.",
                 "Collect 1 Binding Reagents.",
                 0, 0, reagents, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, familiar);
-        addQuestRelation(questInvolved, trainer, familiar);
         questRewSpell.putIfAbsent(familiar, org.tbc.world.classless.HeroClassUnlock.SPELL_SUMMON_IMP);
     }
 
     private void seedHeroMageUnlock() {
-        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_MAGE_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_A_CONTROLLED_SPARK;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
         int fragments = org.tbc.world.classless.HeroClassUnlock.ITEM_ARCANE_FRAGMENTS;
-        creatures.put(trainer, new CreatureTemplate(trainer,
-                org.tbc.world.classless.HeroClassUnlock.NAME_ARYN_FLAMEWEAVE,
-                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
-                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
-                "Mage Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
-        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
-        trainerClass.putIfAbsent(trainer, Player.CLASS_MAGE);
-        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+        java.util.List<TrainerSpell> spells = List.of(
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.FROST_ARMOR, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_INTELLECT, 100, 1),
-                new TrainerSpell(org.tbc.world.spell.SpellEngine.FROSTBOLT, 100, 1))));
+                new TrainerSpell(org.tbc.world.spell.SpellEngine.FROSTBOLT, 100, 1));
         items.putIfAbsent(fragments, ItemTemplate.heroQuestJunk(fragments, "Arcane Fragments"));
         quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Controlled Spark",
                 "Recover arcane fragments, stabilize them at the trainer's focus, and defeat a Mana Wyrm. Return alive.",
                 "Collect 1 Arcane Fragments. Defeat 1 Mana Wyrm.",
                 wyrm, 1, fragments, 1, 0));
-        addQuestRelation(questGivers, trainer, questId);
-        addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.FIREBALL);
-        seedHeroMageFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8410f, -410f, 80f, 0f);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_X,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_Y,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_Z,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_MAGE_O);
+        seedHeroMageFollowUps(wyrm, questId);
+        int cooler = org.tbc.world.classless.HeroClassUnlock.QUEST_A_COOLER_HEAD;
+        int study = org.tbc.world.classless.HeroClassUnlock.QUEST_SHARE_THE_STUDY;
+        int second = org.tbc.world.classless.HeroClassUnlock.QUEST_A_SECOND_SCHOOL;
+        for (var p : org.tbc.world.classless.HeroStarterTrainers.forClass(Player.CLASS_MAGE)) {
+            installHeroTrainer(p, spells);
+            relateHeroQuests(p.entry(), questId, cooler, study, second);
+        }
     }
 
-    private void seedHeroMageFollowUps(int trainer, int wyrm, int unlockQuest) {
+    private void seedHeroMageFollowUps(int wyrm, int unlockQuest) {
         int focus = org.tbc.world.classless.HeroClassUnlock.ITEM_FROST_TREATED_FOCUS;
         int notes = org.tbc.world.classless.HeroClassUnlock.ITEM_STUDY_NOTES;
         items.putIfAbsent(focus, ItemTemplate.heroQuestJunk(focus, "Frost-Treated Focus"));
@@ -3836,8 +3791,6 @@ public final class ObjectMgr {
                 "Recover a frost-treated focus from a local hazard. Return alive.",
                 "Collect 1 Frost-Treated Focus.",
                 0, 0, focus, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, cooler);
-        addQuestRelation(questInvolved, trainer, cooler);
         questRewSpell.putIfAbsent(cooler, org.tbc.world.spell.SpellEngine.FROST_ARMOR);
 
         int study = org.tbc.world.classless.HeroClassUnlock.QUEST_SHARE_THE_STUDY;
@@ -3845,8 +3798,6 @@ public final class ObjectMgr {
                 "Deliver the trainer's study notes to an ally. Return alive.",
                 "Collect 1 Study Notes.",
                 0, 0, notes, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, study);
-        addQuestRelation(questInvolved, trainer, study);
         questRewSpell.putIfAbsent(study, org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_INTELLECT);
 
         int second = org.tbc.world.classless.HeroClassUnlock.QUEST_A_SECOND_SCHOOL;
@@ -3854,47 +3805,34 @@ public final class ObjectMgr {
                 "Defeat a marked target with your existing kit. Return alive.",
                 "Defeat 1 Mana Wyrm.",
                 wyrm, 1, 0, 0, unlockQuest));
-        addQuestRelation(questGivers, trainer, second);
-        addQuestRelation(questInvolved, trainer, second);
         questRewSpell.putIfAbsent(second, org.tbc.world.spell.SpellEngine.FROSTBOLT);
     }
 
     private void seedHeroPriestUnlock() {
-        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_PRIEST_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_MERCY_AND_JUDGMENT;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
         int supplies = org.tbc.world.classless.HeroClassUnlock.ITEM_HEALING_SUPPLIES;
-        creatures.put(trainer, new CreatureTemplate(trainer,
-                org.tbc.world.classless.HeroClassUnlock.NAME_LIRAE_DAWNWHISPER,
-                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
-                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
-                "Priest Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
-        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
-        trainerClass.putIfAbsent(trainer, Player.CLASS_PRIEST);
-        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+        java.util.List<TrainerSpell> spells = List.of(
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SMITE, 100, 1),
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.POWER_WORD_FORTITUDE, 100, 1),
-                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_WORD_PAIN, 100, 1))));
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_WORD_PAIN, 100, 1));
         items.putIfAbsent(supplies, ItemTemplate.heroQuestJunk(supplies, "Healing Supplies"));
         quests.putIfAbsent(questId, heroFollowUpQuest(questId, "Mercy and Judgment",
                 "Recover healing supplies for a wounded trainee and defeat a Mana Wyrm that threatens the route. Return alive.",
                 "Collect 1 Healing Supplies. Defeat 1 Mana Wyrm.",
                 wyrm, 1, supplies, 1, 0));
-        addQuestRelation(questGivers, trainer, questId);
-        addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_LESSER_HEAL);
-        seedHeroPriestFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8408f, -408f, 80f, 0f);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_X,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_Y,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_Z,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_PRIEST_O);
+        seedHeroPriestFollowUps(wyrm, questId);
+        int judgment = org.tbc.world.classless.HeroClassUnlock.QUEST_JUDGMENT_FROM_AFAR;
+        int guarding = org.tbc.world.classless.HeroClassUnlock.QUEST_A_GUARDING_WORD;
+        int pain = org.tbc.world.classless.HeroClassUnlock.QUEST_PAIN_AS_WARNING;
+        for (var p : org.tbc.world.classless.HeroStarterTrainers.forClass(Player.CLASS_PRIEST)) {
+            installHeroTrainer(p, spells);
+            relateHeroQuests(p.entry(), questId, judgment, guarding, pain);
+        }
     }
 
-    private void seedHeroPriestFollowUps(int trainer, int wyrm, int unlockQuest) {
+    private void seedHeroPriestFollowUps(int wyrm, int unlockQuest) {
         int scroll = org.tbc.world.classless.HeroClassUnlock.ITEM_WARDING_SCROLL;
         int shadow = org.tbc.world.classless.HeroClassUnlock.ITEM_SHADOW_MARKED_TOKEN;
         items.putIfAbsent(scroll, ItemTemplate.heroQuestJunk(scroll, "Warding Scroll"));
@@ -3905,8 +3843,6 @@ public final class ObjectMgr {
                 "Defeat a marked target with your existing kit. Return alive.",
                 "Defeat 1 Mana Wyrm.",
                 wyrm, 1, 0, 0, unlockQuest));
-        addQuestRelation(questGivers, trainer, judgment);
-        addQuestRelation(questInvolved, trainer, judgment);
         questRewSpell.putIfAbsent(judgment, org.tbc.world.classless.HeroClassUnlock.SPELL_SMITE);
 
         int guarding = org.tbc.world.classless.HeroClassUnlock.QUEST_A_GUARDING_WORD;
@@ -3914,8 +3850,6 @@ public final class ObjectMgr {
                 "Deliver a warding scroll to an ally. Return alive.",
                 "Collect 1 Warding Scroll.",
                 0, 0, scroll, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, guarding);
-        addQuestRelation(questInvolved, trainer, guarding);
         questRewSpell.putIfAbsent(guarding, org.tbc.world.spell.SpellEngine.POWER_WORD_FORTITUDE);
 
         int pain = org.tbc.world.classless.HeroClassUnlock.QUEST_PAIN_AS_WARNING;
@@ -3923,46 +3857,33 @@ public final class ObjectMgr {
                 "Recover a shadow-marked token from a local hostile's camp. Return alive.",
                 "Collect 1 Shadow-Marked Token.",
                 0, 0, shadow, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, pain);
-        addQuestRelation(questInvolved, trainer, pain);
         questRewSpell.putIfAbsent(pain, org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_WORD_PAIN);
     }
 
     private void seedHeroRogueUnlock() {
-        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_ROGUE_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_A_QUIET_HAND;
         int token = org.tbc.world.classless.HeroClassUnlock.ITEM_CAMP_TOKEN;
-        creatures.put(trainer, new CreatureTemplate(trainer,
-                org.tbc.world.classless.HeroClassUnlock.NAME_SYLARA_NIGHTWHISPER,
-                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
-                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
-                "Rogue Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
-        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
-        trainerClass.putIfAbsent(trainer, Player.CLASS_ROGUE);
-        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+        java.util.List<TrainerSpell> spells = List.of(
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.SPELL_STEALTH, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_EVISCERATE, 100, 1),
-                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SLICE_AND_DICE, 100, 1))));
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SLICE_AND_DICE, 100, 1));
         items.putIfAbsent(token, ItemTemplate.heroQuestJunk(token, "Camp Token"));
         quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Quiet Hand",
                 "Recover the trainer's token from a local hostile's camp. Return alive.",
                 "Collect 1 Camp Token.",
                 0, 0, token, 1, 0));
-        addQuestRelation(questGivers, trainer, questId);
-        addQuestRelation(questInvolved, trainer, questId);
         questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_SINISTER_STRIKE);
-        seedHeroRogueFollowUps(trainer, questId);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8406f, -406f, 80f, 0f);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_X,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_Y,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_Z,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_ROGUE_O);
+        seedHeroRogueFollowUps(questId);
+        int disappear = org.tbc.world.classless.HeroClassUnlock.QUEST_DISAPPEAR_FROM_SIGHT;
+        int finish = org.tbc.world.classless.HeroClassUnlock.QUEST_FINISH_THE_OPENING;
+        int advantage = org.tbc.world.classless.HeroClassUnlock.QUEST_KEEP_THE_ADVANTAGE;
+        for (var p : org.tbc.world.classless.HeroStarterTrainers.forClass(Player.CLASS_ROGUE)) {
+            installHeroTrainer(p, spells);
+            relateHeroQuests(p.entry(), questId, disappear, finish, advantage);
+        }
     }
 
-    private void seedHeroRogueFollowUps(int trainer, int unlockQuest) {
+    private void seedHeroRogueFollowUps(int unlockQuest) {
         int shadowed = org.tbc.world.classless.HeroClassUnlock.ITEM_SHADOWED_TOKEN;
         int notes = org.tbc.world.classless.HeroClassUnlock.ITEM_FINISHING_NOTES;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
@@ -3974,8 +3895,6 @@ public final class ObjectMgr {
                 "Retrieve a marked token from the practice grounds. Stealth is not required yet. Return alive.",
                 "Collect 1 Shadowed Token.",
                 0, 0, shadowed, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, disappear);
-        addQuestRelation(questInvolved, trainer, disappear);
         questRewSpell.putIfAbsent(disappear, org.tbc.world.spell.SpellEngine.SPELL_STEALTH);
 
         int finish = org.tbc.world.classless.HeroClassUnlock.QUEST_FINISH_THE_OPENING;
@@ -3983,8 +3902,6 @@ public final class ObjectMgr {
                 "Land three solid hits on a practice target. Return alive.",
                 "Land 3 weapon hits on a Mana Wyrm.",
                 0, 0, 0, 0, unlockQuest));
-        addQuestRelation(questGivers, trainer, finish);
-        addQuestRelation(questInvolved, trainer, finish);
         questCreatureHits.putIfAbsent(finish, new CreatureHitObjective(wyrm,
                 org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_EVISCERATE_HITS));
         questRewSpell.putIfAbsent(finish, org.tbc.world.classless.HeroClassUnlock.SPELL_EVISCERATE);
@@ -3994,48 +3911,35 @@ public final class ObjectMgr {
                 "Recover the trainer's finishing-form notes from a local cache. Return alive.",
                 "Collect 1 Finishing-Form Notes.",
                 0, 0, notes, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, advantage);
-        addQuestRelation(questInvolved, trainer, advantage);
         questRewSpell.putIfAbsent(advantage, org.tbc.world.classless.HeroClassUnlock.SPELL_SLICE_AND_DICE);
     }
 
     private void seedHeroHunterUnlock() {
-        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_HUNTER_TRAINER;
         int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_THE_MARKED_TRAIL;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
-        creatures.put(trainer, new CreatureTemplate(trainer,
-                org.tbc.world.classless.HeroClassUnlock.NAME_KAELAN_DAWNSTRIKE,
-                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
-                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
-                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
-                "Hunter Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
-        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
-        trainerClass.putIfAbsent(trainer, Player.CLASS_HUNTER);
-        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+        java.util.List<TrainerSpell> spells = List.of(
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_AUTO_SHOT, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SERPENT_STING, 100, 1),
-                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_SHOT, 100, 1))));
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_SHOT, 100, 1));
         quests.putIfAbsent(questId, new QuestTemplate(questId, "The Marked Trail", 1, 0,
                 0,
                 "Track the local prey, land three solid hits, then finish one. Return alive.",
                 "Land 3 weapon hits on a Mana Wyrm and defeat 1 Mana Wyrm.",
                 wyrm, org.tbc.world.classless.HeroClassUnlock.REQUIRED_KILLS));
-        addQuestRelation(questGivers, trainer, questId);
-        addQuestRelation(questInvolved, trainer, questId);
         questCreatureHits.putIfAbsent(questId, new CreatureHitObjective(wyrm,
                 org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_MARKED_HITS));
         questRewSpell.putIfAbsent(questId, org.tbc.world.spell.SpellEngine.HUNTERS_MARK);
-        seedHeroHunterFollowUps(trainer, wyrm, questId);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.map0SpawnGuid(trainer), trainer, 0, -8404f, -404f, 80f, 0f);
-        addSpawnIfMissing(org.tbc.world.classless.HeroClassUnlock.sunstriderSpawnGuid(trainer), trainer, 530,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_X,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_Y,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_Z,
-                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_HUNTER_O);
+        seedHeroHunterFollowUps(wyrm, questId);
+        int steady = org.tbc.world.classless.HeroClassUnlock.QUEST_STEADY_AIM;
+        int venomQ = org.tbc.world.classless.HeroClassUnlock.QUEST_VENOM_IN_THE_FIELD;
+        int clean = org.tbc.world.classless.HeroClassUnlock.QUEST_A_CLEAN_SHOT;
+        for (var p : org.tbc.world.classless.HeroStarterTrainers.forClass(Player.CLASS_HUNTER)) {
+            installHeroTrainer(p, spells);
+            relateHeroQuests(p.entry(), questId, steady, venomQ, clean);
+        }
     }
 
-    private void seedHeroHunterFollowUps(int trainer, int wyrm, int unlockQuest) {
+    private void seedHeroHunterFollowUps(int wyrm, int unlockQuest) {
         int venom = org.tbc.world.classless.HeroClassUnlock.ITEM_VENOM_SAMPLE;
         items.putIfAbsent(venom, ItemTemplate.heroQuestJunk(venom, "Venom Sample"));
 
@@ -4044,8 +3948,6 @@ public final class ObjectMgr {
                 "Prove you can finish a local threat with your basic kit. Return alive.",
                 "Defeat 1 Mana Wyrm.",
                 wyrm, 1, 0, 0, unlockQuest));
-        addQuestRelation(questGivers, trainer, steady);
-        addQuestRelation(questInvolved, trainer, steady);
         questRewSpell.putIfAbsent(steady, org.tbc.world.classless.HeroClassUnlock.SPELL_AUTO_SHOT);
 
         int venomQ = org.tbc.world.classless.HeroClassUnlock.QUEST_VENOM_IN_THE_FIELD;
@@ -4053,8 +3955,6 @@ public final class ObjectMgr {
                 "Recover venom samples from local beasts. Return alive.",
                 "Collect 1 Venom Sample.",
                 0, 0, venom, 1, unlockQuest));
-        addQuestRelation(questGivers, trainer, venomQ);
-        addQuestRelation(questInvolved, trainer, venomQ);
         questRewSpell.putIfAbsent(venomQ, org.tbc.world.classless.HeroClassUnlock.SPELL_SERPENT_STING);
 
         int clean = org.tbc.world.classless.HeroClassUnlock.QUEST_A_CLEAN_SHOT;
@@ -4062,8 +3962,6 @@ public final class ObjectMgr {
                 "Land three solid hits on a marked target. Return alive.",
                 "Land 3 weapon hits on a Mana Wyrm.",
                 0, 0, 0, 0, unlockQuest));
-        addQuestRelation(questGivers, trainer, clean);
-        addQuestRelation(questInvolved, trainer, clean);
         questCreatureHits.putIfAbsent(clean, new CreatureHitObjective(wyrm,
                 org.tbc.world.classless.HeroClassUnlock.FOLLOWUP_CLEAN_SHOT_HITS));
         questRewSpell.putIfAbsent(clean, org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_SHOT);
