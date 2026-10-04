@@ -763,7 +763,7 @@ public final class InventoryHandler {
         if (proto.inventoryType != INVTYPE_NON_EQUIP && it.slot >= Player.EQUIPMENT_SLOT_END) {
             return;
         }
-        for (int i = 0; i < proto.spellId.length; i++) {
+            for (int i = 0; i < proto.spellId.length; i++) {
             int spellId = proto.spellId[i];
             if (spellId == 0 || proto.spellTrigger[i] != ITEM_SPELLTRIGGER_ON_USE || i != spellIndex) {
                 continue;
@@ -779,6 +779,9 @@ public final class InventoryHandler {
                         takeCastItem(s, world, it, proto, spellSlot);
                     });
             return;
+        }
+        if (world.coinFromOre.isAssayOre(it.entry)) {
+            world.coinFromOre.craft(p, world.map(p.mapId, p.instanceId), it.entry, world.content, s::send);
         }
     }
 

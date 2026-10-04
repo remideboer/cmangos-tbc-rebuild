@@ -160,6 +160,8 @@ public final class Player extends Unit {
     }
     public int skin, face, hairStyle, hairColor, facialHair;
     public int money;
+    /** Assay Ore crafts this session (throughput cap). */
+    public int coinFromOreCrafts;
     public int xp;
     /** CMaNGOS m_Played_time[PLAYED_TIME_TOTAL / PLAYED_TIME_LEVEL]. */
     public int totalPlayedTime;

@@ -14,6 +14,8 @@ import java.util.function.BiConsumer;
 public final class GameObjectUse {
     public static final int TYPE_DOOR = 0;
     public static final int TYPE_CHEST = 3;
+    /** SharedDefines.h GAMEOBJECT_TYPE_SPELL_FOCUS */
+    public static final int TYPE_SPELL_FOCUS = 8;
     /** movement.md GAMEOBJECT_TYPE_MO_TRANSPORT */
     public static final int TYPE_MO_TRANSPORT = 15;
     public static final int STATE_ACTIVE = 0;

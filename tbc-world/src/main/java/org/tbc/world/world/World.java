@@ -86,6 +86,7 @@ public final class World implements Runnable {
     public final CharacterStore characters;
     public final ObjectMgr objectMgr = new ObjectMgr();
     public final Content content = new Content(objectMgr);
+    public final org.tbc.world.profession.CoinFromOre coinFromOre = new org.tbc.world.profession.CoinFromOre();
     public final ScriptRegistry scripts = new ScriptRegistry();
     public final SpellEngine spells;
     public final Combat combat;

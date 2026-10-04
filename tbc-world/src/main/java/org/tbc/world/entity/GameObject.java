@@ -16,6 +16,10 @@ public final class GameObject extends Entity {
     /** Chest / interactable loot (FillLoot for gameobject_loot_template). */
     public int lootGold;
     public boolean lootable;
+    /** gameobject_template data0 when type is SPELL_FOCUS (SpellFocusObject.dbc). */
+    public int spellFocusId;
+    /** gameobject_template data1 focus radius; 0 → interact range. */
+    public int spellFocusDist;
     public final java.util.List<org.tbc.world.loot.LootSlot> lootItems = new java.util.ArrayList<>();
 
     public GameObject() {

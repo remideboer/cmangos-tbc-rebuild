@@ -1509,6 +1509,22 @@ public final class ObjectMgr {
             return t;
         }
 
+        /** tbc-db trade-good ore / coal (class 7/7). SellPrice is vendor copper; assay payouts stay above this. */
+        public static ItemTemplate tradeOre(int entry, String name, int displayId, int buyPrice, int sellPrice) {
+            ItemTemplate t = new ItemTemplate();
+            t.entry = entry;
+            t.itemClass = 7;
+            t.subClass = 7;
+            t.name = name;
+            t.displayId = displayId;
+            t.quality = 1;
+            t.buyPrice = buyPrice;
+            t.sellPrice = sellPrice;
+            t.stackable = 20;
+            t.requiredDisenchantSkill = -1;
+            return t;
+        }
+
         /** Refreshing Spring Water — item 159 ON_USE Drink 430, expendable charges −1. */
         public static ItemTemplate refreshingSpringWater() {
             ItemTemplate t = new ItemTemplate();
@@ -4111,6 +4127,22 @@ public final class ObjectMgr {
         items.putIfAbsent(Content.ITEM_TOUGH_JERKY, ItemTemplate.toughJerky());
         items.putIfAbsent(Content.ITEM_TOUGH_HUNK_OF_BREAD, ItemTemplate.toughHunkOfBread());
         items.putIfAbsent(Content.ITEM_RED_BURLAP_BANDANA, ItemTemplate.redBurlapBandana());
+        items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_COPPER_ORE,
+                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_COPPER_ORE, "Copper Ore", 4681, 20, 5));
+        items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_TIN_ORE,
+                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_TIN_ORE, "Tin Ore", 4690, 100, 25));
+        items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_IRON_ORE,
+                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_IRON_ORE, "Iron Ore", 4689, 600, 150));
+        items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_MITHRIL_ORE,
+                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_MITHRIL_ORE, "Mithril Ore", 20661, 1000, 250));
+        items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_THORIUM_ORE,
+                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_THORIUM_ORE, "Thorium Ore", 20658, 1000, 250));
+        items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_FEL_IRON_ORE,
+                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_FEL_IRON_ORE, "Fel Iron Ore", 38645, 4000, 1000));
+        items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_ADAMANTITE_ORE,
+                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_ADAMANTITE_ORE, "Adamantite Ore", 38648, 6000, 1500));
+        items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_COAL,
+                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_COAL, "Coal", 7340, 500, 125));
         items.putIfAbsent(Content.ITEM_REFRESHING_SPRING_WATER, ItemTemplate.refreshingSpringWater());
         items.putIfAbsent(Content.ITEM_MINOR_HEALING_POTION, ItemTemplate.minorHealingPotion());
         // SQL load may have created empty spell rows; force usable-item spells from seeds.
@@ -5017,6 +5049,8 @@ public final class ObjectMgr {
             go.type = t.type;
             go.displayId = t.displayId;
             go.name = t.name;
+            go.spellFocusId = t.data[0];
+            go.spellFocusDist = t.data[1];
         }
         return go;
     }

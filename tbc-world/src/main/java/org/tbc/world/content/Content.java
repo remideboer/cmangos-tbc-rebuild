@@ -928,7 +928,7 @@ public final class Content {
      * Player::DestroyItemCount(entry, count, update=true). Walks backpack stacks matching
      * {@code itemId}, reducing or removing until {@code count} is consumed.
      */
-    void destroyItemCount(Player p, int itemId, int count, BiConsumer<Integer, byte[]> send) {
+    public void destroyItemCount(Player p, int itemId, int count, BiConsumer<Integer, byte[]> send) {
         if (itemId <= 0 || count <= 0) {
             return;
         }
