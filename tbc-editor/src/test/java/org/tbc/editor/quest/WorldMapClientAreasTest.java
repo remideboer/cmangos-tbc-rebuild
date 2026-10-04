@@ -45,7 +45,11 @@ class WorldMapClientAreasTest {
         assertTrue(felMap.width() >= 256 && felMap.height() >= 256);
         assertTrue(painted(darkMap));
         assertTrue(painted(felMap));
-        assertTrue(new WorldMapAreaMapper(WorldMapAreas.SUNSTRIDER).contains(10349.6f, -6357.29f));
+        WorldMapArea isle = areas.byDisplayName("Sunstrider Isle");
+        assertNotNull(isle);
+        float[] onIsle = new WorldMapAreaMapper(isle).toPixel(10349.6f, -6357.29f, 528, 557);
+        assertEquals(0.38f, onIsle[0] / 528f, 0.05f);
+        assertTrue(onIsle[1] / 557f < 0.5f);
     }
 
     private static boolean painted(RegionMinimap.Raster image) {

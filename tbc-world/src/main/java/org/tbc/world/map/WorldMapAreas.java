@@ -16,23 +16,22 @@ import java.util.Map;
 public final class WorldMapAreas {
     private static final Logger log = LoggerFactory.getLogger(WorldMapAreas.class);
 
-    /** 2.4.3 Elwynn loc* (Goldshire −9465, 62). */
+    /** 2.4.3 WorldMapArea.dbc Elwynn. Goldshire (−9465, 62) is about 42% across and 66% down. */
     public static final WorldMapArea ELWYNN = new WorldMapArea(
             AreaTable.ELWYNN_FOREST, 0, "Elwynn", "Elwynn Forest",
-            1535.42f, -3766.05f, -7943.22f, -11176.3f);
-    /** 2.4.3 Eversong loc* (Sunstrider 10349.6, −6357.29). */
+            1535.4166f, -1935.4166f, -7939.583f, -10254.166f);
+    /** 2.4.3 WorldMapArea.dbc Eversong. The create point is about 38% across and 21% down. */
     public static final WorldMapArea EVERSONG = new WorldMapArea(
             AreaTable.EVERSONG_WOODS, 530, "EversongWoods", "Eversong Woods",
-            3083.96f, -10133.8f, 14848.4f, 5351.3f);
+            -4487.5f, -9412.5f, 11041.666f, 7758.333f);
     /**
-     * Sunstrider Isle (area 3431) is not a WorldMapArea.dbc row. These loc* are
-     * {@link WorldMapAreaMapper} world coordinates of Eversong sheet pixels (187, 0)–(748, 557):
-     * WorldMapOverlay 1127 (512×512 at 195, 5) padded so create point 10349.6, −6357.29
-     * and graveyard 10458.5, −6364.61 stay on the image. Horizontal is world Y.
+     * Sunstrider Isle (area 3431) is not a WorldMapArea.dbc row. These loc* are the
+     * Eversong sheet pixels (187, 0)–(715, 557), the WorldMapOverlay 1127 window
+     * (512×512 at 195, 5). The editor refits this from the loaded Eversong row.
      */
     public static final WorldMapArea SUNSTRIDER = new WorldMapArea(
             AreaTable.SUNSTRIDER_ISLE, 530, "SunstriderIsle", "Sunstrider Isle",
-            670.1699f, -6571.2f, 14848.4f, 7960.5293f);
+            -5386.8896f, -7926.343f, 11041.666f, 8660.395f);
 
     private final Map<Long, WorldMapArea> byKey = new HashMap<>();
     private final Map<Integer, WorldMapArea> byAreaId = new HashMap<>();
@@ -40,11 +39,11 @@ public final class WorldMapAreas {
     public static WorldMapAreas seeded() {
         WorldMapAreas c = new WorldMapAreas();
         c.put(new WorldMapArea(0, 0, "Azeroth", "Eastern Kingdoms",
-                4230f, -5040f, 14870f, -16000f));
+                18171.97f, -22569.21f, 11176.344f, -15973.344f));
         c.put(new WorldMapArea(0, 1, "Kalimdor", "Kalimdor",
-                11700f, -19800f, 12700f, -8500f));
+                17066.6f, -19733.21f, 12799.9f, -11733.3f));
         c.put(new WorldMapArea(0, 530, "Expansion01", "Outland",
-                4000f, -12000f, 16000f, 2000f));
+                12996.039f, -4468.039f, 5821.3594f, -5821.3594f));
         c.put(ELWYNN);
         c.put(EVERSONG);
         c.put(SUNSTRIDER);

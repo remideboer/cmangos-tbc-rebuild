@@ -35,6 +35,15 @@ class WorldMapAreasTest {
         assertTrue(new WorldMapAreaMapper(isle).contains(10349.6f, -6357.29f));
         assertTrue(new WorldMapAreaMapper(isle).contains(10458.5f, -6364.61f));
         assertTrue(!new WorldMapAreaMapper(isle).contains(9000f, -8000f));
+        float[] gold = new WorldMapAreaMapper(elwynn).toPixel(-9465f, 62f, 1000, 1000);
+        assertEquals(0.425f, gold[0] / 1000f, 0.02f);
+        assertEquals(0.659f, gold[1] / 1000f, 0.02f);
+        float[] create = new WorldMapAreaMapper(eversong).toPixel(10349.6f, -6357.29f, 1000, 1000);
+        assertEquals(0.380f, create[0] / 1000f, 0.02f);
+        assertEquals(0.211f, create[1] / 1000f, 0.02f);
+        float[] onIsle = new WorldMapAreaMapper(isle).toPixel(10349.6f, -6357.29f, 528, 557);
+        assertEquals(0.38f, onIsle[0] / 528f, 0.05f);
+        assertTrue(onIsle[0] / 528f < 0.6f);
     }
 
     @Test

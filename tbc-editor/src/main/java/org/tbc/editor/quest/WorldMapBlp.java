@@ -2,6 +2,7 @@ package org.tbc.editor.quest;
 
 import org.tbc.content.mpq.BlpImage;
 import org.tbc.content.mpq.ClientMpq;
+import org.tbc.world.map.AreaTable;
 import org.tbc.world.map.RegionMinimap;
 import org.tbc.world.map.WorldMapArea;
 import org.tbc.world.map.WorldMapAreaMapper;
@@ -34,16 +35,17 @@ public final class WorldMapBlp {
     };
 
     /**
-     * WorldMapOverlay 1127 on the 1024×768 Eversong sheet.
-     * The crop is wider than the 512px overlay so the create point (about x=732) stays inside.
-     * {@link WorldMapAreas#SUNSTRIDER} loc* are the world rectangle of this window.
+     * WorldMapOverlay 1127 on the 1024×768 Eversong sheet (512×512 at 195, 5), with a small pad.
+     * {@link WorldMapAreas#SUNSTRIDER} loc* are this window on the client Eversong bounds.
      */
     static final int SUNSTRIDER_OX = 195;
     static final int SUNSTRIDER_OY = 5;
     static final int CROP_X0 = 187;
     static final int CROP_Y0 = 0;
-    static final int CROP_X1 = 748;
+    static final int CROP_X1 = 715;
     static final int CROP_Y1 = 557;
+    static final int SHEET_W = 1024;
+    static final int SHEET_H = 768;
 
     private WorldMapBlp() {}
 
@@ -55,10 +57,30 @@ public final class WorldMapBlp {
         if (areas == null) {
             return 0;
         }
-        return areas.addClientDbcs(
+        int added = areas.addClientDbcs(
                 readNamed(dataDir, "DBFilesClient\\WorldMapArea.dbc"),
                 readNamed(dataDir, "DBFilesClient\\AreaTable.dbc"),
                 readNamed(dataDir, "DBFilesClient\\Map.dbc"));
+        fitSunstrider(areas);
+        return added;
+    }
+
+    /** Sunstrider is a crop of Eversong. Its loc box must use that parent row, not a wider stand-in. */
+    public static void fitSunstrider(WorldMapAreas areas) {
+        if (areas == null) {
+            return;
+        }
+        WorldMapArea parent = areas.byAreaId(AreaTable.EVERSONG_WOODS);
+        if (parent == null) {
+            return;
+        }
+        WorldMapAreaMapper map = new WorldMapAreaMapper(parent);
+        float[] tl = map.toWorld(CROP_X0, CROP_Y0, SHEET_W, SHEET_H);
+        float[] br = map.toWorld(CROP_X1, CROP_Y1, SHEET_W, SHEET_H);
+        areas.put(new WorldMapArea(
+                AreaTable.SUNSTRIDER_ISLE, parent.mapId(),
+                "SunstriderIsle", "Sunstrider Isle",
+                tl[1], br[1], tl[0], br[0]));
     }
 
     public static RegionMinimap.Raster load(Path dataDir, WorldMapArea area) {
