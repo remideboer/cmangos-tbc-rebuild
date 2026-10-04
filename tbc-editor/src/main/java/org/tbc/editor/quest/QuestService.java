@@ -395,27 +395,21 @@ public final class QuestService {
      * Writes moved guids and edited templates, then updates the in-memory catalog.
      * A logged-in world process keeps its own copy until it restarts.
      */
-    public void saveNpcEdits(NpcEditSession session) {
+    public NpcEditStore.Result saveNpcEdits(NpcEditSession session) {
         if (session == null || !session.dirty()) {
-            return;
+            return new NpcEditStore.Result(0, 0);
         }
         if (world == null) {
             throw new EditorException("No world database.");
         }
         try (Connection c = world.get()) {
-            NpcEditStore.save((sql, args) -> {
-                try (PreparedStatement ps = c.prepareStatement(sql)) {
-                    for (int i = 0; i < args.length; i++) {
-                        ps.setObject(i + 1, args[i]);
-                    }
-                    ps.executeUpdate();
-                }
-            }, session);
+            NpcEditStore.Result written = NpcEditStore.save(c, session);
+            applyNpcEdits(session);
+            session.accept();
+            return written;
         } catch (SQLException e) {
             throw new EditorException(e.getMessage() == null ? "NPC save failed." : e.getMessage());
         }
-        applyNpcEdits(session);
-        session.accept();
     }
 
     /** Replace matching spawns and templates in memory. Does not touch MySQL. */

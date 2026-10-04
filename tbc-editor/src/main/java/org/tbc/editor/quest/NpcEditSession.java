@@ -189,10 +189,12 @@ public final class NpcEditSession {
         return out;
     }
 
+    static final float POSITION_EPS = 0.05f;
+
     private static boolean shifted(Pose was, Pose now) {
-        return Math.abs(was.x() - now.x()) > 0.05f
-                || Math.abs(was.y() - now.y()) > 0.05f
-                || Math.abs(was.z() - now.z()) > 0.05f;
+        return Math.abs(was.x() - now.x()) > POSITION_EPS
+                || Math.abs(was.y() - now.y()) > POSITION_EPS
+                || Math.abs(was.z() - now.z()) > POSITION_EPS;
     }
 
     private static boolean sameLook(Look was, Look now) {

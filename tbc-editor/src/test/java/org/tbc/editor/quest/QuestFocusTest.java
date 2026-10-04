@@ -16,6 +16,7 @@ import java.awt.Component;
 import java.awt.Container;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -83,6 +84,15 @@ class QuestFocusTest {
         assertTrue(list.getModel().getElementAt(0).toString().contains("guid 1"));
         list.setSelectedIndex(0);
         assertEquals(1, domain.canvas().selectedSpawn().guid());
+    }
+
+    @Test
+    void saveWhenNoNpcEditsShouldSayNothingToSave() {
+        ArrayList<String> lines = new ArrayList<>();
+        QuestDomain domain = new QuestDomain(new QuestService(new ObjectMgr(), Path.of("target", "npc-edit-test")),
+                lines::add);
+        domain.saveMapChanges();
+        assertEquals("Nothing to save.", lines.get(lines.size() - 1));
     }
 
     @Test

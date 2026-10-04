@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NpcEditSessionTest {
@@ -59,31 +60,57 @@ class NpcEditSessionTest {
     }
 
     @Test
-    void saveWhenDisplayColumnMissingShouldUpdateModelIdAndPosition() throws Exception {
-        NpcEditSession session = new NpcEditSession();
-        session.remember(wyrm(), 49, 0, 1, 14);
-        session.move(1, 11f, 22f, 40f);
-        session.rename(15271, "Arcane Wyrm");
-        session.setDisplay(15271, 15476);
-        session.setEquipment(15271, 9);
-        session.setCreatureType(15271, 7);
-        session.setFaction(15271, 72);
+    void saveWhenGuidMissingShouldRefuseWithoutUpdatingTemplate() {
+        NpcEditSession session = movedAndRenamed();
         Capture sql = new Capture();
-        sql.failDisplay = true;
-        NpcEditStore.save(sql, session);
-        assertEquals("UPDATE creature SET position_x = ?, position_y = ?, position_z = ? WHERE guid = ?",
-                sql.sql.get(0));
-        assertEquals(11f, (Float) sql.args.get(0)[0], 0.01f);
-        assertEquals(22f, (Float) sql.args.get(0)[1], 0.01f);
-        assertEquals(40f, (Float) sql.args.get(0)[2], 0.01f);
-        assertEquals(1, sql.args.get(0)[3]);
-        assertTrue(sql.sql.get(1).contains("ModelId1"));
-        assertEquals("Arcane Wyrm", sql.args.get(1)[0]);
-        assertEquals(15476, sql.args.get(1)[1]);
-        assertEquals(9, sql.args.get(1)[2]);
-        assertEquals(7, sql.args.get(1)[3]);
-        assertEquals(72, sql.args.get(1)[4]);
-        assertEquals(15271, sql.args.get(1)[5]);
+        SQLException ex = assertThrows(SQLException.class, () -> NpcEditStore.save(sql, session));
+        assertTrue(ex.getMessage().contains("guid 1"));
+        assertTrue(sql.sql.stream().noneMatch(s -> s.contains("UPDATE")));
+    }
+
+    @Test
+    void saveWhenReadbackMismatchesShouldRefuse() {
+        NpcEditSession session = movedAndRenamed();
+        Capture sql = new Capture();
+        sql.guids.add(1);
+        sql.entries.add(15271);
+        sql.readback = new float[] {0f, 0f, 0f};
+        SQLException ex = assertThrows(SQLException.class, () -> NpcEditStore.save(sql, session));
+        assertTrue(ex.getMessage().contains("did not keep the saved position"));
+    }
+
+    @Test
+    void saveWhenDisplayColumnMissingShouldUpdateModelIdAndPosition() throws Exception {
+        NpcEditSession session = movedAndRenamed();
+        Capture sql = new Capture();
+        sql.guids.add(1);
+        sql.entries.add(15271);
+        sql.failDisplayCode = 1054;
+        NpcEditStore.Result written = NpcEditStore.save(sql, session);
+        assertEquals(1, written.spawns());
+        assertEquals(1, written.templates());
+        assertTrue(sql.sql.stream().anyMatch(s -> s.contains("UPDATE creature SET position_x")));
+        assertTrue(sql.sql.stream().anyMatch(s -> s.contains("ModelId1")));
+        Object[] template = sql.args.stream()
+                .filter(a -> a.length == 6 && Integer.valueOf(15271).equals(a[5]))
+                .findFirst().orElseThrow();
+        assertEquals("Arcane Wyrm", template[0]);
+        assertEquals(15476, template[1]);
+        assertEquals(9, template[2]);
+        assertEquals(7, template[3]);
+        assertEquals(72, template[4]);
+    }
+
+    @Test
+    void saveWhenTemplateErrorIsNotUnknownColumnShouldNotRetryModelId() {
+        NpcEditSession session = movedAndRenamed();
+        Capture sql = new Capture();
+        sql.guids.add(1);
+        sql.entries.add(15271);
+        sql.failDisplayCode = 1064;
+        SQLException ex = assertThrows(SQLException.class, () -> NpcEditStore.save(sql, session));
+        assertEquals(1064, ex.getErrorCode());
+        assertTrue(sql.sql.stream().noneMatch(s -> s.contains("ModelId1")));
     }
 
     @Test
@@ -155,6 +182,18 @@ class NpcEditSessionTest {
         assertEquals("Human (female)", races.get(1).name());
     }
 
+    private static NpcEditSession movedAndRenamed() {
+        NpcEditSession session = new NpcEditSession();
+        session.remember(wyrm(), 49, 0, 1, 14);
+        session.move(1, 11f, 22f, 40f);
+        session.rename(15271, "Arcane Wyrm");
+        session.setDisplay(15271, 15476);
+        session.setEquipment(15271, 9);
+        session.setCreatureType(15271, 7);
+        session.setFaction(15271, 72);
+        return session;
+    }
+
     private static MapSpawnLayer.Pin wyrm() {
         return new MapSpawnLayer.Pin(MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast",
                 10349.6f, -6357.29f, 33f);
@@ -163,15 +202,38 @@ class NpcEditSessionTest {
     private static final class Capture implements NpcEditStore.Sql {
         final List<String> sql = new ArrayList<>();
         final List<Object[]> args = new ArrayList<>();
-        boolean failDisplay;
+        final java.util.Set<Integer> guids = new java.util.HashSet<>();
+        final java.util.Set<Integer> entries = new java.util.HashSet<>();
+        float[] readback;
+        int failDisplayCode;
+
+        @Override
+        public boolean exists(String statement, int id) {
+            sql.add(statement);
+            args.add(new Object[] {id});
+            if (statement.contains("creature_template")) {
+                return entries.contains(id);
+            }
+            return guids.contains(id);
+        }
 
         @Override
         public void update(String statement, Object... values) throws SQLException {
-            if (failDisplay && statement.contains("DisplayId1")) {
-                throw new SQLException("Unknown column 'DisplayId1'");
+            if (failDisplayCode != 0 && statement.contains("DisplayId1")) {
+                throw new SQLException("Unknown column 'DisplayId1'", "42S22", failDisplayCode);
             }
             sql.add(statement);
             args.add(values);
+        }
+
+        @Override
+        public float[] floats(String statement, int id) {
+            sql.add(statement);
+            args.add(new Object[] {id});
+            if (readback != null) {
+                return readback;
+            }
+            return new float[] {11f, 22f, 40f};
         }
     }
 }

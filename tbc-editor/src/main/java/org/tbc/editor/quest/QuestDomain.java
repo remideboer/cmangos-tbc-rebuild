@@ -1149,25 +1149,33 @@ public final class QuestDomain implements EditorDomain {
         }
     }
 
-    private void saveNpcEdits() {
+    void saveMapChanges() {
         MapSpawnLayer.Pin pin = canvas.selectedSpawn();
         if (pin != null) {
             npcEdits.rename(pin.entry(), npcName.getText());
             applyGearFromCombo();
             applyFactionFromCombo();
         }
+        if (!npcEdits.dirty()) {
+            status.accept("Nothing to save.");
+            return;
+        }
         try {
-            service.saveNpcEdits(npcEdits);
+            NpcEditStore.Result written = service.saveNpcEdits(npcEdits);
             WorldMapArea area = selectedArea();
             if (area != null) {
                 canvas.setSpawns(MapSpawnLayer.inArea(service.creatures(), area));
             }
             showNpc(canvas.selectedSpawn());
-            status.accept("Saved. Restart the world server to see it in game. "
-                    + "Name, race, type, gear, and faction apply to every NPC of this entry.");
+            status.accept("Wrote " + written.spawns() + " spawn(s) and " + written.templates()
+                    + " template(s) to the world database. Restart the world server.");
         } catch (RuntimeException ex) {
             status.accept(message(ex));
         }
+    }
+
+    private void saveNpcEdits() {
+        saveMapChanges();
     }
 
     private void clearNpcEdits() {
