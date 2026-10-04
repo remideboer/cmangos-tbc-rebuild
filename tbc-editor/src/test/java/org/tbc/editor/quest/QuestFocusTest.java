@@ -8,6 +8,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPopupMenu;
 import javax.swing.JSplitPane;
 import javax.swing.JTextField;
@@ -56,11 +57,32 @@ class QuestFocusTest {
         assertTrue(hasSplit(domain.view()));
         JPopupMenu menu = domain.npcMenu();
         assertTrue(hasClass(menu, JTextField.class));
-        assertTrue(hasText(menu, "Save changes"));
-        assertTrue(hasText(menu, "Clear changes"));
         assertTrue(hasText(menu, "Beast"));
         assertTrue(hasText(menu, "Creature type"));
         assertTrue(hasText(menu, "Faction"));
+        assertTrue(!hasText(menu, "Save map changes"));
+        assertTrue(hasText(domain.view(), "Save map changes"));
+        assertTrue(hasText(domain.view(), "Clear map changes"));
+    }
+
+    @Test
+    void mapWhenNpcMovedShouldListTheChangeAndKeepSaveAfterDeselect() {
+        ObjectMgr mgr = new ObjectMgr();
+        mgr.creatures.put(15271, new ObjectMgr.CreatureTemplate(
+                15271, "Mana Wyrm", 49, 14, 40, 1, 0, "", "", 0));
+        QuestDomain domain = new QuestDomain(new QuestService(mgr, Path.of("target", "npc-edit-test")), s -> {});
+        MapSpawnLayer.Pin pin = new MapSpawnLayer.Pin(MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast",
+                10349.6f, -6357.29f, 33f);
+        domain.canvas().setSpawns(List.of(pin));
+        domain.noteSpawnMove(new QuestMapCanvas.SpawnMove(pin.moved(10380f, -6340f, 12.5f), true));
+        domain.canvas().clearSelection();
+        JButton save = button(domain.view(), "Save map changes");
+        assertTrue(save.isEnabled());
+        JList<?> list = changeList(domain.view());
+        assertEquals(1, list.getModel().getSize());
+        assertTrue(list.getModel().getElementAt(0).toString().contains("guid 1"));
+        list.setSelectedIndex(0);
+        assertEquals(1, domain.canvas().selectedSpawn().guid());
     }
 
     @Test
@@ -102,6 +124,37 @@ class QuestFocusTest {
             }
         }
         return false;
+    }
+
+    private static JButton button(Component c, String text) {
+        if (c instanceof JButton button && text.equals(button.getText())) {
+            return button;
+        }
+        if (c instanceof Container box) {
+            for (Component child : box.getComponents()) {
+                JButton found = button(child, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static JList changeList(Component c) {
+        if (c instanceof JList list && list.getName() != null && list.getName().equals("npcChanges")) {
+            return list;
+        }
+        if (c instanceof Container box) {
+            for (Component child : box.getComponents()) {
+                JList found = changeList(child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     private static boolean hasText(Component c, String text) {

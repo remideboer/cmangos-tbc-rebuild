@@ -84,11 +84,11 @@ class MapSpawnLayerTest {
         QuestMapCanvas canvas = sunstrider(new MapSpawnLayer.Pin(
                 MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f, 33f));
         JPopupMenu edit = new JPopupMenu();
-        edit.add(new JMenuItem("Save changes"));
+        edit.add(new JMenuItem("Name"));
         canvas.setNpcEditMenu(edit);
         float[] pix = canvas.model().worldToPixel(10349.6f, -6357.29f);
         JPopupMenu onPin = canvas.menuFor((int) pix[0], (int) pix[1]);
-        assertEquals("Save changes", ((JMenuItem) onPin.getComponent(0)).getText());
+        assertEquals("Name", ((JMenuItem) onPin.getComponent(0)).getText());
         JPopupMenu onMap = canvas.menuFor(2, 2);
         boolean placeGiver = false;
         for (int i = 0; i < onMap.getComponentCount(); i++) {

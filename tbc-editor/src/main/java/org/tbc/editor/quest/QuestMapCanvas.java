@@ -351,6 +351,28 @@ public final class QuestMapCanvas extends JPanel {
         return selectedSpawn;
     }
 
+    public void selectGuid(int guid) {
+        for (MapSpawnLayer.Pin pin : spawns) {
+            if (pin.kind() == MapSpawnLayer.Kind.CREATURE && pin.guid() == guid) {
+                selectedSpawn = pin;
+                selectionListener.accept(pin);
+                repaint();
+                return;
+            }
+        }
+    }
+
+    public void selectEntry(int entry) {
+        for (MapSpawnLayer.Pin pin : spawns) {
+            if (pin.kind() == MapSpawnLayer.Kind.CREATURE && pin.entry() == entry) {
+                selectedSpawn = pin;
+                selectionListener.accept(pin);
+                repaint();
+                return;
+            }
+        }
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);

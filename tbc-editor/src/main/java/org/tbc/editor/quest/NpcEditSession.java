@@ -14,6 +14,15 @@ public final class NpcEditSession {
 
     public record Look(int entry, String name, int displayId, int equipmentId, int creatureType, int faction) {}
 
+    public record Change(Kind kind, int guid, int entry, String text) {
+        public enum Kind { MOVED, TEMPLATE }
+
+        @Override
+        public String toString() {
+            return text;
+        }
+    }
+
     private final Map<Integer, Pose> originalPose = new LinkedHashMap<>();
     private final Map<Integer, Pose> pose = new LinkedHashMap<>();
     private final Map<Integer, Look> originalLook = new LinkedHashMap<>();
@@ -107,6 +116,38 @@ public final class NpcEditSession {
             if (was != null && !sameLook(was, now)) {
                 out.add(now);
             }
+        }
+        return out;
+    }
+
+    public List<Change> changes() {
+        List<Change> out = new ArrayList<>();
+        for (Pose now : moved()) {
+            Look named = look.get(now.entry());
+            String name = named == null ? "" : named.name();
+            out.add(new Change(Change.Kind.MOVED, now.guid(), now.entry(),
+                    "guid " + now.guid() + " (" + name + ") moved"));
+        }
+        for (Look now : changedLooks()) {
+            Look was = originalLook.get(now.entry());
+            List<String> fields = new ArrayList<>();
+            if (was != null && !was.name().equals(now.name())) {
+                fields.add("name");
+            }
+            if (was != null && was.displayId() != now.displayId()) {
+                fields.add("race");
+            }
+            if (was != null && was.creatureType() != now.creatureType()) {
+                fields.add("type");
+            }
+            if (was != null && was.equipmentId() != now.equipmentId()) {
+                fields.add("gear");
+            }
+            if (was != null && was.faction() != now.faction()) {
+                fields.add("faction");
+            }
+            out.add(new Change(Change.Kind.TEMPLATE, 0, now.entry(),
+                    "entry " + now.entry() + " (" + now.name() + "): " + String.join(", ", fields)));
         }
         return out;
     }

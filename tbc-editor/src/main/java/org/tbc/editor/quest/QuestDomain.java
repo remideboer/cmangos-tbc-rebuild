@@ -88,11 +88,14 @@ public final class QuestDomain implements EditorDomain {
     private final JComboBox<Object> npcFaction = new JComboBox<>();
     private final NpcFactions factionCatalog = NpcFactions.load(null);
     private final JPopupMenu npcPopup = new JPopupMenu();
-    private final JButton saveNpc = new JButton("Save changes");
-    private final JButton clearNpc = new JButton("Clear changes");
+    private final JButton saveNpc = new JButton("Save map changes");
+    private final JButton clearNpc = new JButton("Clear map changes");
+    private final DefaultListModel<NpcEditSession.Change> npcChangeModel = new DefaultListModel<>();
+    private final JList<NpcEditSession.Change> npcChangeList = new JList<>(npcChangeModel);
     private final List<NpcRaces.Race> races = NpcRaces.load(null);
     private List<NpcGear.Gear> gearChoices = List.of();
     private boolean fillingNpc;
+    private boolean fillingChanges;
     private QuestDocument doc;
 
     public QuestDomain(QuestService service, Consumer<String> status) {
@@ -188,6 +191,26 @@ public final class QuestDomain implements EditorDomain {
         npcPopup.add(selectedNpcPanel());
         canvas.setNpcEditMenu(npcPopup);
         canvas.setHideNpcMenu(() -> npcPopup.setVisible(false));
+        npcChangeList.setName("npcChanges");
+        npcChangeList.setVisibleRowCount(5);
+        npcChangeList.addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting() || fillingChanges) {
+                return;
+            }
+            NpcEditSession.Change change = npcChangeList.getSelectedValue();
+            if (change == null) {
+                return;
+            }
+            if (change.kind() == NpcEditSession.Change.Kind.MOVED) {
+                canvas.selectGuid(change.guid());
+            } else {
+                canvas.selectEntry(change.entry());
+            }
+        });
+        saveNpc.setEnabled(false);
+        clearNpc.setEnabled(false);
+        saveNpc.addActionListener(e -> saveNpcEdits());
+        clearNpc.addActionListener(e -> clearNpcEdits());
 
         zoneQuestList.setVisibleRowCount(6);
         zoneNpcList.setVisibleRowCount(6);
@@ -307,7 +330,18 @@ public final class QuestDomain implements EditorDomain {
         JPanel graphPage = new JPanel(new BorderLayout());
         graphPage.add(graphBar, BorderLayout.NORTH);
         graphPage.add(graphCanvas, BorderLayout.CENTER);
-        tabs.addTab("Map", canvas);
+        JPanel mapPage = new JPanel(new BorderLayout());
+        mapPage.add(canvas, BorderLayout.CENTER);
+        JPanel changes = new JPanel(new BorderLayout(0, 4));
+        changes.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+        changes.add(new JLabel("Unsaved NPC changes"), BorderLayout.NORTH);
+        changes.add(new JScrollPane(npcChangeList), BorderLayout.CENTER);
+        JPanel changeButtons = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        changeButtons.add(saveNpc);
+        changeButtons.add(clearNpc);
+        changes.add(changeButtons, BorderLayout.SOUTH);
+        mapPage.add(changes, BorderLayout.SOUTH);
+        tabs.addTab("Map", mapPage);
         tabs.addTab("Graph", graphPage);
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tabs, east);
@@ -815,8 +849,6 @@ public final class QuestDomain implements EditorDomain {
         form.add(npcGear);
         form.add(new JLabel("Faction"));
         form.add(npcFaction);
-        form.add(clearNpc);
-        form.add(saveNpc);
         npcGear.setEditable(true);
         npcFaction.setEditable(true);
         npcName.setEnabled(false);
@@ -824,8 +856,6 @@ public final class QuestDomain implements EditorDomain {
         npcType.setEnabled(false);
         npcGear.setEnabled(false);
         npcFaction.setEnabled(false);
-        saveNpc.setEnabled(false);
-        clearNpc.setEnabled(false);
         npcName.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -888,8 +918,6 @@ public final class QuestDomain implements EditorDomain {
                 applyGearFromCombo();
             }
         });
-        saveNpc.addActionListener(e -> saveNpcEdits());
-        clearNpc.addActionListener(e -> clearNpcEdits());
         JPanel wrap = new JPanel(new BorderLayout(0, 4));
         wrap.add(new JLabel("<html>Name, race, type, gear, and faction change every NPC of this entry. "
                 + "The dragged position changes this spawn only. Save writes the database.</html>"),
@@ -927,8 +955,7 @@ public final class QuestDomain implements EditorDomain {
             npcType.setEnabled(false);
             npcGear.setEnabled(false);
             npcFaction.setEnabled(false);
-            saveNpc.setEnabled(false);
-            clearNpc.setEnabled(false);
+            refreshNpcButtons();
             return;
         }
         org.tbc.world.content.ObjectMgr mgr = service.creatures();
@@ -962,9 +989,16 @@ public final class QuestDomain implements EditorDomain {
             return;
         }
         MapSpawnLayer.Pin pin = move.pin();
+        MapSpawnLayer.Pin baseline = pin;
+        for (MapSpawnLayer.Pin spawn : canvas.spawns()) {
+            if (spawn.kind() == MapSpawnLayer.Kind.CREATURE && spawn.guid() == pin.guid()) {
+                baseline = spawn;
+                break;
+            }
+        }
         org.tbc.world.content.ObjectMgr mgr = service.creatures();
         org.tbc.world.content.ObjectMgr.CreatureTemplate template = mgr.creatures.get(pin.entry());
-        npcEdits.remember(pin, template == null ? 0 : template.display(),
+        npcEdits.remember(baseline, template == null ? 0 : template.display(),
                 mgr.equipmentByEntry.getOrDefault(pin.entry(), 0),
                 template == null ? 0 : template.type(),
                 template == null ? 0 : template.faction());
@@ -1101,11 +1135,18 @@ public final class QuestDomain implements EditorDomain {
     }
 
     private void refreshNpcButtons() {
-        MapSpawnLayer.Pin pin = canvas.selectedSpawn();
-        boolean creature = pin != null && pin.kind() == MapSpawnLayer.Kind.CREATURE;
         boolean dirty = npcEdits.dirty();
-        saveNpc.setEnabled(creature && dirty);
-        clearNpc.setEnabled(creature && dirty);
+        saveNpc.setEnabled(dirty);
+        clearNpc.setEnabled(dirty);
+        fillingChanges = true;
+        try {
+            npcChangeModel.clear();
+            for (NpcEditSession.Change change : npcEdits.changes()) {
+                npcChangeModel.addElement(change);
+            }
+        } finally {
+            fillingChanges = false;
+        }
     }
 
     private void saveNpcEdits() {

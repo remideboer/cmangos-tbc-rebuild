@@ -17,6 +17,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NpcEditSessionTest {
     @Test
+    void changesWhenMovedAndRenamedShouldNameTheGuidAndTheTemplate() {
+        NpcEditSession session = new NpcEditSession();
+        session.remember(wyrm(), 49, 0, 1, 14);
+        session.move(1, 10f, 20f, 30f);
+        session.rename(15271, "Arcane Wyrm");
+        session.setFaction(15271, 72);
+        List<NpcEditSession.Change> changes = session.changes();
+        assertEquals(2, changes.size());
+        assertEquals(NpcEditSession.Change.Kind.MOVED, changes.get(0).kind());
+        assertEquals(1, changes.get(0).guid());
+        assertTrue(changes.get(0).toString().contains("guid 1"));
+        assertTrue(changes.get(0).toString().contains("moved"));
+        assertEquals(NpcEditSession.Change.Kind.TEMPLATE, changes.get(1).kind());
+        assertEquals(15271, changes.get(1).entry());
+        assertTrue(changes.get(1).toString().contains("entry 15271"));
+        assertTrue(changes.get(1).toString().contains("name"));
+        assertTrue(changes.get(1).toString().contains("faction"));
+    }
+
+    @Test
     void clearWhenNameAndPositionChangedShouldRestoreTheLoadedPin() {
         MapSpawnLayer.Pin pin = wyrm();
         NpcEditSession session = new NpcEditSession();
