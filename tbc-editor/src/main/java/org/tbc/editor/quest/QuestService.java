@@ -57,6 +57,10 @@ public final class QuestService {
         this.validator = new QuestValidator(mgr, this.surfaces);
     }
 
+    public ObjectMgr creatures() {
+        return mgr;
+    }
+
     public QuestYamlStore store() {
         return store;
     }

@@ -32,6 +32,10 @@ class RegionMinimapTest {
         assertTrue(ix >= 0 && iy >= 0);
         int color = raster.argb()[iy * raster.width() + ix];
         assertTrue((color & 0xFF000000) != 0);
+        int grass = RegionMinimap.colorForHeight(56f);
+        int water = RegionMinimap.colorForHeight(-20f);
+        assertTrue(((grass >> 8) & 0xFF) > (grass & 0xFF));
+        assertTrue((water & 0xFF) > ((water >> 16) & 0xFF));
     }
 
     @Test

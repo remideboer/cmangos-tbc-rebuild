@@ -29,6 +29,12 @@ class WorldMapAreasTest {
         WorldMapArea eversong = areas.byAreaId(AreaTable.EVERSONG_WOODS);
         assertEquals(530, eversong.mapId());
         assertTrue(new WorldMapAreaMapper(eversong).contains(10349.6f, -6357.29f));
+        WorldMapArea isle = areas.byDisplayName("Sunstrider Isle");
+        assertEquals(AreaTable.SUNSTRIDER_ISLE, isle.areaId());
+        assertEquals(530, isle.mapId());
+        assertTrue(new WorldMapAreaMapper(isle).contains(10349.6f, -6357.29f));
+        assertTrue(new WorldMapAreaMapper(isle).contains(10458.5f, -6364.61f));
+        assertTrue(!new WorldMapAreaMapper(isle).contains(9000f, -8000f));
     }
 
     @Test

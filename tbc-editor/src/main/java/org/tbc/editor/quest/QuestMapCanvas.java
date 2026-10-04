@@ -18,6 +18,7 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.function.Consumer;
 
 /** Paints a region minimap plus quest markers. No client MPQ assets. */
@@ -33,6 +34,8 @@ public final class QuestMapCanvas extends JPanel {
     private float popupImgX;
     private float popupImgY;
     private JPopupMenu contextMenu = new JPopupMenu();
+    private List<MapSpawnLayer.Pin> spawns = List.of();
+    private boolean showSpawns = true;
 
     public QuestMapCanvas() {
         setPreferredSize(new Dimension(640, 480));
@@ -99,7 +102,11 @@ public final class QuestMapCanvas extends JPanel {
             public void mouseMoved(MouseEvent e) {
                 float[] img = viewToImage(e.getX(), e.getY());
                 float[] world = model.viewToWorld(img[0], img[1]);
-                hoverText = String.format("X %.2f  Y %.2f", world[0], world[1]);
+                MapSpawnLayer.Pin pin = showSpawns
+                        ? MapSpawnLayer.nearest(spawns, world[0], world[1], hoverReachYards()) : null;
+                hoverText = pin == null
+                        ? String.format("X %.2f  Y %.2f", world[0], world[1])
+                        : pin.name() + " (" + pin.entry() + ")";
                 hoverListener.accept(hoverText);
                 setToolTipText(hoverText);
                 repaint();
@@ -148,6 +155,20 @@ public final class QuestMapCanvas extends JPanel {
         repaint();
     }
 
+    public void setSpawns(List<MapSpawnLayer.Pin> spawns) {
+        this.spawns = spawns == null ? List.of() : List.copyOf(spawns);
+        repaint();
+    }
+
+    public List<MapSpawnLayer.Pin> spawns() {
+        return spawns;
+    }
+
+    public void setShowSpawns(boolean showSpawns) {
+        this.showSpawns = showSpawns;
+        repaint();
+    }
+
     public void setOverlayPath(Path overlayPath) {
         this.overlayPath = overlayPath;
         repaint();
@@ -177,6 +198,16 @@ public final class QuestMapCanvas extends JPanel {
             g2.setColor(Color.GRAY);
             WorldMapArea region = model.region();
             g2.drawString(region == null ? "No region" : region.displayName() + " (no map tiles)", ox + 8, oy + 20);
+        }
+        if (showSpawns) {
+            for (MapSpawnLayer.Pin pin : spawns) {
+                float[] pix = model.worldToPixel(pin.x(), pin.y());
+                int px = ox + (int) (pix[0] * model.zoom());
+                int py = oy + (int) (pix[1] * model.zoom());
+                g2.setColor(pin.kind() == MapSpawnLayer.Kind.CREATURE
+                        ? new Color(80, 160, 255) : new Color(255, 170, 40));
+                g2.fillRect(px - 2, py - 2, 4, 4);
+            }
         }
         if (overlayMissing()) {
             g2.setColor(Color.ORANGE);
@@ -251,6 +282,19 @@ public final class QuestMapCanvas extends JPanel {
             repaint();
         });
         menu.add(item);
+    }
+
+    /** At least 30 yards, or 8 screen pixels when the zone is zoomed out. */
+    private float hoverReachYards() {
+        WorldMapArea area = model.region();
+        if (area == null || model.imageWidth() <= 0 || model.imageHeight() <= 0) {
+            return 30f;
+        }
+        float perPixel = Math.max(
+                Math.abs(area.locTop() - area.locBottom()) / model.imageWidth(),
+                Math.abs(area.locLeft() - area.locRight()) / model.imageHeight());
+        double z = model.zoom() <= 0 ? 1 : model.zoom();
+        return Math.max(30f, (float) (perPixel * 8 / z));
     }
 
     private float[] viewToImage(int viewX, int viewY) {

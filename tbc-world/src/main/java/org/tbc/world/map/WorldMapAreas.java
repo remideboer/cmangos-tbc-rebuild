@@ -24,6 +24,15 @@ public final class WorldMapAreas {
     public static final WorldMapArea EVERSONG = new WorldMapArea(
             AreaTable.EVERSONG_WOODS, 530, "EversongWoods", "Eversong Woods",
             3083.96f, -10133.8f, 14848.4f, 5351.3f);
+    /**
+     * Sunstrider Isle (area 3431) is not a WorldMapArea.dbc row. These loc* match the
+     * Eversong sheet pixels (187, 0)–(715, 557): WorldMapOverlay 1127 (512×512 at 195, 5)
+     * padded so the race-10 create point 10349.6, −6357.29 and graveyard 10458.5, −6364.61
+     * stay on the image.
+     */
+    public static final WorldMapArea SUNSTRIDER = new WorldMapArea(
+            AreaTable.SUNSTRIDER_ISLE, 530, "SunstriderIsle", "Sunstrider Isle",
+            3083.96f, -6502.36f, 13114.07f, 8217.12f);
 
     private final Map<Long, WorldMapArea> byKey = new HashMap<>();
     private final Map<Integer, WorldMapArea> byAreaId = new HashMap<>();
@@ -38,6 +47,7 @@ public final class WorldMapAreas {
                 4000f, -12000f, 16000f, 2000f));
         c.put(ELWYNN);
         c.put(EVERSONG);
+        c.put(SUNSTRIDER);
         return c;
     }
 

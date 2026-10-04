@@ -128,6 +128,9 @@ public final class QuestDomain implements EditorDomain {
         zoneBar.add(mapCombo);
         zoneBar.add(new JLabel("Tool"));
         zoneBar.add(tools);
+        JCheckBox showSpawns = new JCheckBox("Spawns", true);
+        showSpawns.addActionListener(e -> canvas.setShowSpawns(showSpawns.isSelected()));
+        zoneBar.add(showSpawns);
         JPanel north = new JPanel(new BorderLayout());
         north.add(toolbar, BorderLayout.NORTH);
         north.add(zoneBar, BorderLayout.SOUTH);
@@ -322,6 +325,7 @@ public final class QuestDomain implements EditorDomain {
         doc.setZoneOrSort(area.areaId());
         RegionMinimap.Raster image = raster.apply(area);
         canvas.loadRegion(area, image);
+        canvas.setSpawns(MapSpawnLayer.inArea(service.creatures(), area));
         refreshZoneLists();
         boolean missing = image == null || image.empty()
                 || allDark(image);

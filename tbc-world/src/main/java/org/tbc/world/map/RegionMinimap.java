@@ -27,33 +27,54 @@ public final class RegionMinimap {
         }
         WorldMapAreaMapper mapper = new WorldMapAreaMapper(area);
         Terrain.Height src = height == null ? Terrain.NONE : height;
-        float minZ = Float.POSITIVE_INFINITY;
-        float maxZ = Float.NEGATIVE_INFINITY;
-        float[] zs = new float[w * h];
         for (int py = 0; py < h; py++) {
             for (int px = 0; px < w; px++) {
                 float[] world = mapper.toWorld(px + 0.5f, py + 0.5f, w, h);
                 float z = src.at(area.mapId(), world[0], world[1], Terrain.INVALID);
-                zs[py * w + px] = z;
-                if (Float.isFinite(z) && z > Terrain.INVALID + 1) {
-                    minZ = Math.min(minZ, z);
-                    maxZ = Math.max(maxZ, z);
-                }
-            }
-        }
-        float span = maxZ - minZ;
-        if (!(span > 0.001f)) {
-            span = 1f;
-        }
-        for (int i = 0; i < zs.length; i++) {
-            float z = zs[i];
-            if (!Float.isFinite(z) || z <= Terrain.INVALID + 1) {
-                argb[i] = 0xFF202428;
-            } else {
-                int g = 40 + (int) ((z - minZ) / span * 180);
-                argb[i] = 0xFF000000 | (g << 8) | (g / 2);
+                argb[py * w + px] = Float.isFinite(z) && z > Terrain.INVALID + 1
+                        ? colorForHeight(z) : 0xFF202428;
             }
         }
         return new Raster(w, h, argb);
+    }
+
+    /**
+     * Noggit horizon ramp: below 0 is water, then grass, dirt, rock, snow.
+     * Uses world Z from ADT, the same yards Noggit reads from WDL.
+     */
+    public static int colorForHeight(float height) {
+        if (height < 0f) {
+            int blue = 255 + (int) Math.max(height / 2.0, -255.0);
+            return 0xFF000000 | (Math.max(0, Math.min(255, blue)));
+        }
+        if (height >= 1600f) {
+            return 0xFFFFFFFF;
+        }
+        float[][] bands = {
+                {0f, 600f, 20, 149, 7, 137, 84, 21},
+                {600f, 1200f, 137, 84, 21, 96, 96, 96},
+                {1200f, 1600f, 96, 96, 96, 255, 255, 255}
+        };
+        float start = 0f;
+        float stop = 600f;
+        int r0 = 20, g0 = 149, b0 = 7, r1 = 137, g1 = 84, b1 = 21;
+        for (float[] band : bands) {
+            if (height >= band[0] && height < band[1]) {
+                start = band[0];
+                stop = band[1];
+                r0 = (int) band[2];
+                g0 = (int) band[3];
+                b0 = (int) band[4];
+                r1 = (int) band[5];
+                g1 = (int) band[6];
+                b1 = (int) band[7];
+                break;
+            }
+        }
+        float t = (height - start) / (stop - start);
+        int r = (int) (r1 * t + r0 * (1f - t));
+        int g = (int) (g1 * t + g0 * (1f - t));
+        int b = (int) (b1 * t + b0 * (1f - t));
+        return 0xFF000000 | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
     }
 }

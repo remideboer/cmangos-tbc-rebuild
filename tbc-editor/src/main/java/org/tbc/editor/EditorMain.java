@@ -4,6 +4,7 @@ import org.tbc.common.Conf;
 import org.tbc.common.DbPool;
 import org.tbc.editor.quest.QuestDomain;
 import org.tbc.editor.quest.QuestService;
+import org.tbc.editor.quest.WorldMapBlp;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.map.MapSurfaceService;
 import org.tbc.world.map.RegionMinimap;
@@ -91,6 +92,10 @@ public final class EditorMain {
                         WorldMapAreas namedMaps = WorldMapAreas.fromDbc(dataPath);
                         QuestService quests = new QuestService(mgr, content, surfaces);
                         frame.addDomain(new QuestDomain(quests, frame::setStatus, namedMaps, area -> {
+                            RegionMinimap.Raster clientMap = WorldMapBlp.load(dataPath, area);
+                            if (clientMap != null) {
+                                return clientMap;
+                            }
                             int w = 512;
                             float dy = Math.abs(area.locLeft() - area.locRight());
                             float dx = Math.abs(area.locTop() - area.locBottom());

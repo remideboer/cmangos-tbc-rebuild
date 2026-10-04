@@ -143,6 +143,13 @@ public final class QuestMapModel {
         return mapper.toPixel((float) m.x, (float) m.y, imageWidth, imageHeight);
     }
 
+    public float[] worldToPixel(float worldX, float worldY) {
+        if (mapper == null) {
+            return new float[]{0, 0};
+        }
+        return mapper.toPixel(worldX, worldY, imageWidth, imageHeight);
+    }
+
     public float[] viewToWorld(double pixelX, double pixelY) {
         if (mapper == null) {
             return new float[]{(float) pixelX, (float) pixelY};
