@@ -689,6 +689,19 @@ public final class SpellEngine {
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         spells.put(686, new SpellInfo(686, EFFECT_SCHOOL_DAMAGE, 0, 5, 25, 12, 16, 30f)
                 .withCastTime(1700).withGcd(SpellCooldowns.GCD_NORMAL_MS));
+        // Corruption / Immolate / Summon Imp — Hero warlock unlock + follow-up rewards.
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_CORRUPTION, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_CORRUPTION, EFFECT_APPLY_AURA,
+                SPELL_AURA_PERIODIC_DAMAGE, 5, 25, 10, 10, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(12_000).withAmplitude(3_000));
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_IMMOLATE, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_IMMOLATE, EFFECT_APPLY_AURA,
+                SPELL_AURA_PERIODIC_DAMAGE, 4, 25, 10, 10, 30f)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(15_000).withAmplitude(3_000));
+        spells.put(org.tbc.world.classless.HeroClassUnlock.SPELL_SUMMON_IMP, new SpellInfo(
+                org.tbc.world.classless.HeroClassUnlock.SPELL_SUMMON_IMP, EFFECT_SUMMON_PET,
+                0, 0, 0, 0, 0, 0f, org.tbc.world.classless.HeroClassUnlock.CREATURE_IMP)
+                .withGcd(SpellCooldowns.GCD_NORMAL_MS));
         // Demon Armor rank 1 — +40 armor (school mask physical).
         spells.put(687, new SpellInfo(687, EFFECT_APPLY_AURA, SPELL_AURA_MOD_RESISTANCE, 5, 50, 40, 40, 0f, 1)
                 .withGcd(SpellCooldowns.GCD_NORMAL_MS).withDuration(FROST_ARMOR_DURATION_MS));

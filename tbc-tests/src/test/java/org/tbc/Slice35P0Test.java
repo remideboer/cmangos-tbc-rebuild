@@ -2234,6 +2234,182 @@ class Slice35P0Test {
         }
     }
 
+    /**
+     * TP-SL35-054 — Warlock unlock 90025 teaches Corruption; trainer gated; warrior refused.
+     */
+    @Test
+    void tpSl35BoundFlameShouldTeachCorruptionAndGateTrainer() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Boundhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARLOCK_TRAINER);
+        assertNotNull(trainer);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+
+        client.clear();
+        WowBuffer listLocked = new WowBuffer(8);
+        listLocked.putU64(trainer.guid);
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, listLocked.array());
+        assertFalse(client.saw(Opcodes.SMSG_TRAINER_LIST));
+
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_THE_BOUND_FLAME);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        assertEquals(HeroClassUnlock.QUEST_THE_BOUND_FLAME, p.questLogId[0]);
+
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_BINDING_MARK, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_BINDING_MARK, 1, client.session()::send);
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        world.onCreatureKilled(p, wyrm);
+        assertEquals(Content.QUEST_STATE_COMPLETE, p.questLogState[0]);
+
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_THE_BOUND_FLAME);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_CORRUPTION,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_CORRUPTION));
+
+        client.clear();
+        client.handle(world, Opcodes.CMSG_TRAINER_LIST, listLocked.array());
+        assertTrue(client.saw(Opcodes.SMSG_TRAINER_LIST));
+
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_MAGE));
+
+        WowClientDouble warClient = new WowClientDouble();
+        World.Account warAcc = new World.Account(9, "WAR8", new byte[40], 0, 1, "Win", "x86");
+        warClient.connect(warAcc);
+        Player warCreated = world.characters.create(warAcc.id(), "Warbound", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        warClient.login(world, warCreated.guid);
+        Player warrior = warClient.session().player();
+        warrior.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        WowBuffer warAccept = new WowBuffer(12);
+        warAccept.putU64(trainer.guid);
+        warAccept.putU32(HeroClassUnlock.QUEST_THE_BOUND_FLAME);
+        warClient.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, warAccept.array());
+        assertEquals(0, warrior.questLogId[0]);
+    }
+
+    /** TP-SL35-055 — Shadow in Reserve 90026 teaches Shadow Bolt 686. */
+    @Test
+    void tpSl35ShadowInReserveShouldTeachShadowBolt() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Bolthero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARLOCK_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockWarlock(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_SHADOW_IN_RESERVE);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_SHADOWED_PAGE, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_SHADOWED_PAGE, 1, client.session()::send);
+        Creature wyrm = world.objectMgr.spawnCreature(HeroClassUnlock.CREATURE_MANA_WYRM, 0, p.x, p.y, p.z, p.o,
+                world.scripts);
+        world.map(p.mapId, p.instanceId).add(wyrm);
+        world.onCreatureKilled(p, wyrm);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_SHADOW_IN_RESERVE);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_SHADOW_BOLT,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_SHADOW_BOLT));
+    }
+
+    /** TP-SL35-056 — Fel at the Edge 90027 teaches Immolate 348. */
+    @Test
+    void tpSl35FelAtTheEdgeShouldTeachImmolate() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Felhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARLOCK_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockWarlock(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_FEL_AT_THE_EDGE);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_FEL_EMBER, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_FEL_EMBER, 1, client.session()::send);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_FEL_AT_THE_EDGE);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_IMMOLATE,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_IMMOLATE));
+    }
+
+    /** TP-SL35-057 — A Familiar's First Task 90028 teaches Summon Imp 688. */
+    @Test
+    void tpSl35FamiliarsFirstTaskShouldTeachSummonImp() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        client.connect(ACC);
+        Player created = world.characters.create(ACC.id(), "Imphero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        client.login(world, created.guid);
+        Player p = client.session().player();
+        Creature trainer = find(world, HeroClassUnlock.NPC_HERO_WARLOCK_TRAINER);
+        p.relocate(trainer.x, trainer.y, trainer.z, trainer.o);
+        unlockWarlock(p);
+        WowBuffer accept = new WowBuffer(12);
+        accept.putU64(trainer.guid);
+        accept.putU32(HeroClassUnlock.QUEST_A_FAMILIARS_FIRST_TASK);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_ACCEPT_QUEST, accept.array());
+        world.objectMgr.storeNewItem(p, HeroClassUnlock.ITEM_BINDING_REAGENTS, 1, world::nextItemGuid);
+        world.content.itemAddedQuestCheck(p, world.map(p.mapId, p.instanceId),
+                HeroClassUnlock.ITEM_BINDING_REAGENTS, 1, client.session()::send);
+        client.clear();
+        WowBuffer choose = new WowBuffer(16);
+        choose.putU64(trainer.guid);
+        choose.putU32(HeroClassUnlock.QUEST_A_FAMILIARS_FIRST_TASK);
+        choose.putU32(0);
+        client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
+        assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(HeroClassUnlock.SPELL_SUMMON_IMP,
+                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(p.spells.contains(HeroClassUnlock.SPELL_SUMMON_IMP));
+    }
+
+    private static void unlockWarlock(Player p) {
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_THE_BOUND_FLAME);
+        if (!p.spells.contains(HeroClassUnlock.SPELL_CORRUPTION)) {
+            p.spells.add(HeroClassUnlock.SPELL_CORRUPTION);
+        }
+    }
+
     private static void swingOnce(World world, WowClientDouble client, Player p, Creature c) {
         p.relocate(c.x, c.y, c.z, c.o);
         WowBuffer atk = new WowBuffer(8);

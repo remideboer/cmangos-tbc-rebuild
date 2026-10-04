@@ -3398,6 +3398,7 @@ public final class ObjectMgr {
         seedHeroRogueUnlock();
         seedHeroPriestUnlock();
         seedHeroMageUnlock();
+        seedHeroWarlockUnlock();
     }
 
     private void seedHeroWarriorUnlock() {
@@ -3562,6 +3563,77 @@ public final class ObjectMgr {
         addQuestRelation(questGivers, trainer, mercy);
         addQuestRelation(questInvolved, trainer, mercy);
         questRewSpell.putIfAbsent(mercy, org.tbc.world.spell.SpellEngine.HOLY_LIGHT);
+    }
+
+    private void seedHeroWarlockUnlock() {
+        int trainer = org.tbc.world.classless.HeroClassUnlock.NPC_HERO_WARLOCK_TRAINER;
+        int questId = org.tbc.world.classless.HeroClassUnlock.QUEST_THE_BOUND_FLAME;
+        int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
+        int mark = org.tbc.world.classless.HeroClassUnlock.ITEM_BINDING_MARK;
+        creatures.put(trainer, new CreatureTemplate(trainer,
+                org.tbc.world.classless.HeroClassUnlock.NAME_VAELITH_DARKBIND,
+                org.tbc.world.classless.HeroClassUnlock.DISPLAY_JESTHENIS,
+                org.tbc.world.classless.HeroClassUnlock.FACTION_SILVERMOON, 100, 5,
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER,
+                "", "", org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS,
+                "Warlock Trainer", "", 0, 0, 0, 0, 0, 0, 0, 0, 1f, 1f, 0));
+        trainerTypeByEntry.putIfAbsent(trainer, org.tbc.world.session.TrainerHandler.TRAINER_TYPE_CLASS);
+        trainerClass.putIfAbsent(trainer, Player.CLASS_WARLOCK);
+        trainerSpells.putIfAbsent(trainer, new ArrayList<>(List.of(
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_BOLT, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_IMMOLATE, 100, 1),
+                new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SUMMON_IMP, 100, 1))));
+        items.putIfAbsent(mark, ItemTemplate.heroQuestJunk(mark, "Binding Mark"));
+        quests.putIfAbsent(questId, heroFollowUpQuest(questId, "The Bound Flame",
+                "Recover a binding mark from the local cult and contain a Mana Wyrm that threatens the site. Return alive.",
+                "Collect 1 Binding Mark. Defeat 1 Mana Wyrm.",
+                wyrm, 1, mark, 1, 0));
+        addQuestRelation(questGivers, trainer, questId);
+        addQuestRelation(questInvolved, trainer, questId);
+        questRewSpell.putIfAbsent(questId, org.tbc.world.classless.HeroClassUnlock.SPELL_CORRUPTION);
+        seedHeroWarlockFollowUps(trainer, wyrm, questId);
+        addSpawnIfMissing(28, trainer, 0, -8412f, -412f, 80f, 0f);
+        replaceSpawn(29, trainer, 530,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_X,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_Y,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_Z,
+                org.tbc.world.classless.HeroClassUnlock.SUNSTRIDER_WARLOCK_O);
+    }
+
+    private void seedHeroWarlockFollowUps(int trainer, int wyrm, int unlockQuest) {
+        int page = org.tbc.world.classless.HeroClassUnlock.ITEM_SHADOWED_PAGE;
+        int ember = org.tbc.world.classless.HeroClassUnlock.ITEM_FEL_EMBER;
+        int reagents = org.tbc.world.classless.HeroClassUnlock.ITEM_BINDING_REAGENTS;
+        items.putIfAbsent(page, ItemTemplate.heroQuestJunk(page, "Shadowed Page"));
+        items.putIfAbsent(ember, ItemTemplate.heroQuestJunk(ember, "Controlled Fel Ember"));
+        items.putIfAbsent(reagents, ItemTemplate.heroQuestJunk(reagents, "Binding Reagents"));
+
+        int shadow = org.tbc.world.classless.HeroClassUnlock.QUEST_SHADOW_IN_RESERVE;
+        quests.putIfAbsent(shadow, heroFollowUpQuest(shadow, "Shadow in Reserve",
+                "Recover a shadowed page and defeat a marked target with your existing kit. Return alive.",
+                "Collect 1 Shadowed Page. Defeat 1 Mana Wyrm.",
+                wyrm, 1, page, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, shadow);
+        addQuestRelation(questInvolved, trainer, shadow);
+        questRewSpell.putIfAbsent(shadow, org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_BOLT);
+
+        int fel = org.tbc.world.classless.HeroClassUnlock.QUEST_FEL_AT_THE_EDGE;
+        quests.putIfAbsent(fel, heroFollowUpQuest(fel, "Fel at the Edge",
+                "Collect a controlled fel ember from a local threat. Return alive.",
+                "Collect 1 Controlled Fel Ember.",
+                0, 0, ember, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, fel);
+        addQuestRelation(questInvolved, trainer, fel);
+        questRewSpell.putIfAbsent(fel, org.tbc.world.classless.HeroClassUnlock.SPELL_IMMOLATE);
+
+        int familiar = org.tbc.world.classless.HeroClassUnlock.QUEST_A_FAMILIARS_FIRST_TASK;
+        quests.putIfAbsent(familiar, heroFollowUpQuest(familiar, "A Familiar's First Task",
+                "Recover the trainer's binding reagents. Return alive.",
+                "Collect 1 Binding Reagents.",
+                0, 0, reagents, 1, unlockQuest));
+        addQuestRelation(questGivers, trainer, familiar);
+        addQuestRelation(questInvolved, trainer, familiar);
+        questRewSpell.putIfAbsent(familiar, org.tbc.world.classless.HeroClassUnlock.SPELL_SUMMON_IMP);
     }
 
     private void seedHeroMageUnlock() {

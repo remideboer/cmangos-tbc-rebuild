@@ -38,6 +38,10 @@ public final class HeroClassUnlock {
     public static final int QUEST_A_COOLER_HEAD = 90022;
     public static final int QUEST_SHARE_THE_STUDY = 90023;
     public static final int QUEST_A_SECOND_SCHOOL = 90024;
+    public static final int QUEST_THE_BOUND_FLAME = 90025;
+    public static final int QUEST_SHADOW_IN_RESERVE = 90026;
+    public static final int QUEST_FEL_AT_THE_EDGE = 90027;
+    public static final int QUEST_A_FAMILIARS_FIRST_TASK = 90028;
 
     public static final int NPC_HERO_WARRIOR_TRAINER = 91001;
     public static final int NPC_HERO_PALADIN_TRAINER = 91002;
@@ -45,6 +49,7 @@ public final class HeroClassUnlock {
     public static final int NPC_HERO_ROGUE_TRAINER = 91004;
     public static final int NPC_HERO_PRIEST_TRAINER = 91005;
     public static final int NPC_HERO_MAGE_TRAINER = 91006;
+    public static final int NPC_HERO_WARLOCK_TRAINER = 91007;
     /** Blood Elf Sunstrider Isle warrior trainer display name. */
     public static final String NAME_LORVAEN_BLOODFEATHER = "Lorvaen Bloodfeather";
     /** Blood Elf Sunstrider Isle paladin trainer display name. */
@@ -57,6 +62,8 @@ public final class HeroClassUnlock {
     public static final String NAME_LIRAE_DAWNWHISPER = "Lirae Dawnwhisper";
     /** Blood Elf Sunstrider Isle mage trainer display name. */
     public static final String NAME_ARYN_FLAMEWEAVE = "Aryn Flameweave";
+    /** Blood Elf Sunstrider Isle warlock trainer display name. */
+    public static final String NAME_VAELITH_DARKBIND = "Vaelith Darkbind";
     public static final int CREATURE_MANA_WYRM = 15274;
     public static final int REQUIRED_HITS = 5;
     public static final int REQUIRED_KILLS = 1;
@@ -92,6 +99,14 @@ public final class HeroClassUnlock {
     public static final int ITEM_FROST_TREATED_FOCUS = 92013;
     /** Arcane Intellect follow-up: study notes. */
     public static final int ITEM_STUDY_NOTES = 92014;
+    /** Warlock unlock: binding mark. */
+    public static final int ITEM_BINDING_MARK = 92015;
+    /** Shadow Bolt follow-up: shadowed page. */
+    public static final int ITEM_SHADOWED_PAGE = 92016;
+    /** Immolate follow-up: controlled fel ember. */
+    public static final int ITEM_FEL_EMBER = 92017;
+    /** Summon Imp follow-up: binding reagents. */
+    public static final int ITEM_BINDING_REAGENTS = 92018;
     /** Charge Rank 1 (Spell.dbc 100). */
     public static final int SPELL_CHARGE = 100;
     /** Rend Rank 1 (Spell.dbc 772). */
@@ -118,6 +133,15 @@ public final class HeroClassUnlock {
     public static final int SPELL_SHADOW_WORD_PAIN = 589;
     /** Arcane Intellect Rank 1 (Spell.dbc 1459). */
     public static final int SPELL_ARCANE_INTELLECT = 1459;
+    /** Corruption Rank 1 (Spell.dbc 172). */
+    public static final int SPELL_CORRUPTION = 172;
+    /** Shadow Bolt Rank 1 (Spell.dbc 686). */
+    public static final int SPELL_SHADOW_BOLT = 686;
+    /** Immolate Rank 1 (Spell.dbc 348). */
+    public static final int SPELL_IMMOLATE = 348;
+    /** Summon Imp (Spell.dbc 688); EffectMiscValue creature 416. */
+    public static final int SPELL_SUMMON_IMP = 688;
+    public static final int CREATURE_IMP = 416;
     /** Jesthenis Sunstriker (15280) ModelId1. */
     public static final int DISPLAY_JESTHENIS = 15521;
     /** FactionTemplate Silvermoon City NPC (creature 15280). Reputation faction 911. */
@@ -156,6 +180,11 @@ public final class HeroClassUnlock {
     public static final float SUNSTRIDER_MAGE_Y = -6393.23f;
     public static final float SUNSTRIDER_MAGE_Z = 38.5306f;
     public static final float SUNSTRIDER_MAGE_O = 3.74096f;
+    /** Warlock trainer a few yards from the warrior trainer. */
+    public static final float SUNSTRIDER_WARLOCK_X = 10387.6f;
+    public static final float SUNSTRIDER_WARLOCK_Y = -6405.23f;
+    public static final float SUNSTRIDER_WARLOCK_Z = 38.5306f;
+    public static final float SUNSTRIDER_WARLOCK_O = 3.74096f;
 
     public static final HeroClassUnlock WARRIOR = new HeroClassUnlock(
             Player.CLASS_WARRIOR,
@@ -211,6 +240,15 @@ public final class HeroClassUnlock {
             0,
             REQUIRED_KILLS);
 
+    public static final HeroClassUnlock WARLOCK = new HeroClassUnlock(
+            Player.CLASS_WARLOCK,
+            QUEST_THE_BOUND_FLAME,
+            NPC_HERO_WARLOCK_TRAINER,
+            SPELL_CORRUPTION,
+            CREATURE_MANA_WYRM,
+            0,
+            REQUIRED_KILLS);
+
     /** Hero-only follow-up: teaches one spell on turn-in; gates that spell on trainers. */
     public record FollowUp(int questId, int rewardSpell, int requiresQuest, int trainerClass) {
     }
@@ -251,6 +289,12 @@ public final class HeroClassUnlock {
             QUEST_SHARE_THE_STUDY, SPELL_ARCANE_INTELLECT, QUEST_A_CONTROLLED_SPARK, Player.CLASS_MAGE);
     public static final FollowUp A_SECOND_SCHOOL = new FollowUp(
             QUEST_A_SECOND_SCHOOL, SpellEngine.FROSTBOLT, QUEST_A_CONTROLLED_SPARK, Player.CLASS_MAGE);
+    public static final FollowUp SHADOW_IN_RESERVE = new FollowUp(
+            QUEST_SHADOW_IN_RESERVE, SPELL_SHADOW_BOLT, QUEST_THE_BOUND_FLAME, Player.CLASS_WARLOCK);
+    public static final FollowUp FEL_AT_THE_EDGE = new FollowUp(
+            QUEST_FEL_AT_THE_EDGE, SPELL_IMMOLATE, QUEST_THE_BOUND_FLAME, Player.CLASS_WARLOCK);
+    public static final FollowUp A_FAMILIARS_FIRST_TASK = new FollowUp(
+            QUEST_A_FAMILIARS_FIRST_TASK, SPELL_SUMMON_IMP, QUEST_THE_BOUND_FLAME, Player.CLASS_WARLOCK);
 
     private static final List<FollowUp> FOLLOW_UPS = List.of(
             RALLY_THE_LINE, CLOSE_THE_DISTANCE, A_WOUND_TO_REMEMBER,
@@ -258,7 +302,8 @@ public final class HeroClassUnlock {
             STEADY_AIM, VENOM_IN_THE_FIELD, A_CLEAN_SHOT,
             DISAPPEAR_FROM_SIGHT, FINISH_THE_OPENING, KEEP_THE_ADVANTAGE,
             JUDGMENT_FROM_AFAR, A_GUARDING_WORD, PAIN_AS_WARNING,
-            A_COOLER_HEAD, SHARE_THE_STUDY, A_SECOND_SCHOOL);
+            A_COOLER_HEAD, SHARE_THE_STUDY, A_SECOND_SCHOOL,
+            SHADOW_IN_RESERVE, FEL_AT_THE_EDGE, A_FAMILIARS_FIRST_TASK);
 
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_QUEST = new HashMap<>();
     private static final Map<Integer, FollowUp> FOLLOW_UP_BY_SPELL = new HashMap<>();
@@ -276,12 +321,14 @@ public final class HeroClassUnlock {
         UNLOCK_BY_QUEST.put(ROGUE.questId, ROGUE);
         UNLOCK_BY_QUEST.put(PRIEST.questId, PRIEST);
         UNLOCK_BY_QUEST.put(MAGE.questId, MAGE);
+        UNLOCK_BY_QUEST.put(WARLOCK.questId, WARLOCK);
         UNLOCK_BY_CLASS.put(WARRIOR.classId, WARRIOR);
         UNLOCK_BY_CLASS.put(PALADIN.classId, PALADIN);
         UNLOCK_BY_CLASS.put(HUNTER.classId, HUNTER);
         UNLOCK_BY_CLASS.put(ROGUE.classId, ROGUE);
         UNLOCK_BY_CLASS.put(PRIEST.classId, PRIEST);
         UNLOCK_BY_CLASS.put(MAGE.classId, MAGE);
+        UNLOCK_BY_CLASS.put(WARLOCK.classId, WARLOCK);
     }
 
     private final int classId;
@@ -352,7 +399,7 @@ public final class HeroClassUnlock {
     }
 
     /**
-     * Class trainers without a Hero unlock path stay open. Warrior through Priest require their
+     * Class trainers without a Hero unlock path stay open. Warrior through Warlock require their
      * unlock quest rewarded.
      */
     public static boolean trainerClassUnlocked(Player p, int trainerClass) {

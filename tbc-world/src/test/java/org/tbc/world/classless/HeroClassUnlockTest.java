@@ -121,4 +121,20 @@ class HeroClassUnlockTest {
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_PRIEST));
         assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
     }
+
+    @Test
+    void trainerClassUnlockedWhenWarlockShouldRequireBoundFlame() {
+        Player p = new Player();
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARLOCK));
+        assertSame(HeroClassUnlock.WARLOCK, HeroClassUnlock.forQuest(HeroClassUnlock.QUEST_THE_BOUND_FLAME));
+        assertTrue(HeroClassUnlock.isHeroOnly(HeroClassUnlock.QUEST_SHADOW_IN_RESERVE));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_THE_BOUND_FLAME);
+        assertTrue(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARLOCK));
+        assertFalse(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_SHADOW_BOLT));
+        p.rewardedQuests.add(HeroClassUnlock.QUEST_SHADOW_IN_RESERVE);
+        assertTrue(HeroClassUnlock.spellUnlocked(p, HeroClassUnlock.SPELL_SHADOW_BOLT));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_MAGE));
+        assertFalse(HeroClassUnlock.trainerClassUnlocked(p, Player.CLASS_WARRIOR));
+    }
 }
