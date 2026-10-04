@@ -209,10 +209,10 @@ public final class HeroClassUnlock {
     public static final int VIRTUAL_ITEM_SWORD_DISPLAY = 7487;
     /** Llane Beshere wooden buckler ItemDisplayInfo (item 1961). */
     public static final int VIRTUAL_ITEM_SHIELD_DISPLAY = 1685;
-    public static final float SUNSTRIDER_SPAWN_X = 10345.0f;
-    public static final float SUNSTRIDER_SPAWN_Y = -6412.0f;
-    public static final float SUNSTRIDER_SPAWN_Z = 38.62f;
-    public static final float SUNSTRIDER_SPAWN_O = 3.14f;
+    public static final float SUNSTRIDER_SPAWN_X = 10381.6f;
+    public static final float SUNSTRIDER_SPAWN_Y = -6399.23f;
+    public static final float SUNSTRIDER_SPAWN_Z = 38.5306f;
+    public static final float SUNSTRIDER_SPAWN_O = 3.74096f;
     /** Paladin trainer a few yards from the warrior trainer. */
     public static final float SUNSTRIDER_PALADIN_X = 10383.6f;
     public static final float SUNSTRIDER_PALADIN_Y = -6401.23f;

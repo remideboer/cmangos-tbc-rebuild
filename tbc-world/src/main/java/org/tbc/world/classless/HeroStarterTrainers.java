@@ -65,7 +65,8 @@ public final class HeroStarterTrainers {
             // Sunstrider Isle
             custom(Player.CLASS_WARRIOR, HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER,
                     HeroClassUnlock.NAME_LORVAEN_BLOODFEATHER, DISPLAY_JESTHENIS, FACTION_SILVERMOON,
-                    530, 10345.0f, -6412.0f, 38.62f, 3.14f, -8400f, -400f),
+                    530, HeroClassUnlock.SUNSTRIDER_SPAWN_X, HeroClassUnlock.SUNSTRIDER_SPAWN_Y,
+                    HeroClassUnlock.SUNSTRIDER_SPAWN_Z, HeroClassUnlock.SUNSTRIDER_SPAWN_O, -8400f, -400f),
             nativeP(Player.CLASS_PALADIN, 15280, "Jesthenis Sunstriker", DISPLAY_JESTHENIS, FACTION_SILVERMOON,
                     530, 54986, 10366.7002f, -6431.5298f, 38.6157f, 0.73304f, -8402f, -402f),
             nativeP(Player.CLASS_HUNTER, 15513, "Ranger Sallina", 15520, FACTION_SILVERMOON,
