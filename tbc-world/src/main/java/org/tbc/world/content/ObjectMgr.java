@@ -91,6 +91,11 @@ public final class ObjectMgr {
 
         /** Same template with a new name and primary display. Other columns stay as loaded. */
         public CreatureTemplate withNameAndDisplay(String name, int display) {
+            return withEdited(name, display, type, faction);
+        }
+
+        /** Name, primary display, creature type, and faction. Other columns stay as loaded. */
+        public CreatureTemplate withEdited(String name, int display, int type, int faction) {
             return new CreatureTemplate(entry, name, display, faction, hp, level, npcFlags, scriptName, gossip,
                     trainerType, subName, iconName, display2, display3, display4, typeFlags, type, family, rank,
                     petSpellDataId, healthMultiplier, powerMultiplier, racialLeader, aiName, extraFlags,

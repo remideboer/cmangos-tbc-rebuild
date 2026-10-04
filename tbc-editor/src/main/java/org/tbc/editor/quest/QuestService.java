@@ -21,9 +21,15 @@ import java.util.Map;
 
 /** Public quest-authoring API used by {@link QuestDomain}. */
 public final class QuestService {
-    public record CreatureHit(int entry, String name, int faction, int npcFlags, float x, float y, int level, int type) {
+    public record CreatureHit(int entry, String name, int faction, int npcFlags, float x, float y, int level, int type,
+                              String factionName) {
+        public CreatureHit(int entry, String name, int faction, int npcFlags, float x, float y, int level, int type) {
+            this(entry, name, faction, npcFlags, x, y, level, type, "");
+        }
+
         public String label() {
-            return name + " (" + entry + ")  " + creatureTypeName(type) + "  lv " + level + "  fac " + faction;
+            return name + " (" + entry + ")  " + creatureTypeName(type) + "  lv " + level + "  "
+                    + NpcFactions.label(faction, factionName);
         }
     }
 
@@ -34,10 +40,14 @@ public final class QuestService {
         }
     }
 
-    public record ZoneNpc(int entry, String name, int level, int faction) {
+    public record ZoneNpc(int entry, String name, int level, int faction, String factionName) {
+        public ZoneNpc(int entry, String name, int level, int faction) {
+            this(entry, name, level, faction, "");
+        }
+
         @Override
         public String toString() {
-            return name + " (" + entry + ")  lv " + level + "  fac " + faction;
+            return name + " (" + entry + ")  lv " + level + "  " + NpcFactions.label(faction, factionName);
         }
     }
 
@@ -50,6 +60,7 @@ public final class QuestService {
     private final MapSurfaceService surfaces;
     private final QuestValidator validator;
     private final DbPool world;
+    private NpcFactions factionNames = NpcFactions.empty();
 
     public QuestService(ObjectMgr mgr, java.nio.file.Path contentRoot) {
         this(mgr, contentRoot, MapSurfaceService.unavailable());
@@ -73,6 +84,10 @@ public final class QuestService {
 
     public MapSurfaceService surfaces() {
         return surfaces;
+    }
+
+    public void setFactionNames(NpcFactions factionNames) {
+        this.factionNames = factionNames == null ? NpcFactions.empty() : factionNames;
     }
 
     public QuestYamlStore store() {
@@ -223,7 +238,7 @@ public final class QuestService {
             String name = t == null || t.name() == null || t.name().isBlank() ? "NPC " + s.entry() : t.name();
             int level = t == null ? 0 : t.level();
             int faction = t == null ? 0 : t.faction();
-            byEntry.putIfAbsent(s.entry(), new ZoneNpc(s.entry(), name, level, faction));
+            byEntry.putIfAbsent(s.entry(), new ZoneNpc(s.entry(), name, level, faction, factionNames.name(faction)));
         }
         List<ZoneNpc> out = new ArrayList<>(byEntry.values());
         out.sort(Comparator.comparing(ZoneNpc::name, String.CASE_INSENSITIVE_ORDER));
@@ -423,7 +438,8 @@ public final class QuestService {
         for (NpcEditSession.Look look : session.changedLooks()) {
             ObjectMgr.CreatureTemplate template = mgr.creatures.get(look.entry());
             if (template != null) {
-                mgr.creatures.put(look.entry(), template.withNameAndDisplay(look.name(), look.displayId()));
+                mgr.creatures.put(look.entry(), template.withEdited(
+                        look.name(), look.displayId(), look.creatureType(), look.faction()));
             }
             if (look.equipmentId() <= 0) {
                 mgr.equipmentByEntry.remove(look.entry());
@@ -433,7 +449,8 @@ public final class QuestService {
         }
     }
 
-    private static CreatureHit hit(ObjectMgr.CreatureTemplate t, float x, float y) {
-        return new CreatureHit(t.entry(), t.name(), t.faction(), t.npcFlags(), x, y, t.level(), t.type());
+    private CreatureHit hit(ObjectMgr.CreatureTemplate t, float x, float y) {
+        return new CreatureHit(t.entry(), t.name(), t.faction(), t.npcFlags(), x, y, t.level(), t.type(),
+                factionNames.name(t.faction()));
     }
 }

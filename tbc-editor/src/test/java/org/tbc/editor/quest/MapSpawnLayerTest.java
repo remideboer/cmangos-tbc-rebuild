@@ -5,6 +5,9 @@ import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.map.FloorCandidates;
 import org.tbc.world.map.WorldMapAreas;
 
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.util.List;
 
@@ -53,7 +56,7 @@ class MapSpawnLayerTest {
     }
 
     @Test
-    void doubleClickWhenOnSpawnShouldSelectItAndSkipPlacingAMarker() {
+    void clickWhenOnSpawnShouldSelectItAndEscapeClearsIt() {
         QuestMapCanvas canvas = new QuestMapCanvas();
         canvas.loadRegion(WorldMapAreas.SUNSTRIDER,
                 org.tbc.world.map.RegionMinimap.render(WorldMapAreas.SUNSTRIDER,
@@ -68,13 +71,32 @@ class MapSpawnLayerTest {
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0L, 0,
                 x, y, 1, false, MouseEvent.BUTTON1));
         assertEquals(0, canvas.model().markers().size());
-        assertEquals(null, canvas.selectedSpawn());
-        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0L, 0,
-                x, y, 2, false, MouseEvent.BUTTON1));
         assertEquals(15271, canvas.selectedSpawn().entry());
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0L, 0,
                 2, 2, 1, false, MouseEvent.BUTTON1));
         assertEquals(1, canvas.model().markers().size());
+        canvas.getActionMap().get("clearSpawn").actionPerformed(new ActionEvent(canvas, 0, "clearSpawn"));
+        assertEquals(null, canvas.selectedSpawn());
+    }
+
+    @Test
+    void rightClickWhenOnCreatureShouldOpenTheEditMenu() {
+        QuestMapCanvas canvas = sunstrider(new MapSpawnLayer.Pin(
+                MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f, 33f));
+        JPopupMenu edit = new JPopupMenu();
+        edit.add(new JMenuItem("Save changes"));
+        canvas.setNpcEditMenu(edit);
+        float[] pix = canvas.model().worldToPixel(10349.6f, -6357.29f);
+        JPopupMenu onPin = canvas.menuFor((int) pix[0], (int) pix[1]);
+        assertEquals("Save changes", ((JMenuItem) onPin.getComponent(0)).getText());
+        JPopupMenu onMap = canvas.menuFor(2, 2);
+        boolean placeGiver = false;
+        for (int i = 0; i < onMap.getComponentCount(); i++) {
+            if (onMap.getComponent(i) instanceof JMenuItem item && "Place giver".equals(item.getText())) {
+                placeGiver = true;
+            }
+        }
+        assertTrue(placeGiver);
     }
 
     @Test

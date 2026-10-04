@@ -18,6 +18,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
@@ -82,7 +83,11 @@ public final class QuestDomain implements EditorDomain {
     private final NpcEditSession npcEdits = new NpcEditSession();
     private final JTextField npcName = new JTextField(16);
     private final JComboBox<NpcRaces.Race> npcRace = new JComboBox<>();
+    private final JComboBox<TypeChoice> npcType = new JComboBox<>();
     private final JComboBox<Object> npcGear = new JComboBox<>();
+    private final JComboBox<Object> npcFaction = new JComboBox<>();
+    private final NpcFactions factionCatalog = NpcFactions.load(null);
+    private final JPopupMenu npcPopup = new JPopupMenu();
     private final JButton saveNpc = new JButton("Save changes");
     private final JButton clearNpc = new JButton("Clear changes");
     private final List<NpcRaces.Race> races = NpcRaces.load(null);
@@ -162,10 +167,27 @@ public final class QuestDomain implements EditorDomain {
         canvas.setSelectionListener(this::showNpc);
         canvas.setSpawnMoved(this::noteSpawnMove);
         canvas.setGround((map, x, y) -> service.surfaces().candidateFloors(map, x, y));
+        service.setFactionNames(factionCatalog);
         gearChoices = NpcGear.choices(service.creatures());
         for (NpcGear.Gear gear : gearChoices) {
             npcGear.addItem(gear);
         }
+        for (NpcFactions.Choice choice : factionCatalog.choices()) {
+            npcFaction.addItem(choice);
+        }
+        for (TypeChoice choice : TypeChoice.values()) {
+            if (choice != TypeChoice.ANY) {
+                npcType.addItem(choice);
+            }
+        }
+        npcRace.setLightWeightPopupEnabled(false);
+        npcType.setLightWeightPopupEnabled(false);
+        npcGear.setLightWeightPopupEnabled(false);
+        npcFaction.setLightWeightPopupEnabled(false);
+        npcPopup.setLightWeightPopupEnabled(false);
+        npcPopup.add(selectedNpcPanel());
+        canvas.setNpcEditMenu(npcPopup);
+        canvas.setHideNpcMenu(() -> npcPopup.setVisible(false));
 
         zoneQuestList.setVisibleRowCount(6);
         zoneNpcList.setVisibleRowCount(6);
@@ -254,7 +276,6 @@ public final class QuestDomain implements EditorDomain {
         stack.add(section("This quest", thisQuest));
         stack.add(section("Who", who));
         stack.add(section("In this zone", zoneLists));
-        stack.add(section("Selected NPC", selectedNpcPanel()));
         stack.add(section("Find a creature", find));
 
         JPanel east = new JPanel(new BorderLayout());
@@ -289,9 +310,11 @@ public final class QuestDomain implements EditorDomain {
         tabs.addTab("Map", canvas);
         tabs.addTab("Graph", graphPage);
 
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tabs, east);
+        split.setResizeWeight(1);
+        split.setContinuousLayout(true);
         root.add(north, BorderLayout.NORTH);
-        root.add(tabs, BorderLayout.CENTER);
-        root.add(east, BorderLayout.EAST);
+        root.add(split, BorderLayout.CENTER);
         pullFromDoc();
         applySelectedMap();
         rebuildGraph();
@@ -542,15 +565,25 @@ public final class QuestDomain implements EditorDomain {
     }
 
     private void rebuildGraph() {
-        int npc = parseInt(turnIn.getText());
-        if (npc == 0) {
-            npc = parseInt(giver.getText());
+        presentQuest(doc);
+    }
+
+    /** Map rings and graph nodes for the quest the zone list just opened. */
+    void presentQuest(QuestDocument view) {
+        canvas.setQuestHighlights(QuestRoles.of(view));
+        int npc = view == null ? 0 : view.turnInNpc();
+        if (npc == 0 && view != null) {
+            npc = view.giverNpc();
         }
         graphCanvas.armTurnIn(npc);
-        graphCanvas.armPrerequisite(parseInt(prevQuest.getText()));
+        graphCanvas.armPrerequisite(view == null ? 0 : view.prevQuestId());
         graphModel.setCreatureNames(creatureNames());
-        graphModel.rebuild(doc, loadChain());
+        graphModel.rebuild(view, loadChain());
         graphCanvas.repaint();
+    }
+
+    public JPopupMenu npcMenu() {
+        return npcPopup;
     }
 
     private List<QuestDocument> loadChain() {
@@ -596,6 +629,7 @@ public final class QuestDomain implements EditorDomain {
                 doc = service.loadDraft(row.id());
                 pullFromDoc();
                 applySelectedMap();
+                presentQuest(doc);
                 status.accept("Draft " + row.id());
             } catch (Exception ex) {
                 status.accept(message(ex));
@@ -612,6 +646,7 @@ public final class QuestDomain implements EditorDomain {
         turnIn.setText(Integer.toString(preview.turnInNpc()));
         prevQuest.setText(Integer.toString(preview.prevQuestId()));
         idCaption.setText(row.id() + " catalog");
+        presentQuest(preview);
         status.accept(row.title() + " is a catalog quest. Copy as draft to edit it.");
     }
 
@@ -740,6 +775,7 @@ public final class QuestDomain implements EditorDomain {
 
     private enum TypeChoice {
         ANY(-1, "Any type"),
+        NONE(0, "None"),
         BEAST(1, "Beast"),
         DRAGONKIN(2, "Dragonkin"),
         DEMON(3, "Demon"),
@@ -773,14 +809,21 @@ public final class QuestDomain implements EditorDomain {
         form.add(npcName);
         form.add(new JLabel("Race"));
         form.add(npcRace);
+        form.add(new JLabel("Creature type"));
+        form.add(npcType);
         form.add(new JLabel("Gear"));
         form.add(npcGear);
+        form.add(new JLabel("Faction"));
+        form.add(npcFaction);
         form.add(clearNpc);
         form.add(saveNpc);
         npcGear.setEditable(true);
+        npcFaction.setEditable(true);
         npcName.setEnabled(false);
         npcRace.setEnabled(false);
+        npcType.setEnabled(false);
         npcGear.setEnabled(false);
+        npcFaction.setEnabled(false);
         saveNpc.setEnabled(false);
         clearNpc.setEnabled(false);
         npcName.getDocument().addDocumentListener(new DocumentListener() {
@@ -811,6 +854,29 @@ public final class QuestDomain implements EditorDomain {
             npcEdits.setDisplay(pin.entry(), race.displayId());
             refreshNpcButtons();
         });
+        npcType.addItemListener(e -> {
+            if (fillingNpc || e.getStateChange() != ItemEvent.SELECTED) {
+                return;
+            }
+            MapSpawnLayer.Pin pin = canvas.selectedSpawn();
+            TypeChoice type = (TypeChoice) npcType.getSelectedItem();
+            if (pin == null || type == null || type.type < 0) {
+                return;
+            }
+            npcEdits.setCreatureType(pin.entry(), type.type);
+            refreshNpcButtons();
+        });
+        npcFaction.addItemListener(e -> {
+            if (fillingNpc || e.getStateChange() != ItemEvent.SELECTED) {
+                return;
+            }
+            applyFactionFromCombo();
+        });
+        npcFaction.getEditor().addActionListener(e -> {
+            if (!fillingNpc) {
+                applyFactionFromCombo();
+            }
+        });
         npcGear.addItemListener(e -> {
             if (fillingNpc || e.getStateChange() != ItemEvent.SELECTED) {
                 return;
@@ -825,8 +891,18 @@ public final class QuestDomain implements EditorDomain {
         saveNpc.addActionListener(e -> saveNpcEdits());
         clearNpc.addActionListener(e -> clearNpcEdits());
         JPanel wrap = new JPanel(new BorderLayout(0, 4));
-        wrap.add(new JLabel("<html>Name, race, and gear change every NPC of this entry. "
-                + "The dragged position changes this spawn only.</html>"), BorderLayout.NORTH);
+        wrap.add(new JLabel("<html>Name, race, type, gear, and faction change every NPC of this entry. "
+                + "The dragged position changes this spawn only. Save writes the database.</html>"),
+                BorderLayout.NORTH);
+        wrap.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0), "deselectNpc");
+        wrap.getActionMap().put("deselectNpc", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                npcPopup.setVisible(false);
+                canvas.clearSelection();
+            }
+        });
         wrap.add(form, BorderLayout.CENTER);
         return wrap;
     }
@@ -848,7 +924,9 @@ public final class QuestDomain implements EditorDomain {
         if (pin == null || pin.kind() != MapSpawnLayer.Kind.CREATURE) {
             npcName.setEnabled(false);
             npcRace.setEnabled(false);
+            npcType.setEnabled(false);
             npcGear.setEnabled(false);
+            npcFaction.setEnabled(false);
             saveNpc.setEnabled(false);
             clearNpc.setEnabled(false);
             return;
@@ -857,16 +935,22 @@ public final class QuestDomain implements EditorDomain {
         org.tbc.world.content.ObjectMgr.CreatureTemplate template = mgr.creatures.get(pin.entry());
         int display = template == null ? 0 : template.display();
         int equipment = mgr.equipmentByEntry.getOrDefault(pin.entry(), 0);
-        npcEdits.remember(pin, display, equipment);
+        int type = template == null ? 0 : template.type();
+        int faction = template == null ? 0 : template.faction();
+        npcEdits.remember(pin, display, equipment, type, faction);
         NpcEditSession.Look look = npcEdits.look(pin.entry());
         fillingNpc = true;
         try {
             npcName.setText(look == null ? pin.name() : look.name());
             fillRace(look == null ? display : look.displayId());
+            selectType(look == null ? type : look.creatureType());
             selectGear(look == null ? equipment : look.equipmentId());
+            selectFaction(look == null ? faction : look.faction());
             npcName.setEnabled(true);
             npcRace.setEnabled(true);
+            npcType.setEnabled(true);
             npcGear.setEnabled(true);
+            npcFaction.setEnabled(true);
         } finally {
             fillingNpc = false;
         }
@@ -881,7 +965,9 @@ public final class QuestDomain implements EditorDomain {
         org.tbc.world.content.ObjectMgr mgr = service.creatures();
         org.tbc.world.content.ObjectMgr.CreatureTemplate template = mgr.creatures.get(pin.entry());
         npcEdits.remember(pin, template == null ? 0 : template.display(),
-                mgr.equipmentByEntry.getOrDefault(pin.entry(), 0));
+                mgr.equipmentByEntry.getOrDefault(pin.entry(), 0),
+                template == null ? 0 : template.type(),
+                template == null ? 0 : template.faction());
         npcEdits.move(pin.guid(), pin.x(), pin.y(), pin.z());
         if (!move.heightFound()) {
             status.accept("No terrain height; kept the previous height.");
@@ -906,6 +992,65 @@ public final class QuestDomain implements EditorDomain {
                 npcRace.setSelectedIndex(i);
                 return;
             }
+        }
+    }
+
+    private void selectType(int type) {
+        for (int i = 0; i < npcType.getItemCount(); i++) {
+            TypeChoice choice = npcType.getItemAt(i);
+            if (choice != null && choice.type == type) {
+                npcType.setSelectedIndex(i);
+                return;
+            }
+        }
+    }
+
+    private void selectFaction(int id) {
+        for (int i = 0; i < npcFaction.getItemCount(); i++) {
+            if (npcFaction.getItemAt(i) instanceof NpcFactions.Choice choice && choice.templateId() == id) {
+                npcFaction.setSelectedIndex(i);
+                return;
+            }
+        }
+        String name = factionCatalog.name(id);
+        npcFaction.setSelectedItem(new NpcFactions.Choice(id, name.isBlank() ? "" : name));
+    }
+
+    private void applyFactionFromCombo() {
+        MapSpawnLayer.Pin pin = canvas.selectedSpawn();
+        if (pin == null || pin.kind() != MapSpawnLayer.Kind.CREATURE) {
+            return;
+        }
+        int id = factionId(npcFaction.getEditor().getItem());
+        if (id < 0) {
+            id = factionId(npcFaction.getSelectedItem());
+        }
+        if (id < 0) {
+            return;
+        }
+        npcEdits.setFaction(pin.entry(), id);
+        refreshNpcButtons();
+    }
+
+    private static int factionId(Object selected) {
+        if (selected instanceof NpcFactions.Choice choice) {
+            return choice.templateId();
+        }
+        if (selected == null) {
+            return -1;
+        }
+        String text = selected.toString().trim();
+        int end = 0;
+        while (end < text.length() && Character.isDigit(text.charAt(end))) {
+            end++;
+        }
+        if (end == 0) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(text.substring(0, end));
+        } catch (NumberFormatException e) {
+            return -1;
         }
     }
 
@@ -968,6 +1113,7 @@ public final class QuestDomain implements EditorDomain {
         if (pin != null) {
             npcEdits.rename(pin.entry(), npcName.getText());
             applyGearFromCombo();
+            applyFactionFromCombo();
         }
         try {
             service.saveNpcEdits(npcEdits);
@@ -977,7 +1123,7 @@ public final class QuestDomain implements EditorDomain {
             }
             showNpc(canvas.selectedSpawn());
             status.accept("Saved. Restart the world server to see it in game. "
-                    + "Name, race, and gear apply to every NPC of this entry.");
+                    + "Name, race, type, gear, and faction apply to every NPC of this entry.");
         } catch (RuntimeException ex) {
             status.accept(message(ex));
         }

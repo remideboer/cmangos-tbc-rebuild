@@ -6,27 +6,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Unsaved NPC edits. Position is one creature guid. Name, display, and gear are the shared template entry.
+ * Unsaved NPC edits. Position is one creature guid. Name, display, type, faction, and gear are the shared template.
  * Clear copies the snapshot back. Save reads {@link #moved()} and {@link #changedLooks()}.
  */
 public final class NpcEditSession {
     public record Pose(int guid, int entry, float x, float y, float z) {}
 
-    public record Look(int entry, String name, int displayId, int equipmentId) {}
+    public record Look(int entry, String name, int displayId, int equipmentId, int creatureType, int faction) {}
 
     private final Map<Integer, Pose> originalPose = new LinkedHashMap<>();
     private final Map<Integer, Pose> pose = new LinkedHashMap<>();
     private final Map<Integer, Look> originalLook = new LinkedHashMap<>();
     private final Map<Integer, Look> look = new LinkedHashMap<>();
 
-    public void remember(MapSpawnLayer.Pin pin, int displayId, int equipmentId) {
+    public void remember(MapSpawnLayer.Pin pin, int displayId, int equipmentId, int creatureType, int faction) {
         if (pin == null || pin.kind() != MapSpawnLayer.Kind.CREATURE || pin.guid() == 0) {
             return;
         }
         String name = pin.name() == null ? "" : pin.name();
         originalPose.putIfAbsent(pin.guid(), new Pose(pin.guid(), pin.entry(), pin.x(), pin.y(), pin.z()));
         pose.putIfAbsent(pin.guid(), originalPose.get(pin.guid()));
-        originalLook.putIfAbsent(pin.entry(), new Look(pin.entry(), name, displayId, equipmentId));
+        originalLook.putIfAbsent(pin.entry(), new Look(pin.entry(), name, displayId, equipmentId, creatureType, faction));
         look.putIfAbsent(pin.entry(), originalLook.get(pin.entry()));
     }
 
@@ -43,7 +43,8 @@ public final class NpcEditSession {
         if (cur == null) {
             return;
         }
-        look.put(entry, new Look(entry, name == null ? "" : name, cur.displayId(), cur.equipmentId()));
+        look.put(entry, new Look(entry, name == null ? "" : name, cur.displayId(), cur.equipmentId(),
+                cur.creatureType(), cur.faction()));
     }
 
     public void setDisplay(int entry, int displayId) {
@@ -51,7 +52,23 @@ public final class NpcEditSession {
         if (cur == null) {
             return;
         }
-        look.put(entry, new Look(entry, cur.name(), displayId, cur.equipmentId()));
+        look.put(entry, new Look(entry, cur.name(), displayId, cur.equipmentId(), cur.creatureType(), cur.faction()));
+    }
+
+    public void setCreatureType(int entry, int creatureType) {
+        Look cur = look.get(entry);
+        if (cur == null) {
+            return;
+        }
+        look.put(entry, new Look(entry, cur.name(), cur.displayId(), cur.equipmentId(), creatureType, cur.faction()));
+    }
+
+    public void setFaction(int entry, int faction) {
+        Look cur = look.get(entry);
+        if (cur == null) {
+            return;
+        }
+        look.put(entry, new Look(entry, cur.name(), cur.displayId(), cur.equipmentId(), cur.creatureType(), faction));
     }
 
     public void setEquipment(int entry, int equipmentId) {
@@ -59,7 +76,7 @@ public final class NpcEditSession {
         if (cur == null) {
             return;
         }
-        look.put(entry, new Look(entry, cur.name(), cur.displayId(), equipmentId));
+        look.put(entry, new Look(entry, cur.name(), cur.displayId(), equipmentId, cur.creatureType(), cur.faction()));
     }
 
     public Look look(int entry) {
@@ -140,6 +157,8 @@ public final class NpcEditSession {
     private static boolean sameLook(Look was, Look now) {
         return was.displayId() == now.displayId()
                 && was.equipmentId() == now.equipmentId()
+                && was.creatureType() == now.creatureType()
+                && was.faction() == now.faction()
                 && was.name().equals(now.name());
     }
 }

@@ -22,12 +22,14 @@ public final class NpcEditStore {
         for (NpcEditSession.Look look : session.changedLooks()) {
             try {
                 sql.update(
-                        "UPDATE creature_template SET Name = ?, DisplayId1 = ?, EquipmentTemplateId = ? WHERE Entry = ?",
-                        look.name(), look.displayId(), look.equipmentId(), look.entry());
+                        "UPDATE creature_template SET Name = ?, DisplayId1 = ?, EquipmentTemplateId = ?, CreatureType = ?, Faction = ? WHERE Entry = ?",
+                        look.name(), look.displayId(), look.equipmentId(), look.creatureType(), look.faction(),
+                        look.entry());
             } catch (SQLException displayColumn) {
                 sql.update(
-                        "UPDATE creature_template SET Name = ?, ModelId1 = ?, EquipmentTemplateId = ? WHERE Entry = ?",
-                        look.name(), look.displayId(), look.equipmentId(), look.entry());
+                        "UPDATE creature_template SET Name = ?, ModelId1 = ?, EquipmentTemplateId = ?, CreatureType = ?, Faction = ? WHERE Entry = ?",
+                        look.name(), look.displayId(), look.equipmentId(), look.creatureType(), look.faction(),
+                        look.entry());
             }
         }
     }

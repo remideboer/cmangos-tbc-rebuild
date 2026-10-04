@@ -20,12 +20,16 @@ class NpcEditSessionTest {
     void clearWhenNameAndPositionChangedShouldRestoreTheLoadedPin() {
         MapSpawnLayer.Pin pin = wyrm();
         NpcEditSession session = new NpcEditSession();
-        session.remember(pin, 49, 0);
+        session.remember(pin, 49, 0, 1, 14);
         session.move(1, 10f, 20f, 30f);
         session.rename(15271, "Renamed");
+        session.setCreatureType(15271, 7);
+        session.setFaction(15271, 72);
         assertTrue(session.dirty());
         session.revert();
         assertFalse(session.dirty());
+        assertEquals(1, session.look(15271).creatureType());
+        assertEquals(14, session.look(15271).faction());
         MapSpawnLayer.Pin moved = pin.moved(10f, 20f, 30f).named("Renamed");
         MapSpawnLayer.Pin restored = session.overlay(List.of(moved)).get(0);
         assertEquals(pin.x(), restored.x(), 0.01f);
@@ -37,11 +41,13 @@ class NpcEditSessionTest {
     @Test
     void saveWhenDisplayColumnMissingShouldUpdateModelIdAndPosition() throws Exception {
         NpcEditSession session = new NpcEditSession();
-        session.remember(wyrm(), 49, 0);
+        session.remember(wyrm(), 49, 0, 1, 14);
         session.move(1, 11f, 22f, 40f);
         session.rename(15271, "Arcane Wyrm");
         session.setDisplay(15271, 15476);
         session.setEquipment(15271, 9);
+        session.setCreatureType(15271, 7);
+        session.setFaction(15271, 72);
         Capture sql = new Capture();
         sql.failDisplay = true;
         NpcEditStore.save(sql, session);
@@ -55,7 +61,9 @@ class NpcEditSessionTest {
         assertEquals("Arcane Wyrm", sql.args.get(1)[0]);
         assertEquals(15476, sql.args.get(1)[1]);
         assertEquals(9, sql.args.get(1)[2]);
-        assertEquals(15271, sql.args.get(1)[3]);
+        assertEquals(7, sql.args.get(1)[3]);
+        assertEquals(72, sql.args.get(1)[4]);
+        assertEquals(15271, sql.args.get(1)[5]);
     }
 
     @Test
@@ -65,11 +73,13 @@ class NpcEditSessionTest {
                 15271, "Mana Wyrm", 49, 14, 40, 1, 0, "", "", 0));
         mgr.spawns.add(new ObjectMgr.Spawn(1, 15271, 530, 10349.6f, -6357.29f, 33f, 0f));
         NpcEditSession session = new NpcEditSession();
-        session.remember(wyrm(), 49, 0);
+        session.remember(wyrm(), 49, 0, 0, 14);
         session.move(1, 10380f, -6340f, 12.5f);
         session.rename(15271, "Arcane Wyrm");
         session.setDisplay(15271, 15476);
         session.setEquipment(15271, 9);
+        session.setCreatureType(15271, 1);
+        session.setFaction(15271, 72);
         QuestService service = new QuestService(mgr, Path.of("target", "npc-edit-test"));
         service.applyNpcEdits(session);
         ObjectMgr.Spawn spawn = mgr.spawns.get(0);
@@ -78,6 +88,8 @@ class NpcEditSessionTest {
         assertEquals(12.5f, spawn.z(), 0.01f);
         assertEquals("Arcane Wyrm", mgr.creatures.get(15271).name());
         assertEquals(15476, mgr.creatures.get(15271).display());
+        assertEquals(1, mgr.creatures.get(15271).type());
+        assertEquals(72, mgr.creatures.get(15271).faction());
         assertEquals(9, mgr.equipmentByEntry.get(15271));
         MapSpawnLayer.Pin pin = MapSpawnLayer.inArea(mgr, WorldMapAreas.SUNSTRIDER).stream()
                 .filter(p -> p.guid() == 1).findFirst().orElseThrow();

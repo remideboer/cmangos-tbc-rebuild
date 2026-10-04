@@ -4,7 +4,9 @@ import org.tbc.world.map.FloorCandidates;
 import org.tbc.world.map.RegionMinimap;
 import org.tbc.world.map.WorldMapArea;
 
+import javax.swing.AbstractAction;
 import javax.swing.JComponent;
+import javax.swing.KeyStroke;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -13,6 +15,8 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
@@ -20,7 +24,9 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /** Paints a region minimap plus quest markers. No client MPQ assets. */
@@ -44,6 +50,10 @@ public final class QuestMapCanvas extends JPanel {
     private Consumer<MapSpawnLayer.Pin> selectionListener = pin -> {};
     private Consumer<SpawnMove> spawnMoved = move -> {};
     private NpcGround.Query ground = (map, x, y) -> FloorCandidates.unresolved();
+    private JPopupMenu npcEditMenu;
+    private Runnable hideNpcMenu = () -> {};
+    private Map<Integer, EnumSet<QuestRoles.Role>> creatureMarks = Map.of();
+    private Map<Integer, EnumSet<QuestRoles.Role>> objectMarks = Map.of();
 
     /** A creature pin after a drag, and whether an ADT floor supplied the height. */
     public record SpawnMove(MapSpawnLayer.Pin pin, boolean heightFound) {}
@@ -51,6 +61,7 @@ public final class QuestMapCanvas extends JPanel {
     public QuestMapCanvas() {
         setPreferredSize(new Dimension(640, 480));
         setBackground(new Color(32, 40, 32));
+        setFocusable(true);
         MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -62,26 +73,21 @@ public final class QuestMapCanvas extends JPanel {
                     return;
                 }
                 if (e.getButton() == MouseEvent.BUTTON3 || e.isPopupTrigger()) {
-                    float[] img = viewToImage(e.getX(), e.getY());
-                    popupImgX = img[0];
-                    popupImgY = img[1];
-                    contextMenu = buildContextMenu();
-                    if (isShowing()) {
-                        contextMenu.show(QuestMapCanvas.this, e.getX(), e.getY());
-                    }
+                    showPopup(e);
                     return;
                 }
                 if (e.getButton() == MouseEvent.BUTTON1) {
+                    requestFocusInWindow();
                     MapSpawnLayer.Pin pin = pinAt(e.getX(), e.getY());
+                    if (pin != null && pin.kind() == MapSpawnLayer.Kind.CREATURE) {
+                        selectedSpawn = pin;
+                        selectionListener.accept(pin);
+                        draggingSpawn = true;
+                        spawnDragged = false;
+                        repaint();
+                        return;
+                    }
                     if (pin != null) {
-                        if (e.getClickCount() >= 2) {
-                            selectedSpawn = pin;
-                            selectionListener.accept(pin);
-                        }
-                        if (canDrag(pin)) {
-                            draggingSpawn = true;
-                            spawnDragged = false;
-                        }
                         repaint();
                         return;
                     }
@@ -106,13 +112,7 @@ public final class QuestMapCanvas extends JPanel {
                     setCursor(Cursor.getDefaultCursor());
                 }
                 if (e.isPopupTrigger() && e.getButton() == MouseEvent.BUTTON3) {
-                    float[] img = viewToImage(e.getX(), e.getY());
-                    popupImgX = img[0];
-                    popupImgY = img[1];
-                    contextMenu = buildContextMenu();
-                    if (isShowing()) {
-                        contextMenu.show(QuestMapCanvas.this, e.getX(), e.getY());
-                    }
+                    showPopup(e);
                 }
             }
 
@@ -168,10 +168,83 @@ public final class QuestMapCanvas extends JPanel {
         addMouseListener(mouse);
         addMouseMotionListener(mouse);
         addMouseWheelListener(mouse);
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSpawn");
+        getActionMap().put("clearSpawn", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                clearSelection();
+            }
+        });
     }
 
     public JPopupMenu contextMenu() {
         return contextMenu;
+    }
+
+    public void setNpcEditMenu(JPopupMenu npcEditMenu) {
+        this.npcEditMenu = npcEditMenu;
+    }
+
+    public void setHideNpcMenu(Runnable hideNpcMenu) {
+        this.hideNpcMenu = hideNpcMenu == null ? () -> {} : hideNpcMenu;
+    }
+
+    private void showPopup(MouseEvent e) {
+        float[] img = viewToImage(e.getX(), e.getY());
+        popupImgX = img[0];
+        popupImgY = img[1];
+        MapSpawnLayer.Pin pin = pinAt(e.getX(), e.getY());
+        if (pin != null && pin.kind() == MapSpawnLayer.Kind.CREATURE && npcEditMenu != null) {
+            selectedSpawn = pin;
+            selectionListener.accept(pin);
+            if (isShowing()) {
+                npcEditMenu.show(QuestMapCanvas.this, e.getX(), e.getY());
+            }
+            repaint();
+            return;
+        }
+        contextMenu = buildContextMenu();
+        if (isShowing()) {
+            contextMenu.show(QuestMapCanvas.this, e.getX(), e.getY());
+        }
+    }
+
+    /** Menu a right-click at this view point would open. */
+    public JPopupMenu menuFor(int viewX, int viewY) {
+        MapSpawnLayer.Pin pin = pinAt(viewX, viewY);
+        if (pin != null && pin.kind() == MapSpawnLayer.Kind.CREATURE && npcEditMenu != null) {
+            return npcEditMenu;
+        }
+        contextMenu = buildContextMenu();
+        return contextMenu;
+    }
+
+    public void clearSelection() {
+        if (selectedSpawn == null) {
+            hideNpcMenu.run();
+            return;
+        }
+        selectedSpawn = null;
+        draggingSpawn = false;
+        spawnDragged = false;
+        selectionListener.accept(null);
+        hideNpcMenu.run();
+        repaint();
+    }
+
+    public void setQuestHighlights(QuestRoles.Marks marks) {
+        if (marks == null) {
+            creatureMarks = Map.of();
+            objectMarks = Map.of();
+        } else {
+            creatureMarks = marks.creatures();
+            objectMarks = marks.objects();
+        }
+        repaint();
+    }
+
+    public QuestRoles.Marks questHighlights() {
+        return new QuestRoles.Marks(creatureMarks, objectMarks);
     }
 
     public void setHoverListener(Consumer<String> hoverListener) {
@@ -309,6 +382,7 @@ public final class QuestMapCanvas extends JPanel {
                     g2.setColor(Color.WHITE);
                     g2.drawOval(px - 8, py - 8, 16, 16);
                 }
+                drawQuestRings(g2, px, py, rolesOf(pin));
             }
         }
         if (overlayMissing()) {
@@ -384,6 +458,28 @@ public final class QuestMapCanvas extends JPanel {
             repaint();
         });
         menu.add(item);
+    }
+
+    private EnumSet<QuestRoles.Role> rolesOf(MapSpawnLayer.Pin pin) {
+        Map<Integer, EnumSet<QuestRoles.Role>> marks = pin.kind() == MapSpawnLayer.Kind.CREATURE
+                ? creatureMarks : objectMarks;
+        EnumSet<QuestRoles.Role> roles = marks.get(pin.entry());
+        return roles == null ? EnumSet.noneOf(QuestRoles.Role.class) : roles;
+    }
+
+    private static void drawQuestRings(Graphics2D g2, int px, int py, EnumSet<QuestRoles.Role> roles) {
+        if (roles.contains(QuestRoles.Role.GIVER)) {
+            g2.setColor(Color.GREEN);
+            g2.drawOval(px - 11, py - 11, 22, 22);
+        }
+        if (roles.contains(QuestRoles.Role.OBJECTIVE)) {
+            g2.setColor(Color.RED);
+            g2.drawOval(px - 14, py - 14, 28, 28);
+        }
+        if (roles.contains(QuestRoles.Role.TURN_IN)) {
+            g2.setColor(Color.CYAN);
+            g2.drawOval(px - 17, py - 17, 34, 34);
+        }
     }
 
     private boolean canDrag(MapSpawnLayer.Pin pin) {
