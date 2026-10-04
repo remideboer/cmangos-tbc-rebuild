@@ -638,6 +638,44 @@ class Slice06P0Test {
     }
 
     /**
+     * TP-SL06-030 — Group::RewardGroupAtKill: two level-1 members in MaxGroupXPDistance 74 yd
+     * each get Gain×(level/sum)×xp_in_group_rate(2)=25 and SMSG_LOG_XPGAIN group rate 1.0.
+     */
+    @Test
+    void tpSl06GroupedKillSharesXp() {
+        World world = World.inMemory();
+        WowClientDouble alpha = new WowClientDouble();
+        WowClientDouble bravo = new WowClientDouble();
+        World.Account accB = new World.Account(2, "OTHER", new byte[40], 3, 1, "Win", "x86");
+        alpha.connect(ACC);
+        bravo.connect(accB);
+        Player createdA = world.characters.create(ACC.id(), "Alpha", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        Player createdB = world.characters.create(2, "Bravo", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alpha.login(world, createdA.guid);
+        bravo.login(world, createdB.guid);
+        Player a = alpha.session().player();
+        Player b = bravo.session().player();
+        b.relocate(a.x + 2, a.y, a.z, a.o);
+        world.map(a.mapId, a.instanceId).reindex(b, createdB.x, createdB.y);
+        alpha.groupInvite(world, "Bravo");
+        bravo.groupAccept(world);
+        alpha.clear();
+        bravo.clear();
+        Creature c = killKobold(world, alpha, a);
+        byte[] logA = alpha.payload(Opcodes.SMSG_LOG_XPGAIN);
+        byte[] logB = bravo.payload(Opcodes.SMSG_LOG_XPGAIN);
+        assertEquals(c.guid, WowClientDouble.u64le(logA, 0));
+        assertEquals(c.guid, WowClientDouble.u64le(logB, 0));
+        assertEquals(25, WowClientDouble.u32le(logA, 8));
+        assertEquals(25, WowClientDouble.u32le(logB, 8));
+        assertEquals(0, logA[12]);
+        assertEquals(25, WowClientDouble.u32le(logA, 13));
+        assertEquals(1.0f, WowClientDouble.floatle(logA, 17));
+        assertEquals(25, alpha.valuesField(a.guid, UpdateFields.PLAYER_XP));
+        assertEquals(25, bravo.valuesField(b.guid, UpdateFields.PLAYER_XP));
+    }
+
+    /**
      * TP-SL06-012 — GiveXP past PLAYER_NEXT_LEVEL_XP → GiveLevel(2): SMSG_LEVELUP_INFO deltas from
      * player_classlevelstats / player_levelstats (human warrior 20→29 hp, str/agi/sta +1), fields re-derived.
      */

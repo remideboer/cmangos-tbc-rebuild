@@ -16,7 +16,7 @@ public final class XpFormulas {
     private XpFormulas() {}
 
     /** IsTrivialLevelDifference — grey mobs give nothing. */
-    static boolean isTrivialLevelDifference(int unitLvl, int targetLvl) {
+    public static boolean isTrivialLevelDifference(int unitLvl, int targetLvl) {
         if (unitLvl <= targetLvl) {
             return false;
         }
@@ -93,5 +93,16 @@ public final class XpFormulas {
             xp *= 2.5f;
         }
         return Math.round(xp);
+    }
+
+    /** Formulas.h MaNGOS::XP::xp_in_group_rate (raid unused in TBC). */
+    public static float xpInGroupRate(int count) {
+        return switch (count) {
+            case 0, 1, 2 -> 1.0f;
+            case 3 -> 1.166f;
+            case 4 -> 1.3f;
+            case 5 -> 1.4f;
+            default -> Math.max(1.f - count * 0.05f, 0.01f);
+        };
     }
 }

@@ -32,6 +32,18 @@ class XpFormulasTest {
     }
 
     @Test
+    void xpInGroupRateWhenPartySizeShouldMatchFormulasH() {
+        assertEquals(1.0f, XpFormulas.xpInGroupRate(0));
+        assertEquals(1.0f, XpFormulas.xpInGroupRate(1));
+        assertEquals(1.0f, XpFormulas.xpInGroupRate(2));
+        assertEquals(1.166f, XpFormulas.xpInGroupRate(3));
+        assertEquals(1.3f, XpFormulas.xpInGroupRate(4));
+        assertEquals(1.4f, XpFormulas.xpInGroupRate(5));
+        assertEquals(Math.max(1.f - 6 * 0.05f, 0.01f), XpFormulas.xpInGroupRate(6));
+        assertEquals(0.01f, XpFormulas.xpInGroupRate(100));
+    }
+
+    @Test
     void gainWhenOutlandShouldUseContent61To70Bonus() {
         assertEquals(60 * 5 + 235, XpFormulas.gain(player(60, 530), creature(60, 0)));
     }

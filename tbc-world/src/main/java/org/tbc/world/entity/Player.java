@@ -348,6 +348,19 @@ public final class Player extends Unit {
     public int resurrectMana;
 
     /** CMaNGOS Player::AddResurrectRequest — pending SMSG_RESURRECT_REQUEST data. */
+    /** CMaNGOS Player::IsAtGroupRewardDistance — MaxGroupXPDistance 74 yd (mangosd.conf). */
+    public static final float GROUP_XP_DISTANCE_YARDS = 74f;
+
+    public boolean isAtGroupRewardDistance(Creature source) {
+        if (source == null || mapId != source.mapId) {
+            return false;
+        }
+        float dx = x - source.x;
+        float dy = y - source.y;
+        float dz = z - source.z;
+        return dx * dx + dy * dy + dz * dz <= GROUP_XP_DISTANCE_YARDS * GROUP_XP_DISTANCE_YARDS;
+    }
+
     public void addResurrectRequest(long casterGuid, int mapId, float x, float y, float z, int health, int mana) {
         if (resurrectGuid != 0) {
             return;
@@ -538,6 +551,14 @@ public final class Player extends Unit {
      * passes PLAYER_NEXT_LEVEL_XP. Returns the update fields that changed so the caller can send VALUES.
      */
     public int[] giveXp(int amount, Creature victim) {
+        return giveXp(amount, victim, 1.0f);
+    }
+
+    /**
+     * CMaNGOS Player::GiveXP: SendLogXPGain, add rested bonus (kills only), GiveLevel while the total
+     * passes PLAYER_NEXT_LEVEL_XP. Returns the update fields that changed so the caller can send VALUES.
+     */
+    public int[] giveXp(int amount, Creature victim, float groupRate) {
         if (amount < 1 || !alive() || level >= MAX_LEVEL || levelStats == null) {
             return new int[0];
         }
@@ -546,7 +567,7 @@ public final class Player extends Unit {
             rest = Math.min((int) restBonus, amount);
             restBonus -= rest;
         }
-        sendLogXpGain(amount, victim, rest);
+        sendLogXpGain(amount, victim, rest, groupRate);
         List<Integer> changed = new ArrayList<>();
         changed.add(UpdateFields.PLAYER_XP);
         int newXp = xp + amount + rest;
@@ -560,7 +581,7 @@ public final class Player extends Unit {
     }
 
     /** Player::SendLogXPGain: victim guid, total xp, type (0 kill / 1 other), [xp without rest, group rate], RaF. */
-    private void sendLogXpGain(int amount, Creature victim, int rest) {
+    private void sendLogXpGain(int amount, Creature victim, int rest, float groupRate) {
         if (session == null) {
             return;
         }
@@ -570,7 +591,7 @@ public final class Player extends Unit {
         b.putU8(victim != null ? 0 : 1);
         if (victim != null) {
             b.putU32(amount);
-            b.putFloat(1.0f);
+            b.putFloat(groupRate);
         }
         b.putU8(0);
         session.send(Opcodes.SMSG_LOG_XPGAIN, b.array());

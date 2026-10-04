@@ -22,6 +22,7 @@ import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Corpse;
 import org.tbc.world.entity.Creature;
+import org.tbc.world.entity.Group;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
@@ -729,18 +730,65 @@ public final class World implements Runnable {
         onCreatureKilled(p, c);
     }
 
-    /** Unit::Kill → tapper->RewardSinglePlayerAtKill → GiveXP(MaNGOS::XP::Gain); XP/level VALUES to self. */
+    /** Unit::Kill → Group::RewardGroupAtKill or RewardSinglePlayerAtKill → GiveXP. */
     private void rewardKill(Player killer, Creature victim) {
         Player tapper = victim.taggedBy != 0 ? playerByGuid(victim.taggedBy) : null;
         if (tapper == null) {
             tapper = killer;
         }
-        int[] changed = tapper.giveXp(XpFormulas.gain(tapper, victim), victim);
-        if (changed.length > 0 && tapper.session != null) {
-            var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(tapper, changed));
-            tapper.session.send(upd.opcode(), upd.payload());
-            org.tbc.world.classless.ClasslessPowerAddon.pushIfPowerFields(tapper.session, changed);
-            org.tbc.world.classless.ClasslessPowerAddon.pushStatsIfDinged(tapper.session, changed);
+        if (tapper.group != null) {
+            rewardGroupAtKill(tapper.group, victim, tapper);
+            return;
+        }
+        applyKillXp(tapper, XpFormulas.gain(tapper, victim), victim, 1.0f);
+    }
+
+    /** Group.cpp RewardGroupAtKill — in-range living members share Gain × level/sum × xp_in_group_rate. */
+    private void rewardGroupAtKill(Group group, Creature victim, Player tapper) {
+        java.util.LinkedHashSet<Player> near = new java.util.LinkedHashSet<>();
+        for (Player m : group.members) {
+            if (m != null && m.alive() && m.isAtGroupRewardDistance(victim)) {
+                near.add(m);
+            }
+        }
+        if (tapper.alive() && tapper.isAtGroupRewardDistance(victim)) {
+            near.add(tapper);
+        }
+        if (near.isEmpty()) {
+            return;
+        }
+        int sumLevel = 0;
+        Player max = null;
+        Player notGrayMax = null;
+        for (Player m : near) {
+            sumLevel += m.level;
+            if (max == null || m.level > max.level) {
+                max = m;
+            }
+            if (!XpFormulas.isTrivialLevelDifference(m.level, victim.level)
+                    && (notGrayMax == null || m.level > notGrayMax.level)) {
+                notGrayMax = m;
+            }
+        }
+        float groupRate = XpFormulas.xpInGroupRate(near.size());
+        int xp = notGrayMax == null ? 0 : XpFormulas.gain(notGrayMax, victim);
+        for (Player m : near) {
+            if (!m.alive() || notGrayMax == null || m.level > notGrayMax.level) {
+                continue;
+            }
+            float rate = groupRate * (float) m.level / (float) sumLevel;
+            float itr = max == notGrayMax ? xp * rate : xp * rate * 0.5f + 1.0f;
+            applyKillXp(m, Math.round(itr), victim, groupRate);
+        }
+    }
+
+    private void applyKillXp(Player p, int amount, Creature victim, float groupRate) {
+        int[] changed = p.giveXp(amount, victim, groupRate);
+        if (changed.length > 0 && p.session != null) {
+            var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p, changed));
+            p.session.send(upd.opcode(), upd.payload());
+            org.tbc.world.classless.ClasslessPowerAddon.pushIfPowerFields(p.session, changed);
+            org.tbc.world.classless.ClasslessPowerAddon.pushStatsIfDinged(p.session, changed);
         }
     }
 
