@@ -1,6 +1,10 @@
 package org.tbc.editor.quest;
 
 import org.junit.jupiter.api.Test;
+import org.tbc.world.map.AreaTable;
+import org.tbc.world.map.WorldMapArea;
+import org.tbc.world.map.WorldMapAreaMapper;
+import org.tbc.world.map.WorldMapAreas;
 
 import java.util.List;
 
@@ -66,6 +70,21 @@ class QuestMapModelTest {
         model.setCalibration(cal);
         model.setOrientationFromPixelDelta(0, -10);
         assertEquals((float) Math.atan2(-10, 0), model.selected().orientation(), 1e-5f);
+    }
+
+    @Test
+    void clickPixelWhenRegionLoadedShouldStoreWorldXyNotImagePixels() {
+        QuestMapModel model = new QuestMapModel();
+        WorldMapArea elwynn = WorldMapAreas.seeded().byAreaId(AreaTable.ELWYNN_FOREST);
+        model.setRegion(elwynn, 200, 100);
+        model.setTool(QuestMapModel.Tool.PLACE_GIVER);
+        float[] world = new WorldMapAreaMapper(elwynn).toWorld(50, 25, 200, 100);
+        QuestMapModel.Marker m = model.clickPixel(50, 25);
+        assertEquals(world[0], m.x(), 1e-3);
+        assertEquals(world[1], m.y(), 1e-3);
+        float[] px = model.markerPixel(m);
+        assertEquals(50, px[0], 1e-2);
+        assertEquals(25, px[1], 1e-2);
     }
 
     @Test

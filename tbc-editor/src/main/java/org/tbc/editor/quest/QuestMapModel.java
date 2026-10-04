@@ -1,5 +1,8 @@
 package org.tbc.editor.quest;
 
+import org.tbc.world.map.WorldMapArea;
+import org.tbc.world.map.WorldMapAreaMapper;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -80,6 +83,10 @@ public final class QuestMapModel {
     private Tool tool = Tool.SELECT;
     private String selectedId;
     private OverlayCalibration calibration;
+    private WorldMapArea region;
+    private WorldMapAreaMapper mapper;
+    private int imageWidth = 1;
+    private int imageHeight = 1;
     private double panX;
     private double panY;
     private double zoom = 1;
@@ -99,6 +106,48 @@ public final class QuestMapModel {
 
     public OverlayCalibration calibration() {
         return calibration;
+    }
+
+    public void setRegion(WorldMapArea region, int imageWidth, int imageHeight) {
+        this.region = region;
+        this.mapper = region == null ? null : new WorldMapAreaMapper(region);
+        this.imageWidth = Math.max(1, imageWidth);
+        this.imageHeight = Math.max(1, imageHeight);
+        fitToRegion();
+    }
+
+    public WorldMapArea region() {
+        return region;
+    }
+
+    public int imageWidth() {
+        return imageWidth;
+    }
+
+    public int imageHeight() {
+        return imageHeight;
+    }
+
+    public Marker clickPixel(double pixelX, double pixelY) {
+        if (mapper == null) {
+            return null;
+        }
+        float[] world = mapper.toWorld((float) pixelX, (float) pixelY, imageWidth, imageHeight);
+        return clickWorld(world[0], world[1]);
+    }
+
+    public float[] markerPixel(Marker m) {
+        if (mapper == null || m == null) {
+            return new float[]{0, 0};
+        }
+        return mapper.toPixel((float) m.x, (float) m.y, imageWidth, imageHeight);
+    }
+
+    public float[] viewToWorld(double pixelX, double pixelY) {
+        if (mapper == null) {
+            return new float[]{(float) pixelX, (float) pixelY};
+        }
+        return mapper.toWorld((float) pixelX, (float) pixelY, imageWidth, imageHeight);
     }
 
     public List<Marker> markers() {
@@ -251,8 +300,14 @@ public final class QuestMapModel {
             return;
         }
         zoom = 1;
-        panX = -markers.get(0).x;
-        panY = -markers.get(0).y;
+        panX = 0;
+        panY = 0;
+    }
+
+    public void fitToRegion() {
+        zoom = 1;
+        panX = 0;
+        panY = 0;
     }
 
     private MarkerKind kindFor(Tool t) {

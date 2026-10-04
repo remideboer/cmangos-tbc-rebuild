@@ -6,7 +6,9 @@ import org.tbc.editor.quest.QuestDomain;
 import org.tbc.editor.quest.QuestService;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.map.MapSurfaceService;
+import org.tbc.world.map.RegionMinimap;
 import org.tbc.world.map.Terrain;
+import org.tbc.world.map.WorldMapAreas;
 import org.tbc.world.persist.CharacterStore;
 
 import javax.swing.SwingUtilities;
@@ -81,11 +83,21 @@ public final class EditorMain {
                         frame.addDomain(new CharacterDomain(service, frame::setStatus));
                         Path content = Path.of("content");
                         String dataDir = conf.get("DataDir", "");
-                        MapSurfaceService surfaces = dataDir.isBlank()
+                        Path dataPath = dataDir.isBlank() ? null : Path.of(dataDir);
+                        MapSurfaceService surfaces = dataPath == null
                                 ? MapSurfaceService.unavailable()
-                                : MapSurfaceService.fromTerrain(Terrain.fromDataDir(Path.of(dataDir)), null);
+                                : MapSurfaceService.fromTerrain(Terrain.fromDataDir(dataPath), null);
+                        Terrain terrain = dataPath == null ? null : Terrain.fromDataDir(dataPath);
+                        WorldMapAreas namedMaps = WorldMapAreas.fromDbc(dataPath);
                         QuestService quests = new QuestService(mgr, content, surfaces);
-                        frame.addDomain(new QuestDomain(quests, frame::setStatus));
+                        frame.addDomain(new QuestDomain(quests, frame::setStatus, namedMaps, area -> {
+                            int w = 512;
+                            float dy = Math.abs(area.locLeft() - area.locRight());
+                            float dx = Math.abs(area.locTop() - area.locBottom());
+                            int h = Math.max(64, (int) (w * (dx / Math.max(1f, dy))));
+                            return RegionMinimap.render(area,
+                                    terrain == null ? Terrain.NONE : terrain.asHeight(), w, h);
+                        }));
                         if (openQuests) {
                             frame.selectDomain("Quests");
                         }
