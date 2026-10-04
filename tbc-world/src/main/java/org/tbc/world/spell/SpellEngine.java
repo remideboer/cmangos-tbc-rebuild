@@ -2771,6 +2771,7 @@ public final class SpellEngine {
         }
         Group group = paladin.group;
         if (group == null) {
+            dropUngroupedCopies(paladin, map);
             return;
         }
         java.util.Set<Integer> casterPartySpells = new java.util.HashSet<>();
@@ -2807,6 +2808,37 @@ public final class SpellEngine {
                 }
             }
             dropStalePartyCopies(member, paladin.guid, casterPartySpells);
+        }
+        dropUngroupedCopies(paladin, map);
+    }
+
+    /** AreaAura::Update on non-caster: leave group / caster ungrouped drops the copy. */
+    private void dropUngroupedCopies(Player paladin, GameMap map) {
+        Group group = paladin.group;
+        int subgroup = group == null ? 0 : group.subgroups.getOrDefault(paladin.guid, 0);
+        for (Player pl : map.players()) {
+            if (pl == paladin) {
+                continue;
+            }
+            boolean sameGroup = group != null && group.contains(pl)
+                    && group.subgroups.getOrDefault(pl.guid, 0) == subgroup;
+            if (sameGroup) {
+                continue;
+            }
+            java.util.ArrayList<Integer> drop = new java.util.ArrayList<>();
+            for (Unit.Aura a : pl.auras) {
+                if (a.casterGuid() != paladin.guid) {
+                    continue;
+                }
+                SpellInfo sp = info(a.spellId());
+                if (sp == null || sp.effect != EFFECT_APPLY_AREA_AURA_PARTY) {
+                    continue;
+                }
+                drop.add(a.spellId());
+            }
+            for (int spellId : drop) {
+                dropPartyAuraCopy(pl, spellId);
+            }
         }
     }
 

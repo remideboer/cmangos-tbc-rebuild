@@ -176,6 +176,10 @@ class SpellEngineApplyAreaAuraPartyTest {
         eng.updatePartyAreaAuras(paladin, map);
         assertEquals(SpellEngine.DEVOTION_AURA, ally.getInt(UpdateFields.UNIT_FIELD_AURA));
         assertEquals(55, ally.getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE));
+        ally.auras.add(0, new org.tbc.world.entity.Unit.Aura(SpellEngine.FROST_ARMOR, 0, 1, 0, 0, 0, 0, paladin.guid));
+        ally.auras.add(0, new org.tbc.world.entity.Unit.Aura(SpellEngine.DEVOTION_AURA, 0, 1, 0, 0, 0, 0, 99L));
+        eng.updatePartyAreaAuras(paladin, map);
+        assertEquals(55, ally.getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE));
     }
 
     @Test
@@ -195,6 +199,48 @@ class SpellEngineApplyAreaAuraPartyTest {
         eng.updatePartyAreaAuras(paladin, map);
         assertEquals(0, ally.getInt(UpdateFields.UNIT_FIELD_AURA));
         assertEquals(0, ally.auras.size());
+        assertEquals(0, ally.getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE));
+    }
+
+    @Test
+    void updatePartyAreaAurasWhenAllyLeavesGroupShouldDropCopy() {
+        SpellEngine eng = new SpellEngine();
+        Player paladin = groupedPaladin(1);
+        Player ally = groupedAlly(2, paladin);
+        paladin.relocate(0, 0, 0, 0);
+        ally.relocate(5, 0, 0, 0);
+        GameMap map = new GameMap(0, 0);
+        map.add(paladin);
+        map.add(ally);
+        eng.apply(paladin, paladin, devotionAura(), 1_000L);
+        eng.updatePartyAreaAuras(paladin, map);
+        assertEquals(SpellEngine.DEVOTION_AURA, ally.getInt(UpdateFields.UNIT_FIELD_AURA));
+        paladin.group.members.remove(ally);
+        ally.group = null;
+        eng.updatePartyAreaAuras(paladin, map);
+        assertEquals(0, ally.getInt(UpdateFields.UNIT_FIELD_AURA));
+        assertEquals(0, ally.getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE));
+    }
+
+    @Test
+    void updatePartyAreaAurasWhenPaladinLeavesGroupShouldDropAllyCopy() {
+        SpellEngine eng = new SpellEngine();
+        Player paladin = groupedPaladin(1);
+        Player ally = groupedAlly(2, paladin);
+        paladin.relocate(0, 0, 0, 0);
+        ally.relocate(5, 0, 0, 0);
+        GameMap map = new GameMap(0, 0);
+        map.add(paladin);
+        map.add(ally);
+        eng.apply(paladin, paladin, devotionAura(), 1_000L);
+        eng.updatePartyAreaAuras(paladin, map);
+        ally.auras.add(new org.tbc.world.entity.Unit.Aura(99999, 0, 1, 0, 0, 0, 0, paladin.guid));
+        ally.auras.add(new org.tbc.world.entity.Unit.Aura(SpellEngine.FROST_ARMOR, 0, 1, 0, 0, 0, 0, paladin.guid));
+        ally.auras.add(new org.tbc.world.entity.Unit.Aura(SpellEngine.FROST_ARMOR, 0, 1, 0, 0, 0, 0, 88L));
+        paladin.group = null;
+        ally.group = null;
+        eng.updatePartyAreaAuras(paladin, map);
+        assertEquals(0, ally.getInt(UpdateFields.UNIT_FIELD_AURA));
         assertEquals(0, ally.getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE));
     }
 
