@@ -1038,6 +1038,7 @@ public final class World implements Runnable {
         spells.update(diff, nowMs());
         tickPeriodicAuras();
         expirePlayerAuras();
+        updatePartyAreaAuras();
         if (timers.weatherPassed()) {
             timers.resetWeather();
             WeatherHandler.onTimer(this);
@@ -1286,6 +1287,15 @@ public final class World implements Runnable {
             }
             for (Creature c : m.creaturesNearPlayers(GameMap.VISIBILITY)) {
                 expireUnitAuras(m, c, now);
+            }
+        }
+    }
+
+    /** AreaAura::Update — party copies of Devotion Aura 465 (CMaNGOS AREA_AURA_PARTY). */
+    private void updatePartyAreaAuras() {
+        for (GameMap m : maps.values()) {
+            for (Player p : m.players()) {
+                spells.updatePartyAreaAuras(p, m);
             }
         }
     }

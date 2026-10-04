@@ -11,6 +11,7 @@ import org.tbc.world.entity.Corpse;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.DynamicObject;
 import org.tbc.world.entity.GameObject;
+import org.tbc.world.entity.Group;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Pet;
@@ -2757,6 +2758,117 @@ public final class SpellEngine {
         }
         addOrRefreshAuraHolder(target, null, sp, 0);
         auras.apply(target, sp);
+    }
+
+    /**
+     * AreaAura::Update on the caster copy (CMaNGOS SpellAuras.cpp AREA_AURA_PARTY).
+     * Spell.dbc 465 EffectRadiusIndex1 10 → 30 yd; grouped living same-subgroup allies in range
+     * receive a caster-owned copy; leaving range, subgroup, or the group drops it.
+     */
+    public void updatePartyAreaAuras(Unit caster, GameMap map) {
+        if (!(caster instanceof Player paladin) || map == null) {
+            return;
+        }
+        Group group = paladin.group;
+        if (group == null) {
+            return;
+        }
+        java.util.Set<Integer> casterPartySpells = new java.util.HashSet<>();
+        for (Unit.Aura a : paladin.auras) {
+            SpellInfo sp = info(a.spellId());
+            if (sp == null || sp.effect != EFFECT_APPLY_AREA_AURA_PARTY) {
+                continue;
+            }
+            if (a.casterGuid() != 0 && a.casterGuid() != paladin.guid) {
+                continue;
+            }
+            if (areaAuraRadiusYards(sp) <= 0f) {
+                continue;
+            }
+            casterPartySpells.add(sp.id);
+        }
+        int subgroup = group.subgroups.getOrDefault(paladin.guid, 0);
+        for (Player member : group.members) {
+            if (member == paladin) {
+                continue;
+            }
+            for (int spellId : java.util.List.copyOf(casterPartySpells)) {
+                SpellInfo sp = info(spellId);
+                boolean inRange = member.alive()
+                        && member.mapId == paladin.mapId
+                        && group.subgroups.getOrDefault(member.guid, 0) == subgroup
+                        && distSq(paladin, member) <= sq(areaAuraRadiusYards(sp));
+                if (inRange) {
+                    if (!hasAuraFrom(member, spellId, paladin.guid)) {
+                        apply(paladin, member, sp, 0L);
+                    }
+                } else if (hasAuraFrom(member, spellId, paladin.guid)) {
+                    dropPartyAuraCopy(member, spellId);
+                }
+            }
+            dropStalePartyCopies(member, paladin.guid, casterPartySpells);
+        }
+    }
+
+    static float areaAuraRadiusYards(SpellInfo sp) {
+        if (sp == null) {
+            return 0f;
+        }
+        if (sp.id == DEVOTION_AURA) {
+            return DEVOTION_AURA_RADIUS_YARDS;
+        }
+        return 0f;
+    }
+
+    /** SpellRadius.dbc id 10 (spell_template 465 EffectRadiusIndex1). */
+    public static final float DEVOTION_AURA_RADIUS_YARDS = 30f;
+
+    private static boolean hasAuraFrom(Unit target, int spellId, long casterGuid) {
+        for (Unit.Aura a : target.auras) {
+            if (a.spellId() == spellId && a.casterGuid() == casterGuid) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void dropStalePartyCopies(Player member, long casterGuid, java.util.Set<Integer> stillOnCaster) {
+        java.util.ArrayList<Integer> drop = new java.util.ArrayList<>();
+        for (Unit.Aura a : member.auras) {
+            if (a.casterGuid() != casterGuid) {
+                continue;
+            }
+            SpellInfo sp = info(a.spellId());
+            if (sp == null || sp.effect != EFFECT_APPLY_AREA_AURA_PARTY) {
+                continue;
+            }
+            if (!stillOnCaster.contains(a.spellId())) {
+                drop.add(a.spellId());
+            }
+        }
+        for (int spellId : drop) {
+            dropPartyAuraCopy(member, spellId);
+        }
+    }
+
+    private void dropPartyAuraCopy(Unit target, int spellId) {
+        unapplyAura(target, spellId);
+        int slot = AuraSlots.slotOf(target, spellId);
+        target.auras.removeIf(a -> a.spellId() == spellId);
+        if (slot >= 0) {
+            AuraSlots.clearVisible(target, slot);
+        }
+    }
+
+    private static float distSq(Unit a, Unit b) {
+        float dx = a.x - b.x;
+        float dy = a.y - b.y;
+        float dz = a.z - b.z;
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private static float sq(float v) {
+        return v * v;
     }
 
     /**
