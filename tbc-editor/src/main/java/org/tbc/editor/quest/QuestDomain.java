@@ -1141,7 +1141,7 @@ public final class QuestDomain implements EditorDomain {
         fillingChanges = true;
         try {
             npcChangeModel.clear();
-            for (NpcEditSession.Change change : npcEdits.changes()) {
+            for (NpcEditSession.Change change : npcEdits.changes(guid -> service.creatures().dbCreature(guid))) {
                 npcChangeModel.addElement(change);
             }
         } finally {
@@ -1167,7 +1167,8 @@ public final class QuestDomain implements EditorDomain {
                 canvas.setSpawns(MapSpawnLayer.inArea(service.creatures(), area));
             }
             showNpc(canvas.selectedSpawn());
-            status.accept("Wrote " + written.spawns() + " spawn(s) and " + written.templates()
+            status.accept("Wrote " + written.spawns() + " spawn(s) (" + written.updated() + " updated, "
+                    + written.inserted() + " inserted) and " + written.templates()
                     + " template(s) to the world database. Restart the world server.");
         } catch (RuntimeException ex) {
             status.accept(message(ex));

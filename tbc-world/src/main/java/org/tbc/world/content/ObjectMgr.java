@@ -25,6 +25,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -1619,6 +1620,8 @@ public final class ObjectMgr {
     public final Map<Integer, String> itemTexts = new HashMap<>();
     public final Map<Integer, NpcText> npcTexts = new HashMap<>();
     public final List<Spawn> spawns = new ArrayList<>();
+    /** Creature guids that were loaded from the world `creature` table (not memory seeds). */
+    private final Set<Integer> dbCreatureGuids = new HashSet<>();
     public final List<Spawn> goSpawns = new ArrayList<>();
     public final Map<Integer, List<Spawn>> eventCreatures = new HashMap<>();
     public final Map<Integer, List<Spawn>> eventGameObjects = new HashMap<>();
@@ -2520,9 +2523,11 @@ public final class ObjectMgr {
                     int movementType = motion ? rs.getInt(9) : 0;
                     int respawnMin = respawn ? rs.getInt(10) : Spawn.DEFAULT_RESPAWN_SECS;
                     int respawnMax = respawn ? rs.getInt(11) : Spawn.DEFAULT_RESPAWN_SECS;
-                    spawns.add(new Spawn(rs.getInt(1), rs.getInt(2), rs.getInt(3),
+                    int guid = rs.getInt(1);
+                    spawns.add(new Spawn(guid, rs.getInt(2), rs.getInt(3),
                             rs.getFloat(4), rs.getFloat(5), rs.getFloat(6), rs.getFloat(7),
                             spawnDist, movementType, respawnMin, respawnMax));
+                    dbCreatureGuids.add(guid);
                 }
                 log.info("loaded {} creature spawns", spawns.size());
                 return;
@@ -2533,6 +2538,25 @@ public final class ObjectMgr {
         if (last != null) {
             throw last;
         }
+    }
+
+    public boolean dbCreature(int guid) {
+        return dbCreatureGuids.contains(guid);
+    }
+
+    public void markDbCreature(int guid) {
+        if (guid != 0) {
+            dbCreatureGuids.add(guid);
+        }
+    }
+
+    public Spawn creatureSpawn(int guid) {
+        for (Spawn s : spawns) {
+            if (s.guid() == guid) {
+                return s;
+            }
+        }
+        return null;
     }
 
     private void loadGoSpawns(Connection c) throws Exception {

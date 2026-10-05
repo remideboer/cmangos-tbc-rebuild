@@ -397,13 +397,19 @@ public final class QuestService {
      */
     public NpcEditStore.Result saveNpcEdits(NpcEditSession session) {
         if (session == null || !session.dirty()) {
-            return new NpcEditStore.Result(0, 0);
+            return new NpcEditStore.Result(0, 0, 0);
         }
         if (world == null) {
             throw new EditorException("No world database.");
         }
         try (Connection c = world.get()) {
-            NpcEditStore.Result written = NpcEditStore.save(c, session);
+            NpcEditStore.Result written = NpcEditStore.save(c, session,
+                    guid -> mgr == null ? null : mgr.creatureSpawn(guid),
+                    guid -> {
+                        if (mgr != null) {
+                            mgr.markDbCreature(guid);
+                        }
+                    });
             applyNpcEdits(session);
             session.accept();
             return written;

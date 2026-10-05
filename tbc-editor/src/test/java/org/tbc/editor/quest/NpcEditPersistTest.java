@@ -15,6 +15,7 @@ import java.sql.Statement;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,18 +30,11 @@ class NpcEditPersistTest {
     }
 
     @Test
-    void saveNpcEditsWhenMovedShouldPersistAndRoundTripFromSql() throws Exception {
+    void saveNpcEditsWhenMovedExistingRowShouldUpdate() throws Exception {
         world = memPool("ok");
+        createCreatureTable(true);
         try (Connection c = world.get(); Statement s = c.createStatement()) {
-            s.execute("""
-                    CREATE TABLE creature (
-                      guid INT PRIMARY KEY,
-                      position_x DECIMAL(40,20),
-                      position_y DECIMAL(40,20),
-                      position_z DECIMAL(40,20)
-                    )
-                    """);
-            s.execute("INSERT INTO creature VALUES (1, 10349.6, -6357.29, 33)");
+            s.execute("INSERT INTO creature VALUES (1, 15271, 530, 1, 10349.6, -6357.29, 33, 0, 300, 300, 0, 0)");
             s.execute("""
                     CREATE TABLE creature_template (
                       Entry INT PRIMARY KEY,
@@ -54,43 +48,56 @@ class NpcEditPersistTest {
             s.execute("INSERT INTO creature_template VALUES (15271, 'Mana Wyrm', 49, 0, 1, 14)");
         }
         ObjectMgr mgr = mgrWithWyrm();
+        mgr.markDbCreature(1);
         QuestService service = new QuestService(mgr, Path.of("target", "npc-persist-test"),
                 MapSurfaceService.unavailable(), world);
         NpcEditSession session = new NpcEditSession();
         session.remember(wyrm(), 49, 0, 1, 14);
         session.move(1, 10380f, -6340f, 12.5f);
         NpcEditStore.Result written = service.saveNpcEdits(session);
+        assertEquals(1, written.updated());
+        assertEquals(0, written.inserted());
         assertEquals(1, written.spawns());
         assertEquals(0, written.templates());
         assertTrue(!session.dirty());
         assertEquals(10380f, mgr.spawns.get(0).x(), 0.05f);
+        assertPositions(1, 10380f, -6340f, 12.5f);
+    }
+
+    @Test
+    void saveNpcEditsWhenMemoryOnlySpawnShouldInsertAndMarkDb() throws Exception {
+        world = memPool("insert");
+        createCreatureTable(true);
+        ObjectMgr mgr = mgrWithWyrm();
+        assertFalse(mgr.dbCreature(1));
+        QuestService service = new QuestService(mgr, Path.of("target", "npc-persist-test"),
+                MapSurfaceService.unavailable(), world);
+        NpcEditSession session = new NpcEditSession();
+        session.remember(wyrm(), 49, 0, 1, 14);
+        session.move(1, 10380f, -6340f, 12.5f);
+        NpcEditStore.Result written = service.saveNpcEdits(session);
+        assertEquals(0, written.updated());
+        assertEquals(1, written.inserted());
+        assertTrue(mgr.dbCreature(1));
+        assertTrue(!session.dirty());
+        assertPositions(1, 10380f, -6340f, 12.5f);
         try (Connection c = world.get();
              PreparedStatement ps = c.prepareStatement(
-                     "SELECT position_x, position_y, position_z FROM creature WHERE guid = 1");
+                     "SELECT id, map, spawnMask, orientation FROM creature WHERE guid = 1");
              ResultSet rs = ps.executeQuery()) {
             assertTrue(rs.next());
-            assertEquals(10380f, rs.getFloat(1), 0.05f);
-            assertEquals(-6340f, rs.getFloat(2), 0.05f);
-            assertEquals(12.5f, rs.getFloat(3), 0.05f);
+            assertEquals(15271, rs.getInt(1));
+            assertEquals(530, rs.getInt(2));
+            assertEquals(1, rs.getInt(3));
+            assertEquals(0f, rs.getFloat(4), 0.01f);
         }
     }
 
     @Test
-    void saveNpcEditsWhenGuidMissingShouldLeaveMemoryUnchanged() {
-        world = memPool("missing");
-        try (Connection c = world.get(); Statement s = c.createStatement()) {
-            s.execute("""
-                    CREATE TABLE creature (
-                      guid INT PRIMARY KEY,
-                      position_x DECIMAL(40,20),
-                      position_y DECIMAL(40,20),
-                      position_z DECIMAL(40,20)
-                    )
-                    """);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        ObjectMgr mgr = mgrWithWyrm();
+    void saveNpcEditsWhenOrphanGuidShouldLeaveMemoryUnchanged() {
+        world = memPool("orphan");
+        createCreatureTable(false);
+        ObjectMgr mgr = new ObjectMgr();
         QuestService service = new QuestService(mgr, Path.of("target", "npc-persist-test"),
                 MapSurfaceService.unavailable(), world);
         NpcEditSession session = new NpcEditSession();
@@ -99,8 +106,6 @@ class NpcEditPersistTest {
         EditorException ex = assertThrows(EditorException.class, () -> service.saveNpcEdits(session));
         assertTrue(ex.getMessage().contains("guid 1"));
         assertTrue(session.dirty());
-        assertEquals(10349.6f, mgr.spawns.get(0).x(), 0.05f);
-        assertEquals(-6357.29f, mgr.spawns.get(0).y(), 0.05f);
     }
 
     @Test
@@ -111,6 +116,54 @@ class NpcEditPersistTest {
         assertEquals(0, written.spawns());
         assertEquals(0, written.templates());
         assertEquals(10349.6f, mgr.spawns.get(0).x(), 0.05f);
+    }
+
+    private void createCreatureTable(boolean withExtras) {
+        try (Connection c = world.get(); Statement s = c.createStatement()) {
+            if (withExtras) {
+                s.execute("""
+                        CREATE TABLE creature (
+                          guid INT PRIMARY KEY,
+                          id INT,
+                          map INT,
+                          spawnMask INT,
+                          position_x DECIMAL(40,20),
+                          position_y DECIMAL(40,20),
+                          position_z DECIMAL(40,20),
+                          orientation DECIMAL(40,20),
+                          spawntimesecsmin INT,
+                          spawntimesecsmax INT,
+                          spawndist FLOAT,
+                          MovementType INT
+                        )
+                        """);
+            } else {
+                s.execute("""
+                        CREATE TABLE creature (
+                          guid INT PRIMARY KEY,
+                          position_x DECIMAL(40,20),
+                          position_y DECIMAL(40,20),
+                          position_z DECIMAL(40,20)
+                        )
+                        """);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void assertPositions(int guid, float x, float y, float z) throws Exception {
+        try (Connection c = world.get();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT position_x, position_y, position_z FROM creature WHERE guid = ?")) {
+            ps.setInt(1, guid);
+            try (ResultSet rs = ps.executeQuery()) {
+                assertTrue(rs.next());
+                assertEquals(x, rs.getFloat(1), 0.05f);
+                assertEquals(y, rs.getFloat(2), 0.05f);
+                assertEquals(z, rs.getFloat(3), 0.05f);
+            }
+        }
     }
 
     private static ObjectMgr mgrWithWyrm() {

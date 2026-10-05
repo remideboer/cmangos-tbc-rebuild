@@ -1,13 +1,21 @@
 package org.tbc.editor.quest;
 
+import org.tbc.world.content.ObjectMgr;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.function.IntConsumer;
+import java.util.function.IntFunction;
 
 /** Writes dragged positions and shared template name, display, and gear. Verifies each row. */
 public final class NpcEditStore {
-    public record Result(int spawns, int templates) {}
+    public record Result(int updated, int inserted, int templates) {
+        public int spawns() {
+            return updated + inserted;
+        }
+    }
 
     public interface Sql {
         boolean exists(String sql, int id) throws SQLException;
@@ -18,34 +26,51 @@ public final class NpcEditStore {
     }
 
     private static final int MYSQL_BAD_FIELD = 1054;
+    private static final int SPAWN_MASK = 1;
 
     private NpcEditStore() {}
 
-    public static Result save(Connection connection, NpcEditSession session) throws SQLException {
+    public static Result save(Connection connection, NpcEditSession session,
+                              IntFunction<ObjectMgr.Spawn> spawnOf, IntConsumer markDb) throws SQLException {
         if (connection == null) {
             throw new SQLException("No world database.");
         }
-        return save(new JdbcSql(connection), session);
+        return save(new JdbcSql(connection), session, spawnOf, markDb);
     }
 
-    public static Result save(Sql sql, NpcEditSession session) throws SQLException {
+    public static Result save(Sql sql, NpcEditSession session, IntFunction<ObjectMgr.Spawn> spawnOf,
+                              IntConsumer markDb) throws SQLException {
         if (sql == null || session == null) {
-            return new Result(0, 0);
+            return new Result(0, 0, 0);
         }
-        int spawns = 0;
+        IntFunction<ObjectMgr.Spawn> spawns = spawnOf == null ? guid -> null : spawnOf;
+        IntConsumer marked = markDb == null ? guid -> {} : markDb;
+        int updated = 0;
+        int inserted = 0;
         int templates = 0;
         for (NpcEditSession.Pose pose : session.moved()) {
-            if (!sql.exists("SELECT guid FROM creature WHERE guid = ?", pose.guid())) {
-                throw new SQLException("creature guid " + pose.guid() + " is not in the world database");
+            if (sql.exists("SELECT guid FROM creature WHERE guid = ?", pose.guid())) {
+                sql.update("UPDATE creature SET position_x = ?, position_y = ?, position_z = ? WHERE guid = ?",
+                        pose.x(), pose.y(), pose.z(), pose.guid());
+                verifyPosition(sql, pose);
+                updated++;
+                continue;
             }
-            sql.update("UPDATE creature SET position_x = ?, position_y = ?, position_z = ? WHERE guid = ?",
-                    pose.x(), pose.y(), pose.z(), pose.guid());
-            float[] got = sql.floats(
-                    "SELECT position_x, position_y, position_z FROM creature WHERE guid = ?", pose.guid());
-            if (got == null || got.length < 3 || drifted(pose, got)) {
-                throw new SQLException("creature guid " + pose.guid() + " did not keep the saved position");
+            ObjectMgr.Spawn spawn = spawns.apply(pose.guid());
+            if (spawn == null) {
+                throw new SQLException("creature guid " + pose.guid()
+                        + " is not in the world database and has no in-memory spawn to insert");
             }
-            spawns++;
+            sql.update(
+                    "INSERT INTO creature (guid, id, map, spawnMask, position_x, position_y, position_z, orientation, "
+                            + "spawntimesecsmin, spawntimesecsmax, spawndist, MovementType) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    pose.guid(), spawn.entry(), spawn.map(), SPAWN_MASK,
+                    pose.x(), pose.y(), pose.z(), spawn.o(),
+                    spawn.respawnMinSecs(), spawn.respawnMaxSecs(), spawn.spawnDist(), spawn.movementType());
+            verifyPosition(sql, pose);
+            marked.accept(pose.guid());
+            inserted++;
         }
         for (NpcEditSession.Look look : session.changedLooks()) {
             if (!sql.exists("SELECT Entry FROM creature_template WHERE Entry = ?", look.entry())) {
@@ -68,7 +93,15 @@ public final class NpcEditStore {
             }
             templates++;
         }
-        return new Result(spawns, templates);
+        return new Result(updated, inserted, templates);
+    }
+
+    private static void verifyPosition(Sql sql, NpcEditSession.Pose pose) throws SQLException {
+        float[] got = sql.floats(
+                "SELECT position_x, position_y, position_z FROM creature WHERE guid = ?", pose.guid());
+        if (got == null || got.length < 3 || drifted(pose, got)) {
+            throw new SQLException("creature guid " + pose.guid() + " did not keep the saved position");
+        }
     }
 
     private static boolean drifted(NpcEditSession.Pose pose, float[] got) {

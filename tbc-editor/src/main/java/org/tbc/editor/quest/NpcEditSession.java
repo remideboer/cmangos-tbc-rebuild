@@ -121,12 +121,20 @@ public final class NpcEditSession {
     }
 
     public List<Change> changes() {
+        return changes(guid -> true);
+    }
+
+    public List<Change> changes(java.util.function.IntPredicate dbCreature) {
+        java.util.function.IntPredicate inDb = dbCreature == null ? guid -> true : dbCreature;
         List<Change> out = new ArrayList<>();
         for (Pose now : moved()) {
             Look named = look.get(now.entry());
             String name = named == null ? "" : named.name();
-            out.add(new Change(Change.Kind.MOVED, now.guid(), now.entry(),
-                    "guid " + now.guid() + " (" + name + ") moved"));
+            String text = "guid " + now.guid() + " (" + name + ") moved";
+            if (!inDb.test(now.guid())) {
+                text += " — will insert";
+            }
+            out.add(new Change(Change.Kind.MOVED, now.guid(), now.entry(), text));
         }
         for (Look now : changedLooks()) {
             Look was = originalLook.get(now.entry());

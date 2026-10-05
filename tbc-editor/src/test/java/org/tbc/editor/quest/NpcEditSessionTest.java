@@ -60,12 +60,30 @@ class NpcEditSessionTest {
     }
 
     @Test
-    void saveWhenGuidMissingShouldRefuseWithoutUpdatingTemplate() {
+    void saveWhenGuidMissingAndSpawnKnownShouldInsert() throws Exception {
         NpcEditSession session = movedAndRenamed();
         Capture sql = new Capture();
-        SQLException ex = assertThrows(SQLException.class, () -> NpcEditStore.save(sql, session));
+        sql.entries.add(15271);
+        ObjectMgr.Spawn spawn = new ObjectMgr.Spawn(1, 15271, 530, 10349.6f, -6357.29f, 33f, 1.5f, 2f, 1);
+        NpcEditStore.Result written = NpcEditStore.save(sql, session, guid -> spawn, g -> {});
+        assertEquals(0, written.updated());
+        assertEquals(1, written.inserted());
+        assertTrue(sql.sql.stream().anyMatch(s -> s.startsWith("INSERT INTO creature")));
+        Object[] insert = sql.args.stream().filter(a -> a.length == 12).findFirst().orElseThrow();
+        assertEquals(1, insert[0]);
+        assertEquals(15271, insert[1]);
+        assertEquals(530, insert[2]);
+        assertEquals(1, insert[3]);
+    }
+
+    @Test
+    void saveWhenGuidMissingAndSpawnUnknownShouldRefuse() {
+        NpcEditSession session = movedAndRenamed();
+        Capture sql = new Capture();
+        SQLException ex = assertThrows(SQLException.class,
+                () -> NpcEditStore.save(sql, session, guid -> null, g -> {}));
         assertTrue(ex.getMessage().contains("guid 1"));
-        assertTrue(sql.sql.stream().noneMatch(s -> s.contains("UPDATE")));
+        assertTrue(sql.sql.stream().noneMatch(s -> s.contains("UPDATE") || s.contains("INSERT")));
     }
 
     @Test
@@ -75,7 +93,8 @@ class NpcEditSessionTest {
         sql.guids.add(1);
         sql.entries.add(15271);
         sql.readback = new float[] {0f, 0f, 0f};
-        SQLException ex = assertThrows(SQLException.class, () -> NpcEditStore.save(sql, session));
+        SQLException ex = assertThrows(SQLException.class,
+                () -> NpcEditStore.save(sql, session, guid -> null, g -> {}));
         assertTrue(ex.getMessage().contains("did not keep the saved position"));
     }
 
@@ -86,8 +105,9 @@ class NpcEditSessionTest {
         sql.guids.add(1);
         sql.entries.add(15271);
         sql.failDisplayCode = 1054;
-        NpcEditStore.Result written = NpcEditStore.save(sql, session);
-        assertEquals(1, written.spawns());
+        NpcEditStore.Result written = NpcEditStore.save(sql, session, guid -> null, g -> {});
+        assertEquals(1, written.updated());
+        assertEquals(0, written.inserted());
         assertEquals(1, written.templates());
         assertTrue(sql.sql.stream().anyMatch(s -> s.contains("UPDATE creature SET position_x")));
         assertTrue(sql.sql.stream().anyMatch(s -> s.contains("ModelId1")));
@@ -108,9 +128,19 @@ class NpcEditSessionTest {
         sql.guids.add(1);
         sql.entries.add(15271);
         sql.failDisplayCode = 1064;
-        SQLException ex = assertThrows(SQLException.class, () -> NpcEditStore.save(sql, session));
+        SQLException ex = assertThrows(SQLException.class,
+                () -> NpcEditStore.save(sql, session, guid -> null, g -> {}));
         assertEquals(1064, ex.getErrorCode());
         assertTrue(sql.sql.stream().noneMatch(s -> s.contains("ModelId1")));
+    }
+
+    @Test
+    void changesWhenNotInDatabaseShouldSayWillInsert() {
+        NpcEditSession session = new NpcEditSession();
+        session.remember(wyrm(), 49, 0, 1, 14);
+        session.move(1, 10f, 20f, 30f);
+        String text = session.changes(guid -> false).get(0).toString();
+        assertTrue(text.contains("will insert"));
     }
 
     @Test
