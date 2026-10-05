@@ -1003,6 +1003,7 @@ public final class QuestDomain implements EditorDomain {
                 template == null ? 0 : template.type(),
                 template == null ? 0 : template.faction());
         npcEdits.move(pin.guid(), pin.x(), pin.y(), pin.z());
+        npcEdits.face(pin.guid(), pin.o());
         if (!move.heightFound()) {
             status.accept("No terrain height; kept the previous height.");
         }

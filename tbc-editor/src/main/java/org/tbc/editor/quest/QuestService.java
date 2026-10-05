@@ -430,7 +430,7 @@ public final class QuestService {
                     continue;
                 }
                 mgr.spawns.set(i, new ObjectMgr.Spawn(spawn.guid(), spawn.entry(), spawn.map(),
-                        pose.x(), pose.y(), pose.z(), spawn.o(), spawn.spawnDist(), spawn.movementType(),
+                        pose.x(), pose.y(), pose.z(), pose.o(), spawn.spawnDist(), spawn.movementType(),
                         spawn.respawnMinSecs(), spawn.respawnMaxSecs()));
                 break;
             }

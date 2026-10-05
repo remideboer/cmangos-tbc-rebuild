@@ -169,10 +169,24 @@ public final class QuestMapCanvas extends JPanel {
         addMouseMotionListener(mouse);
         addMouseWheelListener(mouse);
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSpawn");
+        getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "rotateRight");
+        getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "rotateLeft");
         getActionMap().put("clearSpawn", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 clearSelection();
+            }
+        });
+        getActionMap().put("rotateRight", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                rotateSelected(true);
+            }
+        });
+        getActionMap().put("rotateLeft", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                rotateSelected(false);
             }
         });
     }
@@ -400,6 +414,9 @@ public final class QuestMapCanvas extends JPanel {
                 g2.fillOval(px - 5, py - 5, 10, 10);
                 g2.setColor(Color.BLACK);
                 g2.drawOval(px - 5, py - 5, 10, 10);
+                if (pin.kind() == MapSpawnLayer.Kind.CREATURE) {
+                    drawFacing(g2, px, py, pin.o());
+                }
                 if (pin.equals(selectedSpawn)) {
                     g2.setColor(Color.WHITE);
                     g2.drawOval(px - 8, py - 8, 16, 16);
@@ -487,6 +504,34 @@ public final class QuestMapCanvas extends JPanel {
                 ? creatureMarks : objectMarks;
         EnumSet<QuestRoles.Role> roles = marks.get(pin.entry());
         return roles == null ? EnumSet.noneOf(QuestRoles.Role.class) : roles;
+    }
+
+    private void rotateSelected(boolean right) {
+        MapSpawnLayer.Pin pin = selectedSpawn;
+        if (pin == null || pin.kind() != MapSpawnLayer.Kind.CREATURE || pin.guid() == 0) {
+            return;
+        }
+        float o = right ? NpcFacing.right(pin.o()) : NpcFacing.left(pin.o());
+        MapSpawnLayer.Pin next = pin.faced(o);
+        putPin(next);
+        spawnMoved.accept(new SpawnMove(next, true));
+        repaint();
+    }
+
+    private static void drawFacing(Graphics2D g2, int px, int py, float o) {
+        float[] dir = NpcFacing.screenDir(o);
+        float dx = dir[0];
+        float dy = dir[1];
+        int tipX = px + Math.round(dx * 12);
+        int tipY = py + Math.round(dy * 12);
+        int bx = px + Math.round(dx * 3);
+        int by = py + Math.round(dy * 3);
+        int pxp = Math.round(-dy * 4);
+        int pyp = Math.round(dx * 4);
+        g2.setColor(Color.WHITE);
+        g2.fillPolygon(new int[] {tipX, bx + pxp, bx - pxp}, new int[] {tipY, by + pyp, by - pyp}, 3);
+        g2.setColor(Color.BLACK);
+        g2.drawPolygon(new int[] {tipX, bx + pxp, bx - pxp}, new int[] {tipY, by + pyp, by - pyp}, 3);
     }
 
     private static void drawQuestRings(Graphics2D g2, int px, int py, EnumSet<QuestRoles.Role> roles) {

@@ -24,12 +24,12 @@ class MapSpawnLayerTest {
                 "", "", 0, 0, 0, 0, 1, 0, 0, 0, 1f, 1f, 0));
         mgr.gameObjects.put(1, new ObjectMgr.GameObjectTemplate(
                 1, 3, 1, "Sunstrider Crate", "", "", "", new int[24], 1f));
-        mgr.spawns.add(new ObjectMgr.Spawn(1, 15271, 530, 10349.6f, -6357.29f, 33f, 0f));
+        mgr.spawns.add(new ObjectMgr.Spawn(1, 15271, 530, 10349.6f, -6357.29f, 33f, 1.5f));
         mgr.spawns.add(new ObjectMgr.Spawn(2, 15271, 530, 9000f, -8000f, 20f, 0f));
         mgr.goSpawns.add(new ObjectMgr.Spawn(3, 1, 530, 10360f, -6360f, 33f, 0f));
         List<MapSpawnLayer.Pin> pins = MapSpawnLayer.inArea(mgr, WorldMapAreas.SUNSTRIDER);
         assertTrue(pins.stream().anyMatch(p -> p.kind() == MapSpawnLayer.Kind.CREATURE && p.guid() == 1
-                && p.entry() == 15271 && p.z() == 33f
+                && p.entry() == 15271 && p.z() == 33f && p.o() == 1.5f
                 && "Mana Wyrm".equals(p.name()) && "Beast".equals(p.typeName())));
         assertTrue(pins.stream().anyMatch(p -> p.kind() == MapSpawnLayer.Kind.OBJECT
                 && "Sunstrider Crate".equals(p.name()) && "Chest".equals(p.typeName())));
@@ -152,6 +152,26 @@ class MapSpawnLayerTest {
         assertEquals(10420f, stayed.x(), 0.01f);
         assertEquals(-6200f, stayed.y(), 0.01f);
         assertEquals(0, canvas.model().markers().size());
+    }
+
+    @Test
+    void arrowWhenSelectedCreatureShouldRotateOneSixteenth() {
+        QuestMapCanvas canvas = sunstrider(new MapSpawnLayer.Pin(
+                MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f, 33f, 0f));
+        float[] pix = canvas.model().worldToPixel(10349.6f, -6357.29f);
+        press(canvas, (int) pix[0], (int) pix[1], 1);
+        canvas.getActionMap().get("rotateRight").actionPerformed(new ActionEvent(canvas, 0, "rotateRight"));
+        assertEquals(NpcFacing.right(0f), canvas.selectedSpawn().o(), 1e-5f);
+        canvas.getActionMap().get("rotateLeft").actionPerformed(new ActionEvent(canvas, 0, "rotateLeft"));
+        assertEquals(0f, canvas.selectedSpawn().o(), 1e-5f);
+    }
+
+    @Test
+    void arrowWhenNothingSelectedShouldLeaveFacing() {
+        QuestMapCanvas canvas = sunstrider(new MapSpawnLayer.Pin(
+                MapSpawnLayer.Kind.CREATURE, 1, 15271, "Mana Wyrm", "Beast", 10349.6f, -6357.29f, 33f, 0.4f));
+        canvas.getActionMap().get("rotateRight").actionPerformed(new ActionEvent(canvas, 0, "rotateRight"));
+        assertEquals(0.4f, canvas.spawns().get(0).o(), 1e-5f);
     }
 
     private static QuestMapCanvas sunstrider(MapSpawnLayer.Pin... pins) {

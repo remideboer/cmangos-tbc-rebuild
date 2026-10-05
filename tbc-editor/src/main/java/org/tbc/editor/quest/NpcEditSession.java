@@ -10,7 +10,7 @@ import java.util.Map;
  * Clear copies the snapshot back. Save reads {@link #moved()} and {@link #changedLooks()}.
  */
 public final class NpcEditSession {
-    public record Pose(int guid, int entry, float x, float y, float z) {}
+    public record Pose(int guid, int entry, float x, float y, float z, float o) {}
 
     public record Look(int entry, String name, int displayId, int equipmentId, int creatureType, int faction) {}
 
@@ -33,7 +33,7 @@ public final class NpcEditSession {
             return;
         }
         String name = pin.name() == null ? "" : pin.name();
-        originalPose.putIfAbsent(pin.guid(), new Pose(pin.guid(), pin.entry(), pin.x(), pin.y(), pin.z()));
+        originalPose.putIfAbsent(pin.guid(), new Pose(pin.guid(), pin.entry(), pin.x(), pin.y(), pin.z(), pin.o()));
         pose.putIfAbsent(pin.guid(), originalPose.get(pin.guid()));
         originalLook.putIfAbsent(pin.entry(), new Look(pin.entry(), name, displayId, equipmentId, creatureType, faction));
         look.putIfAbsent(pin.entry(), originalLook.get(pin.entry()));
@@ -44,7 +44,15 @@ public final class NpcEditSession {
         if (cur == null) {
             return;
         }
-        pose.put(guid, new Pose(guid, cur.entry(), x, y, z));
+        pose.put(guid, new Pose(guid, cur.entry(), x, y, z, cur.o()));
+    }
+
+    public void face(int guid, float o) {
+        Pose cur = pose.get(guid);
+        if (cur == null) {
+            return;
+        }
+        pose.put(guid, new Pose(guid, cur.entry(), cur.x(), cur.y(), cur.z(), o));
     }
 
     public void rename(int entry, String name) {
@@ -131,6 +139,9 @@ public final class NpcEditSession {
             Look named = look.get(now.entry());
             String name = named == null ? "" : named.name();
             String text = "guid " + now.guid() + " (" + name + ") moved";
+            if (Math.abs(now.o() - originalPose.get(now.guid()).o()) > POSITION_EPS) {
+                text += " facing " + NpcFacing.tick(now.o()) + "/16";
+            }
             if (!inDb.test(now.guid())) {
                 text += " — will insert";
             }
@@ -186,7 +197,7 @@ public final class NpcEditSession {
             MapSpawnLayer.Pin next = pin;
             Pose at = pose.get(pin.guid());
             if (pin.kind() == MapSpawnLayer.Kind.CREATURE && at != null) {
-                next = next.moved(at.x(), at.y(), at.z());
+                next = next.moved(at.x(), at.y(), at.z()).faced(at.o());
             }
             Look named = look.get(pin.entry());
             if (pin.kind() == MapSpawnLayer.Kind.CREATURE && named != null) {
@@ -202,7 +213,8 @@ public final class NpcEditSession {
     private static boolean shifted(Pose was, Pose now) {
         return Math.abs(was.x() - now.x()) > POSITION_EPS
                 || Math.abs(was.y() - now.y()) > POSITION_EPS
-                || Math.abs(was.z() - now.z()) > POSITION_EPS;
+                || Math.abs(was.z() - now.z()) > POSITION_EPS
+                || Math.abs(was.o() - now.o()) > POSITION_EPS;
     }
 
     private static boolean sameLook(Look was, Look now) {

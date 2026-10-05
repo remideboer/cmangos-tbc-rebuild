@@ -50,8 +50,9 @@ public final class NpcEditStore {
         int templates = 0;
         for (NpcEditSession.Pose pose : session.moved()) {
             if (sql.exists("SELECT guid FROM creature WHERE guid = ?", pose.guid())) {
-                sql.update("UPDATE creature SET position_x = ?, position_y = ?, position_z = ? WHERE guid = ?",
-                        pose.x(), pose.y(), pose.z(), pose.guid());
+                sql.update(
+                        "UPDATE creature SET position_x = ?, position_y = ?, position_z = ?, orientation = ? WHERE guid = ?",
+                        pose.x(), pose.y(), pose.z(), pose.o(), pose.guid());
                 verifyPosition(sql, pose);
                 updated++;
                 continue;
@@ -66,7 +67,7 @@ public final class NpcEditStore {
                             + "spawntimesecsmin, spawntimesecsmax, spawndist, MovementType) "
                             + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     pose.guid(), spawn.entry(), spawn.map(), SPAWN_MASK,
-                    pose.x(), pose.y(), pose.z(), spawn.o(),
+                    pose.x(), pose.y(), pose.z(), pose.o(),
                     spawn.respawnMinSecs(), spawn.respawnMaxSecs(), spawn.spawnDist(), spawn.movementType());
             verifyPosition(sql, pose);
             marked.accept(pose.guid());
@@ -98,8 +99,8 @@ public final class NpcEditStore {
 
     private static void verifyPosition(Sql sql, NpcEditSession.Pose pose) throws SQLException {
         float[] got = sql.floats(
-                "SELECT position_x, position_y, position_z FROM creature WHERE guid = ?", pose.guid());
-        if (got == null || got.length < 3 || drifted(pose, got)) {
+                "SELECT position_x, position_y, position_z, orientation FROM creature WHERE guid = ?", pose.guid());
+        if (got == null || got.length < 4 || drifted(pose, got)) {
             throw new SQLException("creature guid " + pose.guid() + " did not keep the saved position");
         }
     }
@@ -107,7 +108,8 @@ public final class NpcEditStore {
     private static boolean drifted(NpcEditSession.Pose pose, float[] got) {
         return Math.abs(pose.x() - got[0]) > NpcEditSession.POSITION_EPS
                 || Math.abs(pose.y() - got[1]) > NpcEditSession.POSITION_EPS
-                || Math.abs(pose.z() - got[2]) > NpcEditSession.POSITION_EPS;
+                || Math.abs(pose.z() - got[2]) > NpcEditSession.POSITION_EPS
+                || Math.abs(pose.o() - got[3]) > NpcEditSession.POSITION_EPS;
     }
 
     private static final class JdbcSql implements Sql {
@@ -143,7 +145,7 @@ public final class NpcEditStore {
                     if (!rs.next()) {
                         return null;
                     }
-                    return new float[] {rs.getFloat(1), rs.getFloat(2), rs.getFloat(3)};
+                    return new float[] {rs.getFloat(1), rs.getFloat(2), rs.getFloat(3), rs.getFloat(4)};
                 }
             }
         }

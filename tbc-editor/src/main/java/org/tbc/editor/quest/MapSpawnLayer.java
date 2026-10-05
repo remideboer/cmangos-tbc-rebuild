@@ -11,13 +11,21 @@ import java.util.List;
 public final class MapSpawnLayer {
     public enum Kind { CREATURE, OBJECT }
 
-    public record Pin(Kind kind, int guid, int entry, String name, String typeName, float x, float y, float z) {
+    public record Pin(Kind kind, int guid, int entry, String name, String typeName, float x, float y, float z, float o) {
+        public Pin(Kind kind, int guid, int entry, String name, String typeName, float x, float y, float z) {
+            this(kind, guid, entry, name, typeName, x, y, z, 0f);
+        }
+
         public Pin moved(float x, float y, float z) {
-            return new Pin(kind, guid, entry, name, typeName, x, y, z);
+            return new Pin(kind, guid, entry, name, typeName, x, y, z, o);
+        }
+
+        public Pin faced(float o) {
+            return new Pin(kind, guid, entry, name, typeName, x, y, z, o);
         }
 
         public Pin named(String name) {
-            return new Pin(kind, guid, entry, name == null ? "" : name, typeName, x, y, z);
+            return new Pin(kind, guid, entry, name == null ? "" : name, typeName, x, y, z, o);
         }
     }
 
@@ -62,7 +70,7 @@ public final class MapSpawnLayer {
                 continue;
             }
             pins.add(new Pin(kind, s.guid(), s.entry(), name(kind, mgr, s.entry()), typeName(kind, mgr, s.entry()),
-                    s.x(), s.y(), s.z()));
+                    s.x(), s.y(), s.z(), s.o()));
         }
     }
 

@@ -54,6 +54,7 @@ class NpcEditPersistTest {
         NpcEditSession session = new NpcEditSession();
         session.remember(wyrm(), 49, 0, 1, 14);
         session.move(1, 10380f, -6340f, 12.5f);
+        session.face(1, NpcFacing.left(0f));
         NpcEditStore.Result written = service.saveNpcEdits(session);
         assertEquals(1, written.updated());
         assertEquals(0, written.inserted());
@@ -61,7 +62,8 @@ class NpcEditPersistTest {
         assertEquals(0, written.templates());
         assertTrue(!session.dirty());
         assertEquals(10380f, mgr.spawns.get(0).x(), 0.05f);
-        assertPositions(1, 10380f, -6340f, 12.5f);
+        assertEquals(NpcFacing.left(0f), mgr.spawns.get(0).o(), 0.05f);
+        assertPose(1, 10380f, -6340f, 12.5f, NpcFacing.left(0f));
     }
 
     @Test
@@ -75,12 +77,13 @@ class NpcEditPersistTest {
         NpcEditSession session = new NpcEditSession();
         session.remember(wyrm(), 49, 0, 1, 14);
         session.move(1, 10380f, -6340f, 12.5f);
+        session.face(1, 1.25f);
         NpcEditStore.Result written = service.saveNpcEdits(session);
         assertEquals(0, written.updated());
         assertEquals(1, written.inserted());
         assertTrue(mgr.dbCreature(1));
         assertTrue(!session.dirty());
-        assertPositions(1, 10380f, -6340f, 12.5f);
+        assertPose(1, 10380f, -6340f, 12.5f, 1.25f);
         try (Connection c = world.get();
              PreparedStatement ps = c.prepareStatement(
                      "SELECT id, map, spawnMask, orientation FROM creature WHERE guid = 1");
@@ -89,7 +92,7 @@ class NpcEditPersistTest {
             assertEquals(15271, rs.getInt(1));
             assertEquals(530, rs.getInt(2));
             assertEquals(1, rs.getInt(3));
-            assertEquals(0f, rs.getFloat(4), 0.01f);
+            assertEquals(1.25f, rs.getFloat(4), 0.01f);
         }
     }
 
@@ -152,16 +155,17 @@ class NpcEditPersistTest {
         }
     }
 
-    private void assertPositions(int guid, float x, float y, float z) throws Exception {
+    private void assertPose(int guid, float x, float y, float z, float o) throws Exception {
         try (Connection c = world.get();
              PreparedStatement ps = c.prepareStatement(
-                     "SELECT position_x, position_y, position_z FROM creature WHERE guid = ?")) {
+                     "SELECT position_x, position_y, position_z, orientation FROM creature WHERE guid = ?")) {
             ps.setInt(1, guid);
             try (ResultSet rs = ps.executeQuery()) {
                 assertTrue(rs.next());
                 assertEquals(x, rs.getFloat(1), 0.05f);
                 assertEquals(y, rs.getFloat(2), 0.05f);
                 assertEquals(z, rs.getFloat(3), 0.05f);
+                assertEquals(o, rs.getFloat(4), 0.05f);
             }
         }
     }

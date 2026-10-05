@@ -38,6 +38,21 @@ class NpcEditSessionTest {
     }
 
     @Test
+    void faceWhenTurnedShouldMarkMovedAndNameTheTick() {
+        NpcEditSession session = new NpcEditSession();
+        session.remember(wyrm(), 49, 0, 1, 14);
+        session.face(1, NpcFacing.left(0f));
+        assertTrue(session.dirty());
+        String text = session.changes().get(0).toString();
+        assertTrue(text.contains("facing"));
+        assertTrue(text.contains("1/16"));
+        session.revert();
+        assertFalse(session.dirty());
+        MapSpawnLayer.Pin restored = session.overlay(List.of(wyrm().faced(NpcFacing.left(0f)))).get(0);
+        assertEquals(0f, restored.o(), 1e-5f);
+    }
+
+    @Test
     void clearWhenNameAndPositionChangedShouldRestoreTheLoadedPin() {
         MapSpawnLayer.Pin pin = wyrm();
         NpcEditSession session = new NpcEditSession();
@@ -74,6 +89,7 @@ class NpcEditSessionTest {
         assertEquals(15271, insert[1]);
         assertEquals(530, insert[2]);
         assertEquals(1, insert[3]);
+        assertEquals(0f, (Float) insert[7], 1e-5f);
     }
 
     @Test
@@ -152,6 +168,7 @@ class NpcEditSessionTest {
         NpcEditSession session = new NpcEditSession();
         session.remember(wyrm(), 49, 0, 0, 14);
         session.move(1, 10380f, -6340f, 12.5f);
+        session.face(1, 1.5f);
         session.rename(15271, "Arcane Wyrm");
         session.setDisplay(15271, 15476);
         session.setEquipment(15271, 9);
@@ -163,6 +180,7 @@ class NpcEditSessionTest {
         assertEquals(10380f, spawn.x(), 0.01f);
         assertEquals(-6340f, spawn.y(), 0.01f);
         assertEquals(12.5f, spawn.z(), 0.01f);
+        assertEquals(1.5f, spawn.o(), 0.01f);
         assertEquals("Arcane Wyrm", mgr.creatures.get(15271).name());
         assertEquals(15476, mgr.creatures.get(15271).display());
         assertEquals(1, mgr.creatures.get(15271).type());
@@ -263,7 +281,7 @@ class NpcEditSessionTest {
             if (readback != null) {
                 return readback;
             }
-            return new float[] {11f, 22f, 40f};
+            return new float[] {11f, 22f, 40f, 0f};
         }
     }
 }
