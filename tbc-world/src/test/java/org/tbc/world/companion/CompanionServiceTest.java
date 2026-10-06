@@ -34,13 +34,19 @@ class CompanionServiceTest {
             new World.Account(1, "PLAYER", new byte[40], 3, 1, "Win", "x86");
 
     @BeforeEach
-    void enable() {
-        CompanionConfig.set(CompanionConfig.defaults().withEnabled(true));
+    void resetConfig() {
+        CompanionConfig.reset();
     }
 
     @AfterEach
     void reset() {
         CompanionConfig.reset();
+    }
+
+    @Test
+    void defaultsWhenBuiltShouldBeEnabled() {
+        assertTrue(CompanionConfig.defaults().enabled());
+        assertTrue(CompanionConfig.get().enabled());
     }
 
     @Test

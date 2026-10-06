@@ -1,8 +1,7 @@
 package org.tbc.world.companion;
 
 /**
- * Optional offline-character companion (gated Vision-Out carve-out).
- * Default off — not required for Vision-In slices.
+ * Offline-character companion (Vision-Out carve-out). Default on; opt out with {@code withEnabled(false)}.
  */
 public final class CompanionConfig {
     private static volatile CompanionConfig instance = defaults();
@@ -28,7 +27,7 @@ public final class CompanionConfig {
     }
 
     public static CompanionConfig defaults() {
-        return new CompanionConfig(false, 1);
+        return new CompanionConfig(true, 1);
     }
 
     public CompanionConfig withEnabled(boolean on) {
