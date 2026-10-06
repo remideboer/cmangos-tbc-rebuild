@@ -3,6 +3,7 @@ package org.tbc;
 import org.junit.jupiter.api.Test;
 import org.tbc.bdd.WowClientDouble;
 import org.tbc.common.WowBuffer;
+import org.tbc.world.companion.CompanionPartyAddon;
 import org.tbc.world.companion.CompanionService;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
@@ -18,14 +19,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CompanionPartyBarP0Test {
+    private static final String WIRE_PREFIX = "CompanionBar";
     private static final World.Account ACCOUNT =
             new World.Account(1, "COMPANION_UI", new byte[40], 0, 1, "Win", "x86");
 
     @Test
     void tpCompUi001EnableShouldPushInactiveThenSummonedCharacterState() {
+        assertTrue(CompanionPartyAddon.PREFIX.length() <= 16,
+                "TBC SendAddonMessage prefixes are limited to 16 characters");
         Fixture f = fixture();
         sendAddon(f.client, f.world, "enable");
-        assertTrue(chatBodies(f.client).contains("CompanionPartyBar\tState;0"));
+        assertTrue(chatBodies(f.client).contains(WIRE_PREFIX + "\tState;0"));
 
         f.client.clear();
         assertEquals(CompanionService.OK_SUMMON,
@@ -33,7 +37,7 @@ class CompanionPartyBarP0Test {
 
         String state = lastCompanionState(f.client);
         String[] fields = state.split(";");
-        assertEquals("CompanionPartyBar\tState", fields[0]);
+        assertEquals(WIRE_PREFIX + "\tState", fields[0]);
         assertEquals("1", fields[1]);
         assertEquals("Acantha", fields[2]);
         assertEquals(13, fields.length);
@@ -43,7 +47,7 @@ class CompanionPartyBarP0Test {
 
         f.client.clear();
         f.world.companions.dismiss(f.world, f.owner);
-        assertTrue(chatBodies(f.client).contains("CompanionPartyBar\tState;0"));
+        assertTrue(chatBodies(f.client).contains(WIRE_PREFIX + "\tState;0"));
     }
 
     @Test
@@ -60,7 +64,7 @@ class CompanionPartyBarP0Test {
         sendAddon(f.client, f.world, "Action;1;0xF1300000000000AA");
 
         assertEquals(target.guid, f.owner.pet.victim);
-        assertTrue(lastCompanionState(f.client).startsWith("CompanionPartyBar\tState;1;Acantha;"));
+        assertTrue(lastCompanionState(f.client).startsWith(WIRE_PREFIX + "\tState;1;Acantha;"));
     }
 
     @Test
@@ -90,7 +94,7 @@ class CompanionPartyBarP0Test {
         sendAddon(f.client, f.world, "enable");
         sendAddon(f.client, f.world, "Action;1;1");
 
-        assertTrue(chatBodies(f.client).contains("CompanionPartyBar\tState;0"));
+        assertTrue(chatBodies(f.client).contains(WIRE_PREFIX + "\tState;0"));
         assertEquals(petGuid, f.owner.pet.guid);
         assertEquals(0L, f.owner.pet.victim);
     }
@@ -115,14 +119,14 @@ class CompanionPartyBarP0Test {
         WowBuffer packet = new WowBuffer(96);
         packet.putU32(0x01);
         packet.putU32(0xFFFFFFFF);
-        packet.putCString("CompanionPartyBar\t" + body);
+        packet.putCString(WIRE_PREFIX + "\t" + body);
         client.handle(world, Opcodes.CMSG_MESSAGECHAT, packet.array());
     }
 
     private static String lastCompanionState(WowClientDouble client) {
         List<String> messages = chatBodies(client);
         for (int i = messages.size() - 1; i >= 0; i--) {
-            if (messages.get(i).startsWith("CompanionPartyBar\tState;")) {
+            if (messages.get(i).startsWith(WIRE_PREFIX + "\tState;")) {
                 return messages.get(i);
             }
         }

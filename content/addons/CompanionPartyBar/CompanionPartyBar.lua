@@ -1,5 +1,6 @@
 local ADDON = "CompanionPartyBar"
-local PREFIX = "CompanionPartyBar"
+-- TBC SendAddonMessage rejects prefixes longer than 16 characters.
+local PREFIX = "CompanionBar"
 
 local COMMAND_NAMES = {
     [1] = "Attack",

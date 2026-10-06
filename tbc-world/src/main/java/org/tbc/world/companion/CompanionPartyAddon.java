@@ -9,7 +9,8 @@ import org.tbc.world.world.World;
 
 /** LANG_ADDON bridge for the companion-only party-level control bar. */
 public final class CompanionPartyAddon {
-    public static final String PREFIX = "CompanionPartyBar";
+    /** TBC SendAddonMessage limits wire prefixes to 16 characters. */
+    public static final String PREFIX = "CompanionBar";
     public static final int LANG_ADDON = 0xFFFFFFFF;
     private static final int CHAT_MSG_WHISPER = 0x07;
 
