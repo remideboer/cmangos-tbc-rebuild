@@ -280,10 +280,12 @@ public final class LaterOpcodes {
         }
         if (opcode == Opcodes.CMSG_PET_SET_ACTION) {
             PetHandler.setAction(s, in);
+            world.companions.onPetBarChanged(s.player());
             return true;
         }
         if (opcode == Opcodes.CMSG_PET_SPELL_AUTOCAST) {
             PetHandler.spellAutocast(s, in);
+            world.companions.onPetBarChanged(s.player());
             return true;
         }
         if (opcode == Opcodes.CMSG_PET_CAST_SPELL) {

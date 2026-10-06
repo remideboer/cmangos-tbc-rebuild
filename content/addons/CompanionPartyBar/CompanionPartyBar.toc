@@ -1,0 +1,8 @@
+## Interface: 20400
+## Title: CompanionPartyBar
+## Notes: Movable controls for an offline-character companion
+## Author: tbc-server
+## Version: 1.0
+## SavedVariables: CompanionPartyBarDB
+
+CompanionPartyBar.lua

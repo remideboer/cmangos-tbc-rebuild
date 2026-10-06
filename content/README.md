@@ -149,3 +149,14 @@ Internal id remains class 6 / `CLASS_CLASSLESS`.
 4. Optional: delete `Interface\AddOns\HeroPowerBars\` (or disable the AddOn) to drop the triple power bar.
 5. Restart. YAML/bindings in git are unchanged by rollback — only the client MPQ / AddOn reverts.
 
+## Companion control AddOn
+
+[`addons/CompanionPartyBar`](addons/CompanionPartyBar/) supplies a dedicated, movable companion bar beside the party frames. Enable **CompanionPartyBar** on the character AddOns list and `/reload`; it appears only while an offline character companion is summoned.
+
+- Drag its header/background outside combat to move it.
+- Use `/cpb reset` to restore the default position.
+- Attack, Follow, Stay, four learned spell slots, and the three reaction modes use the server-validated pet-action path.
+- Dismissing the companion restores stock pet-bar behavior. Normal hunter/warlock pets do not activate the companion bar.
+
+Install with `build.bat` or [`install-addons.bat`](install-addons.bat). To roll back, disable the AddOn or delete `Interface\AddOns\CompanionPartyBar\`; no MPQ, FrameXML, or client binary restore is needed.
+

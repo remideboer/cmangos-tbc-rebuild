@@ -89,6 +89,7 @@ public final class CompanionService {
         if (snap == null) {
             return ERR_NOT_FOUND;
         }
+        world.characters.refreshCompanionAbilities(snap);
         snap.session = null;
         Pet pet = buildPet(snap, world.objectMgr);
         int[] saved = savedBars.get(snap.guid);
@@ -96,7 +97,11 @@ public final class CompanionService {
             // Restore only spell slots — keep CMaNGOS command/reaction defaults.
             for (int i = PetHandlerBar.SPELL_SLOT_START; i < PetHandlerBar.SPELL_SLOT_END
                     && i < saved.length; i++) {
-                pet.actionBar[i] = saved[i];
+                int packed = saved[i];
+                int spellId = packed & 0xFFFFFF;
+                if (spellId == 0 || pet.spells.contains(spellId)) {
+                    pet.actionBar[i] = packed;
+                }
             }
         }
         Companion companion = new Companion(snap.guid, snap, pet);
@@ -110,6 +115,7 @@ public final class CompanionService {
         sendSummonLink(owner);
         revealBody(world, owner, body);
         sendBar(owner);
+        CompanionPartyAddon.pushState(owner.session);
         return OK_SUMMON;
     }
 
@@ -138,6 +144,7 @@ public final class CompanionService {
         }
         owner.companion.syncBarFromPet();
         savedBars.put(owner.companion.sourceGuid(), owner.companion.companionBar().clone());
+        CompanionPartyAddon.pushState(owner.session);
     }
 
     public void awardXp(World world, Player owner, int xp) {
@@ -147,30 +154,6 @@ public final class CompanionService {
         Player snap = owner.companion.snapshot();
         snap.giveXp(xp, null, 1f);
         world.characters.save(snap);
-    }
-
-    /** Companion creature query name when entry is the ephemeral companion entry. */
-    public static String companionQueryName(Player owner, int entry) {
-        if (owner == null || owner.companion == null || owner.companion.worldBody() == null) {
-            return null;
-        }
-        Creature body = owner.companion.worldBody();
-        if (body.entry != entry) {
-            return null;
-        }
-        String n = owner.companion.snapshot().name;
-        return n == null || n.isBlank() ? "Companion" : n;
-    }
-
-    public static int companionQueryDisplay(Player owner, int entry) {
-        if (owner == null || owner.companion == null || owner.companion.worldBody() == null) {
-            return 0;
-        }
-        Creature body = owner.companion.worldBody();
-        if (body.entry != entry) {
-            return 0;
-        }
-        return body.getInt(UpdateFields.UNIT_FIELD_DISPLAYID);
     }
 
     private void saveAndClear(World world, Player owner) {
@@ -190,6 +173,7 @@ public final class CompanionService {
             hide.putU64(0);
             s.send(Opcodes.SMSG_PET_SPELLS, hide.array());
         }
+        CompanionPartyAddon.pushState(s);
     }
 
     static Creature spawnWorldBody(World world, Player owner, Player snap, Pet pet) {
@@ -214,7 +198,9 @@ public final class CompanionService {
         c.setGuid(UpdateFields.UNIT_FIELD_SUMMONEDBY, owner.guid);
         c.setGuid(UpdateFields.UNIT_FIELD_CREATEDBY, owner.guid);
         c.setInt(UpdateFields.UNIT_FIELD_PETNUMBER, Guid.low(snap.guid));
-        c.setInt(UpdateFields.UNIT_FIELD_PET_NAME_TIMESTAMP, (int) (System.currentTimeMillis() / 1000L));
+        int nameTimestamp = (int) (System.currentTimeMillis() / 1000L);
+        pet.nameTimestamp = nameTimestamp;
+        c.setInt(UpdateFields.UNIT_FIELD_PET_NAME_TIMESTAMP, nameTimestamp);
         c.setInt(UpdateFields.UNIT_FIELD_FLAGS, Unit.UNIT_FLAG_PLAYER_CONTROLLED);
         int bytes2 = pet.unitBytes2() | (Player.PLAYER_CONTROLLED_DEBUFF_LIMIT << 8);
         c.setInt(UpdateFields.UNIT_FIELD_BYTES_2, bytes2);
@@ -295,7 +281,8 @@ public final class CompanionService {
         pet.entry = COMPANION_ENTRY_BASE + (Guid.low(snap.guid) & 0xFFFF);
         pet.spells.clear();
         for (int spellId : snap.spells) {
-            if (knownAtLevel(spellId, snap.level, objectMgr)) {
+            if (knownAtLevel(spellId, snap.level, objectMgr)
+                    && hasCompleteRankChain(spellId, snap, objectMgr)) {
                 pet.spells.add(spellId);
             }
         }
@@ -323,6 +310,25 @@ public final class CompanionService {
     private static boolean knownAtLevel(int spellId, int level, ObjectMgr objectMgr) {
         int baseLevel = objectMgr == null ? 0 : objectMgr.spellBaseLevel.getOrDefault(spellId, 0);
         return baseLevel <= 0 || baseLevel <= level;
+    }
+
+    private static boolean hasCompleteRankChain(int spellId, Player snap, ObjectMgr objectMgr) {
+        if (objectMgr == null) {
+            return true;
+        }
+        int current = spellId;
+        int remaining = objectMgr.spellChain.size() + 1;
+        while (remaining-- > 0) {
+            ObjectMgr.SpellChainNode node = objectMgr.spellChain.get(current);
+            if (node == null || node.prev() == 0) {
+                return true;
+            }
+            if (!snap.spells.contains(node.prev())) {
+                return false;
+            }
+            current = node.prev();
+        }
+        return false;
     }
 
     private static void sendBar(Player owner) {

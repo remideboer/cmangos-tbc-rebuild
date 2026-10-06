@@ -118,6 +118,44 @@ class CompanionServiceTest {
     }
 
     @Test
+    void summonedCharacterNameShouldResolveForOwnerAndNearbyObserver() {
+        World world = World.inMemory();
+        Sink ownerSink = login(world, "Owner");
+        Player owner = ownerSink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Acantha", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.characters.save(alt);
+        assertEquals(CompanionService.OK_SUMMON, world.companions.summon(world, owner, "Acantha"));
+        Creature body = owner.companion.worldBody();
+        int petNumber = body.getInt(UpdateFields.UNIT_FIELD_PETNUMBER);
+        int timestamp = body.getInt(UpdateFields.UNIT_FIELD_PET_NAME_TIMESTAMP);
+        assertTrue(timestamp > 0);
+
+        ownerSink.last.clear();
+        petNameQuery(ownerSink, world, petNumber, body.guid);
+        byte[] ownerReply = ownerSink.last.get(Opcodes.SMSG_PET_NAME_QUERY_RESPONSE);
+        assertNotNull(ownerReply);
+        assertEquals("Acantha", cString(ownerReply, 4));
+        assertEquals(timestamp, u32le(ownerReply, 4 + "Acantha".length() + 1));
+        assertEquals(timestamp, owner.pet.nameTimestamp);
+
+        Sink observer = login(world, new World.Account(2, "OBSERVER", new byte[40], 0, 1, "Win", "x86"),
+                "Observer");
+        observer.last.clear();
+        petNameQuery(observer, world, petNumber, body.guid);
+        byte[] observerReply = observer.last.get(Opcodes.SMSG_PET_NAME_QUERY_RESPONSE);
+        assertNotNull(observerReply);
+        assertEquals("Acantha", cString(observerReply, 4));
+
+        WowBuffer creatureQuery = new WowBuffer(12);
+        creatureQuery.putU32(body.entry);
+        creatureQuery.putU64(body.guid);
+        observer.session.handle(world, Opcodes.CMSG_CREATURE_QUERY, creatureQuery.array());
+        byte[] creatureReply = observer.last.get(Opcodes.SMSG_CREATURE_QUERY_RESPONSE);
+        assertNotNull(creatureReply);
+        assertEquals("Acantha", cString(creatureReply, 4));
+    }
+
+    @Test
     void summonWhenOkShouldApplyMirrorAppearanceAndGear() {
         World world = World.inMemory();
         Sink sink = login(world, "Owner");
@@ -254,6 +292,36 @@ class CompanionServiceTest {
         assertFalse(owner.pet.spells.contains(fireballRank2));
         for (int packed : owner.pet.actionBar) {
             assertFalse((packed & 0xFFFFFF) == fireballRank2);
+        }
+    }
+
+    @Test
+    void summonWhenSpellRankPredecessorIsMissingShouldKeepOrphanRankOffPetBar() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, Player.CLASS_MAGE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        int knownRank = 133;
+        int orphanRank = 143;
+        int missingPreviousRank = 999_001;
+        alt.level = 10;
+        alt.spells.add(knownRank);
+        alt.spells.add(orphanRank);
+        alt.actionButtons[0] = orphanRank;
+        alt.actionButtons[1] = knownRank;
+        world.objectMgr.spellBaseLevel.put(knownRank, 1);
+        world.objectMgr.spellBaseLevel.put(orphanRank, 6);
+        world.objectMgr.spellChain.put(orphanRank,
+                new org.tbc.world.content.ObjectMgr.SpellChainNode(orphanRank, missingPreviousRank,
+                        missingPreviousRank, 2, 0));
+        world.characters.save(alt);
+
+        assertEquals(CompanionService.OK_SUMMON, world.companions.summon(world, owner, "Alt"));
+        assertTrue(owner.pet.spells.contains(knownRank));
+        assertFalse(owner.pet.spells.contains(orphanRank));
+        for (int packed : owner.pet.actionBar) {
+            assertFalse((packed & 0xFFFFFF) == orphanRank);
         }
     }
 
@@ -639,10 +707,14 @@ class CompanionServiceTest {
     }
 
     private static Sink login(World world, String name) {
+        return login(world, ACC, name);
+    }
+
+    private static Sink login(World world, World.Account account, String name) {
         Sink sink = new Sink();
-        WorldSession s = new WorldSession(sink, 1);
-        s.injectAccount(ACC);
-        Player created = world.characters.create(ACC.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        WorldSession s = new WorldSession(sink, account.id());
+        s.injectAccount(account);
+        Player created = world.characters.create(account.id(), name, 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
         WowBuffer g = new WowBuffer(8);
         g.putU64(created.guid);
         s.handle(world, Opcodes.CMSG_PLAYER_LOGIN, g.array());
@@ -650,6 +722,21 @@ class CompanionServiceTest {
         sink.last.clear();
         sink.session = s;
         return sink;
+    }
+
+    private static void petNameQuery(Sink sink, World world, int petNumber, long petGuid) {
+        WowBuffer query = new WowBuffer(12);
+        query.putU32(petNumber);
+        query.putU64(petGuid);
+        sink.session.handle(world, Opcodes.CMSG_PET_NAME_QUERY, query.array());
+    }
+
+    private static String cString(byte[] bytes, int offset) {
+        int end = offset;
+        while (end < bytes.length && bytes[end] != 0) {
+            end++;
+        }
+        return new String(bytes, offset, end - offset, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private static long u64le(byte[] b, int o) {

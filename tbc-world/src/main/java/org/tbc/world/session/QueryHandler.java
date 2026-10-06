@@ -3,9 +3,11 @@ package org.tbc.world.session;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guild;
 import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.gm.GmCommands;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.world.World;
@@ -20,18 +22,20 @@ public final class QueryHandler {
 
     public static void creature(WorldSession session, World world, WowBuffer in) {
         int entry = readU32(in);
-        readU64(in);
+        long guid = readU64(in);
         ObjectMgr.CreatureTemplate t = world.objectMgr.creatures.get(entry);
-        String companionName = org.tbc.world.companion.CompanionService.companionQueryName(session.player(), entry);
-        if (t == null && companionName == null) {
+        Creature companion = mapCreature(session.player(), world, guid);
+        if (companion != null && companion.entry != entry) {
+            companion = null;
+        }
+        if (t == null && companion == null) {
             session.send(Opcodes.SMSG_CREATURE_QUERY_RESPONSE, fail(entry));
             return;
         }
         WowBuffer out = new WowBuffer(128);
         out.putU32(entry);
-        if (companionName != null) {
-            int display = org.tbc.world.companion.CompanionService.companionQueryDisplay(session.player(), entry);
-            out.putCString(companionName);
+        if (companion != null) {
+            out.putCString(nz(companion.name));
             out.putU8(0);
             out.putU8(0);
             out.putU8(0);
@@ -43,7 +47,7 @@ public final class QueryHandler {
             out.putU32(0);
             out.putU32(0);
             out.putU32(0);
-            out.putU32(display);
+            out.putU32(companion.getInt(UpdateFields.UNIT_FIELD_DISPLAYID));
             out.putU32(0);
             out.putU32(0);
             out.putU32(0);
@@ -246,11 +250,17 @@ public final class QueryHandler {
         session.send(Opcodes.SMSG_NPC_TEXT_UPDATE, out.array());
     }
 
-    public static void petName(WorldSession session, WowBuffer in) {
+    public static void petName(WorldSession session, World world, WowBuffer in) {
         int petNumber = readU32(in);
         long guid = readU64(in);
-        Pet pet = session.player() == null ? null : session.player().pet;
-        if (pet == null || pet.guid != guid) {
+        Player player = session.player();
+        Creature body = mapCreature(player, world, guid);
+        int bodyPetNumber = body == null ? 0 : body.getInt(UpdateFields.UNIT_FIELD_PETNUMBER);
+        Pet pet = player == null ? null : player.pet;
+        boolean ownerPetMatches = pet != null && pet.guid == guid;
+        boolean bodyMatches = !ownerPetMatches && body != null
+                && (bodyPetNumber == 0 || bodyPetNumber == petNumber);
+        if (!bodyMatches && !ownerPetMatches) {
             WowBuffer out = new WowBuffer(10);
             out.putU32(petNumber);
             out.putU8(0);
@@ -261,10 +271,19 @@ public final class QueryHandler {
         }
         WowBuffer out = new WowBuffer(64);
         out.putU32(petNumber);
-        out.putCString(nz(pet.name));
-        out.putU32(pet.nameTimestamp);
+        out.putCString(bodyMatches ? nz(body.name) : nz(pet.name));
+        out.putU32(bodyMatches
+                ? body.getInt(UpdateFields.UNIT_FIELD_PET_NAME_TIMESTAMP)
+                : pet.nameTimestamp);
         out.putU8(0);
         session.send(Opcodes.SMSG_PET_NAME_QUERY_RESPONSE, out.array());
+    }
+
+    private static Creature mapCreature(Player player, World world, long guid) {
+        if (player == null) {
+            return null;
+        }
+        return world.map(player.mapId, player.instanceId).creatures.get(guid);
     }
 
     public static void guild(WorldSession session, World world, WowBuffer in) {

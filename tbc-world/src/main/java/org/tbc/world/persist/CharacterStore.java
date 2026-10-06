@@ -650,6 +650,36 @@ public final class CharacterStore {
         }
     }
 
+    /**
+     * Refreshes the two persisted surfaces used to build a companion's abilities.
+     * The in-memory store is already authoritative; SQL-backed stores must bypass
+     * the character cache so a stale snapshot cannot grant an unavailable spell.
+     */
+    public boolean refreshCompanionAbilities(Player player) {
+        if (player == null) {
+            return false;
+        }
+        if (chars == null) {
+            return true;
+        }
+        Player loaded = new Player();
+        loaded.guid = player.guid;
+        try (Connection c = chars.get()) {
+            loadSpells(c, loaded);
+            loadActions(c, loaded);
+            player.spells.clear();
+            player.spells.addAll(loaded.spells);
+            java.util.Arrays.fill(player.actionButtons, 0);
+            System.arraycopy(loaded.actionButtons, 0, player.actionButtons, 0, player.actionButtons.length);
+            return true;
+        } catch (Exception e) {
+            player.spells.clear();
+            java.util.Arrays.fill(player.actionButtons, 0);
+            log.warn("refresh companion abilities {}", e.getMessage());
+            return false;
+        }
+    }
+
     private Player loadRow(Connection c, int accountId, int g, ObjectMgr mgr, boolean withRest) throws Exception {
         String sql = withRest
                 ? "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,is_logout_resting,rest_bonus,actionBars FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL"

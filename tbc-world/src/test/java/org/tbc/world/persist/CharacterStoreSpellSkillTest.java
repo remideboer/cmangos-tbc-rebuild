@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.Statement;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -93,6 +94,30 @@ class CharacterStoreSpellSkillTest {
             assertTrue(loaded.hasSkill(SKILL_BLACKSMITHING));
             assertEquals(1, loaded.skillValue(SKILL_BLACKSMITHING));
             assertEquals(75, loaded.skillMax(SKILL_BLACKSMITHING));
+        }
+    }
+
+    @Test
+    void refreshCompanionAbilitiesWhenCacheIsStaleShouldUsePersistedSpellsAndActions() throws Exception {
+        String url = "jdbc:h2:mem:companion_abilities_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool chars = new DbPool(url, "sa", "", "companion-abilities-test")) {
+            try (Connection c = chars.get(); Statement st = c.createStatement()) {
+                st.execute("CREATE TABLE character_spell (guid INT, spell INT, disabled TINYINT)");
+                st.execute("CREATE TABLE character_action (guid INT, button INT, action INT, type INT)");
+                st.execute("INSERT INTO character_spell VALUES (42, 133, 0)");
+                st.execute("INSERT INTO character_action VALUES (42, 0, 133, 0)");
+            }
+            CharacterStore store = new CharacterStore(chars);
+            Player stale = new Player();
+            stale.guid = 42;
+            stale.spells.add(143);
+            stale.actionButtons[0] = 143;
+
+            assertTrue(store.refreshCompanionAbilities(stale));
+
+            assertEquals(List.of(133), stale.spells);
+            assertEquals(133, stale.actionButtons[0]);
         }
     }
 }

@@ -79,6 +79,8 @@ public final class WorldSession {
     public int worldStates2478;
     /** HeroPowerBars AddOn subscribed (LANG_ADDON enable). */
     private boolean heroPowerAddonEnabled;
+    /** CompanionPartyBar AddOn subscribed (LANG_ADDON enable). */
+    private boolean companionPartyAddonEnabled;
 
     public WorldSession(PacketSink sink, int serverSeed) {
         this.sink = sink;
@@ -99,6 +101,14 @@ public final class WorldSession {
 
     public void setHeroPowerAddonEnabled(boolean on) {
         this.heroPowerAddonEnabled = on;
+    }
+
+    public boolean companionPartyAddonEnabled() {
+        return companionPartyAddonEnabled;
+    }
+
+    public void setCompanionPartyAddonEnabled(boolean on) {
+        this.companionPartyAddonEnabled = on;
     }
 
     public World.Account account() {
@@ -439,7 +449,7 @@ public final class WorldSession {
             case Opcodes.CMSG_PAGE_TEXT_QUERY -> QueryHandler.pageText(this, world, in);
             case Opcodes.CMSG_ITEM_TEXT_QUERY -> QueryHandler.itemText(this, world, in);
             case Opcodes.CMSG_NPC_TEXT_QUERY -> QueryHandler.npcText(this, world, in);
-            case Opcodes.CMSG_PET_NAME_QUERY -> QueryHandler.petName(this, in);
+            case Opcodes.CMSG_PET_NAME_QUERY -> QueryHandler.petName(this, world, in);
             case Opcodes.CMSG_WHOIS -> QueryHandler.whois(this, world, in);
             case Opcodes.CMSG_TIME_SYNC_RESP -> in.skip(Math.min(8, in.remaining()));
             case Opcodes.CMSG_SET_ACTIVE_MOVER -> in.getU64();
@@ -1185,6 +1195,10 @@ public final class WorldSession {
             target = in.getCString();
         }
         String msg = in.getCString();
+        if (lang == org.tbc.world.companion.CompanionPartyAddon.LANG_ADDON
+                && org.tbc.world.companion.CompanionPartyAddon.handleInbound(this, world, msg)) {
+            return;
+        }
         if (lang == org.tbc.world.classless.ClasslessPowerAddon.LANG_ADDON
                 && org.tbc.world.classless.ClasslessPowerAddon.handleInbound(this, world, msg)) {
             return;
