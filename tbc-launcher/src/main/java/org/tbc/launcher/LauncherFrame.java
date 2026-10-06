@@ -171,26 +171,19 @@ public final class LauncherFrame extends JFrame {
     }
 
     private static void appendLog(JTextArea area, String line) {
+        if (!LogPaneLines.uiVisible(line)) {
+            return;
+        }
         SwingUtilities.invokeLater(() -> {
             area.append(line);
             area.append("\n");
-            String text = area.getText();
-            int lines = 1;
-            for (int i = 0; i < text.length(); i++) {
-                if (text.charAt(i) == '\n') {
-                    lines++;
-                }
-            }
+            int lines = area.getLineCount();
             if (lines > LOG_MAX_LINES) {
-                int drop = lines - LOG_MAX_LINES;
-                int cut = 0;
-                for (int i = 0; i < text.length() && drop > 0; i++) {
-                    if (text.charAt(i) == '\n') {
-                        drop--;
-                        cut = i + 1;
-                    }
+                try {
+                    int end = area.getLineEndOffset(lines - LOG_MAX_LINES - 1);
+                    area.replaceRange("", 0, end);
+                } catch (javax.swing.text.BadLocationException ignored) {
                 }
-                area.setText(text.substring(cut));
             }
             area.setCaretPosition(area.getDocument().getLength());
         });
@@ -298,7 +291,9 @@ public final class LauncherFrame extends JFrame {
                 } catch (ExecutionException e) {
                     closing = false;
                     Throwable c = e.getCause() == null ? e : e.getCause();
-                    status.setText(c.getMessage() == null ? c.getClass().getSimpleName() : c.getMessage());
+                    String msg = c.getMessage() == null ? c.getClass().getSimpleName() : c.getMessage();
+                    status.setText(msg);
+                    appendLog(authLog, "ERROR: " + msg);
                 }
             }
         }.execute();

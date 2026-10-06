@@ -108,6 +108,44 @@ class LauncherFrameTest {
     }
 
     @Test
+    void givenLogListenerWhenScriptRegistrySpamThenPaneKeepsListeningLine() throws Exception {
+        touch(ServerProcessService.AUTH_JAR);
+        touch(ServerProcessService.WORLD_JAR);
+        Files.writeString(home.resolve(ServerProcessService.LOCAL_REALMD), "realmd");
+        LauncherFrame frame = constructFrame();
+        try {
+            StringBuilder worldOut = new StringBuilder();
+            for (int i = 0; i < LauncherFrame.LOG_MAX_LINES + 50; i++) {
+                worldOut.append("WARN  o.t.w.s.ScriptRegistry - unknown ScriptName boss_")
+                        .append(i)
+                        .append(", falling back to generic AI\n");
+            }
+            worldOut.append("INFO  o.t.world.WorldMain - tbc-world listening 0.0.0.0:8085 tick 50ms\n");
+            starter.authStdout = "auth-line\n";
+            starter.worldStdout = worldOut.toString();
+            svc.startServers();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+            while (System.nanoTime() < deadline) {
+                AtomicReference<String> worldText = new AtomicReference<>();
+                onEdt(() -> worldText.set(frame.worldLogArea().getText()));
+                if (worldText.get().contains("tbc-world listening")) {
+                    break;
+                }
+                Thread.sleep(20);
+            }
+            onEdt(() -> {
+                String text = frame.worldLogArea().getText();
+                assertTrue(text.contains("tbc-world listening"), text);
+                assertFalse(text.contains("unknown ScriptName"), text);
+            });
+            assertTrue(Files.readString(home.resolve("logs").resolve("world.log")).contains("unknown ScriptName"));
+            svc.stopServers();
+        } finally {
+            onEdt(frame::dispose);
+        }
+    }
+
+    @Test
     void givenLogListenerWhenLineArrivesThenAuthPaneShowsText() throws Exception {
         touch(ServerProcessService.AUTH_JAR);
         touch(ServerProcessService.WORLD_JAR);
@@ -355,6 +393,7 @@ class LauncherFrameTest {
 
     private static final class FakeProcess extends Process {
         private final byte[] stdout;
+        private InputStream in;
 
         FakeProcess(String stdout) {
             this.stdout = stdout.getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -366,8 +405,11 @@ class LauncherFrameTest {
         }
 
         @Override
-        public InputStream getInputStream() {
-            return new ByteArrayInputStream(stdout);
+        public synchronized InputStream getInputStream() {
+            if (in == null) {
+                in = new ByteArrayInputStream(stdout);
+            }
+            return in;
         }
 
         @Override

@@ -301,6 +301,151 @@ class ServerProcessServiceTest {
     }
 
     @Test
+    void joinPumpWhenProcessGivenShouldCloseStdoutSoPumpExits() throws Exception {
+        List<String> lines = new ArrayList<>();
+        java.io.PipedOutputStream src = new java.io.PipedOutputStream();
+        java.io.PipedInputStream sink = new java.io.PipedInputStream(src, 1024);
+        Process p = new Process() {
+            @Override
+            public OutputStream getOutputStream() {
+                return new ByteArrayOutputStream();
+            }
+
+            @Override
+            public InputStream getInputStream() {
+                return sink;
+            }
+
+            @Override
+            public InputStream getErrorStream() {
+                return new ByteArrayInputStream(new byte[0]);
+            }
+
+            @Override
+            public int waitFor() {
+                return 0;
+            }
+
+            @Override
+            public int exitValue() {
+                return 0;
+            }
+
+            @Override
+            public void destroy() {
+            }
+        };
+        Path log = home.resolve("logs").resolve("block.log");
+        Thread pump = ProcessLogPump.start("block", p, log, lines::add);
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (!pump.isAlive() && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        assertTrue(pump.isAlive());
+        svc.joinPump(p, pump);
+        pump.join(TimeUnit.SECONDS.toNanos(2) / 1_000_000);
+        assertTrue(!pump.isAlive());
+        src.close();
+    }
+
+    @Test
+    void joinPumpWhenThreadNullShouldStillCloseStdout() throws Exception {
+        java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+        Process p = new Process() {
+            @Override
+            public OutputStream getOutputStream() {
+                return new ByteArrayOutputStream();
+            }
+
+            @Override
+            public InputStream getInputStream() {
+                return new InputStream() {
+                    @Override
+                    public int read() {
+                        return -1;
+                    }
+
+                    @Override
+                    public void close() {
+                        closed.set(true);
+                    }
+                };
+            }
+
+            @Override
+            public InputStream getErrorStream() {
+                return new ByteArrayInputStream(new byte[0]);
+            }
+
+            @Override
+            public int waitFor() {
+                return 0;
+            }
+
+            @Override
+            public int exitValue() {
+                return 0;
+            }
+
+            @Override
+            public void destroy() {
+            }
+        };
+        svc.joinPump(p, null);
+        assertTrue(closed.get());
+    }
+
+    @Test
+    void joinPumpWhenStdoutCloseThrowsShouldStillJoinThread() throws Exception {
+        Process p = new Process() {
+            @Override
+            public OutputStream getOutputStream() {
+                return new ByteArrayOutputStream();
+            }
+
+            @Override
+            public InputStream getInputStream() {
+                return new InputStream() {
+                    @Override
+                    public int read() {
+                        return -1;
+                    }
+
+                    @Override
+                    public void close() throws IOException {
+                        throw new IOException("close-boom");
+                    }
+                };
+            }
+
+            @Override
+            public InputStream getErrorStream() {
+                return new ByteArrayInputStream(new byte[0]);
+            }
+
+            @Override
+            public int waitFor() {
+                return 0;
+            }
+
+            @Override
+            public int exitValue() {
+                return 0;
+            }
+
+            @Override
+            public void destroy() {
+            }
+        };
+        Thread done = new Thread(() -> {
+        }, "log-pump-done");
+        done.start();
+        done.join(TimeUnit.SECONDS.toMillis(1));
+        svc.joinPump(p, done);
+        assertTrue(!done.isAlive());
+    }
+
+    @Test
     void joinPumpWhenCallerInterruptedShouldKeepTheInterruptFlag() throws Exception {
         Thread blocker = new Thread(() -> {
             try {
@@ -310,7 +455,7 @@ class ServerProcessServiceTest {
         }, "log-pump-block");
         blocker.start();
         Thread.currentThread().interrupt();
-        svc.joinPump(blocker);
+        svc.joinPump(null, blocker);
         assertTrue(Thread.currentThread().isInterrupted());
         Thread.interrupted();
         blocker.join(TimeUnit.SECONDS.toMillis(2));
@@ -395,6 +540,7 @@ class ServerProcessServiceTest {
         boolean waitInterrupt;
         boolean forcibly;
         private final byte[] stdout;
+        private InputStream in;
 
         FakeProcess() {
             this("");
@@ -410,8 +556,11 @@ class ServerProcessServiceTest {
         }
 
         @Override
-        public InputStream getInputStream() {
-            return new ByteArrayInputStream(stdout);
+        public synchronized InputStream getInputStream() {
+            if (in == null) {
+                in = new ByteArrayInputStream(stdout);
+            }
+            return in;
         }
 
         @Override

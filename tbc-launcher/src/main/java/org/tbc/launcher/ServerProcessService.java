@@ -92,12 +92,14 @@ public final class ServerProcessService {
     }
 
     public void stopServers() {
-        stop(world);
-        joinPump(worldPump);
+        Process w = world;
+        stop(w);
+        joinPump(w, worldPump);
         world = null;
         worldPump = null;
-        stop(auth);
-        joinPump(authPump);
+        Process a = auth;
+        stop(a);
+        joinPump(a, authPump);
         auth = null;
         authPump = null;
     }
@@ -162,7 +164,13 @@ public final class ServerProcessService {
         }
     }
 
-    void joinPump(Thread t) {
+    void joinPump(Process p, Thread t) {
+        if (p != null) {
+            try {
+                p.getInputStream().close();
+            } catch (IOException ignored) {
+            }
+        }
         if (t == null) {
             return;
         }
