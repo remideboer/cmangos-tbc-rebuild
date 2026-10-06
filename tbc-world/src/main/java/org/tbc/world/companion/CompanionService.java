@@ -34,8 +34,10 @@ public final class CompanionService {
 
     /** Ephemeral creature_template entry base — name resolved via QueryHandler companion path. */
     public static final int COMPANION_ENTRY_BASE = 2_100_000;
-    /** Yards behind owner facing (CMaNGOS pet follow offset). */
-    public static final float FOLLOW_DIST = 2.0f;
+    /** Yards left of owner facing (CMaNGOS PetAI m_followDist). */
+    public static final float FOLLOW_DIST = 1.5f;
+    /** Radians left of owner facing (CMaNGOS PET_FOLLOW_ANGLE = π/2). */
+    public static final float FOLLOW_ANGLE = (float) (Math.PI / 2.0);
 
     /** ActionButtonType ACTION_BUTTON_SPELL = 0. */
     private static final int ACTION_SPELL = 0;
@@ -90,7 +92,11 @@ public final class CompanionService {
         Pet pet = buildPet(snap);
         int[] saved = savedBars.get(snap.guid);
         if (saved != null) {
-            System.arraycopy(saved, 0, pet.actionBar, 0, Math.min(saved.length, pet.actionBar.length));
+            // Restore only spell slots — keep CMaNGOS command/reaction defaults.
+            for (int i = PetHandlerBar.SPELL_SLOT_START; i < PetHandlerBar.SPELL_SLOT_END
+                    && i < saved.length; i++) {
+                pet.actionBar[i] = saved[i];
+            }
         }
         Companion companion = new Companion(snap.guid, snap, pet);
         Creature body = spawnWorldBody(world, owner, snap, pet);
@@ -207,16 +213,17 @@ public final class CompanionService {
         c.setGuid(UpdateFields.UNIT_FIELD_SUMMONEDBY, owner.guid);
         c.setGuid(UpdateFields.UNIT_FIELD_CREATEDBY, owner.guid);
         c.setInt(UpdateFields.UNIT_FIELD_FLAGS, Unit.UNIT_FLAG_PLAYER_CONTROLLED);
-        c.setInt(UpdateFields.UNIT_FIELD_BYTES_2, pet.unitBytes2());
+        int bytes2 = pet.unitBytes2() | (Player.PLAYER_CONTROLLED_DEBUFF_LIMIT << 8);
+        c.setInt(UpdateFields.UNIT_FIELD_BYTES_2, bytes2);
         CompanionAppearance.applyOnSpawn(c, snap, world.objectMgr);
         world.map(owner.mapId, owner.instanceId).add(c);
         return c;
     }
 
     static float[] followPosition(Player owner) {
-        float behind = owner.o + (float) Math.PI;
-        float x = owner.x + FOLLOW_DIST * (float) Math.cos(behind);
-        float y = owner.y + FOLLOW_DIST * (float) Math.sin(behind);
+        float left = owner.o + FOLLOW_ANGLE;
+        float x = owner.x + FOLLOW_DIST * (float) Math.cos(left);
+        float y = owner.y + FOLLOW_DIST * (float) Math.sin(left);
         return new float[]{x, y, owner.z};
     }
 

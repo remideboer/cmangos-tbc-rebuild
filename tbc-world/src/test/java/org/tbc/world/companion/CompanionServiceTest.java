@@ -99,7 +99,10 @@ class CompanionServiceTest {
         float dx = body.x - owner.x;
         float dy = body.y - owner.y;
         float dist = (float) Math.sqrt(dx * dx + dy * dy);
-        assertTrue(dist > 0.5f && dist < 5f, "companion should stand near owner, dist=" + dist);
+        assertEquals(CompanionService.FOLLOW_DIST, dist, 0.05f);
+        // o=0 → left is +Y (sin(π/2)=1, cos=0)
+        assertEquals(0f, dx, 0.05f);
+        assertEquals(CompanionService.FOLLOW_DIST, dy, 0.05f);
         assertEquals(body, world.map(owner.mapId, owner.instanceId).creatures.get(body.guid));
         assertTrue(sink.last.containsKey(Opcodes.SMSG_UPDATE_OBJECT)
                 || sink.last.containsKey(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
@@ -179,6 +182,32 @@ class CompanionServiceTest {
         CompanionBehavior.tick(world, owner, 50);
         assertTrue(sink.last.containsKey(Opcodes.SMSG_MONSTER_MOVE),
                 "follow must broadcast SMSG_MONSTER_MOVE");
+    }
+
+    @Test
+    void summonWhenOkShouldSeedCmangosPetActionBar() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        int[] bar = owner.pet.actionBar;
+        assertEquals(PetHandlerBar.COMMAND_ATTACK | (PetHandler.ACT_COMMAND << 24), bar[0]);
+        assertEquals(PetHandlerBar.COMMAND_FOLLOW | (PetHandler.ACT_COMMAND << 24), bar[1]);
+        assertEquals(PetHandlerBar.COMMAND_STAY | (PetHandler.ACT_COMMAND << 24), bar[2]);
+        for (int i = PetHandlerBar.SPELL_SLOT_START; i < PetHandlerBar.SPELL_SLOT_END; i++) {
+            int act = (bar[i] >>> 24) & 0xFF;
+            assertTrue(act == PetHandler.ACT_DISABLED || act == PetHandler.ACT_ENABLED,
+                    "spell slot " + i + " act=" + act);
+            if (act == PetHandler.ACT_DISABLED) {
+                assertEquals(0, bar[i] & 0xFFFFFF);
+            }
+        }
+        assertEquals(PetHandlerBar.REACT_AGGRESSIVE | (PetHandler.ACT_REACTION << 24), bar[7]);
+        assertEquals(PetHandlerBar.REACT_DEFENSIVE | (PetHandler.ACT_REACTION << 24), bar[8]);
+        assertEquals(PetHandlerBar.REACT_PASSIVE | (PetHandler.ACT_REACTION << 24), bar[9]);
+        assertEquals(Player.PLAYER_CONTROLLED_DEBUFF_LIMIT,
+                (owner.companion.worldBody().getInt(UpdateFields.UNIT_FIELD_BYTES_2) >> 8) & 0xFF);
     }
 
     @Test
@@ -300,6 +329,71 @@ class CompanionServiceTest {
         assertEquals(afterFirst, mob.health(), "second tick within swing CD must not strip HP");
         assertTrue(sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE)
                 || owner.inCombat);
+    }
+
+    @Test
+    void behaviorWhenVictimFarShouldChaseTowardPrey() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        owner.x = 0f;
+        owner.y = 0f;
+        owner.o = 0f;
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        float startX = body.x;
+        float startY = body.y;
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000AAL;
+        mob.setHealth(500);
+        mob.mapId = owner.mapId;
+        mob.x = 40f;
+        mob.y = 0f;
+        mob.z = 0f;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        owner.victim = mob.guid;
+        sink.last.clear();
+        for (int i = 0; i < 20; i++) {
+            CompanionBehavior.tick(world, owner, 200);
+        }
+        double before = Math.hypot(startX - mob.x, startY - mob.y);
+        double after = Math.hypot(body.x - mob.x, body.y - mob.y);
+        assertTrue(after < before - 1f, "companion must chase closer to prey, before=" + before + " after=" + after);
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_MONSTER_MOVE));
+    }
+
+    @Test
+    void behaviorWhenManaAndInRangeShouldAutoCastBarSpell() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alt.spells.add(SpellEngine.FIREBALL);
+        alt.actionButtons[0] = SpellEngine.FIREBALL;
+        alt.setInt(UpdateFields.UNIT_FIELD_POWER1, 200);
+        alt.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        world.characters.save(alt);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        body.x = owner.x;
+        body.y = owner.y;
+        body.z = owner.z;
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000BBL;
+        mob.setHealth(500);
+        mob.mapId = owner.mapId;
+        mob.x = owner.x + 5f;
+        mob.y = owner.y;
+        mob.z = owner.z;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        owner.victim = mob.guid;
+        sink.last.clear();
+        int manaBefore = owner.companion.snapshot().getInt(UpdateFields.UNIT_FIELD_POWER1);
+        CompanionBehavior.tick(world, owner, 50);
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_START)
+                || sink.last.containsKey(Opcodes.SMSG_SPELL_GO));
+        assertTrue(owner.companion.snapshot().getInt(UpdateFields.UNIT_FIELD_POWER1) < manaBefore);
     }
 
     @Test

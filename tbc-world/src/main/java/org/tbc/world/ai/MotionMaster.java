@@ -89,6 +89,10 @@ public final class MotionMaster {
         clearSpline();
     }
 
+    public Unit target() {
+        return target;
+    }
+
     public void moveRandom(float spawnDist) {
         type = RANDOM;
         target = null;
@@ -558,7 +562,7 @@ public final class MotionMaster {
     }
 
     /** In-place orientation — CMaNGOS MoveSplineInit::SetFacing(angle) + Launch. */
-    static byte[] monsterMoveFacingAngle(Creature c, float angle, int splineId) {
+    public static byte[] monsterMoveFacingAngle(Creature c, float angle, int splineId) {
         WowBuffer b = new WowBuffer(48);
         b.putPackedGuid(c.guid);
         b.putFloat(c.x);

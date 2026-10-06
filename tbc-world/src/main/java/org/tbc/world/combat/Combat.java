@@ -149,7 +149,7 @@ public final class Combat {
         return angle >= -half && angle <= half;
     }
 
-    static float angleTo(float x, float y, float ox, float oy) {
+    public static float angleTo(float x, float y, float ox, float oy) {
         float ang = (float) Math.atan2(oy - y, ox - x);
         return ang >= 0 ? ang : (float) (2.0 * Math.PI + ang);
     }

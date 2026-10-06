@@ -19,6 +19,8 @@ public final class Companion {
     public float lastBroadcastY;
     public float lastBroadcastZ;
     public boolean hasBroadcastPos;
+    /** Global GCD-style gate for companion auto-cast (ms remaining). */
+    public int castCooldownMs;
 
     public Companion(long sourceGuid, Player snapshot, Pet pet) {
         this.sourceGuid = sourceGuid;
