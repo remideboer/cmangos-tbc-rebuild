@@ -1832,7 +1832,10 @@ public final class WorldSession {
         if (clone.auras.stream().noneMatch(a -> a.spellId() == SPELL_MIRROR_IMAGE)) {
             return;
         }
-        Player caster = world.playerByGuid(clone.mirrorImageCasterGuid);
+        Player caster = org.tbc.world.companion.CompanionAppearance.resolveAppearanceSource(player, clone, world);
+        if (caster == null) {
+            caster = world.playerByGuid(clone.mirrorImageCasterGuid);
+        }
         WowBuffer out = new WowBuffer(68);
         out.putU64(guid);
         out.putU32(clone.getInt(UpdateFields.UNIT_FIELD_DISPLAYID));
@@ -1846,8 +1849,10 @@ public final class WorldSession {
             out.putU8(caster.hairColor & 0xFF);
             out.putU8(caster.facialHair & 0xFF);
             out.putU32(caster.guildId);
-            for (int i = 0; i < 11; i++) {
-                out.putU32(0);
+            int[] displays = org.tbc.world.companion.CompanionAppearance.mirrorEquipmentDisplays(
+                    caster, world.objectMgr);
+            for (int display : displays) {
+                out.putU32(display);
             }
         } else {
             out.putU8(0);

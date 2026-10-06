@@ -78,6 +78,10 @@ public final class Player extends Unit {
     public static final int PLAYER_FLAGS_TAXI_BENCHMARK = 0x00020000;
     /** Player.h PLAYER_FIELD_BYTES_OFFSET_ACTION_BAR_TOGGLES. */
     public static final int PLAYER_FIELD_BYTES_OFFSET_ACTION_BAR_TOGGLES = 2;
+    /** Player.h PLAYER_FIELD_BYTES_OFFSET_FLAGS (byte 0). */
+    public static final int PLAYER_FIELD_BYTES_OFFSET_FLAGS = 0;
+    /** Player.h PLAYER_FIELD_BYTE_CONTROLLING_PET — SetPet / Unsummon. */
+    public static final int PLAYER_FIELD_BYTE_CONTROLLING_PET = 0x01;
 
     public WorldSession session;
     public int accountId;
@@ -1288,6 +1292,20 @@ public final class Player extends Unit {
     public void setMoney(int copper) {
         money = Math.max(0, copper);
         setInt(UpdateFields.PLAYER_FIELD_COINAGE, money);
+    }
+
+    /** CMaNGOS Player::SetPet — PLAYER_FIELD_BYTE_CONTROLLING_PET on byte 0 of PLAYER_FIELD_BYTES. */
+    public void setControllingPet(boolean on) {
+        int bytes = getInt(UpdateFields.PLAYER_FIELD_BYTES);
+        int shift = PLAYER_FIELD_BYTES_OFFSET_FLAGS * 8;
+        int mask = PLAYER_FIELD_BYTE_CONTROLLING_PET << shift;
+        setInt(UpdateFields.PLAYER_FIELD_BYTES, on ? bytes | mask : bytes & ~mask);
+    }
+
+    public boolean isControllingPet() {
+        int bytes = getInt(UpdateFields.PLAYER_FIELD_BYTES);
+        int shift = PLAYER_FIELD_BYTES_OFFSET_FLAGS * 8;
+        return ((bytes >>> shift) & PLAYER_FIELD_BYTE_CONTROLLING_PET) != 0;
     }
 
     /** PLAYER_FARSIGHT — set by SPELL_EFFECT_ADD_FARSIGHT; CMSG_FAR_SIGHT reads it. */

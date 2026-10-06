@@ -99,6 +99,7 @@ public final class CompanionService {
         owner.companion = companion;
         owner.pet = pet;
         owner.setGuid(UpdateFields.UNIT_FIELD_SUMMON, pet.guid);
+        owner.setControllingPet(true);
         sendSummonLink(owner);
         revealBody(world, owner, body);
         sendBar(owner);
@@ -174,6 +175,7 @@ public final class CompanionService {
         owner.companion = null;
         owner.pet = null;
         owner.setGuid(UpdateFields.UNIT_FIELD_SUMMON, 0);
+        owner.setControllingPet(false);
         sendSummonLink(owner);
         WorldSession s = owner.session;
         if (s != null) {
@@ -206,6 +208,7 @@ public final class CompanionService {
         c.setGuid(UpdateFields.UNIT_FIELD_CREATEDBY, owner.guid);
         c.setInt(UpdateFields.UNIT_FIELD_FLAGS, Unit.UNIT_FLAG_PLAYER_CONTROLLED);
         c.setInt(UpdateFields.UNIT_FIELD_BYTES_2, pet.unitBytes2());
+        CompanionAppearance.applyOnSpawn(c, snap, world.objectMgr);
         world.map(owner.mapId, owner.instanceId).add(c);
         return c;
     }
@@ -257,7 +260,8 @@ public final class CompanionService {
         if (s == null) {
             return;
         }
-        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(owner, UpdateFields.UNIT_FIELD_SUMMON));
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(owner,
+                UpdateFields.UNIT_FIELD_SUMMON, UpdateFields.PLAYER_FIELD_BYTES));
         s.send(pkt.opcode(), pkt.payload());
     }
 

@@ -3,6 +3,7 @@ package org.tbc.world.companion;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
+import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -110,6 +111,94 @@ class CompanionServiceTest {
     }
 
     @Test
+    void summonWhenOkShouldApplyMirrorAppearanceAndGear() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alt.skin = 2;
+        alt.face = 3;
+        alt.hairStyle = 4;
+        alt.hairColor = 5;
+        alt.facialHair = 6;
+        Item sword = new Item(world.nextItemGuid(), 25);
+        sword.bag = 0;
+        sword.slot = Player.EQUIPMENT_SLOT_MAINHAND;
+        sword.displayId = 1542;
+        sword.itemClass = Player.ITEM_CLASS_WEAPON;
+        alt.items.put((int) sword.guid, sword);
+        alt.applyEquippedVisuals();
+        world.characters.save(alt);
+
+        assertEquals(CompanionService.OK_SUMMON, world.companions.summon(world, owner, "Alt"));
+        Creature body = owner.companion.worldBody();
+        assertNotNull(body);
+        int bytes0 = body.getInt(UpdateFields.UNIT_FIELD_BYTES_0);
+        assertEquals(alt.race & 0xFF, bytes0 & 0xFF);
+        assertEquals(alt.gender & 0xFF, (bytes0 >> 16) & 0xFF);
+        assertTrue(body.hasAura(WorldSession.SPELL_MIRROR_IMAGE));
+        assertEquals(CompanionAppearance.UNIT_FLAG2_CLONED,
+                body.getInt(UpdateFields.UNIT_FIELD_FLAGS_2) & CompanionAppearance.UNIT_FLAG2_CLONED);
+        assertEquals(1542, body.getInt(UpdateFields.UNIT_VIRTUAL_ITEM_SLOT_DISPLAY));
+        assertTrue(owner.isControllingPet());
+
+        sink.last.clear();
+        WowBuffer req = new WowBuffer(8);
+        req.putU64(body.guid);
+        sink.session.handle(world, Opcodes.CMSG_GET_MIRRORIMAGE_DATA, req.array());
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_MIRRORIMAGE_DATA));
+        byte[] data = sink.last.get(Opcodes.SMSG_MIRRORIMAGE_DATA);
+        assertEquals(body.guid, u64le(data, 0));
+        assertEquals(2, data[14] & 0xFF);
+        assertEquals(3, data[15] & 0xFF);
+        // Head display (first of 11 gear u32s) starts at offset 23 after guild u32 at 19.
+        assertEquals(0, u32le(data, 23)); // no helm
+        // Mainhand is not in the 11 armor slots; chest slot index 3 → offset 23+12=35 if empty.
+        // Shoulders (index 1) etc. — verify at least one non-zero if we had chest; we set mainhand virtual only.
+        int[] displays = CompanionAppearance.mirrorEquipmentDisplays(owner.companion.snapshot(), world.objectMgr);
+        assertEquals(0, displays[0]);
+
+        world.companions.dismiss(world, owner);
+        assertFalse(owner.isControllingPet());
+    }
+
+    @Test
+    void followWhenOwnerMovesShouldSendMonsterMove() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        owner.x = 0f;
+        owner.y = 0f;
+        owner.z = 0f;
+        owner.o = 0f;
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        sink.last.clear();
+        owner.x = 20f;
+        owner.y = 0f;
+        CompanionBehavior.tick(world, owner, 50);
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_MONSTER_MOVE),
+                "follow must broadcast SMSG_MONSTER_MOVE");
+    }
+
+    @Test
+    void summonWhenAltHasSpellsShouldEncodeSpellCountOnPetBar() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alt.spells.add(SpellEngine.SPELL_STEALTH);
+        alt.actionButtons[0] = SpellEngine.SPELL_STEALTH;
+        world.characters.save(alt);
+        sink.last.clear();
+        world.companions.summon(world, owner, "Alt");
+        byte[] bar = sink.last.get(Opcodes.SMSG_PET_SPELLS);
+        assertNotNull(bar);
+        int spellCount = bar[16 + 10 * 4] & 0xFF;
+        assertTrue(spellCount >= 1, "spellCount=" + spellCount);
+    }
+
+    @Test
     void summonWhenDisabledShouldRefuse() {
         CompanionConfig.set(CompanionConfig.defaults().withEnabled(false));
         World world = World.inMemory();
@@ -181,24 +270,36 @@ class CompanionServiceTest {
     }
 
     @Test
-    void behaviorWhenOwnerHasVictimShouldAssist() {
+    void behaviorWhenOwnerHasVictimShouldAssistWithSwingNotTickDamage() {
         World world = World.inMemory();
         Sink sink = login(world, "Owner");
         Player owner = sink.session.player();
         world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
         world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        body.x = owner.x;
+        body.y = owner.y;
+        body.z = owner.z;
         Creature mob = new Creature();
         mob.guid = 0xF130000000000099L;
-        mob.setHealth(50);
+        mob.setHealth(500);
         mob.mapId = owner.mapId;
         mob.x = owner.x;
         mob.y = owner.y;
         mob.z = owner.z;
         world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
         owner.victim = mob.guid;
-        CompanionBehavior.tick(world, owner);
+        int hpBefore = mob.health();
+        CompanionBehavior.tick(world, owner, 50);
         assertEquals(mob.guid, owner.pet.victim);
-        assertTrue(mob.health() < 50);
+        int afterFirst = mob.health();
+        assertTrue(afterFirst < hpBefore, "one swing should land");
+        assertTrue(mob.inCombat, "mob must enter combat");
+        assertTrue(mob.threatManager.threatOf(owner) > 0f || mob.victim == owner.guid);
+        CompanionBehavior.tick(world, owner, 50);
+        assertEquals(afterFirst, mob.health(), "second tick within swing CD must not strip HP");
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE)
+                || owner.inCombat);
     }
 
     @Test

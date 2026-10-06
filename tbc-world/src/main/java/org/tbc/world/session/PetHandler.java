@@ -68,16 +68,20 @@ public final class PetHandler {
             atk.putU64(p.pet.guid);
             atk.putU64(target);
             s.send(Opcodes.SMSG_ATTACKSTART, atk.array());
-            // PetHandler.cpp COMMAND_ATTACK → AttackStart; first swing hits when in range.
             Creature prey = world.map(p.mapId, p.instanceId).creatures.get(target);
             if (prey != null && prey.alive()) {
                 p.pet.victim = target;
-                Unit petUnit = new Unit(UpdateFields.UNIT_END, Unit.TYPEID_UNIT);
-                petUnit.guid = p.pet.guid;
-                int dmg = Math.max(1, (int) petUnit.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
-                prey.setHealth(Math.max(0, prey.health() - dmg));
-                MeleeTable.Result hit = new MeleeTable.Result(MeleeTable.Outcome.HIT, dmg, dmg);
-                s.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, world.combat.encodeAttack(petUnit, prey, hit));
+                if (p.companion != null && p.companion.worldBody() != null) {
+                    // Companion: first swing via World.companionAssistMelee on next tick — no raw setHealth.
+                    world.companionAssistMelee(p, p.companion.worldBody(), prey);
+                } else {
+                    Unit petUnit = new Unit(UpdateFields.UNIT_END, Unit.TYPEID_UNIT);
+                    petUnit.guid = p.pet.guid;
+                    int dmg = Math.max(1, (int) petUnit.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
+                    prey.setHealth(Math.max(0, prey.health() - dmg));
+                    MeleeTable.Result hit = new MeleeTable.Result(MeleeTable.Outcome.HIT, dmg, dmg);
+                    s.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, world.combat.encodeAttack(petUnit, prey, hit));
+                }
             }
         }
         if (p.pet != null) {
@@ -332,7 +336,8 @@ public final class PetHandler {
     }
 
     static byte[] encodeBar(Pet pet) {
-        WowBuffer b = new WowBuffer(64);
+        int spellCount = pet.spells == null ? 0 : pet.spells.size();
+        WowBuffer b = new WowBuffer(64 + spellCount * 4);
         b.putU64(pet.guid);
         b.putU32(0);
         b.putU8(1);
@@ -341,8 +346,14 @@ public final class PetHandler {
         for (int i = 0; i < 10; i++) {
             b.putU32(pet.actionBar[i]);
         }
-        b.putU8(0);
-        b.putU8(0);
+        b.putU8(spellCount);
+        if (pet.spells != null) {
+            for (int spellId : pet.spells) {
+                // CMaNGOS PetSpellInitialize: spellId | (ACT_ENABLED << 24) for known pet spells.
+                b.putU32(spellId | (ACT_ENABLED << 24));
+            }
+        }
+        b.putU8(0); // cooldown count
         return b.array();
     }
 

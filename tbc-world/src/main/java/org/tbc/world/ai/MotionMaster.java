@@ -517,11 +517,11 @@ public final class MotionMaster {
         return false;
     }
 
-    static byte[] monsterMove(Creature c, float destX, float destY, float destZ) {
+    public static byte[] monsterMove(Creature c, float destX, float destY, float destZ) {
         return monsterMove(c, destX, destY, destZ, UpdateBuilder.RUN, 0, 1);
     }
 
-    static byte[] monsterMove(Creature c, float destX, float destY, float destZ, float speed) {
+    public static byte[] monsterMove(Creature c, float destX, float destY, float destZ, float speed) {
         return monsterMove(c, destX, destY, destZ, speed, 0, 1);
     }
 

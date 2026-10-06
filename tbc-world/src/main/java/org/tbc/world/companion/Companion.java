@@ -14,6 +14,11 @@ public final class Companion {
     private final Pet pet;
     private final int[] companionBar = new int[PetHandlerBar.MAX];
     private Creature worldBody;
+    /** Last position sent via SMSG_MONSTER_MOVE (follow throttle). */
+    public float lastBroadcastX;
+    public float lastBroadcastY;
+    public float lastBroadcastZ;
+    public boolean hasBroadcastPos;
 
     public Companion(long sourceGuid, Player snapshot, Pet pet) {
         this.sourceGuid = sourceGuid;

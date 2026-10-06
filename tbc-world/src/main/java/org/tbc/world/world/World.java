@@ -829,6 +829,56 @@ public final class World implements Runnable {
         }
     }
 
+    /**
+     * Companion pet assist swing — gated by range/facing/timer; threat and engage on the owner,
+     * not raw setHealth every tick.
+     */
+    public void companionAssistMelee(Player owner, Creature body, Creature prey) {
+        if (owner == null || body == null || prey == null || !prey.alive() || !body.alive()) {
+            return;
+        }
+        if (body.meleeCooldownMs > 0) {
+            return;
+        }
+        if (!Combat.canReachWithMeleeAttack(body, prey)) {
+            body.meleeCooldownMs = Combat.SWING_ERROR_RETRY_MS;
+            return;
+        }
+        if (!Combat.hasMeleeFacing(body, prey)) {
+            body.meleeCooldownMs = Combat.SWING_ERROR_RETRY_MS;
+            return;
+        }
+        int swing = body.getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME);
+        body.meleeCooldownMs = swing > 0 ? swing : 2000;
+        GameMap hitMap = map(owner.mapId, owner.instanceId);
+        boolean wasAlive = prey.alive();
+        MeleeTable.Result r = combat.swing(body, prey, nowMs(),
+                (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
+        if (r.damage() > 0) {
+            onCreatureAttackedBySpell(owner, prey, r.damage());
+        } else if (prey.alive() && !prey.evading && r.outcome() != MeleeTable.Outcome.EVADE) {
+            if (!prey.inCombat) {
+                engage(prey, owner);
+            } else {
+                combat.setInCombatWith(owner, prey);
+            }
+        }
+        byte[] log = combat.encodeAttack(body, prey, r);
+        var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));
+        for (Player pl : hitMap.nearbyPlayers(prey, GameMap.VISIBILITY)) {
+            if (pl.session == null) {
+                continue;
+            }
+            pl.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, log);
+            if (prey.alive()) {
+                pl.session.send(hp.opcode(), hp.payload());
+            }
+        }
+        if (wasAlive && !prey.alive()) {
+            onCreatureKilled(owner, prey);
+        }
+    }
+
     /** CMaNGOS AttackStart + SMSG_ATTACKSTART to nearby (combat-log.md). */
     public void engage(Creature c, Player p) {
         if (c == null || p == null || !c.alive() || !p.alive()) {
@@ -1120,7 +1170,7 @@ public final class World implements Runnable {
             s.tick(this, diff);
             Player pl = s.player();
             if (pl != null && pl.companion != null) {
-                org.tbc.world.companion.CompanionBehavior.tick(this, pl);
+                org.tbc.world.companion.CompanionBehavior.tick(this, pl, diff);
             }
         }
         // Unit::Update → m_currentSpells[i]->update(diff): cast bars finish here.
