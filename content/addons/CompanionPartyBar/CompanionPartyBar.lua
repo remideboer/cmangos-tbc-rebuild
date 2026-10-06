@@ -125,15 +125,23 @@ end
 
 local function createButton(slot)
     local button = CreateFrame("Button", ADDON .. "Button" .. slot, bar)
-    button:SetWidth(38)
-    button:SetHeight(38)
+    button:SetWidth(56)
+    button:SetHeight(32)
+    button:SetFrameLevel(bar:GetFrameLevel() + 2)
     button.slot = slot
     button:RegisterForClicks("LeftButtonUp")
 
+    local buttonBackground = button:CreateTexture(nil, "BACKGROUND")
+    buttonBackground:SetAllPoints(button)
+    buttonBackground:SetTexture(0.12, 0.12, 0.12)
+    buttonBackground:SetAlpha(0.95)
+    button.background = buttonBackground
+
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 3, -3)
-    icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -3, 3)
+    icon:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -2)
+    icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    icon:SetAlpha(0.45)
     button.icon = icon
 
     local border = button:CreateTexture(nil, "OVERLAY")
@@ -147,7 +155,11 @@ local function createButton(slot)
     highlight:SetBlendMode("ADD")
 
     local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    label:SetPoint("BOTTOM", button, "BOTTOM", 0, 4)
+    label:SetPoint("CENTER", button, "CENTER", 0, 0)
+    label:SetWidth(52)
+    label:SetTextColor(1, 1, 1)
+    label:SetShadowColor(0, 0, 0)
+    label:SetShadowOffset(1, -1)
     button.label = label
 
     button:SetScript("OnClick", function()
@@ -157,6 +169,7 @@ local function createButton(slot)
     button:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
+    button:Show()
     return button
 end
 
@@ -165,8 +178,8 @@ local function ensureBar()
         return
     end
     bar = CreateFrame("Frame", ADDON .. "Frame", UIParent)
-    bar:SetWidth(214)
-    bar:SetHeight(102)
+    bar:SetWidth(307)
+    bar:SetHeight(91)
     bar:SetFrameStrata("HIGH")
     bar:SetFrameLevel(20)
     bar:SetClampedToScreen(true)
@@ -197,7 +210,7 @@ local function ensureBar()
         local button = createButton(slot)
         local column = math.mod(slot - 1, 5)
         local row = math.floor((slot - 1) / 5)
-        button:SetPoint("TOPLEFT", bar, "TOPLEFT", 7 + column * 41, -22 - row * 39)
+        button:SetPoint("TOPLEFT", bar, "TOPLEFT", 7 + column * 60, -21 - row * 34)
         buttons[slot] = button
     end
     restorePosition()
@@ -215,19 +228,26 @@ local function updateButton(slot)
         button.icon:SetTexture(COMMAND_ICONS[slot])
         button.label:SetText(command)
         button:Enable()
+        button.background:SetVertexColor(0.12, 0.20, 0.32)
         button.icon:SetVertexColor(1, 1, 1)
+        button.icon:SetAlpha(0.35)
     elseif data.action ~= 0 then
         local spellName, _, spellIcon = GetSpellInfo(data.action)
         button.icon:SetTexture(spellIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
-        button.label:SetText(spellName or data.action)
+        button.label:SetText(tostring(data.action))
         button:Enable()
+        button.background:SetVertexColor(0.12, 0.12, 0.12)
         button.icon:SetVertexColor(1, 1, 1)
+        button.icon:SetAlpha(spellName and 0.80 or 0.35)
     else
         button.icon:SetTexture("Interface\\Buttons\\UI-Quickslot")
-        button.label:SetText("")
+        button.label:SetText("-")
         button:Disable()
+        button.background:SetVertexColor(0.08, 0.08, 0.08)
         button.icon:SetVertexColor(0.35, 0.35, 0.35)
+        button.icon:SetAlpha(0.25)
     end
+    button:Show()
 end
 
 local function deactivate()

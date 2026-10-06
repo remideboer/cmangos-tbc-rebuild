@@ -47,6 +47,17 @@ class CompanionPartyBarLuaTest {
         assertTrue(lua.contains("bar:SetPoint(\"TOPLEFT\", UIParent, \"TOPLEFT\""));
     }
 
+    @Test
+    void companionPartyBarButtonsShouldRenderAboveBarWithVisibleLabels() throws Exception {
+        String lua = Files.readString(addonLua());
+
+        assertTrue(lua.contains("button:SetFrameLevel(bar:GetFrameLevel() + 2)"));
+        assertTrue(lua.contains("buttonBackground:SetTexture(0.12, 0.12, 0.12)"));
+        assertTrue(lua.contains("label:SetPoint(\"CENTER\", button, \"CENTER\""));
+        assertTrue(lua.contains("label:SetTextColor(1, 1, 1)"));
+        assertTrue(lua.contains("button:Show()"));
+    }
+
     private static Path addonLua() {
         Path lua = Path.of(System.getProperty("user.dir"))
                 .resolve("../content/addons/CompanionPartyBar/CompanionPartyBar.lua")
