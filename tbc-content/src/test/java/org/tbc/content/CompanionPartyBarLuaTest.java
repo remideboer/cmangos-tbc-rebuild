@@ -36,6 +36,17 @@ class CompanionPartyBarLuaTest {
         assertTrue(lua.contains("CompanionPartyBarDB.lastState"));
     }
 
+    @Test
+    void companionPartyBarWhenActiveShouldForceFrameOnScreenAboveStockUi() throws Exception {
+        String lua = Files.readString(addonLua());
+
+        assertTrue(lua.contains("bar:SetClampedToScreen(true)"));
+        assertTrue(lua.contains("bar:SetFrameStrata(\"HIGH\")"));
+        assertTrue(lua.contains("bar:SetAlpha(1)"));
+        assertTrue(lua.contains("command == \"show\""));
+        assertTrue(lua.contains("bar:SetPoint(\"TOPLEFT\", UIParent, \"TOPLEFT\""));
+    }
+
     private static Path addonLua() {
         Path lua = Path.of(System.getProperty("user.dir"))
                 .resolve("../content/addons/CompanionPartyBar/CompanionPartyBar.lua")

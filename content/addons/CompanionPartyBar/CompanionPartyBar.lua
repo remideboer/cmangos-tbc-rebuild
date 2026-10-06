@@ -68,9 +68,9 @@ end
 local function defaultPosition()
     bar:ClearAllPoints()
     if GetNumPartyMembers() > 0 and PartyMemberFrame1 then
-        bar:SetPoint("TOPLEFT", PartyMemberFrame1, "TOPRIGHT", 12, 0)
+        bar:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 180, -180)
     else
-        bar:SetPoint("TOPLEFT", PlayerFrame, "BOTTOMLEFT", 0, -12)
+        bar:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 220, -110)
     end
 end
 
@@ -167,7 +167,9 @@ local function ensureBar()
     bar = CreateFrame("Frame", ADDON .. "Frame", UIParent)
     bar:SetWidth(214)
     bar:SetHeight(102)
-    bar:SetFrameStrata("MEDIUM")
+    bar:SetFrameStrata("HIGH")
+    bar:SetFrameLevel(20)
+    bar:SetClampedToScreen(true)
     bar:SetMovable(true)
     bar:EnableMouse(true)
     bar:RegisterForDrag("LeftButton")
@@ -280,6 +282,7 @@ local function handleState(message)
     for slot = 1, 10 do
         updateButton(slot)
     end
+    bar:SetAlpha(1)
     bar:Show()
     applyStockPetBar()
 end
@@ -293,15 +296,24 @@ SlashCmdList.COMPANIONPARTYBAR = function(command)
         CompanionPartyBarDB.loaded = true
         defaultPosition()
         DEFAULT_CHAT_FRAME:AddMessage("CompanionPartyBar position reset.")
+    elseif command == "show" then
+        CompanionPartyBarDB.point = nil
+        defaultPosition()
+        bar:SetAlpha(1)
+        bar:Show()
+        DEFAULT_CHAT_FRAME:AddMessage("CompanionPartyBar forced on screen.")
     elseif command == "status" then
         DEFAULT_CHAT_FRAME:AddMessage(
             "CompanionPartyBar loaded=yes active=" .. tostring(active)
+            .. " shown=" .. tostring(bar:IsShown())
+            .. " left=" .. tostring(bar:GetLeft())
+            .. " top=" .. tostring(bar:GetTop())
             .. " requests=" .. tostring(CompanionPartyBarDB.requestCount or 0)
             .. " lastState=" .. tostring(CompanionPartyBarDB.lastState or "none")
         )
     else
         DEFAULT_CHAT_FRAME:AddMessage(
-            "CompanionPartyBar: drag to move; /cpb reset restores position; /cpb status shows sync state."
+            "CompanionPartyBar: drag to move; /cpb show forces visibility; /cpb status shows sync state."
         )
     end
 end
