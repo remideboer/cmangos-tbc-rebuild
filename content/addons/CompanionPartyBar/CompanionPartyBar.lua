@@ -1,6 +1,7 @@
 local ADDON = "CompanionPartyBar"
 -- TBC SendAddonMessage rejects prefixes longer than 16 characters.
 local PREFIX = "CompanionBar"
+CompanionPartyBarDB = CompanionPartyBarDB or {}
 
 local COMMAND_NAMES = {
     [1] = "Attack",
@@ -70,7 +71,6 @@ local function defaultPosition()
 end
 
 local function restorePosition()
-    CompanionPartyBarDB = CompanionPartyBarDB or {}
     if CompanionPartyBarDB.point then
         bar:ClearAllPoints()
         bar:SetPoint(
@@ -170,7 +170,8 @@ local function ensureBar()
 
     local background = bar:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints(bar)
-    background:SetTexture(0, 0, 0, 0.72)
+    background:SetTexture(0, 0, 0)
+    background:SetAlpha(0.72)
 
     nameText = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     nameText:SetPoint("TOP", bar, "TOP", 0, -7)
