@@ -41,6 +41,7 @@ public final class GmCommands {
         add("namego", SEC_MODERATOR, false);
         add("goname", SEC_MODERATOR, false);
         add("lookup", SEC_MODERATOR, true);
+        add("companion", SEC_PLAYER, false);
         add("companion summon", SEC_PLAYER, false);
         add("companion dismiss", SEC_PLAYER, false);
     }
@@ -55,11 +56,23 @@ public final class GmCommands {
 
     public int security(String name) {
         String k = name.toLowerCase(Locale.ROOT);
+        // Player-facing companion must stay SEC_PLAYER even if mangos `command` SQL overlays a name.
+        if (isCompanionCommand(k)) {
+            Leaf builtIn = table.get(k);
+            if (builtIn == null) {
+                builtIn = table.get("companion");
+            }
+            return builtIn != null ? builtIn.security : SEC_PLAYER;
+        }
         if (sqlOverlay.containsKey(k)) {
             return sqlOverlay.get(k);
         }
         Leaf l = table.get(k);
         return l == null ? Integer.MAX_VALUE : l.security;
+    }
+
+    private static boolean isCompanionCommand(String k) {
+        return "companion".equals(k) || k.startsWith("companion ");
     }
 
     public boolean allowed(Player p, String name) {
@@ -75,6 +88,15 @@ public final class GmCommands {
         String cmd = parts[0].toLowerCase(Locale.ROOT);
         if (parts.length > 1 && table.containsKey(cmd + " " + parts[1].toLowerCase(Locale.ROOT))) {
             cmd = cmd + " " + parts[1].toLowerCase(Locale.ROOT);
+        } else if ("companion".equals(cmd) && parts.length > 1
+                && !"summon".equalsIgnoreCase(parts[1]) && !"dismiss".equalsIgnoreCase(parts[1])) {
+            // .companion Name → summon shorthand
+            cmd = "companion summon";
+            String[] expanded = new String[parts.length + 1];
+            expanded[0] = "companion";
+            expanded[1] = "summon";
+            System.arraycopy(parts, 1, expanded, 2, parts.length - 1);
+            parts = expanded;
         }
         if (!allowed(p, cmd)) {
             return "You do not have access to that command.";
@@ -82,9 +104,8 @@ public final class GmCommands {
         return switch (cmd) {
             case "help", "commands" ->
                     "Available: .help .dismount .die .revive .appear .additem .tele .companion";
-            case "companion summon", "companion dismiss" -> {
-                yield world.companions.handleCommand(world, p, parts);
-            }
+            case "companion", "companion summon", "companion dismiss" ->
+                    world.companions.handleCommand(world, p, parts);
             case "dismount" -> {
                 p.mounted = false;
                 yield "Dismounted.";

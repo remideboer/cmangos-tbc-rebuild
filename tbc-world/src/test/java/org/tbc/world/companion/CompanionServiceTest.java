@@ -231,9 +231,27 @@ class CompanionServiceTest {
         World world = World.inMemory();
         Sink sink = login(world, "Owner");
         Player owner = sink.session.player();
+        owner.gmLevel = 0;
         world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
         String r = world.gm.handle(world, owner, ".companion summon Alt");
         assertEquals(CompanionService.OK_SUMMON, r);
+        assertNotNull(owner.companion);
+    }
+
+    @Test
+    void gmCompanionWhenPlayerSecurityAndSqlOverlayShouldStillAllow() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        owner.gmLevel = 0;
+        world.gm.overlay("companion", 3);
+        world.gm.overlay("companion summon", 3);
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        assertEquals(CompanionService.ERR_USAGE, world.gm.handle(world, owner, ".companion"));
+        assertEquals(CompanionService.OK_SUMMON, world.gm.handle(world, owner, ".companion summon Alt"));
+        assertNotNull(owner.companion);
+        world.companions.dismiss(world, owner);
+        assertEquals(CompanionService.OK_SUMMON, world.gm.handle(world, owner, ".companion Alt"));
         assertNotNull(owner.companion);
     }
 
