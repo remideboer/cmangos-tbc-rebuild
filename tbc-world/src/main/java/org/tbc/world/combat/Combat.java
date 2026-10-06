@@ -248,6 +248,7 @@ public final class Combat {
         p.setGuid(UpdateFields.UNIT_FIELD_TARGET, c.guid);
         c.setInt(UpdateFields.UNIT_FIELD_FLAGS, c.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
         p.setInt(UpdateFields.UNIT_FIELD_FLAGS, p.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
+        p.addAttacker(c);
         c.lastMeleeMs = nowMs;
         refreshCombatTimer(c, nowMs);
         int swing = c.getInt(org.tbc.world.net.wow8606.UpdateFields.UNIT_FIELD_BASEATTACKTIME);

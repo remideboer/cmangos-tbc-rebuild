@@ -372,16 +372,24 @@ public class Unit extends Entity {
     }
 
     /**
-     * CMaNGOS Unit::SetFeignDeath success path — FLAGS_2 FEIGN_DEATH + DYNFLAG_DEAD.
-     * PLAYER_CONTROLLED success → CombatStop (resist roll later; always success for now).
-     * NPC never CombatStop (AttackStop / threat offline later).
+     * CMaNGOS Unit::SetFeignDeath — FLAGS_2 FEIGN_DEATH + DYNFLAG_DEAD on apply always.
+     * PLAYER_CONTROLLED success → CombatStop; failed resist roll → SendFeignDeathResisted, keep combat.
+     * NPC never CombatStop.
      */
     public void setFeignDeath(boolean apply) {
+        setFeignDeath(apply, true);
+    }
+
+    public void setFeignDeath(boolean apply, boolean success) {
         int f2 = getInt(UpdateFields.UNIT_FIELD_FLAGS_2);
         int dyn = getInt(UpdateFields.UNIT_DYNAMIC_FLAGS);
         if (apply) {
-            if ((getInt(UpdateFields.UNIT_FIELD_FLAGS) & UNIT_FLAG_PLAYER_CONTROLLED) != 0) {
+            boolean playerControlled = (getInt(UpdateFields.UNIT_FIELD_FLAGS) & UNIT_FLAG_PLAYER_CONTROLLED) != 0;
+            if (playerControlled && success) {
                 combatStop();
+            }
+            if (playerControlled && !success) {
+                sendFeignDeathResisted();
             }
             setInt(UpdateFields.UNIT_FIELD_FLAGS_2, f2 | UNIT_FLAG2_FEIGN_DEATH);
             setInt(UpdateFields.UNIT_DYNAMIC_FLAGS, dyn | UNIT_DYNFLAG_DEAD);
@@ -717,6 +725,20 @@ public class Unit extends Entity {
     public int entry;
     public String scriptName = "";
     public final List<Aura> auras = new ArrayList<>();
+    private final List<Unit> attackers = new ArrayList<>();
+
+    /** CMaNGOS getAttackers — units currently attacking this one. */
+    public void addAttacker(Unit attacker) {
+        attackers.add(attacker);
+    }
+
+    public List<Unit> attackers() {
+        return attackers;
+    }
+
+    /** CMaNGOS Player::SendFeignDeathResisted — empty SMSG_FEIGN_DEATH_RESISTED. */
+    public void sendFeignDeathResisted() {
+    }
 
     /** CMaNGOS ProcessDispelList — remove up to max auras; 0 means 1. */
     public int dispelAuras(int max) {

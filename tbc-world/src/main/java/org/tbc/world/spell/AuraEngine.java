@@ -5,6 +5,7 @@ import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * SPELL_AURA_* modifier catalog (CMaNGOS Aura::ApplyModifier → AuraHandler[auraName]).
@@ -997,11 +998,45 @@ public final class AuraEngine {
     }
 
     /**
-     * Aura 66 — CMaNGOS HandleFeignDeath → SetFeignDeath (success path; resist roll later).
-     * Sets UNIT_FLAG2_FEIGN_DEATH + UNIT_DYNFLAG_DEAD; PLAYER_CONTROLLED → CombatStop.
+     * Aura 66 — CMaNGOS HandleFeignDeath → SetFeignDeath.
+     * PLAYER_CONTROLLED: resist chance = max miss vs NPC attackers; failed roll skips CombatStop.
      */
     private static void modFeignDeath(Unit target, boolean apply) {
-        target.setFeignDeath(apply);
+        if (!apply) {
+            target.setFeignDeath(false);
+            return;
+        }
+        target.setFeignDeath(true, feignDeathSucceeds(target));
+    }
+
+    /** CMaNGOS HandleFeignDeath roll_chance_f(max CalculateSpellMissChance vs NPC attackers). */
+    private static boolean feignDeathSucceeds(Unit target) {
+        if ((target.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_PLAYER_CONTROLLED) == 0) {
+            return true;
+        }
+        float resist = 0f;
+        for (Unit attacker : target.attackers()) {
+            if ((attacker.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_PLAYER_CONTROLLED) != 0) {
+                continue;
+            }
+            float chance = spellMissPercent(target);
+            if (chance > resist) {
+                resist = chance;
+            }
+        }
+        return ThreadLocalRandom.current().nextFloat() * 100f >= resist;
+    }
+
+    /** CMaNGOS CalculateSpellMissChance base 4%, hit auras, Pre-WotLK floor 1%. */
+    private static float spellMissPercent(Unit caster) {
+        float pct = 4f - caster.spellHitChance();
+        if (pct < 1f) {
+            pct = 1f;
+        }
+        if (pct > 100f) {
+            pct = 100f;
+        }
+        return pct;
     }
 
     /**

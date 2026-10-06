@@ -1424,6 +1424,15 @@ public final class Player extends Unit {
         session.send(enable ? Opcodes.SMSG_MOVE_WATER_WALK : Opcodes.SMSG_MOVE_LAND_WALK, b.array());
     }
 
+    /** CMaNGOS Player::SendFeignDeathResisted — empty payload. */
+    @Override
+    public void sendFeignDeathResisted() {
+        if (session == null) {
+            return;
+        }
+        session.send(Opcodes.SMSG_FEIGN_DEATH_RESISTED, new byte[0]);
+    }
+
     /**
      * CMaNGOS Unit::SetFeatherFall for client-controlled: SMSG_MOVE_FEATHER_FALL / NORMAL_FALL
      * = packed guid + uint32 order counter (Unit.cpp).
