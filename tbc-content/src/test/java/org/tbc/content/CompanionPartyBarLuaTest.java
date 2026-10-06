@@ -24,6 +24,18 @@ class CompanionPartyBarLuaTest {
                 "SavedVariables must initialize before frame construction");
     }
 
+    @Test
+    void companionPartyBarWhenInitialEnableIsMissedShouldRetryAndExposeSyncStatus() throws Exception {
+        String lua = Files.readString(addonLua());
+
+        assertFalse(lua.contains("strsplit("), "parse all ten slots without relying on vararg strsplit");
+        assertTrue(lua.contains("local function splitState(message)"));
+        assertTrue(lua.contains("requestState()") && lua.contains("syncElapsed"),
+                "inactive OnUpdate must retry the state request");
+        assertTrue(lua.contains("command == \"status\""));
+        assertTrue(lua.contains("CompanionPartyBarDB.lastState"));
+    }
+
     private static Path addonLua() {
         Path lua = Path.of(System.getProperty("user.dir"))
                 .resolve("../content/addons/CompanionPartyBar/CompanionPartyBar.lua")

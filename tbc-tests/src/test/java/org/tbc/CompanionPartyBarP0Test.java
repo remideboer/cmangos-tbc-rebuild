@@ -51,6 +51,18 @@ class CompanionPartyBarP0Test {
     }
 
     @Test
+    void tpCompUi001EnableWhisperAfterSummonShouldReturnActiveState() {
+        Fixture f = fixture();
+        assertEquals(CompanionService.OK_SUMMON,
+                f.world.companions.summon(f.world, f.owner, "Acantha"));
+        f.client.clear();
+
+        sendAddon(f.client, f.world, "enable");
+
+        assertTrue(lastCompanionState(f.client).startsWith(WIRE_PREFIX + "\tState;1;Acantha;"));
+    }
+
+    @Test
     void tpCompUi002ActionShouldUseValidatedPetHandlerSlot() {
         Fixture f = fixture();
         sendAddon(f.client, f.world, "enable");
@@ -117,8 +129,9 @@ class CompanionPartyBarP0Test {
 
     private static void sendAddon(WowClientDouble client, World world, String body) {
         WowBuffer packet = new WowBuffer(96);
-        packet.putU32(0x01);
+        packet.putU32(0x07);
         packet.putU32(0xFFFFFFFF);
+        packet.putCString(client.session().player().name);
         packet.putCString(WIRE_PREFIX + "\t" + body);
         client.handle(world, Opcodes.CMSG_MESSAGECHAT, packet.array());
     }

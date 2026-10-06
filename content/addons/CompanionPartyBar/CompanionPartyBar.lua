@@ -2,6 +2,7 @@ local ADDON = "CompanionPartyBar"
 -- TBC SendAddonMessage rejects prefixes longer than 16 characters.
 local PREFIX = "CompanionBar"
 CompanionPartyBarDB = CompanionPartyBarDB or {}
+CompanionPartyBarDB.loaded = true
 
 local COMMAND_NAMES = {
     [1] = "Attack",
@@ -28,6 +29,7 @@ local buttons = {}
 local slots = {}
 local active = false
 local stockUpdatePending = false
+local syncElapsed = 0
 
 local function send(body)
     if not SendAddonMessage then
@@ -42,6 +44,8 @@ local function send(body)
 end
 
 local function requestState()
+    CompanionPartyBarDB.requestCount = (CompanionPartyBarDB.requestCount or 0) + 1
+    CompanionPartyBarDB.lastRequest = "enable"
     send("enable")
 end
 
@@ -63,7 +67,7 @@ end
 
 local function defaultPosition()
     bar:ClearAllPoints()
-    if PartyMemberFrame1 then
+    if GetNumPartyMembers() > 0 and PartyMemberFrame1 then
         bar:SetPoint("TOPLEFT", PartyMemberFrame1, "TOPRIGHT", 12, 0)
     else
         bar:SetPoint("TOPLEFT", PlayerFrame, "BOTTOMLEFT", 0, -12)
@@ -232,8 +236,23 @@ local function deactivate()
     applyStockPetBar()
 end
 
+local function splitState(message)
+    local fields = {}
+    local start = 1
+    while true do
+        local separator = string.find(message, ";", start, true)
+        if not separator then
+            table.insert(fields, string.sub(message, start))
+            return fields
+        end
+        table.insert(fields, string.sub(message, start, separator - 1))
+        start = separator + 1
+    end
+end
+
 local function handleState(message)
-    local fields = { strsplit(";", message) }
+    CompanionPartyBarDB.lastState = message
+    local fields = splitState(message)
     if fields[1] ~= "State" then
         return
     end
@@ -256,6 +275,7 @@ local function handleState(message)
         }
     end
     active = true
+    syncElapsed = 0
     nameText:SetText(fields[3])
     for slot = 1, 10 do
         updateButton(slot)
@@ -270,16 +290,28 @@ SlashCmdList.COMPANIONPARTYBAR = function(command)
     ensureBar()
     if command == "reset" then
         CompanionPartyBarDB = {}
+        CompanionPartyBarDB.loaded = true
         defaultPosition()
         DEFAULT_CHAT_FRAME:AddMessage("CompanionPartyBar position reset.")
+    elseif command == "status" then
+        DEFAULT_CHAT_FRAME:AddMessage(
+            "CompanionPartyBar loaded=yes active=" .. tostring(active)
+            .. " requests=" .. tostring(CompanionPartyBarDB.requestCount or 0)
+            .. " lastState=" .. tostring(CompanionPartyBarDB.lastState or "none")
+        )
     else
-        DEFAULT_CHAT_FRAME:AddMessage("CompanionPartyBar: drag the header to move; /cpb reset restores its position.")
+        DEFAULT_CHAT_FRAME:AddMessage(
+            "CompanionPartyBar: drag to move; /cpb reset restores position; /cpb status shows sync state."
+        )
     end
 end
 
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
+events:RegisterEvent("UNIT_PET")
+events:RegisterEvent("PET_BAR_UPDATE")
+events:RegisterEvent("PARTY_MEMBERS_CHANGED")
 events:RegisterEvent("CHAT_MSG_ADDON")
 
 events:SetScript("OnEvent", function(_, event, arg1, arg2)
@@ -295,16 +327,24 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2)
         end
         return
     end
+    if event == "UNIT_PET" and arg1 ~= "player" then
+        return
+    end
     ensureBar()
     requestState()
 end)
 
 events:SetScript("OnUpdate", function(self, elapsed)
     self.elapsed = (self.elapsed or 0) + elapsed
+    syncElapsed = syncElapsed + elapsed
     if self.elapsed < 0.5 then
         return
     end
     self.elapsed = 0
+    if not active and syncElapsed >= 2 then
+        syncElapsed = 0
+        requestState()
+    end
     if active and PetActionBarFrame and PetActionBarFrame:IsShown()
             and not (InCombatLockdown and InCombatLockdown()) then
         PetActionBarFrame:Hide()
