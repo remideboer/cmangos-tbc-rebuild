@@ -28,6 +28,11 @@ public final class Pet {
     public int nameTimestamp;
     public final int[] actionBar = new int[10];
     public boolean summoned;
+    /** CharmInfo command/react state encoded in SMSG_PET_SPELLS. */
+    public int commandState = 1;
+    public int reactState = 1;
+    /** Follow command is actively recalling the pet from combat. */
+    public boolean retreating;
     /** Current melee victim (0 = not attacking). */
     public long victim;
     public boolean alive = true;

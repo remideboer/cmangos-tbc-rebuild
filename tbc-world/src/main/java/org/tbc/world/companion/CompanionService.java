@@ -6,6 +6,7 @@ import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
@@ -89,7 +90,7 @@ public final class CompanionService {
             return ERR_NOT_FOUND;
         }
         snap.session = null;
-        Pet pet = buildPet(snap);
+        Pet pet = buildPet(snap, world.objectMgr);
         int[] saved = savedBars.get(snap.guid);
         if (saved != null) {
             // Restore only spell slots — keep CMaNGOS command/reaction defaults.
@@ -212,6 +213,8 @@ public final class CompanionService {
         c.applyTemplate(c.entry, c.name, display, faction, hp, Math.max(1, snap.level));
         c.setGuid(UpdateFields.UNIT_FIELD_SUMMONEDBY, owner.guid);
         c.setGuid(UpdateFields.UNIT_FIELD_CREATEDBY, owner.guid);
+        c.setInt(UpdateFields.UNIT_FIELD_PETNUMBER, Guid.low(snap.guid));
+        c.setInt(UpdateFields.UNIT_FIELD_PET_NAME_TIMESTAMP, (int) (System.currentTimeMillis() / 1000L));
         c.setInt(UpdateFields.UNIT_FIELD_FLAGS, Unit.UNIT_FLAG_PLAYER_CONTROLLED);
         int bytes2 = pet.unitBytes2() | (Player.PLAYER_CONTROLLED_DEBUFF_LIMIT << 8);
         c.setInt(UpdateFields.UNIT_FIELD_BYTES_2, bytes2);
@@ -281,9 +284,9 @@ public final class CompanionService {
         return null;
     }
 
-    static Pet buildPet(Player snap) {
+    static Pet buildPet(Player snap, ObjectMgr objectMgr) {
         Pet pet = new Pet();
-        pet.guid = Guid.HIGH_CREATURE | (Guid.low(snap.guid) & 0xFFFFFFFFL);
+        pet.guid = Guid.HIGH_PET | (Guid.low(snap.guid) & 0xFFFFFFFFL);
         pet.name = snap.name == null ? "Companion" : snap.name;
         pet.level = snap.level;
         pet.petType = Pet.SUMMON_PET;
@@ -291,7 +294,11 @@ public final class CompanionService {
         pet.alive = true;
         pet.entry = COMPANION_ENTRY_BASE + (Guid.low(snap.guid) & 0xFFFF);
         pet.spells.clear();
-        pet.spells.addAll(snap.spells);
+        for (int spellId : snap.spells) {
+            if (knownAtLevel(spellId, snap.level, objectMgr)) {
+                pet.spells.add(spellId);
+            }
+        }
         PetHandlerBar.seedDefaults(pet.actionBar);
         int slot = PetHandlerBar.SPELL_SLOT_START;
         for (int i = 0; i < snap.actionButtons.length && slot < PetHandlerBar.SPELL_SLOT_END; i++) {
@@ -304,13 +311,18 @@ public final class CompanionService {
             if (type != ACTION_SPELL || action == 0) {
                 continue;
             }
-            if (!snap.spells.contains(action)) {
+            if (!pet.spells.contains(action)) {
                 continue;
             }
             pet.actionBar[slot] = action | (PetHandlerBar.ACT_ENABLED << 24);
             slot++;
         }
         return pet;
+    }
+
+    private static boolean knownAtLevel(int spellId, int level, ObjectMgr objectMgr) {
+        int baseLevel = objectMgr == null ? 0 : objectMgr.spellBaseLevel.getOrDefault(spellId, 0);
+        return baseLevel <= 0 || baseLevel <= level;
     }
 
     private static void sendBar(Player owner) {

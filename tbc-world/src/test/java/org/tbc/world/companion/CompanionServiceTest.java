@@ -65,10 +65,14 @@ class CompanionServiceTest {
         assertNotNull(owner.companion);
         assertNotNull(owner.pet);
         assertEquals("Alt", owner.pet.name);
-        assertEquals(Guid.HIGH_CREATURE | (Guid.low(alt.guid) & 0xFFFFFFFFL), owner.pet.guid);
+        assertEquals(Guid.HIGH_PET | (Guid.low(alt.guid) & 0xFFFFFFFFL), owner.pet.guid);
+        assertEquals(Guid.low(alt.guid),
+                owner.companion.worldBody().getInt(UpdateFields.UNIT_FIELD_PETNUMBER));
         assertTrue(sink.last.containsKey(Opcodes.SMSG_PET_SPELLS));
         byte[] bar = sink.last.get(Opcodes.SMSG_PET_SPELLS);
         assertEquals(owner.pet.guid, u64le(bar, 0));
+        assertEquals(PetHandlerBar.REACT_DEFENSIVE, bar[12] & 0xFF);
+        assertEquals(PetHandlerBar.COMMAND_FOLLOW, bar[13] & 0xFF);
         boolean spellOnBar = false;
         for (int i = 0; i < 10; i++) {
             int packed = u32le(bar, 16 + i * 4);
@@ -228,6 +232,32 @@ class CompanionServiceTest {
     }
 
     @Test
+    void summonWhenKnownSpellRequiresHigherLevelShouldKeepItOffPetBar() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, Player.CLASS_MAGE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        int fireballRank1 = 133;
+        int fireballRank2 = 143;
+        alt.level = 5;
+        alt.spells.add(fireballRank1);
+        alt.spells.add(fireballRank2);
+        alt.actionButtons[0] = fireballRank2;
+        alt.actionButtons[1] = fireballRank1;
+        world.objectMgr.spellBaseLevel.put(fireballRank1, 1);
+        world.objectMgr.spellBaseLevel.put(fireballRank2, 6);
+        world.characters.save(alt);
+
+        assertEquals(CompanionService.OK_SUMMON, world.companions.summon(world, owner, "Alt"));
+        assertTrue(owner.pet.spells.contains(fireballRank1));
+        assertFalse(owner.pet.spells.contains(fireballRank2));
+        for (int packed : owner.pet.actionBar) {
+            assertFalse((packed & 0xFFFFFF) == fireballRank2);
+        }
+    }
+
+    @Test
     void summonWhenDisabledShouldRefuse() {
         CompanionConfig.set(CompanionConfig.defaults().withEnabled(false));
         World world = World.inMemory();
@@ -332,6 +362,48 @@ class CompanionServiceTest {
     }
 
     @Test
+    void petCommandsWhenCompanionActiveShouldStayFollowAttackAndGoPassive() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+
+        petAction(sink, world, owner.pet.guid, PetHandlerBar.COMMAND_STAY, PetHandler.ACT_COMMAND, 0);
+        assertEquals(PetHandlerBar.COMMAND_STAY, owner.pet.commandState);
+        float stayX = body.x;
+        float stayY = body.y;
+        owner.x += 20f;
+        CompanionBehavior.tick(world, owner, 200);
+        assertEquals(stayX, body.x, 0.01f);
+        assertEquals(stayY, body.y, 0.01f);
+
+        petAction(sink, world, owner.pet.guid, PetHandlerBar.COMMAND_FOLLOW, PetHandler.ACT_COMMAND, 0);
+        assertEquals(PetHandlerBar.COMMAND_FOLLOW, owner.pet.commandState);
+        CompanionBehavior.tick(world, owner, 200);
+        assertTrue(Math.hypot(body.x - stayX, body.y - stayY) > 1f);
+
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000CCL;
+        mob.setHealth(500);
+        mob.mapId = owner.mapId;
+        mob.x = owner.x + 10f;
+        mob.y = owner.y;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        petAction(sink, world, owner.pet.guid, PetHandlerBar.COMMAND_ATTACK, PetHandler.ACT_COMMAND, mob.guid);
+        assertEquals(mob.guid, owner.pet.victim);
+
+        petAction(sink, world, owner.pet.guid, PetHandlerBar.REACT_PASSIVE, PetHandler.ACT_REACTION, 0);
+        assertEquals(PetHandlerBar.REACT_PASSIVE, owner.pet.reactState);
+        assertEquals(0L, owner.pet.victim);
+        assertEquals(0L, body.victim);
+        byte[] bar = sink.last.get(Opcodes.SMSG_PET_SPELLS);
+        assertEquals(PetHandlerBar.REACT_PASSIVE, bar[12] & 0xFF);
+        assertEquals(PetHandlerBar.COMMAND_FOLLOW, bar[13] & 0xFF);
+    }
+
+    @Test
     void behaviorWhenVictimFarShouldChaseTowardPrey() {
         World world = World.inMemory();
         Sink sink = login(world, "Owner");
@@ -361,6 +433,38 @@ class CompanionServiceTest {
         double after = Math.hypot(body.x - mob.x, body.y - mob.y);
         assertTrue(after < before - 1f, "companion must chase closer to prey, before=" + before + " after=" + after);
         assertTrue(sink.last.containsKey(Opcodes.SMSG_MONSTER_MOVE));
+    }
+
+    @Test
+    void worldTickWhenCompanionChasesShouldAdvanceItOnlyOnce() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        owner.x = 0f;
+        owner.y = 0f;
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000DDL;
+        mob.setHealth(500);
+        mob.mapId = owner.mapId;
+        mob.x = 40f;
+        mob.y = 0f;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        owner.victim = mob.guid;
+        float startX = body.x;
+        float startY = body.y;
+        CompanionBehavior.tick(world, owner, 200);
+        double afterCompanionTick = Math.hypot(body.x - startX, body.y - startY);
+        assertTrue(afterCompanionTick > 1f && afterCompanionTick < 2f,
+                "one 200 ms run step expected, moved=" + afterCompanionTick);
+
+        world.tick(200);
+
+        double afterWorldCreatureLoop = Math.hypot(body.x - startX, body.y - startY);
+        assertEquals(afterCompanionTick, afterWorldCreatureLoop, 0.01,
+                "generic creature loop must not advance a player-controlled companion again");
     }
 
     @Test
@@ -394,6 +498,74 @@ class CompanionServiceTest {
         assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_START)
                 || sink.last.containsKey(Opcodes.SMSG_SPELL_GO));
         assertTrue(owner.companion.snapshot().getInt(UpdateFields.UNIT_FIELD_POWER1) < manaBefore);
+    }
+
+    @Test
+    void behaviorWhenRangedAutoSpellReadyShouldHoldCastingRange() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, Player.CLASS_MAGE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        alt.spells.add(SpellEngine.FIREBALL);
+        alt.actionButtons[0] = SpellEngine.FIREBALL;
+        alt.setInt(UpdateFields.UNIT_FIELD_POWER1, 2000);
+        alt.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 2000);
+        world.characters.save(alt);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000EEL;
+        mob.setHealth(5000);
+        mob.mapId = owner.mapId;
+        mob.x = owner.x + 40f;
+        mob.y = owner.y;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        owner.victim = mob.guid;
+
+        for (int i = 0; i < 40; i++) {
+            CompanionBehavior.tick(world, owner, 200);
+        }
+
+        float spellRange = world.spells.info(SpellEngine.FIREBALL).maxRange();
+        double distance = body.distance2d(mob);
+        assertTrue(distance <= spellRange + 0.5f, "must enter cast range, distance=" + distance);
+        assertTrue(distance >= spellRange * 0.7f, "ranged caster must not chase to melee, distance=" + distance);
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_START));
+    }
+
+    @Test
+    void petSpellButtonWhenTargetOutOfRangeShouldPathIntoRangeThenCast() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, Player.CLASS_MAGE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        alt.spells.add(SpellEngine.FIREBALL);
+        alt.actionButtons[0] = SpellEngine.FIREBALL;
+        alt.setInt(UpdateFields.UNIT_FIELD_POWER1, 1000);
+        world.characters.save(alt);
+        world.companions.summon(world, owner, "Alt");
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000FFL;
+        mob.setHealth(5000);
+        mob.mapId = owner.mapId;
+        mob.x = owner.x + 40f;
+        mob.y = owner.y;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        sink.last.clear();
+
+        petAction(sink, world, owner.pet.guid, SpellEngine.FIREBALL, PetHandler.ACT_ENABLED, mob.guid);
+        assertEquals(mob.guid, owner.pet.victim);
+        assertFalse(sink.last.containsKey(Opcodes.SMSG_SPELL_START));
+
+        for (int i = 0; i < 40 && !sink.last.containsKey(Opcodes.SMSG_SPELL_START); i++) {
+            CompanionBehavior.tick(world, owner, 200);
+        }
+
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_START));
+        assertTrue(owner.companion.worldBody().distance2d(mob)
+                <= world.spells.info(SpellEngine.FIREBALL).maxRange() + 0.5f);
     }
 
     @Test
@@ -484,6 +656,14 @@ class CompanionServiceTest {
         return (b[o] & 0xFFL) | ((b[o + 1] & 0xFFL) << 8) | ((b[o + 2] & 0xFFL) << 16)
                 | ((b[o + 3] & 0xFFL) << 24) | ((b[o + 4] & 0xFFL) << 32) | ((b[o + 5] & 0xFFL) << 40)
                 | ((b[o + 6] & 0xFFL) << 48) | ((b[o + 7] & 0xFFL) << 56);
+    }
+
+    private static void petAction(Sink sink, World world, long petGuid, int action, int type, long target) {
+        WowBuffer packet = new WowBuffer(20);
+        packet.putU64(petGuid);
+        packet.putU32(action | (type << 24));
+        packet.putU64(target);
+        PetHandler.action(sink.session, world, packet);
     }
 
     private static int u32le(byte[] b, int o) {

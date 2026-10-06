@@ -21,6 +21,8 @@ public final class Companion {
     public boolean hasBroadcastPos;
     /** Global GCD-style gate for companion auto-cast (ms remaining). */
     public int castCooldownMs;
+    private int requestedSpellId;
+    private long requestedSpellTarget;
 
     public Companion(long sourceGuid, Player snapshot, Pet pet) {
         this.sourceGuid = sourceGuid;
@@ -58,5 +60,23 @@ public final class Companion {
 
     public void applyBarToPet() {
         System.arraycopy(companionBar, 0, pet.actionBar, 0, companionBar.length);
+    }
+
+    public void requestSpell(int spellId, long targetGuid) {
+        requestedSpellId = spellId;
+        requestedSpellTarget = targetGuid;
+    }
+
+    public int requestedSpellId() {
+        return requestedSpellId;
+    }
+
+    public long requestedSpellTarget() {
+        return requestedSpellTarget;
+    }
+
+    public void clearRequestedSpell() {
+        requestedSpellId = 0;
+        requestedSpellTarget = 0;
     }
 }

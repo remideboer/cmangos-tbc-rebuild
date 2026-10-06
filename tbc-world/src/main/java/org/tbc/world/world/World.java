@@ -1154,6 +1154,19 @@ public final class World implements Runnable {
         return m.creatures.get(guid);
     }
 
+    /** Companion PetAI movement uses the same mmap/vmap path and surface policy as creature chase. */
+    public byte[] advanceCompanionMotion(Player owner, Creature body, int diff) {
+        if (owner == null || body == null) {
+            return null;
+        }
+        float oldX = body.x;
+        float oldY = body.y;
+        body.motion.pathFinder(pathFinder);
+        byte[] spline = body.motion.update(body, diff, surfaces);
+        map(owner.mapId, owner.instanceId).reindex(body, oldX, oldY);
+        return spline;
+    }
+
     public void tick(int diff) {
         nowMs.set(System.currentTimeMillis() + clockOffsetMs.get());
         timers.advance(diff);
@@ -1206,6 +1219,10 @@ public final class World implements Runnable {
                             }
                         }
                     }
+                    continue;
+                }
+                // CompanionBehavior already advances the visible PetAI body through mmap/vmap.
+                if (c.playerControlledPet) {
                     continue;
                 }
                 boolean combatPulse = c.inCombat || c.evading || c.motion.type() == MotionMaster.HOME

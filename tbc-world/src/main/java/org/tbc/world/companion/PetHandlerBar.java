@@ -13,13 +13,13 @@ final class PetHandlerBar {
     static final int ACT_ENABLED = PetHandler.ACT_ENABLED;
     static final int ACT_DISABLED = PetHandler.ACT_DISABLED;
     /** Unit.h CommandStates — Attack / Follow / Stay. */
-    static final int COMMAND_STAY = 0;
-    static final int COMMAND_FOLLOW = 1;
-    static final int COMMAND_ATTACK = 2;
+    static final int COMMAND_STAY = PetHandler.COMMAND_STAY;
+    static final int COMMAND_FOLLOW = PetHandler.COMMAND_FOLLOW;
+    static final int COMMAND_ATTACK = PetHandler.COMMAND_ATTACK;
     /** Unit.h ReactStates — Passiveive / Defensive / Aggressive. */
-    static final int REACT_PASSIVE = 0;
-    static final int REACT_DEFENSIVE = 1;
-    static final int REACT_AGGRESSIVE = 2;
+    static final int REACT_PASSIVE = PetHandler.REACT_PASSIVE;
+    static final int REACT_DEFENSIVE = PetHandler.REACT_DEFENSIVE;
+    static final int REACT_AGGRESSIVE = PetHandler.REACT_AGGRESSIVE;
 
     private PetHandlerBar() {}
 

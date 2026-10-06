@@ -21,8 +21,13 @@ public final class PetHandler {
     public static final int ACT_ENABLED = 0xC1;
     public static final int ACT_DISABLED = 0x81;
     public static final int ACT_PASSIVE = 0x01;
+    public static final int COMMAND_STAY = 0;
+    public static final int COMMAND_FOLLOW = 1;
     public static final int COMMAND_ATTACK = 2;
     public static final int COMMAND_DISMISS = 3;
+    public static final int REACT_PASSIVE = 0;
+    public static final int REACT_DEFENSIVE = 1;
+    public static final int REACT_AGGRESSIVE = 2;
     public static final int MAX_ACTION_BAR = 10;
     public static final int STABLE_OK = 0x08;
     public static final int UNSTABLE_OK = 0x09;
@@ -49,6 +54,13 @@ public final class PetHandler {
                 p.pet.canRename = true;
             }
         }
+        if (petGuid != 0 && p.pet.guid != 0 && p.pet.guid != petGuid) {
+            return;
+        }
+        if (!p.pet.alive) {
+            s.send(Opcodes.SMSG_PET_ACTION_FEEDBACK, new byte[]{(byte) FEEDBACK_PET_DEAD});
+            return;
+        }
         if (type == ACT_COMMAND && cmd == COMMAND_DISMISS && p.clazz != CLASS_HUNTER) {
             if (p.companion != null) {
                 world.companions.dismiss(world, p);
@@ -63,7 +75,12 @@ public final class PetHandler {
         if (p.pet != null && p.pet.guid == 0) {
             p.pet.guid = petGuid != 0 ? petGuid : (Guid.HIGH_CREATURE | (p.guid & 0xFFFFFF));
         }
-        if (type == ACT_COMMAND && cmd == COMMAND_ATTACK && p.pet != null) {
+        if (type == ACT_COMMAND && (cmd == COMMAND_STAY || cmd == COMMAND_FOLLOW)) {
+            p.pet.commandState = cmd;
+            p.pet.retreating = cmd == COMMAND_FOLLOW;
+            stopCompanionAttack(p);
+        } else if (type == ACT_COMMAND && cmd == COMMAND_ATTACK) {
+            p.pet.retreating = false;
             WowBuffer atk = new WowBuffer(16);
             atk.putU64(p.pet.guid);
             atk.putU64(target);
@@ -83,10 +100,41 @@ public final class PetHandler {
                     s.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, world.combat.encodeAttack(petUnit, prey, hit));
                 }
             }
+        } else if (type == ACT_REACTION && cmd >= REACT_PASSIVE && cmd <= REACT_AGGRESSIVE) {
+            p.pet.reactState = cmd;
+            if (cmd == REACT_PASSIVE) {
+                stopCompanionAttack(p);
+            }
+        } else if ((type == ACT_ENABLED || type == ACT_DISABLED || type == ACT_PASSIVE)
+                && cmd != 0 && p.pet.spells.contains(cmd)) {
+            SpellCastTargets targets = new SpellCastTargets();
+            if (target != 0) {
+                targets.mask = SpellCastTargets.UNIT;
+                targets.unitGuid = target;
+            }
+            if (p.companion != null && target != 0) {
+                p.companion.requestSpell(cmd, target);
+                p.pet.victim = target;
+            } else {
+                castKnownSpell(s, world, p, p.pet, cmd, targets);
+            }
         }
-        if (p.pet != null) {
-            s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(p.pet));
+        s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(p.pet));
+    }
+
+    private static void stopCompanionAttack(Player p) {
+        p.pet.victim = 0;
+        if (p.companion != null) {
+            p.companion.clearRequestedSpell();
         }
+        if (p.companion == null || p.companion.worldBody() == null) {
+            return;
+        }
+        Creature body = p.companion.worldBody();
+        body.victim = 0;
+        body.inCombat = false;
+        body.setGuid(UpdateFields.UNIT_FIELD_TARGET, 0);
+        body.motion.moveIdle();
     }
 
     /** HandlePetRename — hunter pet with UNIT_CAN_BE_RENAMED only. */
@@ -265,7 +313,15 @@ public final class PetHandler {
         int spellId = in.remaining() >= 4 ? in.getU32() : 0;
         SpellCastTargets targets = SpellCastTargets.read(in);
         Pet pet = p.pet;
-        if (pet == null || pet.guid != guid || spellId == 0 || !pet.spells.contains(spellId)) {
+        if (pet == null || pet.guid != guid) {
+            return;
+        }
+        castKnownSpell(s, world, p, pet, spellId, targets);
+    }
+
+    private static void castKnownSpell(WorldSession s, World world, Player p, Pet pet, int spellId,
+            SpellCastTargets targets) {
+        if (pet == null || spellId == 0 || !pet.spells.contains(spellId)) {
             return;
         }
         var sp = world.spells.info(spellId);
@@ -340,8 +396,8 @@ public final class PetHandler {
         WowBuffer b = new WowBuffer(64 + spellCount * 4);
         b.putU64(pet.guid);
         b.putU32(0);
-        b.putU8(1);
-        b.putU8(1);
+        b.putU8(pet.reactState);
+        b.putU8(pet.commandState);
         b.putU16(0);
         for (int i = 0; i < 10; i++) {
             b.putU32(pet.actionBar[i]);

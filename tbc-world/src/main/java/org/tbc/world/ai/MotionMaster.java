@@ -39,6 +39,8 @@ public final class MotionMaster {
 
     private int type = IDLE;
     private Unit target;
+    /** Negative means normal melee reach; otherwise hold this range from chase target. */
+    private float chaseDistance = -1f;
     private float wanderRadius;
     private float destX;
     private float destY;
@@ -78,8 +80,13 @@ public final class MotionMaster {
     }
 
     public void moveChase(Unit victim) {
+        moveChase(victim, -1f);
+    }
+
+    public void moveChase(Unit victim, float distance) {
         type = CHASE;
         target = victim;
+        chaseDistance = distance;
         hasDest = false;
         splineSent = false;
         faceSent = false;
@@ -93,9 +100,14 @@ public final class MotionMaster {
         return target;
     }
 
+    public float chaseDistance() {
+        return chaseDistance;
+    }
+
     public void moveRandom(float spawnDist) {
         type = RANDOM;
         target = null;
+        chaseDistance = -1f;
         wanderRadius = spawnDist;
         hasDest = false;
         splineSent = false;
@@ -109,6 +121,7 @@ public final class MotionMaster {
     public void moveIdle() {
         type = IDLE;
         target = null;
+        chaseDistance = -1f;
         hasDest = false;
         splineSent = false;
         faceSent = false;
@@ -121,6 +134,7 @@ public final class MotionMaster {
     public void moveHome() {
         type = HOME;
         target = null;
+        chaseDistance = -1f;
         hasDest = false;
         splineSent = false;
         faceSent = false;
@@ -187,7 +201,7 @@ public final class MotionMaster {
     private byte[] updateChase(Creature c, int diffMs, SurfaceQuery sq) {
         sincePacketMs += diffMs;
         double dist = c.distance2d(target);
-        float stop = Combat.meleeRange(c, target);
+        float stop = chaseDistance >= 0f ? chaseDistance : Combat.meleeRange(c, target);
         if (dist <= stop) {
             // StopMoving when the run spline finalizes (CMaNGOS HandleFinalizedMovement).
             // Never leave FACING_TARGET bound — 8606 keeps turning the corpse toward the looter.

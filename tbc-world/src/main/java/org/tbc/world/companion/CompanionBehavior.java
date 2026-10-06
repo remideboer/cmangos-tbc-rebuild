@@ -48,31 +48,52 @@ public final class CompanionBehavior {
         if (companion.castCooldownMs > 0) {
             companion.castCooldownMs -= Math.max(0, diff);
         }
-
-        long target = owner.victim != 0 ? owner.victim : owner.pet.victim;
-        if (target == 0) {
+        if (owner.pet.retreating) {
             clearCombatMotion(body);
             followOwner(world, owner, body);
+            owner.pet.retreating = false;
+            return;
+        }
+
+        long target = owner.pet.victim != 0
+                ? owner.pet.victim
+                : owner.pet.commandState != PetHandlerBar.COMMAND_STAY
+                        && owner.pet.reactState != PetHandlerBar.REACT_PASSIVE ? owner.victim : 0;
+        if (target == 0) {
+            clearCombatMotion(body);
+            if (owner.pet.commandState == PetHandlerBar.COMMAND_FOLLOW) {
+                followOwner(world, owner, body);
+            }
             return;
         }
         Creature prey = world.map(owner.mapId, owner.instanceId).creatures.get(target);
         if (prey == null || !prey.alive()) {
             owner.pet.victim = 0;
             clearCombatMotion(body);
-            followOwner(world, owner, body);
+            if (owner.pet.commandState == PetHandlerBar.COMMAND_FOLLOW) {
+                followOwner(world, owner, body);
+            }
             return;
         }
         owner.pet.victim = target;
-        ensureChasing(body, prey);
-
-        if (tryAutoCast(world, owner, body, prey)) {
+        markCombatTarget(body, prey);
+        AutoCastChoice autoCast = autoCastChoice(world, owner, prey);
+        if (autoCast != null) {
+            float castRange = Math.max(5f, autoCast.spell().maxRange());
+            if (body.distance2d(prey) > castRange) {
+                ensureChasing(body, prey, castRange * 0.85f);
+                advanceChase(world, owner, body, diff);
+                return;
+            }
+            if (body.motion.type() == MotionMaster.CHASE) {
+                body.motion.moveIdle();
+            }
+            tryAutoCast(world, owner, body, prey, autoCast);
             return;
         }
 
-        byte[] spline = body.motion.update(body, diff);
-        if (spline != null) {
-            broadcastMove(world, owner, body, spline);
-        }
+        ensureChasing(body, prey, -1f);
+        advanceChase(world, owner, body, diff);
         if (!Combat.hasMeleeFacing(body, prey) && Combat.canReachWithMeleeAttack(body, prey)) {
             float o = Combat.angleTo(body.x, body.y, prey.x, prey.y);
             body.relocate(body.x, body.y, body.z, o);
@@ -82,17 +103,31 @@ public final class CompanionBehavior {
         world.companionAssistMelee(owner, body, prey);
     }
 
-    static void ensureChasing(Creature body, Creature prey) {
+    static void ensureChasing(Creature body, Creature prey, float distance) {
+        markCombatTarget(body, prey);
+        if (body.motion.type() != MotionMaster.CHASE || body.motion.target() != prey
+                || Math.abs(body.motion.chaseDistance() - distance) > 0.01f) {
+            body.motion.moveChase(prey, distance);
+        }
+    }
+
+    private static void markCombatTarget(Creature body, Creature prey) {
         body.inCombat = true;
         body.victim = prey.guid;
         body.setGuid(UpdateFields.UNIT_FIELD_TARGET, prey.guid);
-        if (body.motion.type() != MotionMaster.CHASE || body.motion.target() != prey) {
-            body.motion.moveChase(prey);
+    }
+
+    private static void advanceChase(World world, Player owner, Creature body, int diff) {
+        byte[] spline = world.advanceCompanionMotion(owner, body, diff);
+        if (spline != null) {
+            broadcastMove(world, owner, body, spline);
         }
     }
 
     static void clearCombatMotion(Creature body) {
         body.victim = 0;
+        body.inCombat = false;
+        body.setGuid(UpdateFields.UNIT_FIELD_TARGET, 0);
         if (body.motion.type() == MotionMaster.CHASE) {
             body.motion.moveIdle();
         }
@@ -102,12 +137,57 @@ public final class CompanionBehavior {
      * Try one enabled bar spell (slots 3–6) when mana and range allow.
      * @return true if a cast was started (skip melee this tick)
      */
-    static boolean tryAutoCast(World world, Player owner, Creature body, Creature prey) {
+    static boolean tryAutoCast(World world, Player owner, Creature body, Creature prey, AutoCastChoice choice) {
         Companion companion = owner.companion;
         if (companion.castCooldownMs > 0 || owner.session == null) {
             return false;
         }
         Player snap = companion.snapshot();
+        int spellId = choice.spellId();
+        SpellEngine.SpellInfo sp = choice.spell();
+        if (sp.mana() > 0) {
+            int power = snap.getInt(UpdateFields.UNIT_FIELD_POWER1);
+            snap.setInt(UpdateFields.UNIT_FIELD_POWER1, power - sp.mana());
+        }
+        float o = Combat.angleTo(body.x, body.y, prey.x, prey.y);
+        body.relocate(body.x, body.y, body.z, o);
+        byte[] face = MotionMaster.monsterMoveFacingAngle(body, o, FACING_SPLINE_ID);
+        broadcastMove(world, owner, body, face);
+
+        SpellCastTargets targets = new SpellCastTargets();
+        targets.mask = SpellCastTargets.UNIT;
+        targets.unitGuid = prey.guid;
+        owner.session.send(Opcodes.SMSG_SPELL_START,
+                world.spells.encodeStart(owner.pet.guid, spellId, 0, sp.castTimeMs(), targets));
+        if (sp.castTimeMs() == 0) {
+            owner.session.send(Opcodes.SMSG_SPELL_GO,
+                    world.spells.encodeGo(owner.pet.guid, prey.guid, spellId, world.nowMs(), targets));
+            if (sp.minDmg() > 0 || sp.maxDmg() > 0) {
+                int dmg = Math.max(1, (sp.minDmg() + sp.maxDmg()) / 2);
+                world.onCreatureAttackedBySpell(owner, prey, dmg);
+                prey.setHealth(Math.max(0, prey.health() - dmg));
+                if (!prey.alive()) {
+                    world.onCreatureKilled(owner, prey);
+                }
+            }
+        }
+        companion.castCooldownMs = AUTO_CAST_GCD_MS;
+        if (choice.requested()) {
+            companion.clearRequestedSpell();
+        }
+        return true;
+    }
+
+    private static AutoCastChoice autoCastChoice(World world, Player owner, Creature prey) {
+        Player snap = owner.companion.snapshot();
+        int requested = owner.companion.requestedSpellId();
+        if (requested != 0 && owner.companion.requestedSpellTarget() == prey.guid) {
+            SpellEngine.SpellInfo sp = world.spells.info(requested);
+            if (owner.pet.spells.contains(requested) && sp != null && hasPower(snap, sp)) {
+                return new AutoCastChoice(requested, sp, true);
+            }
+            owner.companion.clearRequestedSpell();
+        }
         for (int i = PetHandlerBar.SPELL_SLOT_START; i < PetHandlerBar.SPELL_SLOT_END; i++) {
             int packed = owner.pet.actionBar[i];
             int act = (packed >>> 24) & 0xFF;
@@ -122,47 +202,19 @@ public final class CompanionBehavior {
             if (sp == null) {
                 continue;
             }
-            if (sp.mana() > 0) {
-                int power = snap.getInt(UpdateFields.UNIT_FIELD_POWER1);
-                if (power < sp.mana()) {
-                    continue;
-                }
-            }
-            float range = sp.maxRange() > 0f ? sp.maxRange() : 5f;
-            if (body.distance2d(prey) > range) {
+            if (!hasPower(snap, sp)) {
                 continue;
             }
-            if (sp.mana() > 0) {
-                int power = snap.getInt(UpdateFields.UNIT_FIELD_POWER1);
-                snap.setInt(UpdateFields.UNIT_FIELD_POWER1, power - sp.mana());
-            }
-            float o = Combat.angleTo(body.x, body.y, prey.x, prey.y);
-            body.relocate(body.x, body.y, body.z, o);
-            byte[] face = MotionMaster.monsterMoveFacingAngle(body, o, FACING_SPLINE_ID);
-            broadcastMove(world, owner, body, face);
-
-            SpellCastTargets targets = new SpellCastTargets();
-            targets.mask = SpellCastTargets.UNIT;
-            targets.unitGuid = prey.guid;
-            owner.session.send(Opcodes.SMSG_SPELL_START,
-                    world.spells.encodeStart(owner.pet.guid, spellId, 0, sp.castTimeMs(), targets));
-            if (sp.castTimeMs() == 0) {
-                owner.session.send(Opcodes.SMSG_SPELL_GO,
-                        world.spells.encodeGo(owner.pet.guid, prey.guid, spellId, world.nowMs(), targets));
-                if (sp.minDmg() > 0 || sp.maxDmg() > 0) {
-                    int dmg = Math.max(1, (sp.minDmg() + sp.maxDmg()) / 2);
-                    world.onCreatureAttackedBySpell(owner, prey, dmg);
-                    prey.setHealth(Math.max(0, prey.health() - dmg));
-                    if (!prey.alive()) {
-                        world.onCreatureKilled(owner, prey);
-                    }
-                }
-            }
-            companion.castCooldownMs = AUTO_CAST_GCD_MS;
-            return true;
+            return new AutoCastChoice(spellId, sp, false);
         }
-        return false;
+        return null;
     }
+
+    private static boolean hasPower(Player snap, SpellEngine.SpellInfo spell) {
+        return spell.mana() <= 0 || snap.getInt(UpdateFields.UNIT_FIELD_POWER1) >= spell.mana();
+    }
+
+    record AutoCastChoice(int spellId, SpellEngine.SpellInfo spell, boolean requested) {}
 
     static void followOwner(World world, Player owner, Creature body) {
         Companion c = owner.companion;
