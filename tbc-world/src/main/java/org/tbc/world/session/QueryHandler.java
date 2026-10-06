@@ -22,31 +22,55 @@ public final class QueryHandler {
         int entry = readU32(in);
         readU64(in);
         ObjectMgr.CreatureTemplate t = world.objectMgr.creatures.get(entry);
-        if (t == null) {
+        String companionName = org.tbc.world.companion.CompanionService.companionQueryName(session.player(), entry);
+        if (t == null && companionName == null) {
             session.send(Opcodes.SMSG_CREATURE_QUERY_RESPONSE, fail(entry));
             return;
         }
         WowBuffer out = new WowBuffer(128);
         out.putU32(entry);
-        out.putCString(nz(t.name()));
-        out.putU8(0);
-        out.putU8(0);
-        out.putU8(0);
-        out.putCString(nz(t.subName()));
-        out.putCString(nz(t.iconName()));
-        out.putU32(t.typeFlags());
-        out.putU32(t.type());
-        out.putU32(t.family());
-        out.putU32(t.rank());
-        out.putU32(0);
-        out.putU32(t.petSpellDataId());
-        out.putU32(t.display());
-        out.putU32(t.display2());
-        out.putU32(t.display3());
-        out.putU32(t.display4());
-        out.putFloat(t.healthMultiplier());
-        out.putFloat(t.powerMultiplier());
-        out.putU8(t.racialLeader());
+        if (companionName != null) {
+            int display = org.tbc.world.companion.CompanionService.companionQueryDisplay(session.player(), entry);
+            out.putCString(companionName);
+            out.putU8(0);
+            out.putU8(0);
+            out.putU8(0);
+            out.putCString("Companion");
+            out.putCString("");
+            out.putU32(0);
+            out.putU32(7);
+            out.putU32(0);
+            out.putU32(0);
+            out.putU32(0);
+            out.putU32(0);
+            out.putU32(display);
+            out.putU32(0);
+            out.putU32(0);
+            out.putU32(0);
+            out.putFloat(1f);
+            out.putFloat(1f);
+            out.putU8(0);
+        } else {
+            out.putCString(nz(t.name()));
+            out.putU8(0);
+            out.putU8(0);
+            out.putU8(0);
+            out.putCString(nz(t.subName()));
+            out.putCString(nz(t.iconName()));
+            out.putU32(t.typeFlags());
+            out.putU32(t.type());
+            out.putU32(t.family());
+            out.putU32(t.rank());
+            out.putU32(0);
+            out.putU32(t.petSpellDataId());
+            out.putU32(t.display());
+            out.putU32(t.display2());
+            out.putU32(t.display3());
+            out.putU32(t.display4());
+            out.putFloat(t.healthMultiplier());
+            out.putFloat(t.powerMultiplier());
+            out.putU8(t.racialLeader());
+        }
         session.send(Opcodes.SMSG_CREATURE_QUERY_RESPONSE, out.array());
     }
 

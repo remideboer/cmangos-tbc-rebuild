@@ -1,11 +1,15 @@
 package org.tbc.world.companion;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Pet;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
+import org.tbc.world.map.GameMap;
 import org.tbc.world.net.wow8606.Opcodes;
-import org.tbc.world.persist.CharacterStore;
+import org.tbc.world.net.wow8606.UpdateBuilder;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.PetHandler;
 import org.tbc.world.session.WorldSession;
 import org.tbc.world.world.World;
@@ -27,6 +31,11 @@ public final class CompanionService {
     public static final String ERR_NONE = "You have no companion.";
     public static final String OK_SUMMON = "Companion summoned.";
     public static final String OK_DISMISS = "Companion dismissed.";
+
+    /** Ephemeral creature_template entry base — name resolved via QueryHandler companion path. */
+    public static final int COMPANION_ENTRY_BASE = 2_100_000;
+    /** Yards behind owner facing (CMaNGOS pet follow offset). */
+    public static final float FOLLOW_DIST = 2.0f;
 
     /** ActionButtonType ACTION_BUTTON_SPELL = 0. */
     private static final int ACTION_SPELL = 0;
@@ -84,8 +93,14 @@ public final class CompanionService {
             System.arraycopy(saved, 0, pet.actionBar, 0, Math.min(saved.length, pet.actionBar.length));
         }
         Companion companion = new Companion(snap.guid, snap, pet);
+        Creature body = spawnWorldBody(world, owner, snap, pet);
+        companion.setWorldBody(body);
+        pet.bindBody(body);
         owner.companion = companion;
         owner.pet = pet;
+        owner.setGuid(UpdateFields.UNIT_FIELD_SUMMON, pet.guid);
+        sendSummonLink(owner);
+        revealBody(world, owner, body);
         sendBar(owner);
         return OK_SUMMON;
     }
@@ -126,19 +141,124 @@ public final class CompanionService {
         world.characters.save(snap);
     }
 
+    /** Companion creature query name when entry is the ephemeral companion entry. */
+    public static String companionQueryName(Player owner, int entry) {
+        if (owner == null || owner.companion == null || owner.companion.worldBody() == null) {
+            return null;
+        }
+        Creature body = owner.companion.worldBody();
+        if (body.entry != entry) {
+            return null;
+        }
+        String n = owner.companion.snapshot().name;
+        return n == null || n.isBlank() ? "Companion" : n;
+    }
+
+    public static int companionQueryDisplay(Player owner, int entry) {
+        if (owner == null || owner.companion == null || owner.companion.worldBody() == null) {
+            return 0;
+        }
+        Creature body = owner.companion.worldBody();
+        if (body.entry != entry) {
+            return 0;
+        }
+        return body.getInt(UpdateFields.UNIT_FIELD_DISPLAYID);
+    }
+
     private void saveAndClear(World world, Player owner) {
         Companion c = owner.companion;
         c.syncBarFromPet();
         savedBars.put(c.sourceGuid(), c.companionBar().clone());
         world.characters.save(c.snapshot());
+        despawnWorldBody(world, owner, c.worldBody());
         owner.companion = null;
         owner.pet = null;
+        owner.setGuid(UpdateFields.UNIT_FIELD_SUMMON, 0);
+        sendSummonLink(owner);
         WorldSession s = owner.session;
         if (s != null) {
             WowBuffer hide = new WowBuffer(8);
             hide.putU64(0);
             s.send(Opcodes.SMSG_PET_SPELLS, hide.array());
         }
+    }
+
+    static Creature spawnWorldBody(World world, Player owner, Player snap, Pet pet) {
+        float[] pos = followPosition(owner);
+        Creature c = new Creature();
+        c.guid = pet.guid;
+        c.entry = COMPANION_ENTRY_BASE + (Guid.low(snap.guid) & 0xFFFF);
+        c.name = snap.name == null ? "Companion" : snap.name;
+        c.mapId = owner.mapId;
+        c.relocate(pos[0], pos[1], pos[2], owner.o);
+        c.spawnX = c.x;
+        c.spawnY = c.y;
+        c.spawnZ = c.z;
+        c.spawnO = c.o;
+        c.pet = true;
+        c.playerControlledPet = true;
+        c.temporarySummon = true;
+        int display = snap.displayId > 0 ? snap.displayId : 49;
+        int hp = Math.max(1, snap.maxHealth() > 0 ? snap.maxHealth() : 100);
+        int faction = owner.faction != 0 ? owner.faction : snap.faction;
+        c.applyTemplate(c.entry, c.name, display, faction, hp, Math.max(1, snap.level));
+        c.setGuid(UpdateFields.UNIT_FIELD_SUMMONEDBY, owner.guid);
+        c.setGuid(UpdateFields.UNIT_FIELD_CREATEDBY, owner.guid);
+        c.setInt(UpdateFields.UNIT_FIELD_FLAGS, Unit.UNIT_FLAG_PLAYER_CONTROLLED);
+        c.setInt(UpdateFields.UNIT_FIELD_BYTES_2, pet.unitBytes2());
+        world.map(owner.mapId, owner.instanceId).add(c);
+        return c;
+    }
+
+    static float[] followPosition(Player owner) {
+        float behind = owner.o + (float) Math.PI;
+        float x = owner.x + FOLLOW_DIST * (float) Math.cos(behind);
+        float y = owner.y + FOLLOW_DIST * (float) Math.sin(behind);
+        return new float[]{x, y, owner.z};
+    }
+
+    private static void despawnWorldBody(World world, Player owner, Creature body) {
+        if (body == null) {
+            return;
+        }
+        int instanceId = owner != null ? owner.instanceId : 0;
+        GameMap map = world.map(body.mapId, instanceId);
+        WowBuffer destroy = new WowBuffer(8);
+        destroy.putU64(body.guid);
+        byte[] payload = destroy.array();
+        for (Player pl : map.nearbyPlayers(body, GameMap.VISIBILITY)) {
+            WorldSession s = pl.session;
+            if (s != null && s.hasSeen(body.guid)) {
+                s.destroyObject(body.guid, payload);
+            }
+        }
+        if (owner != null && owner.session != null && owner.session.hasSeen(body.guid)) {
+            owner.session.destroyObject(body.guid, payload);
+        }
+        map.remove(body);
+    }
+
+    private static void revealBody(World world, Player owner, Creature body) {
+        WorldSession s = owner.session;
+        if (s == null) {
+            return;
+        }
+        s.revealCreature(body, (int) world.nowMs());
+        for (Player pl : world.map(owner.mapId, owner.instanceId).nearbyPlayers(body, GameMap.VISIBILITY)) {
+            if (pl == owner || pl.session == null) {
+                continue;
+            }
+            pl.session.revealCreature(body, (int) world.nowMs());
+        }
+    }
+
+    private static void sendSummonLink(Player owner) {
+        WorldSession s = owner.session;
+        if (s == null) {
+            return;
+        }
+        var pkt = UpdateBuilder.maybeCompress(UpdateBuilder.values(owner, UpdateFields.UNIT_FIELD_SUMMON));
+        s.send(pkt.opcode(), pkt.payload());
     }
 
     private static Player findAccountCharacter(World world, int accountId, String name) {
@@ -158,6 +278,7 @@ public final class CompanionService {
         pet.petType = Pet.SUMMON_PET;
         pet.summoned = true;
         pet.alive = true;
+        pet.entry = COMPANION_ENTRY_BASE + (Guid.low(snap.guid) & 0xFFFF);
         pet.spells.clear();
         pet.spells.addAll(snap.spells);
         PetHandlerBar.seedDefaults(pet.actionBar);

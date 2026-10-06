@@ -43,6 +43,14 @@ public final class Pet {
         return body;
     }
 
+    /** Bind a live map Creature (or Unit) so combat/AI share the visible body. */
+    public void bindBody(Unit u) {
+        body = u;
+        if (u != null) {
+            u.guid = guid;
+        }
+    }
+
     /** ObjectMgr.cpp CheckPetName — length only (strict names off). */
     public static int checkName(String name) {
         int n = name.length();

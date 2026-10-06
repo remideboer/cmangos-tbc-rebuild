@@ -79,6 +79,37 @@ class CompanionServiceTest {
     }
 
     @Test
+    void summonWhenOkShouldSpawnCreatureNearOwnerAndReveal() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        owner.x = 100f;
+        owner.y = 200f;
+        owner.z = 50f;
+        owner.o = 0f;
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+
+        assertEquals(CompanionService.OK_SUMMON, world.companions.summon(world, owner, "Alt"));
+        Creature body = owner.companion.worldBody();
+        assertNotNull(body);
+        assertEquals(owner.pet.guid, body.guid);
+        assertEquals(owner.mapId, body.mapId);
+        assertTrue(body.getInt(UpdateFields.UNIT_FIELD_DISPLAYID) > 0);
+        float dx = body.x - owner.x;
+        float dy = body.y - owner.y;
+        float dist = (float) Math.sqrt(dx * dx + dy * dy);
+        assertTrue(dist > 0.5f && dist < 5f, "companion should stand near owner, dist=" + dist);
+        assertEquals(body, world.map(owner.mapId, owner.instanceId).creatures.get(body.guid));
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_UPDATE_OBJECT)
+                || sink.last.containsKey(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
+        assertEquals(body.guid, owner.getGuid(UpdateFields.UNIT_FIELD_SUMMON));
+
+        assertEquals(CompanionService.OK_DISMISS, world.companions.dismiss(world, owner));
+        assertNull(world.map(owner.mapId, owner.instanceId).creatures.get(body.guid));
+        assertEquals(0L, owner.getGuid(UpdateFields.UNIT_FIELD_SUMMON));
+    }
+
+    @Test
     void summonWhenDisabledShouldRefuse() {
         CompanionConfig.set(CompanionConfig.defaults().withEnabled(false));
         World world = World.inMemory();

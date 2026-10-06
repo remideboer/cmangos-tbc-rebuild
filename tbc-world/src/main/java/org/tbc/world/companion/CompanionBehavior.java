@@ -18,11 +18,21 @@ public final class CompanionBehavior {
         if (owner == null || owner.companion == null || owner.pet == null || !owner.pet.alive) {
             return;
         }
-        Unit body = owner.pet.asUnit();
-        body.x = owner.x;
-        body.y = owner.y;
-        body.z = owner.z;
-        body.mapId = owner.mapId;
+        Creature body = owner.companion.worldBody();
+        Unit combat = body != null ? body : owner.pet.asUnit();
+        if (body != null) {
+            float oldX = body.x;
+            float oldY = body.y;
+            float[] pos = CompanionService.followPosition(owner);
+            body.relocate(pos[0], pos[1], pos[2], owner.o);
+            body.mapId = owner.mapId;
+            world.map(owner.mapId, owner.instanceId).reindex(body, oldX, oldY);
+        } else {
+            combat.x = owner.x;
+            combat.y = owner.y;
+            combat.z = owner.z;
+            combat.mapId = owner.mapId;
+        }
         long target = owner.victim != 0 ? owner.victim : owner.pet.victim;
         if (target == 0) {
             return;
@@ -34,7 +44,7 @@ public final class CompanionBehavior {
         }
         owner.pet.victim = target;
         // MVP assist: auto-attack the owner's target. Owner still casts via CMSG_PET_CAST_SPELL.
-        int dmg = Math.max(1, (int) body.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
+        int dmg = Math.max(1, (int) combat.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
         prey.setHealth(Math.max(0, prey.health() - dmg));
     }
 
