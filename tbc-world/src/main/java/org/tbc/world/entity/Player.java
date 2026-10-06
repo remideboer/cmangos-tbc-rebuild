@@ -236,6 +236,8 @@ public final class Player extends Unit {
     private int moveOrderCounter;
     public int zoneClient;
     public Pet pet;
+    /** Offline-character companion (optional; gated by CompanionConfig). */
+    public org.tbc.world.companion.Companion companion;
     private Item spellItemTarget;
     private GameObject spellGameObjectTarget;
     public Group group;

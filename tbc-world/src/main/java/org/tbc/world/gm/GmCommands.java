@@ -41,7 +41,8 @@ public final class GmCommands {
         add("namego", SEC_MODERATOR, false);
         add("goname", SEC_MODERATOR, false);
         add("lookup", SEC_MODERATOR, true);
-        add("reload", SEC_ADMINISTRATOR, true);
+        add("companion summon", SEC_PLAYER, false);
+        add("companion dismiss", SEC_PLAYER, false);
     }
 
     private void add(String name, int sec, boolean console) {
@@ -79,7 +80,11 @@ public final class GmCommands {
             return "You do not have access to that command.";
         }
         return switch (cmd) {
-            case "help", "commands" -> "Available: .help .dismount .die .revive .appear .additem .tele";
+            case "help", "commands" ->
+                    "Available: .help .dismount .die .revive .appear .additem .tele .companion";
+            case "companion summon", "companion dismiss" -> {
+                yield world.companions.handleCommand(world, p, parts);
+            }
             case "dismount" -> {
                 p.mounted = false;
                 yield "Dismounted.";

@@ -50,6 +50,10 @@ public final class PetHandler {
             }
         }
         if (type == ACT_COMMAND && cmd == COMMAND_DISMISS && p.clazz != CLASS_HUNTER) {
+            if (p.companion != null) {
+                world.companions.dismiss(world, p);
+                return;
+            }
             p.pet = null;
             WowBuffer hide = new WowBuffer(8);
             hide.putU64(0);
@@ -171,6 +175,9 @@ public final class PetHandler {
             }
             pet.actionBar[position[i]] = data[i];
         }
+        if (p.companion != null) {
+            p.companion.syncBarFromPet();
+        }
         s.send(Opcodes.SMSG_PET_SPELLS, encodeBar(pet));
     }
 
@@ -261,6 +268,16 @@ public final class PetHandler {
         if (sp == null) {
             return;
         }
+        if (p.companion != null) {
+            Player snap = p.companion.snapshot();
+            if (sp.mana() > 0) {
+                int power = snap.getInt(UpdateFields.UNIT_FIELD_POWER1);
+                if (power < sp.mana()) {
+                    return;
+                }
+                snap.setInt(UpdateFields.UNIT_FIELD_POWER1, power - sp.mana());
+            }
+        }
         s.send(Opcodes.SMSG_SPELL_START, world.spells.encodeStart(pet.guid, spellId, 0, sp.castTimeMs(), targets));
         if (sp.castTimeMs() == 0) {
             long hit = targets.unitGuid != 0 ? targets.unitGuid : pet.guid;
@@ -327,5 +344,10 @@ public final class PetHandler {
         b.putU8(0);
         b.putU8(0);
         return b.array();
+    }
+
+    /** Public encode for companion / GM summon paths outside this package. */
+    public static byte[] encodeBarPublic(Pet pet) {
+        return encodeBar(pet);
     }
 }

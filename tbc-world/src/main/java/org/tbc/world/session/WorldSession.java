@@ -1311,6 +1311,7 @@ public final class WorldSession {
             return;
         }
         if (save) {
+            world.companions.desummonQuiet(world, player);
             world.characters.save(player);
         }
         world.map(player.mapId, player.instanceId).remove(player);

@@ -92,6 +92,8 @@ public final class World implements Runnable {
     public final Combat combat;
     public final Factions factions;
     public final GmCommands gm;
+    public final org.tbc.world.companion.CompanionService companions =
+            new org.tbc.world.companion.CompanionService();
     public final AbBattlefield ab = new AbBattlefield();
     public final AvBattlefield av = new AvBattlefield();
     public final EyBattlefield ey = new EyBattlefield();
@@ -412,6 +414,9 @@ public final class World implements Runnable {
         p.movement.moveFlags = 0;
         p.movement.moveFlags2 = 0;
         p.movement.fallTime = 0;
+        if (p.mapId != mapId) {
+            companions.desummonQuiet(this, p);
+        }
         if (p.mapId == mapId) {
             float ox = p.x;
             float oy = p.y;
@@ -741,7 +746,38 @@ public final class World implements Runnable {
             rewardGroupAtKill(tapper.group, victim, tapper);
             return;
         }
+        if (tapper.companion != null) {
+            rewardCompanionPair(tapper, victim);
+            return;
+        }
         applyKillXp(tapper, XpFormulas.gain(tapper, victim), victim, 1.0f);
+    }
+
+    /**
+     * Virtual two-member group: owner + companion snapshot share XP like RewardGroupAtKill
+     * without putting the companion on SMSG_GROUP_LIST.
+     */
+    private void rewardCompanionPair(Player owner, Creature victim) {
+        Player snap = owner.companion.snapshot();
+        int sumLevel = owner.level + snap.level;
+        float groupRate = XpFormulas.xpInGroupRate(2);
+        Player notGrayMax = owner;
+        if (!XpFormulas.isTrivialLevelDifference(snap.level, victim.level)
+                && snap.level > owner.level) {
+            notGrayMax = snap;
+        }
+        if (XpFormulas.isTrivialLevelDifference(owner.level, victim.level)
+                && XpFormulas.isTrivialLevelDifference(snap.level, victim.level)) {
+            return;
+        }
+        int xp = XpFormulas.gain(notGrayMax, victim);
+        float ownerRate = groupRate * (float) owner.level / (float) sumLevel;
+        float snapRate = groupRate * (float) snap.level / (float) sumLevel;
+        applyKillXp(owner, Math.round(xp * ownerRate), victim, groupRate);
+        int companionShare = Math.round(xp * snapRate);
+        if (companionShare > 0) {
+            companions.awardXp(this, owner, companionShare);
+        }
     }
 
     /** Group.cpp RewardGroupAtKill — in-range living members share Gain × level/sum × xp_in_group_rate. */
@@ -1082,6 +1118,10 @@ public final class World implements Runnable {
         for (WorldSession s : sessions.values()) {
             s.processQueue(this);
             s.tick(this, diff);
+            Player pl = s.player();
+            if (pl != null && pl.companion != null) {
+                org.tbc.world.companion.CompanionBehavior.tick(this, pl);
+            }
         }
         // Unit::Update → m_currentSpells[i]->update(diff): cast bars finish here.
         spells.update(diff, nowMs());
