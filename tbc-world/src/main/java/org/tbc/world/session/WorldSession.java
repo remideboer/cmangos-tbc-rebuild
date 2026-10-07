@@ -512,37 +512,6 @@ public final class WorldSession {
             case Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST -> handleQuestRequestReward(world, in);
             case Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD -> handleQuestComplete(world, in);
             case Opcodes.CMSG_QUESTLOG_REMOVE_QUEST -> handleQuestLogRemove(world, in);
-            case Opcodes.CMSG_GUILD_INVITE -> GuildHandler.invite(this, world, in);
-            case Opcodes.CMSG_GUILD_ACCEPT -> GuildHandler.accept(this, world);
-            case Opcodes.CMSG_GUILD_DECLINE -> GuildHandler.decline(this, world);
-            case Opcodes.CMSG_GUILD_INFO -> GuildHandler.info(this, world);
-            case Opcodes.CMSG_GUILD_ROSTER -> GuildHandler.roster(this, world, player);
-            case Opcodes.CMSG_GUILD_PROMOTE -> GuildHandler.promote(this, world, in);
-            case Opcodes.CMSG_GUILD_DEMOTE -> GuildHandler.demote(this, world, in);
-            case Opcodes.CMSG_GUILD_LEAVE -> GuildHandler.leave(this, world);
-            case Opcodes.CMSG_GUILD_REMOVE -> GuildHandler.remove(this, world, in);
-            case Opcodes.CMSG_GUILD_DISBAND -> GuildHandler.disbandGuild(this, world);
-            case Opcodes.CMSG_GUILD_LEADER -> GuildHandler.setLeader(this, world, in);
-            case Opcodes.CMSG_GUILD_SET_PUBLIC_NOTE -> GuildHandler.setPublicNote(this, world, in);
-            case Opcodes.CMSG_GUILD_SET_OFFICER_NOTE -> GuildHandler.setOfficerNote(this, world, in);
-            case Opcodes.CMSG_GUILD_INFO_TEXT -> GuildHandler.infoText(this, world, in);
-            case Opcodes.CMSG_GUILD_RANK -> GuildHandler.rank(this, world, in);
-            case Opcodes.CMSG_GUILD_ADD_RANK -> GuildHandler.addRank(this, world, in);
-            case Opcodes.CMSG_GUILD_DEL_RANK -> GuildHandler.delRank(this, world);
-            case Opcodes.CMSG_GUILD_MOTD -> GuildHandler.motd(this, world, in);
-            case Opcodes.MSG_SAVE_GUILD_EMBLEM -> GuildHandler.saveEmblem(this, world, in);
-            case Opcodes.CMSG_PETITION_BUY -> PetitionHandler.buy(this, world, in);
-            case Opcodes.CMSG_PETITION_SHOWLIST -> PetitionHandler.showList(this, world, in);
-            case Opcodes.CMSG_PETITION_SHOW_SIGNATURES -> PetitionHandler.showSignatures(this, world, in);
-            case Opcodes.MSG_PETITION_DECLINE -> PetitionHandler.decline(this, world, in);
-            case Opcodes.MSG_PETITION_RENAME -> PetitionHandler.rename(this, world, in);
-            case Opcodes.CMSG_PETITION_QUERY -> PetitionHandler.query(this, world, in);
-            case Opcodes.CMSG_PETITION_SIGN -> PetitionHandler.sign(this, world, in);
-            case Opcodes.CMSG_TURN_IN_PETITION -> {
-                if (!PetitionHandler.turnIn(this, world, in)) {
-                    ArenaTeamHandler.rosterAfterPetitionTurnIn(this);
-                }
-            }
             case Opcodes.MSG_AUCTION_HELLO -> handleAuctionHello(world, in);
             case Opcodes.CMSG_AUCTION_SELL_ITEM -> AuctionHandler.sellItem(this, world, in);
             case Opcodes.CMSG_AUCTION_PLACE_BID -> AuctionHandler.placeBid(this, world, in);
@@ -587,13 +556,6 @@ public final class WorldSession {
             case Opcodes.CMSG_GAMEOBJ_USE -> handleGoUse(world, in);
             case Opcodes.CMSG_GMTICKET_CREATE -> handleTicket(in);
             case Opcodes.CMSG_INSPECT -> handleInspect(in);
-            case Opcodes.MSG_INSPECT_ARENA_TEAMS -> ArenaTeamHandler.inspect(this, world, in);
-            case Opcodes.CMSG_ARENA_TEAM_INVITE -> ArenaTeamHandler.invite(this, world, in);
-            case Opcodes.CMSG_ARENA_TEAM_ACCEPT -> ArenaTeamHandler.accept(this, world);
-            case Opcodes.CMSG_ARENA_TEAM_LEAVE -> ArenaTeamHandler.leave(this, world, in);
-            case Opcodes.CMSG_ARENA_TEAM_REMOVE -> ArenaTeamHandler.remove(this, world, in);
-            case Opcodes.CMSG_ARENA_TEAM_DISBAND -> ArenaTeamHandler.disbandOpcode(this, world, in);
-            case Opcodes.CMSG_ARENA_TEAM_LEADER -> ArenaTeamHandler.leader(this, world, in);
             case Opcodes.CMSG_DUEL_ACCEPTED -> handleDuel(world);
             case Opcodes.CMSG_DUEL_CANCELLED -> cancelDuel(world, in);
             case Opcodes.CMSG_TOGGLE_PVP -> togglePvp(in);

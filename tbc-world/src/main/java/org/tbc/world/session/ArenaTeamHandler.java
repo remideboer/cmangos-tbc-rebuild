@@ -10,6 +10,16 @@ import org.tbc.world.world.World;
 public final class ArenaTeamHandler {
     private ArenaTeamHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.MSG_INSPECT_ARENA_TEAMS, ArenaTeamHandler::inspect)
+                .register(Opcodes.CMSG_ARENA_TEAM_INVITE, ArenaTeamHandler::invite)
+                .register(Opcodes.CMSG_ARENA_TEAM_ACCEPT, (s, w, in) -> accept(s, w))
+                .register(Opcodes.CMSG_ARENA_TEAM_LEAVE, ArenaTeamHandler::leave)
+                .register(Opcodes.CMSG_ARENA_TEAM_REMOVE, ArenaTeamHandler::remove)
+                .register(Opcodes.CMSG_ARENA_TEAM_DISBAND, ArenaTeamHandler::disbandOpcode)
+                .register(Opcodes.CMSG_ARENA_TEAM_LEADER, ArenaTeamHandler::leader);
+    }
+
     /** Arena petition turn-in stub (no charter): team 1 roster with the player as captain. */
     public static void rosterAfterPetitionTurnIn(WorldSession s) {
         Player p = s.player();

@@ -35,6 +35,21 @@ public final class PetitionHandler {
 
     private PetitionHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_PETITION_BUY, PetitionHandler::buy)
+                .register(Opcodes.CMSG_PETITION_SHOWLIST, PetitionHandler::showList)
+                .register(Opcodes.CMSG_PETITION_SHOW_SIGNATURES, PetitionHandler::showSignatures)
+                .register(Opcodes.MSG_PETITION_DECLINE, PetitionHandler::decline)
+                .register(Opcodes.MSG_PETITION_RENAME, PetitionHandler::rename)
+                .register(Opcodes.CMSG_PETITION_QUERY, PetitionHandler::query)
+                .register(Opcodes.CMSG_PETITION_SIGN, PetitionHandler::sign)
+                .register(Opcodes.CMSG_TURN_IN_PETITION, (s, w, in) -> {
+                    if (!turnIn(s, w, in)) {
+                        ArenaTeamHandler.rosterAfterPetitionTurnIn(s);
+                    }
+                });
+    }
+
     public static void buy(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() < 20) {
             return;

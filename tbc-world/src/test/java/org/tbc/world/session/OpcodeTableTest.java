@@ -63,6 +63,21 @@ class OpcodeTableTest {
             Opcodes.CMSG_GROUP_CHANGE_SUB_GROUP, Opcodes.CMSG_GROUP_SWAP_SUB_GROUP,
             Opcodes.CMSG_REQUEST_RAID_INFO, Opcodes.MSG_RAID_READY_CHECK, Opcodes.MSG_RAID_TARGET_UPDATE,
             Opcodes.MSG_RANDOM_ROLL, Opcodes.MSG_MINIMAP_PING,
+            // GuildHandler
+            Opcodes.CMSG_GUILD_INVITE, Opcodes.CMSG_GUILD_ACCEPT, Opcodes.CMSG_GUILD_DECLINE, Opcodes.CMSG_GUILD_INFO,
+            Opcodes.CMSG_GUILD_ROSTER, Opcodes.CMSG_GUILD_PROMOTE, Opcodes.CMSG_GUILD_DEMOTE, Opcodes.CMSG_GUILD_LEAVE,
+            Opcodes.CMSG_GUILD_REMOVE, Opcodes.CMSG_GUILD_DISBAND, Opcodes.CMSG_GUILD_LEADER,
+            Opcodes.CMSG_GUILD_SET_PUBLIC_NOTE, Opcodes.CMSG_GUILD_SET_OFFICER_NOTE, Opcodes.CMSG_GUILD_INFO_TEXT,
+            Opcodes.CMSG_GUILD_RANK, Opcodes.CMSG_GUILD_ADD_RANK, Opcodes.CMSG_GUILD_DEL_RANK, Opcodes.CMSG_GUILD_MOTD,
+            Opcodes.MSG_SAVE_GUILD_EMBLEM,
+            // PetitionHandler
+            Opcodes.CMSG_PETITION_BUY, Opcodes.CMSG_PETITION_SHOWLIST, Opcodes.CMSG_PETITION_SHOW_SIGNATURES,
+            Opcodes.MSG_PETITION_DECLINE, Opcodes.MSG_PETITION_RENAME, Opcodes.CMSG_PETITION_QUERY,
+            Opcodes.CMSG_PETITION_SIGN, Opcodes.CMSG_TURN_IN_PETITION,
+            // ArenaTeamHandler
+            Opcodes.MSG_INSPECT_ARENA_TEAMS, Opcodes.CMSG_ARENA_TEAM_INVITE, Opcodes.CMSG_ARENA_TEAM_ACCEPT,
+            Opcodes.CMSG_ARENA_TEAM_LEAVE, Opcodes.CMSG_ARENA_TEAM_REMOVE, Opcodes.CMSG_ARENA_TEAM_DISBAND,
+            Opcodes.CMSG_ARENA_TEAM_LEADER,
             // GuildHandler (bank)
             Opcodes.CMSG_GUILD_CREATE, Opcodes.CMSG_GUILD_BANKER_ACTIVATE, Opcodes.CMSG_GUILD_BANK_QUERY_TAB,
             Opcodes.CMSG_GUILD_BANK_UPDATE_TAB, Opcodes.CMSG_GUILD_BANK_DEPOSIT_MONEY,

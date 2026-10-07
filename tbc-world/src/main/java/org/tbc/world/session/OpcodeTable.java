@@ -49,6 +49,8 @@ public final class OpcodeTable {
         LootHandler.register(t);
         GroupHandler.register(t);
         GuildHandler.register(t);
+        PetitionHandler.register(t);
+        ArenaTeamHandler.register(t);
         AuctionHandler.register(t);
         LfgHandler.register(t);
         PetHandler.register(t);
