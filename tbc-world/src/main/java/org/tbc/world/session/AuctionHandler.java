@@ -42,7 +42,12 @@ public final class AuctionHandler {
     private AuctionHandler() {}
 
     public static void register(OpcodeTable t) {
-        t.register(Opcodes.CMSG_AUCTION_LIST_ITEMS, AuctionHandler::listItems);
+        t.register(Opcodes.CMSG_AUCTION_LIST_ITEMS, AuctionHandler::listItems)
+                .register(Opcodes.CMSG_AUCTION_SELL_ITEM, AuctionHandler::sellItem)
+                .register(Opcodes.CMSG_AUCTION_PLACE_BID, AuctionHandler::placeBid)
+                .register(Opcodes.CMSG_AUCTION_LIST_OWNER_ITEMS, AuctionHandler::listOwnerItems)
+                .register(Opcodes.CMSG_AUCTION_LIST_BIDDER_ITEMS, AuctionHandler::listBidderItems)
+                .register(Opcodes.CMSG_AUCTION_REMOVE_ITEM, AuctionHandler::removeItem);
     }
 
     public static void sendHello(Creature c, BiConsumer<Integer, byte[]> send) {

@@ -497,8 +497,6 @@ public final class WorldSession {
             case Opcodes.CMSG_FAR_SIGHT -> handleFarSight(world, in);
             case Opcodes.CMSG_SUMMON_RESPONSE -> handleSummonResponse(world, in);
             case Opcodes.CMSG_LOOT -> handleLoot(world, in);
-            case Opcodes.CMSG_AUTOSTORE_LOOT_ITEM -> LootHandler.autostoreLootItem(this, world, in);
-            case Opcodes.CMSG_LOOT_MONEY -> LootHandler.lootMoney(this, world);
             case Opcodes.CMSG_LOOT_RELEASE -> handleLootRelease(world, in);
             case Opcodes.CMSG_CAST_SPELL -> handleCast(world, in);
             case Opcodes.CMSG_GOSSIP_HELLO, Opcodes.CMSG_QUESTGIVER_HELLO -> handleGossip(world, in);
@@ -513,46 +511,12 @@ public final class WorldSession {
             case Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD -> handleQuestComplete(world, in);
             case Opcodes.CMSG_QUESTLOG_REMOVE_QUEST -> handleQuestLogRemove(world, in);
             case Opcodes.MSG_AUCTION_HELLO -> handleAuctionHello(world, in);
-            case Opcodes.CMSG_AUCTION_SELL_ITEM -> AuctionHandler.sellItem(this, world, in);
-            case Opcodes.CMSG_AUCTION_PLACE_BID -> AuctionHandler.placeBid(this, world, in);
-            case Opcodes.CMSG_AUCTION_LIST_OWNER_ITEMS -> AuctionHandler.listOwnerItems(this, world, in);
-            case Opcodes.CMSG_AUCTION_LIST_BIDDER_ITEMS -> AuctionHandler.listBidderItems(this, world, in);
-            case Opcodes.CMSG_AUCTION_REMOVE_ITEM -> AuctionHandler.removeItem(this, world, in);
             case Opcodes.CMSG_BATTLEMASTER_JOIN -> handleBgJoin(world, 489);
             case Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA -> handleBgJoin(world, 562);
             case Opcodes.CMSG_BATTLEFIELD_STATUS -> sendBattlefieldStatus();
-            case Opcodes.CMSG_REPOP_REQUEST -> DeathHandler.repop(this, world);
-            case Opcodes.MSG_CORPSE_QUERY -> DeathHandler.query(this);
-            case Opcodes.CMSG_RECLAIM_CORPSE -> DeathHandler.reclaim(this, world, in);
-            case Opcodes.CMSG_SELF_RES -> DeathHandler.selfRes(this, world);
-            case Opcodes.CMSG_RESURRECT_RESPONSE -> DeathHandler.resurrectResponse(this, world, in);
-            case Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE ->
-                    DeathHandler.spiritHealer(this, world);
-            case Opcodes.CMSG_AREA_SPIRIT_HEALER_QUERY -> DeathHandler.areaSpiritQuery(this, world, in);
-            case Opcodes.CMSG_JOIN_CHANNEL -> ChannelHandler.join(this, world, in);
-            case Opcodes.CMSG_LEAVE_CHANNEL -> ChannelHandler.leave(this, in);
-            case Opcodes.CMSG_CHANNEL_PASSWORD -> ChannelHandler.password(this, world, in);
-            case Opcodes.CMSG_CHANNEL_OWNER -> ChannelHandler.owner(this, world, in);
-            case Opcodes.CMSG_CHANNEL_SET_OWNER -> ChannelHandler.setOwner(this, world, in);
-            case Opcodes.CMSG_CHANNEL_MODERATOR -> ChannelHandler.moderator(this, world, in);
-            case Opcodes.CMSG_CHANNEL_UNMODERATOR -> ChannelHandler.unmoderator(this, world, in);
-            case Opcodes.CMSG_CHANNEL_MUTE -> ChannelHandler.mute(this, world, in);
-            case Opcodes.CMSG_CHANNEL_UNMUTE -> ChannelHandler.unmute(this, world, in);
-            case Opcodes.CMSG_CHANNEL_INVITE -> ChannelHandler.invite(this, world, in);
-            case Opcodes.CMSG_CHANNEL_KICK -> ChannelHandler.kick(this, world, in);
-            case Opcodes.CMSG_CHANNEL_BAN -> ChannelHandler.ban(this, world, in);
-            case Opcodes.CMSG_CHANNEL_UNBAN -> ChannelHandler.unban(this, world, in);
-            case Opcodes.CMSG_CHANNEL_ANNOUNCEMENTS -> ChannelHandler.announcements(this, world, in);
-            case Opcodes.CMSG_CHANNEL_MODERATE -> ChannelHandler.moderate(this, world, in);
             case Opcodes.CMSG_BUY_ITEM -> handleBuy(world, in);
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
-            case Opcodes.CMSG_LEARN_TALENT -> TalentHandler.learn(this, world, in);
             case Opcodes.CMSG_TRAINER_LIST -> handleTrainer(world, in);
-            case Opcodes.CMSG_TAXINODE_STATUS_QUERY -> TaxiHandler.sendStatus(this, world, in);
-            case Opcodes.CMSG_TAXIQUERYAVAILABLENODES -> TaxiHandler.queryAvailable(this, world, in);
-            case Opcodes.CMSG_ACTIVATETAXI -> TaxiHandler.activate(this, world, in);
-            case Opcodes.CMSG_ACTIVATETAXIEXPRESS -> {
-            }
             case Opcodes.CMSG_GAMEOBJ_USE -> handleGoUse(world, in);
             case Opcodes.CMSG_GMTICKET_CREATE -> handleTicket(in);
             case Opcodes.CMSG_INSPECT -> handleInspect(in);
@@ -575,7 +539,6 @@ public final class WorldSession {
                         UpdateBuilder.values(player, UpdateFields.PLAYER_CHOSEN_TITLE));
                 send(upd.opcode(), upd.payload());
             }
-            case Opcodes.CMSG_OPEN_ITEM -> InventoryHandler.openItem(this, in);
             case Opcodes.MSG_PVP_LOG_DATA -> sendPvpLog();
             case Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS -> sendBgPlayerPositions();
             case Opcodes.CMSG_BATTLEFIELD_LIST -> sendBattlefieldList(in);

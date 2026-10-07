@@ -21,7 +21,9 @@ public final class LootHandler {
     public static void register(OpcodeTable t) {
         t.register(Opcodes.CMSG_LOOT_METHOD, (s, w, in) -> lootMethod(s, in))
                 .register(Opcodes.CMSG_LOOT_ROLL, (s, w, in) -> lootRoll(s, in))
-                .register(Opcodes.CMSG_LOOT_MASTER_GIVE, LootHandler::masterGive);
+                .register(Opcodes.CMSG_LOOT_MASTER_GIVE, LootHandler::masterGive)
+                .register(Opcodes.CMSG_AUTOSTORE_LOOT_ITEM, LootHandler::autostoreLootItem)
+                .register(Opcodes.CMSG_LOOT_MONEY, (s, w, in) -> lootMoney(s, w));
     }
 
     /** Master-loot give stub: item 25 pushed to the target's first free slot (SMSG_ITEM_PUSH_RESULT). */

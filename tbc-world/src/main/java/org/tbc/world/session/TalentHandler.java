@@ -25,7 +25,8 @@ public final class TalentHandler {
     private TalentHandler() {}
 
     public static void register(OpcodeTable t) {
-        t.register(Opcodes.MSG_TALENT_WIPE_CONFIRM, TalentHandler::wipeConfirm);
+        t.register(Opcodes.MSG_TALENT_WIPE_CONFIRM, TalentHandler::wipeConfirm)
+                .register(Opcodes.CMSG_LEARN_TALENT, TalentHandler::learn);
     }
 
     /** Talent wipe stub: TALENT_WIPE marker aura + SMSG_LEARNED_SPELL, then the confirm echo. */

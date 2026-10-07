@@ -24,6 +24,14 @@ public final class TaxiHandler {
 
     private TaxiHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_TAXINODE_STATUS_QUERY, TaxiHandler::sendStatus)
+                .register(Opcodes.CMSG_TAXIQUERYAVAILABLENODES, TaxiHandler::queryAvailable)
+                .register(Opcodes.CMSG_ACTIVATETAXI, TaxiHandler::activate)
+                // Accepted and ignored (multi-node express path not modeled).
+                .register(Opcodes.CMSG_ACTIVATETAXIEXPRESS, (s, w, in) -> { });
+    }
+
     /** CMaNGOS TaxiHandler SendTaxiStatus — GetCreature, no range/flag check. */
     public static void sendStatus(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();

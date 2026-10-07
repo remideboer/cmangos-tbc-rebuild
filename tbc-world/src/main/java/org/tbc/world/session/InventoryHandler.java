@@ -41,7 +41,8 @@ public final class InventoryHandler {
                 .register(Opcodes.CMSG_BUYBACK_ITEM, (s, w, in) -> buybackItem(s, in))
                 .register(Opcodes.CMSG_REPAIR_ITEM, InventoryHandler::repairItem)
                 .register(Opcodes.CMSG_SOCKET_GEMS, (s, w, in) -> socketGems(s, in))
-                .register(Opcodes.CMSG_USE_ITEM, InventoryHandler::useItem);
+                .register(Opcodes.CMSG_USE_ITEM, InventoryHandler::useItem)
+                .register(Opcodes.CMSG_OPEN_ITEM, (s, w, in) -> openItem(s, in));
     }
 
     /**

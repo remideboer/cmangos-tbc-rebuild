@@ -44,7 +44,22 @@ public final class ChannelHandler {
 
     public static void register(OpcodeTable t) {
         t.register(Opcodes.CMSG_TEXT_EMOTE, ChannelHandler::textEmote)
-                .register(Opcodes.CMSG_CHANNEL_LIST, (s, w, in) -> list(s, in));
+                .register(Opcodes.CMSG_CHANNEL_LIST, (s, w, in) -> list(s, in))
+                .register(Opcodes.CMSG_JOIN_CHANNEL, ChannelHandler::join)
+                .register(Opcodes.CMSG_LEAVE_CHANNEL, (s, w, in) -> leave(s, in))
+                .register(Opcodes.CMSG_CHANNEL_PASSWORD, ChannelHandler::password)
+                .register(Opcodes.CMSG_CHANNEL_OWNER, ChannelHandler::owner)
+                .register(Opcodes.CMSG_CHANNEL_SET_OWNER, ChannelHandler::setOwner)
+                .register(Opcodes.CMSG_CHANNEL_MODERATOR, ChannelHandler::moderator)
+                .register(Opcodes.CMSG_CHANNEL_UNMODERATOR, ChannelHandler::unmoderator)
+                .register(Opcodes.CMSG_CHANNEL_MUTE, ChannelHandler::mute)
+                .register(Opcodes.CMSG_CHANNEL_UNMUTE, ChannelHandler::unmute)
+                .register(Opcodes.CMSG_CHANNEL_INVITE, ChannelHandler::invite)
+                .register(Opcodes.CMSG_CHANNEL_KICK, ChannelHandler::kick)
+                .register(Opcodes.CMSG_CHANNEL_BAN, ChannelHandler::ban)
+                .register(Opcodes.CMSG_CHANNEL_UNBAN, ChannelHandler::unban)
+                .register(Opcodes.CMSG_CHANNEL_ANNOUNCEMENTS, ChannelHandler::announcements)
+                .register(Opcodes.CMSG_CHANNEL_MODERATE, ChannelHandler::moderate);
     }
 
     public static void join(WorldSession s, World world, WowBuffer in) {

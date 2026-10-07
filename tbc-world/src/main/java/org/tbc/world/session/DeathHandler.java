@@ -31,6 +31,17 @@ public final class DeathHandler {
 
     private DeathHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_REPOP_REQUEST, (s, w, in) -> repop(s, w))
+                .register(Opcodes.MSG_CORPSE_QUERY, (s, w, in) -> query(s))
+                .register(Opcodes.CMSG_RECLAIM_CORPSE, DeathHandler::reclaim)
+                .register(Opcodes.CMSG_SELF_RES, (s, w, in) -> selfRes(s, w))
+                .register(Opcodes.CMSG_RESURRECT_RESPONSE, DeathHandler::resurrectResponse)
+                .register(Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE, (s, w, in) -> spiritHealer(s, w))
+                .register(Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE, (s, w, in) -> spiritHealer(s, w))
+                .register(Opcodes.CMSG_AREA_SPIRIT_HEALER_QUERY, DeathHandler::areaSpiritQuery);
+    }
+
     /** PLAYER_FIELD_BYTES byte 0 (OFFSET_FLAGS): display time till auto release spirit. */
     public static final int PLAYER_FIELD_BYTE_RELEASE_TIMER = 0x08;
 

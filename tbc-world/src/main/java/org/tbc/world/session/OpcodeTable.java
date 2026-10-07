@@ -55,6 +55,8 @@ public final class OpcodeTable {
         LfgHandler.register(t);
         PetHandler.register(t);
         TalentHandler.register(t);
+        DeathHandler.register(t);
+        TaxiHandler.register(t);
         InstanceHandler.register(t);
         BattlegroundHandler.register(t);
         GmTicketHandler.register(t);

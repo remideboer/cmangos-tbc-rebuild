@@ -52,12 +52,31 @@ class OpcodeTableTest {
             Opcodes.CMSG_SET_AMMO, Opcodes.CMSG_READ_ITEM, Opcodes.CMSG_WRAP_ITEM,
             Opcodes.CMSG_CANCEL_TEMP_ENCHANTMENT, Opcodes.CMSG_SWAP_ITEM, Opcodes.CMSG_SELL_ITEM,
             Opcodes.CMSG_BUYBACK_ITEM, Opcodes.CMSG_REPAIR_ITEM, Opcodes.CMSG_SOCKET_GEMS, Opcodes.CMSG_USE_ITEM,
-            // Binder / Trainer / Channel / Auction / Talent
+            Opcodes.CMSG_OPEN_ITEM,
+            // Binder / Trainer / Talent
             Opcodes.CMSG_BINDER_ACTIVATE, Opcodes.CMSG_TRAINER_BUY_SPELL,
-            Opcodes.CMSG_TEXT_EMOTE, Opcodes.CMSG_CHANNEL_LIST,
-            Opcodes.CMSG_AUCTION_LIST_ITEMS, Opcodes.MSG_TALENT_WIPE_CONFIRM,
+            Opcodes.MSG_TALENT_WIPE_CONFIRM, Opcodes.CMSG_LEARN_TALENT,
+            // ChannelHandler
+            Opcodes.CMSG_TEXT_EMOTE, Opcodes.CMSG_CHANNEL_LIST, Opcodes.CMSG_JOIN_CHANNEL, Opcodes.CMSG_LEAVE_CHANNEL,
+            Opcodes.CMSG_CHANNEL_PASSWORD, Opcodes.CMSG_CHANNEL_OWNER, Opcodes.CMSG_CHANNEL_SET_OWNER,
+            Opcodes.CMSG_CHANNEL_MODERATOR, Opcodes.CMSG_CHANNEL_UNMODERATOR, Opcodes.CMSG_CHANNEL_MUTE,
+            Opcodes.CMSG_CHANNEL_UNMUTE, Opcodes.CMSG_CHANNEL_INVITE, Opcodes.CMSG_CHANNEL_KICK,
+            Opcodes.CMSG_CHANNEL_BAN, Opcodes.CMSG_CHANNEL_UNBAN, Opcodes.CMSG_CHANNEL_ANNOUNCEMENTS,
+            Opcodes.CMSG_CHANNEL_MODERATE,
+            // AuctionHandler
+            Opcodes.CMSG_AUCTION_LIST_ITEMS, Opcodes.CMSG_AUCTION_SELL_ITEM, Opcodes.CMSG_AUCTION_PLACE_BID,
+            Opcodes.CMSG_AUCTION_LIST_OWNER_ITEMS, Opcodes.CMSG_AUCTION_LIST_BIDDER_ITEMS,
+            Opcodes.CMSG_AUCTION_REMOVE_ITEM,
+            // DeathHandler
+            Opcodes.CMSG_REPOP_REQUEST, Opcodes.MSG_CORPSE_QUERY, Opcodes.CMSG_RECLAIM_CORPSE, Opcodes.CMSG_SELF_RES,
+            Opcodes.CMSG_RESURRECT_RESPONSE, Opcodes.CMSG_SPIRIT_HEALER_ACTIVATE,
+            Opcodes.CMSG_AREA_SPIRIT_HEALER_QUEUE, Opcodes.CMSG_AREA_SPIRIT_HEALER_QUERY,
+            // TaxiHandler
+            Opcodes.CMSG_TAXINODE_STATUS_QUERY, Opcodes.CMSG_TAXIQUERYAVAILABLENODES, Opcodes.CMSG_ACTIVATETAXI,
+            Opcodes.CMSG_ACTIVATETAXIEXPRESS,
             // LootHandler
             Opcodes.CMSG_LOOT_METHOD, Opcodes.CMSG_LOOT_ROLL, Opcodes.CMSG_LOOT_MASTER_GIVE,
+            Opcodes.CMSG_AUTOSTORE_LOOT_ITEM, Opcodes.CMSG_LOOT_MONEY,
             // GroupHandler
             Opcodes.CMSG_GROUP_RAID_CONVERT, Opcodes.CMSG_GROUP_ASSISTANT_LEADER,
             Opcodes.CMSG_GROUP_CHANGE_SUB_GROUP, Opcodes.CMSG_GROUP_SWAP_SUB_GROUP,
