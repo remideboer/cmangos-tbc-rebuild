@@ -412,7 +412,7 @@ public final class SocialHandler {
             partyResult(s, PARTY_OP_INVITE, name, ERR_WRONG_FACTION);
             return;
         }
-        t.session.pendingInviteFrom = p;
+        t.session.social().invite(p);
         WowBuffer inv = new WowBuffer(16);
         inv.putCString(p.name);
         t.session.send(Opcodes.SMSG_GROUP_INVITE, inv.array());
@@ -420,8 +420,7 @@ public final class SocialHandler {
     }
 
     public static void groupAccept(WorldSession s, World world) {
-        Player from = s.pendingInviteFrom;
-        s.pendingInviteFrom = null;
+        Player from = s.social().takePendingInvite();
         if (from == null || from.session == null) {
             return;
         }
@@ -442,8 +441,7 @@ public final class SocialHandler {
     }
 
     public static void groupDecline(WorldSession s) {
-        Player from = s.pendingInviteFrom;
-        s.pendingInviteFrom = null;
+        Player from = s.social().takePendingInvite();
         if (from == null || from.session == null) {
             return;
         }

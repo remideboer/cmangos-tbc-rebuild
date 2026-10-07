@@ -47,7 +47,7 @@ class Slice09GroupTest {
         assertFalse(bravo.saw(Opcodes.SMSG_GROUP_LIST));
         assertNull(a.group);
         assertNull(b.group);
-        assertNull(bravo.session().pendingInviteFrom);
+        assertNull(bravo.session().social().pendingInvite());
 
         bravo.handle(world, Opcodes.CMSG_GROUP_ACCEPT, new byte[0]);
         assertFalse(bravo.saw(Opcodes.SMSG_GROUP_LIST), "accept after decline must not join");

@@ -120,7 +120,7 @@ class OpcodeTableTest {
             Opcodes.CMSG_LEAVE_BATTLEFIELD, Opcodes.CMSG_BATTLEFIELD_PORT, Opcodes.CMSG_REPORT_PVP_AFK,
             Opcodes.MSG_INSPECT_HONOR_STATS,
             // GmTicketHandler
-            Opcodes.CMSG_GMTICKET_GETTICKET, Opcodes.CMSG_GMTICKET_UPDATETEXT,
+            Opcodes.CMSG_GMTICKET_CREATE, Opcodes.CMSG_GMTICKET_GETTICKET, Opcodes.CMSG_GMTICKET_UPDATETEXT,
             Opcodes.CMSG_GMTICKET_DELETETICKET, Opcodes.CMSG_GMTICKET_SYSTEMSTATUS,
             // SpellCancelHandler
             Opcodes.CMSG_CANCEL_CAST, Opcodes.CMSG_CANCEL_AUTO_REPEAT_SPELL, Opcodes.CMSG_CANCEL_CHANNELLING,

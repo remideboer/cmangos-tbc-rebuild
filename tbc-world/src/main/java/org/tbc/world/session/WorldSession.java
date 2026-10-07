@@ -76,8 +76,7 @@ public final class WorldSession {
     private final AccountData accountData = new AccountData();
     /** Kept after logout for CMSG_UPDATE_ACCOUNT_DATA (STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT). */
     private int lastCharGuidLow;
-    public Player pendingInviteFrom;
-    public String lastTicket = "";
+    private final SocialState social = new SocialState();
     private final BgQueueState bgQueue = new BgQueueState();
     /** HeroPowerBars AddOn subscribed (LANG_ADDON enable). */
     private boolean heroPowerAddonEnabled;
@@ -115,6 +114,11 @@ public final class WorldSession {
 
     public World.Account account() {
         return account;
+    }
+
+    /** Pending group invite and open GM ticket for this session. */
+    public SocialState social() {
+        return social;
     }
 
     /** This session's battleground queue slot. */
@@ -408,7 +412,6 @@ public final class WorldSession {
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
             case Opcodes.CMSG_TRAINER_LIST -> handleTrainer(world, in);
             case Opcodes.CMSG_GAMEOBJ_USE -> handleGoUse(world, in);
-            case Opcodes.CMSG_GMTICKET_CREATE -> handleTicket(in);
             case Opcodes.CMSG_INSPECT -> handleInspect(in);
             case Opcodes.CMSG_DUEL_ACCEPTED -> handleDuel(world);
             case Opcodes.CMSG_DUEL_CANCELLED -> cancelDuel(world, in);
@@ -1600,11 +1603,6 @@ public final class WorldSession {
         ws.putU32(field);
         ws.putU32(value);
         send(Opcodes.SMSG_UPDATE_WORLD_STATE, ws.array());
-    }
-
-    private void handleTicket(WowBuffer in) {
-        lastTicket = in.getCString();
-        send(Opcodes.SMSG_GMTICKET_CREATE, u32(0));
     }
 
     private void handleInspect(WowBuffer in) {
