@@ -635,12 +635,12 @@ public final class World implements Runnable {
                 spells.finishNextMeleeSwing(p, c, spellId, castCount, r.damage(), nowMs(), p.session::send);
             } else {
                 // CMaNGOS Unit::SendAttackStateUpdate → SendMessageToSet(data, true): self + nearby.
-                sendAttackerStateUpdate(p, c, combat.encodeAttack(p, c, r, false, offhand), hitMap);
+                sendAttackerStateUpdate(p, p, c, combat.encodeAttack(p, c, r, false, offhand), hitMap);
             }
             sendDirtySkillValues(p);
             if (c.alive()) {
                 var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
-                sendCombatHpUpdate(p, c, hp.opcode(), hp.payload(), hitMap);
+                sendCombatHpUpdate(p, p, c, hp.opcode(), hp.payload(), hitMap);
             }
             if (r.damage() > 0 || (nextMeleeSpell && spellId != 0)) {
                 if (org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
@@ -864,9 +864,9 @@ public final class World implements Runnable {
         }
         byte[] log = combat.encodeAttack(body, prey, r);
         var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));
-        sendAttackerStateUpdate(owner, prey, log, hitMap);
+        sendAttackerStateUpdate(owner, body, prey, log, hitMap);
         if (prey.alive()) {
-            sendCombatHpUpdate(owner, prey, hp.opcode(), hp.payload(), hitMap);
+            sendCombatHpUpdate(owner, body, prey, hp.opcode(), hp.payload(), hitMap);
         }
         if (wasAlive && !prey.alive()) {
             org.tbc.world.companion.CompanionBehavior.leaveCombat(this, owner, body, prey.guid);
@@ -914,42 +914,59 @@ public final class World implements Runnable {
 
     /**
      * CMaNGOS {@code Unit::SendAttackStateUpdate} → {@code SendMessageToSet(data, true)}:
-     * always include {@code self}, then nearby players of attacker and victim.
+     * always include {@code self}, nearby of attacker/victim, and any companion owner.
      */
-    private void sendAttackerStateUpdate(Player self, Unit other, byte[] log, GameMap hitMap) {
-        for (Player pl : combatLogViewers(self, other, hitMap)) {
+    private void sendAttackerStateUpdate(Player self, Unit attacker, Unit victim, byte[] log, GameMap hitMap) {
+        for (Player pl : combatLogViewers(self, attacker, victim, hitMap)) {
             pl.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, log);
         }
     }
 
-    private void sendCombatHpUpdate(Player self, Unit other, int opcode, byte[] payload, GameMap hitMap) {
-        for (Player pl : combatLogViewers(self, other, hitMap)) {
+    private void sendCombatHpUpdate(Player self, Unit attacker, Unit victim, int opcode, byte[] payload,
+            GameMap hitMap) {
+        for (Player pl : combatLogViewers(self, attacker, victim, hitMap)) {
             pl.session.send(opcode, payload);
         }
     }
 
-    private static List<Player> combatLogViewers(Player self, Unit other, GameMap hitMap) {
+    private List<Player> combatLogViewers(Player self, Unit attacker, Unit victim, GameMap hitMap) {
         LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
-        if (self != null && self.session != null) {
-            viewers.put(self.guid, self);
-        }
+        addCombatLogViewer(viewers, self);
         if (hitMap != null) {
-            if (self != null) {
-                for (Player pl : hitMap.nearbyPlayers(self, GameMap.VISIBILITY)) {
-                    if (pl.session != null) {
-                        viewers.putIfAbsent(pl.guid, pl);
-                    }
-                }
-            }
-            if (other != null) {
-                for (Player pl : hitMap.nearbyPlayers(other, GameMap.VISIBILITY)) {
-                    if (pl.session != null) {
-                        viewers.putIfAbsent(pl.guid, pl);
-                    }
-                }
-            }
+            addNearbyCombatLogViewers(viewers, hitMap, self);
+            addNearbyCombatLogViewers(viewers, hitMap, attacker);
+            addNearbyCombatLogViewers(viewers, hitMap, victim);
         }
+        addPetOwnerViewer(viewers, attacker);
+        addPetOwnerViewer(viewers, victim);
         return List.copyOf(viewers.values());
+    }
+
+    private static void addCombatLogViewer(LinkedHashMap<Long, Player> viewers, Player pl) {
+        if (pl != null && pl.session != null) {
+            viewers.put(pl.guid, pl);
+        }
+    }
+
+    private static void addNearbyCombatLogViewers(LinkedHashMap<Long, Player> viewers, GameMap hitMap, Unit u) {
+        if (u == null) {
+            return;
+        }
+        for (Player pl : hitMap.nearbyPlayers(u, GameMap.VISIBILITY)) {
+            addCombatLogViewer(viewers, pl);
+        }
+    }
+
+    /** Companion / player-controlled pet owners always see their pet's combat log lines. */
+    private void addPetOwnerViewer(LinkedHashMap<Long, Player> viewers, Unit u) {
+        if (!(u instanceof Creature c) || !c.playerControlledPet) {
+            return;
+        }
+        long ownerGuid = c.getGuid(UpdateFields.UNIT_FIELD_SUMMONEDBY);
+        if (ownerGuid == 0) {
+            return;
+        }
+        addCombatLogViewer(viewers, playerByGuid(ownerGuid));
     }
 
     /** CMaNGOS AttackStart + SMSG_ATTACKSTART to nearby (combat-log.md). */
@@ -1029,13 +1046,11 @@ public final class World implements Runnable {
                 UpdateFields.UNIT_FIELD_TARGET, UpdateFields.UNIT_FIELD_TARGET + 1, UpdateFields.UNIT_FIELD_FLAGS));
         var visVic = UpdateBuilder.maybeCompress(UpdateBuilder.values(victim,
                 UpdateFields.UNIT_FIELD_TARGET, UpdateFields.UNIT_FIELD_TARGET + 1, UpdateFields.UNIT_FIELD_FLAGS));
-        for (Player pl : m.nearbyPlayers(attacker, GameMap.VISIBILITY)) {
-            if (pl.session != null) {
-                pl.session.send(Opcodes.SMSG_ATTACKSTART, atk);
-                pl.session.send(Opcodes.SMSG_ATTACKSTART, def);
-                pl.session.send(visAtk.opcode(), visAtk.payload());
-                pl.session.send(visVic.opcode(), visVic.payload());
-            }
+        for (Player pl : combatLogViewers(null, attacker, victim, m)) {
+            pl.session.send(Opcodes.SMSG_ATTACKSTART, atk);
+            pl.session.send(Opcodes.SMSG_ATTACKSTART, def);
+            pl.session.send(visAtk.opcode(), visAtk.payload());
+            pl.session.send(visVic.opcode(), visVic.payload());
         }
     }
 
@@ -1146,14 +1161,10 @@ public final class World implements Runnable {
                 (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
         byte[] log = combat.encodeAttack(c, foe, r);
         var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(foe, UpdateFields.UNIT_FIELD_HEALTH));
-        for (Player pl : hitMap.nearbyPlayers(foe, GameMap.VISIBILITY)) {
-            if (pl.session == null) {
-                continue;
-            }
-            pl.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, log);
-            if (foe.alive()) {
-                pl.session.send(hp.opcode(), hp.payload());
-            }
+        // Include companion owners so the player sees pet combat log even out of nearby range.
+        sendAttackerStateUpdate(null, c, foe, log, hitMap);
+        if (foe.alive()) {
+            sendCombatHpUpdate(null, c, foe, hp.opcode(), hp.payload(), hitMap);
         }
         if (wasAlive && !foe.alive()) {
             onCreatureKilledByNpc(c, foe, hitMap);

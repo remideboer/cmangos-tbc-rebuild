@@ -700,6 +700,38 @@ class CompanionServiceTest {
         assertTrue(swingLog.getU32() > 0);
     }
 
+    /** Owner must see mob→companion swings in the combat log even when standing far away. */
+    @Test
+    void creatureMeleeHitWhenMobHitsCompanionFarFromOwnerShouldSendAttackerStateToOwner() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = spawnPrey(world, owner, body, 500);
+        mob.applyCombatStats(20f, 20f, 2000, 1.5f);
+        float oldX = owner.x;
+        float oldY = owner.y;
+        owner.x = body.x + 200f;
+        owner.y = body.y;
+        world.map(owner.mapId, owner.instanceId).reindex(owner, oldX, oldY);
+        sink.last.clear();
+
+        world.creatureMeleeHit(mob, body);
+
+        assertTrue(body.health() < body.getInt(UpdateFields.UNIT_FIELD_MAXHEALTH)
+                        || body.health() < 500,
+                "companion must take the hit");
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE),
+                "owner must receive combat log for hits on their companion");
+        WowBuffer swingLog = new WowBuffer(sink.last.get(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        swingLog.getU32();
+        assertEquals(mob.guid, swingLog.getPackedGuid(), "attacker is the mob");
+        assertEquals(owner.pet.guid, swingLog.getPackedGuid(), "victim is the companion");
+        assertTrue(swingLog.getU32() > 0, "totalDamage must be positive");
+    }
+
     @Test
     void petCommandsWhenCompanionActiveShouldStayFollowAttackAndGoPassive() {
         World world = World.inMemory();
