@@ -644,6 +644,29 @@ class Slice17P0Test {
                 WowClientDouble.u32le(lastPayload(relog, Opcodes.SMSG_CORPSE_RECLAIM_DELAY), 0));
     }
 
+    /** CMaNGOS HandlePlayerLogin: dead → CastSpell(8326) + SetWaterWalk after Map::Add (create-self). */
+    @Test
+    void tpSl17GhostReloginShouldCastGhostSpellAndWaterWalkAfterCreateSelf() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Revisit");
+        Player p = client.session().player();
+        long guid = p.guid;
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        client.session().logout(world, true);
+
+        WowClientDouble relog = new WowClientDouble();
+        relog.connect(ACC);
+        relog.login(world, guid);
+
+        int createSelf = createSelfIndex(relog);
+        assertTrue(spellGoIndexAfter(relog, PvpObjectives.GHOST_AURA, createSelf) > createSelf);
+        assertTrue(relog.opcodes.subList(createSelf + 1, relog.opcodes.size())
+                .contains(Opcodes.SMSG_MOVE_WATER_WALK));
+    }
+
     @Test
     void tpSl17SpiritHealerSickness() {
         World world = World.inMemory();
@@ -898,6 +921,36 @@ class Slice17P0Test {
             }
         }
         return false;
+    }
+
+    private static int createSelfIndex(WowClientDouble client) {
+        WowClientDouble prefix = new WowClientDouble();
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            prefix.opcodes.add(client.opcodes.get(i));
+            prefix.payloads.add(client.payloads.get(i));
+            if (!prefix.selfCreateValues().isEmpty()) {
+                return i;
+            }
+        }
+        throw new AssertionError("no create-self");
+    }
+
+    /** spells.md SMSG_SPELL_GO: packed caster item guid, packed caster guid, u32 spellId. */
+    private static int spellGoIndexAfter(WowClientDouble client, int spellId, int from) {
+        for (int i = from + 1; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) != Opcodes.SMSG_SPELL_GO) {
+                continue;
+            }
+            byte[] p = client.payloads.get(i);
+            int off = 0;
+            for (int g = 0; g < 2; g++) {
+                off += 1 + Integer.bitCount(p[off] & 0xFF);
+            }
+            if (WowClientDouble.u32le(p, off) == spellId) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static byte[] lastPayload(WowClientDouble client, int opcode) {

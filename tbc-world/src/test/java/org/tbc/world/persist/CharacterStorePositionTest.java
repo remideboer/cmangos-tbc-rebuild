@@ -3,6 +3,7 @@ package org.tbc.world.persist;
 import org.tbc.common.DbPool;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Player;
+import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.world.World;
 import org.junit.jupiter.api.Test;
 
@@ -11,10 +12,12 @@ import java.sql.Statement;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * CMaNGOS Player::LoadFromDB — invalid saved coordinates → RelocateToHomebind, so a character
- * saved in the void (x=-8.2e22) logs in at its hearth instead of falling forever.
+ * saved in the void (x=-8.2e22) logs in at its hearth instead of falling forever; a saved
+ * ghost (PLAYER_FLAGS_GHOST) logs in still dead.
  */
 class CharacterStorePositionTest {
     private static final float VOID_X = -8.23932e22f;
@@ -60,6 +63,26 @@ class CharacterStorePositionTest {
             }
             Player loaded = new CharacterStore(chars).load(1, p.guid, mgr);
             assertAtHomebind(p, loaded);
+        }
+    }
+
+    /** Player::LoadFromDB reads playerFlags; a ghost saved to SQL loads as a ghost. */
+    @Test
+    void loadWhenSqlRowIsGhostShouldRestoreGhost() throws Exception {
+        String url = "jdbc:h2:mem:ghost_flag_" + UUID.randomUUID().toString().replace("-", "")
+                + ";MODE=MySQL;DB_CLOSE_DELAY=-1";
+        try (DbPool chars = new DbPool(url, "sa", "", "ghost-flag-test")) {
+            createSchema(chars);
+            ObjectMgr mgr = new ObjectMgr();
+            mgr.load(null, null);
+            CharacterStore store = new CharacterStore(chars);
+            Player p = store.create(1, "Beghost", 10, 8, 0, 1, 1, 1, 1, 0, mgr);
+            p.setGhost(true);
+            store.save(p);
+            Player loaded = new CharacterStore(chars).load(1, p.guid, mgr);
+            assertTrue(loaded.ghost);
+            assertEquals(Player.PLAYER_FLAGS_GHOST,
+                    loaded.getInt(UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST);
         }
     }
 

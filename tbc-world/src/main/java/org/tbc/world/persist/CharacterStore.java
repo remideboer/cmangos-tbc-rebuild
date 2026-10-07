@@ -692,8 +692,8 @@ public final class CharacterStore {
 
     private Player loadRow(Connection c, int accountId, int g, ObjectMgr mgr, boolean withRest) throws Exception {
         String sql = withRest
-                ? "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,is_logout_resting,rest_bonus,actionBars FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL"
-                : "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,actionBars FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL";
+                ? "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,playerFlags,at_login,cinematic,orientation,money,health,power1,power4,is_logout_resting,rest_bonus,actionBars FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL"
+                : "SELECT guid,name,race,class,gender,level,xp,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,playerFlags,at_login,cinematic,orientation,money,health,power1,power4,actionBars FROM characters WHERE guid = ? AND account = ? AND deleteDate IS NULL";
         PreparedStatement ps = c.prepareStatement(sql);
         ps.setInt(1, g);
         ps.setInt(2, accountId);

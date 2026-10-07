@@ -190,10 +190,20 @@ public final class DeathHandler {
             p.auras.add(new Unit.Aura(PvpObjectives.GHOST_AURA, 0, 1));
             AuraSlots.applyVisible(p, PvpObjectives.GHOST_AURA, Math.max(1, p.level), 1);
         }
-        sendWaterWalk(s, true);
         WowBuffer delay = new WowBuffer(4);
         delay.putU32(CORPSE_RECLAIM_DELAY_FIRST_MS);
         s.send(Opcodes.SMSG_CORPSE_RECLAIM_DELAY, delay.array());
+    }
+
+    /** HandlePlayerLogin after Map::Add: CastSpell(8326) + SetWaterWalk so the client enters ghost view. */
+    public static void castGhostAfterCreateSelf(WorldSession s, World world) {
+        Player p = s.player();
+        if (!p.ghost) {
+            return;
+        }
+        s.send(Opcodes.SMSG_SPELL_GO, world.spells.encodeGo(
+                p.guid, p.guid, PvpObjectives.GHOST_AURA, world.nowMs(), new SpellCastTargets()));
+        sendWaterWalk(s, true);
     }
 
     public static void query(WorldSession s) {
