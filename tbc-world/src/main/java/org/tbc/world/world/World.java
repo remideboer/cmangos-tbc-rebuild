@@ -476,7 +476,7 @@ public final class World implements Runnable {
         if (p == null || victim == null || !victim.alive()) {
             return;
         }
-        BiConsumer<Integer, byte[]> atkSend = p.session != null ? p.session::send : null;
+        BiConsumer<Integer, byte[]> atkSend = Broadcaster.sinkOrNull(p);
         spells.removeAurasWithInterruptFlags(p, SpellEngine.AURA_INTERRUPT_FLAG_ATTACKING, atkSend);
         int min = Math.round(p.getFloat(UpdateFields.UNIT_FIELD_MINDAMAGE));
         int max = Math.round(p.getFloat(UpdateFields.UNIT_FIELD_MAXDAMAGE));
@@ -485,7 +485,7 @@ public final class World implements Runnable {
         int dealt = r.damage();
         boolean duelEnded = false;
         if (dealt > 0) {
-            BiConsumer<Integer, byte[]> vicSend = victim.session != null ? victim.session::send : null;
+            BiConsumer<Integer, byte[]> vicSend = Broadcaster.sinkOrNull(victim);
             spells.removeAurasWithInterruptFlags(victim, SpellEngine.AURA_INTERRUPT_FLAG_DAMAGE, vicSend);
             if (p.duelOpponent == victim && dealt >= before - 1) {
                 dealt = Math.max(0, before - 1);
@@ -587,7 +587,7 @@ public final class World implements Runnable {
     private void applyMeleeHit(Player p, Creature c, boolean offhand) {
         GameMap hitMap = map(p.mapId, p.instanceId);
         // CMaNGOS AttackerStateUpdate → RemoveAurasWithInterruptFlags(ATTACKING) (Stealth 1784).
-        BiConsumer<Integer, byte[]> send = p.session != null ? p.session::send : null;
+        BiConsumer<Integer, byte[]> send = Broadcaster.sinkOrNull(p);
         spells.removeAurasWithInterruptFlags(p, SpellEngine.AURA_INTERRUPT_FLAG_ATTACKING, send);
         boolean nextMeleeSpell = !offhand && p.hasNextMeleeSpellQueued();
         int spellId = nextMeleeSpell ? p.peekNextMeleeSpellId() : 0;
@@ -611,7 +611,7 @@ public final class World implements Runnable {
                 p.session.send(atk.opcode(), atk.payload());
                 spells.procMelee(p, c, false, p.session::send);
             }
-            content.creatureHitCredit(p, hitMap, c, p.session != null ? p.session::send : (op, b) -> { });
+            content.creatureHitCredit(p, hitMap, c, Broadcaster.sink(p));
         }
         if (p.session != null) {
             if (nextMeleeSpell && spellId != 0) {
@@ -656,11 +656,7 @@ public final class World implements Runnable {
             tapper = p;
         }
         rewardKill(p, c);
-        if (tapper.session != null) {
-            content.killedMonsterCredit(tapper, m, c, tapper.session::send);
-        } else {
-            content.killedMonsterCredit(tapper, m, c, (op, b) -> { });
-        }
+        content.killedMonsterCredit(tapper, m, c, Broadcaster.sink(tapper));
         objectMgr.fillCorpseLoot(c, tapper);
         byte[] stop = c.motion.stop(c);
         if (stop != null) {
@@ -1088,7 +1084,7 @@ public final class World implements Runnable {
         MeleeTable.Result r = combat.swing(c, p, nowMs(), (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
         // CMaNGOS DealDamage → RemoveAurasWithInterruptFlags(DAMAGE) on the victim.
         if (r.damage() > 0) {
-            BiConsumer<Integer, byte[]> send = p.session != null ? p.session::send : null;
+            BiConsumer<Integer, byte[]> send = Broadcaster.sinkOrNull(p);
             spells.removeAurasWithInterruptFlags(p, SpellEngine.AURA_INTERRUPT_FLAG_DAMAGE, send);
         }
         // SendAttackStateUpdate + the victim's public UNIT_FIELD_HEALTH go SendMessageToSet (victim included).

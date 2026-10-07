@@ -12,6 +12,7 @@ import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.PetHandler;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.spell.SpellEngine;
+import org.tbc.world.world.Broadcaster;
 import org.tbc.world.world.World;
 
 import java.util.LinkedHashMap;
@@ -462,9 +463,7 @@ public final class CompanionBehavior {
     private static void sendToCombatViewers(World world, Player owner, Creature body, Creature prey,
             int opcode, byte[] payload) {
         for (Player pl : combatViewers(world, owner, body, prey).values()) {
-            if (pl.session != null) {
-                pl.session.send(opcode, payload);
-            }
+            Broadcaster.toPlayer(pl, opcode, payload);
         }
     }
 
@@ -561,9 +560,7 @@ public final class CompanionBehavior {
         if (spline == null) {
             return;
         }
-        if (owner.session != null) {
-            owner.session.send(Opcodes.SMSG_MONSTER_MOVE, spline);
-        }
+        Broadcaster.toPlayer(owner, Opcodes.SMSG_MONSTER_MOVE, spline);
         if (body.messageToSet != null) {
             body.messageToSet.accept(Opcodes.SMSG_MONSTER_MOVE, spline);
         } else {

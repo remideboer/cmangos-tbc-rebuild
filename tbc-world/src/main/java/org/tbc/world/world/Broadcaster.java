@@ -35,6 +35,16 @@ public final class Broadcaster {
         nearby(m, u, range, opcode, payload);
     }
 
+    /** One player's send as a sink; a silent sink when offline. */
+    public static BiConsumer<Integer, byte[]> sink(Player p) {
+        return p.session != null ? p.session::send : (op, payload) -> { };
+    }
+
+    /** One player's send as a sink; {@code null} when offline (for engines that treat null as "no client"). */
+    public static BiConsumer<Integer, byte[]> sinkOrNull(Player p) {
+        return p.session != null ? p.session::send : null;
+    }
+
     /** {@link #nearbyAndSelf} as a sink for engines that emit through a {@code BiConsumer}. */
     public static BiConsumer<Integer, byte[]> nearbyAndSelfSink(GameMap m, Unit u, double range) {
         return (op, payload) -> nearbyAndSelf(m, u, range, op, payload);

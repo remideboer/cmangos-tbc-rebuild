@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Session-aware fan-out carved from World (refactoring plan cycle 3.1). */
 class BroadcasterTest {
@@ -52,6 +54,23 @@ class BroadcasterTest {
         Broadcaster.toPlayer(on, 0x1234, new byte[0]);
         Broadcaster.toPlayer(off, 0x1234, new byte[0]);
         assertEquals(List.of(0x1234), sink.ops);
+    }
+
+    @Test
+    void sinkWhenOnlineShouldSendAndWhenOfflineShouldSwallow() {
+        GameMap m = World.inMemory().map(0, 0);
+        RecordingSink sink = new RecordingSink();
+        Broadcaster.sink(online(m, 1, 0, sink)).accept(0x77, new byte[0]);
+        Broadcaster.sink(offline(m, 2, 0)).accept(0x77, new byte[0]);
+        assertEquals(List.of(0x77), sink.ops);
+    }
+
+    @Test
+    void sinkOrNullWhenOfflineShouldBeNull() {
+        GameMap m = World.inMemory().map(0, 0);
+        RecordingSink sink = new RecordingSink();
+        assertNotNull(Broadcaster.sinkOrNull(online(m, 1, 0, sink)));
+        assertNull(Broadcaster.sinkOrNull(offline(m, 2, 0)));
     }
 
     @Test
