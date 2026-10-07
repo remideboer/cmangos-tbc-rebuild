@@ -357,6 +357,7 @@ class ContentHeroUnlockTest {
         content.completeQuest(p, map, in, () -> 1L, this::capture);
         assertFalse(p.rewardedQuests.contains(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
         assertFalse(p.spells.contains(SpellEngine.HEROIC_STRIKE));
+        assertFalse(p.spells.contains(SpellEngine.SPELL_BATTLE_STANCE));
     }
 
     @Test
@@ -370,6 +371,8 @@ class ContentHeroUnlockTest {
         content.completeQuest(p, map, in, () -> 1L, this::capture);
         assertTrue(p.rewardedQuests.contains(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
         assertTrue(p.spells.contains(SpellEngine.HEROIC_STRIKE));
+        assertTrue(p.spells.contains(SpellEngine.SPELL_BATTLE_STANCE),
+                "Hero's First Lesson also teaches Battle Stance 2457");
         assertTrue(ops.contains(Opcodes.SMSG_LEARNED_SPELL));
     }
 
@@ -380,6 +383,7 @@ class ContentHeroUnlockTest {
         p.questLogCounts[0][0] = 1;
         p.questLogCounts[0][1] = HeroClassUnlock.REQUIRED_HITS;
         p.spells.add(SpellEngine.HEROIC_STRIKE);
+        p.spells.add(SpellEngine.SPELL_BATTLE_STANCE);
         Creature trainer = spawnTrainer();
         ops.clear();
         last.clear();
@@ -387,6 +391,24 @@ class ContentHeroUnlockTest {
         assertTrue(p.rewardedQuests.contains(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
         assertFalse(ops.contains(Opcodes.SMSG_LEARNED_SPELL));
         assertTrue(p.spells.contains(SpellEngine.HEROIC_STRIKE));
+        assertTrue(p.spells.contains(SpellEngine.SPELL_BATTLE_STANCE));
+    }
+
+    @Test
+    void completeQuestWhenHeroicStrikeKnownShouldStillTeachBattleStance() {
+        p.clazz = ClasslessConfig.CLASS_CLASSLESS;
+        takeQuest();
+        p.questLogCounts[0][0] = 1;
+        p.questLogCounts[0][1] = HeroClassUnlock.REQUIRED_HITS;
+        p.spells.add(SpellEngine.HEROIC_STRIKE);
+        Creature trainer = spawnTrainer();
+        ops.clear();
+        last.clear();
+        content.completeQuest(p, map, choose(trainer.guid), () -> 1L, this::capture);
+        assertTrue(p.spells.contains(SpellEngine.SPELL_BATTLE_STANCE));
+        assertTrue(ops.contains(Opcodes.SMSG_LEARNED_SPELL));
+        assertEquals(SpellEngine.SPELL_BATTLE_STANCE,
+                new WowBuffer(last.get(Opcodes.SMSG_LEARNED_SPELL)).getU32());
     }
 
     private void takeQuest() {

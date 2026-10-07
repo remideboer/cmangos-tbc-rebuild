@@ -906,13 +906,19 @@ public final class SpellEngine {
 
     /**
      * Player::_LoadAuras: warrior without SPELL_AURA_MOD_SHAPESHIFT casts SPELL_ID_PASSIVE_BATTLE_STANCE 2457.
+     * Heroes who learned 2457 from quest 90001 also get the form (class stays CLASS_CLASSLESS).
      * nowMs 0 so the holder is permanent (stance lasts until another shapeshift).
      */
     public void applyDefaultWarriorStance(Player p) {
-        if (p == null || p.clazz != CLASS_WARRIOR || p.shapeshiftForm() != Unit.FORM_NONE) {
+        if (p == null || p.shapeshiftForm() != Unit.FORM_NONE) {
             return;
         }
-        if (!p.spells.contains(SPELL_BATTLE_STANCE)) {
+        boolean warrior = p.clazz == CLASS_WARRIOR;
+        boolean knowsStance = p.spells.contains(SPELL_BATTLE_STANCE);
+        if (!warrior && !knowsStance) {
+            return;
+        }
+        if (!knowsStance) {
             p.spells.add(SPELL_BATTLE_STANCE);
         }
         apply(p, p, info(SPELL_BATTLE_STANCE), 0L);

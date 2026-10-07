@@ -2059,6 +2059,8 @@ public final class WorldSession {
 
     private void handleQuestComplete(World world, WowBuffer in) {
         world.content.completeQuest(player, world.map(player.mapId, player.instanceId), in, world::nextItemGuid, this::send);
+        // Hero 90001 teaches Battle Stance into the spellbook; apply the form same-session.
+        world.spells.applyDefaultWarriorStance(player);
     }
 
     private void handleAuctionHello(World world, WowBuffer in) {

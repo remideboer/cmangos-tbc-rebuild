@@ -864,11 +864,10 @@ public final class Content {
         storeRewardItem(p, q.rewChoiceItemId(reward), q.rewChoiceItemCount(reward), nextItemGuid, send);
         p.rewardedQuests.add(questId);
         int rewSpell = mgr.questRewSpell.getOrDefault(questId, 0);
-        if (rewSpell > 0 && !p.spells.contains(rewSpell)) {
-            p.spells.add(rewSpell);
-            WowBuffer learned = new WowBuffer(4);
-            learned.putU32(rewSpell);
-            send.accept(Opcodes.SMSG_LEARNED_SPELL, learned.array());
+        learnQuestRewardSpell(p, rewSpell, send);
+        // Hero's First Lesson: Heroic Strike needs Battle Stance 2457 for the stance bar (like a warrior).
+        if (questId == org.tbc.world.classless.HeroClassUnlock.QUEST_HEROS_FIRST_LESSON) {
+            learnQuestRewardSpell(p, org.tbc.world.spell.SpellEngine.SPELL_BATTLE_STANCE, send);
         }
         ObjectMgr.QuestExtras extra = mgr.questExtras.get(questId);
         if (extra != null && extra.rewRepFaction() > 0) {
@@ -887,6 +886,16 @@ public final class Content {
         sendLogUpdate(p, slot, send);
         send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_COMPLETE, encodeQuestComplete(q, xp, money, 0));
         questGiverStatusMultiple(p, map, send);
+    }
+
+    private static void learnQuestRewardSpell(Player p, int spellId, BiConsumer<Integer, byte[]> send) {
+        if (spellId <= 0 || p.spells.contains(spellId)) {
+            return;
+        }
+        p.spells.add(spellId);
+        WowBuffer learned = new WowBuffer(4);
+        learned.putU32(spellId);
+        send.accept(Opcodes.SMSG_LEARNED_SPELL, learned.array());
     }
 
     private void storeRewardItem(Player p, int itemId, int count, LongSupplier nextItemGuid,

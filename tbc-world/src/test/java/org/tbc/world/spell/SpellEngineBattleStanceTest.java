@@ -29,6 +29,17 @@ class SpellEngineBattleStanceTest {
     }
 
     @Test
+    void applyDefaultWarriorStanceWhenClasslessKnowsBattleStanceShouldSetForm() {
+        Player hero = new Player();
+        hero.clazz = Player.CLASS_CLASSLESS;
+        hero.level = 1;
+        hero.spells.add(SpellEngine.SPELL_BATTLE_STANCE);
+        new SpellEngine().applyDefaultWarriorStance(hero);
+        assertEquals(Unit.FORM_BATTLESTANCE, hero.shapeshiftForm());
+        assertEquals(1, hero.spells.stream().filter(id -> id == SpellEngine.SPELL_BATTLE_STANCE).count());
+    }
+
+    @Test
     void applyDefaultWarriorStanceWhenAlreadyShapeshiftedShouldKeepForm() {
         Player p = new Player();
         p.clazz = SpellEngine.CLASS_WARRIOR;

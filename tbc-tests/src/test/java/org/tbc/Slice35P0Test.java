@@ -1032,6 +1032,16 @@ class Slice35P0Test {
         client.handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
     }
 
+    private static List<Integer> learnedSpellIds(WowClientDouble client) {
+        List<Integer> ids = new ArrayList<>();
+        for (int i = 0; i < client.opcodes.size(); i++) {
+            if (client.opcodes.get(i) == Opcodes.SMSG_LEARNED_SPELL) {
+                ids.add(WowClientDouble.u32le(client.payloads.get(i), 0));
+            }
+        }
+        return ids;
+    }
+
     private static List<String> messageChatBodies(WowClientDouble client) {
         List<String> out = new ArrayList<>();
         for (int i = 0; i < client.opcodes.size(); i++) {
@@ -1223,9 +1233,12 @@ class Slice35P0Test {
         choose.putU32(0);
         client.handle(world, Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD, choose.array());
         assertTrue(client.saw(Opcodes.SMSG_LEARNED_SPELL));
-        assertEquals(org.tbc.world.spell.SpellEngine.HEROIC_STRIKE,
-                WowClientDouble.u32le(client.payload(Opcodes.SMSG_LEARNED_SPELL), 0));
+        assertTrue(learnedSpellIds(client).contains(org.tbc.world.spell.SpellEngine.HEROIC_STRIKE));
+        assertTrue(learnedSpellIds(client).contains(org.tbc.world.spell.SpellEngine.SPELL_BATTLE_STANCE),
+                "turn-in also teaches Battle Stance 2457");
         assertTrue(p.spells.contains(org.tbc.world.spell.SpellEngine.HEROIC_STRIKE));
+        assertTrue(p.spells.contains(org.tbc.world.spell.SpellEngine.SPELL_BATTLE_STANCE));
+        assertEquals(org.tbc.world.entity.Unit.FORM_BATTLESTANCE, p.shapeshiftForm());
         assertTrue(p.rewardedQuests.contains(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
 
         long guid = p.guid;
@@ -1235,6 +1248,8 @@ class Slice35P0Test {
         again.login(world, guid);
         Player p2 = again.session().player();
         assertTrue(p2.spells.contains(org.tbc.world.spell.SpellEngine.HEROIC_STRIKE));
+        assertTrue(p2.spells.contains(org.tbc.world.spell.SpellEngine.SPELL_BATTLE_STANCE));
+        assertEquals(org.tbc.world.entity.Unit.FORM_BATTLESTANCE, p2.shapeshiftForm());
         assertTrue(p2.rewardedQuests.contains(HeroClassUnlock.QUEST_HEROS_FIRST_LESSON));
     }
 
