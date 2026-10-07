@@ -16,7 +16,7 @@ public final class InboundOpcodeTrace {
                 || opcode == Opcodes.CMSG_TIME_SYNC_RESP) {
             return false;
         }
-        if (WorldSession.isLivingMoveOpcode(opcode)) {
+        if (MovementHandler.isLivingMoveOpcode(opcode)) {
             return false;
         }
         return switch (opcode) {

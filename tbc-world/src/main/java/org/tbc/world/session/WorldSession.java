@@ -324,16 +324,6 @@ public final class WorldSession {
         handleLoggedIn(world, opcode, in);
     }
 
-    void handleForceSpeedChangeAck(World world, int opcode, WowBuffer in) {
-        try {
-            handleMove(world, opcode, in, true);
-            if (in.remaining() >= 4) {
-                player.lastAckSpeed = in.getFloat();
-            }
-        } catch (RuntimeException ignored) {
-        }
-    }
-
     /** STATUS_LOGGEDIN opcodes still implemented on the session itself (see refactoring plan Phase 2). */
     private void handleLoggedIn(World world, int opcode, WowBuffer in) {
         switch (opcode) {
@@ -811,62 +801,11 @@ public final class WorldSession {
         maybeExplore(world);
     }
 
-    /** CMaNGOS-tbc movement ACKs: {@code >> ObjectGuid} is a raw u64 (movement.md). */
-    private static boolean skipAckGuid(WowBuffer in) {
-        if (in.remaining() < 8) {
-            return false;
-        }
-        in.getU64();
-        return true;
-    }
-
-    /**
-     * ProcessMovementInfo: ignore while IsBeingTeleported; VerifyMovementInfo drops
-     * !IsValidMapCoord so a bad packet cannot strand the player in the void.
-     */
-    private boolean acceptsMovement(MovementInfo m) {
-        return !player.teleportPending && MapCoords.valid(m.x, m.y, m.z, m.o);
-    }
-
-    void handleMove(World world, int opcode, WowBuffer in, boolean ack) {
-        if (ack) {
-            if (!skipAckGuid(in)) {
-                return;
-            }
-            in.getU32();
-        }
-        MovementInfo m = MovementInfo.readC2s(in);
-        if (!acceptsMovement(m)) {
-            return;
-        }
-        // CMaNGOS MovementHandler: MOVEFLAG_MASK_MOVING_OR_TURN while sitting → SetStandState(STAND)
-        // (removes STANDING_CANCELS food/drink via leaveSeatedAuras).
-        if ((m.moveFlags & MovementInfo.MOVEFLAG_MASK_MOVING_OR_TURN) != 0 && player.isSitState()) {
-            player.stand();
-        }
-        float ox = player.x;
-        float oy = player.y;
-        player.relocate(m.x, m.y, m.z, m.o);
-        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
-        player.movement = m;
-        m.stime = (int) world.nowMs();
-        WowBuffer echo = new WowBuffer(64);
-        m.write(echo, true, player.guid, m.stime);
-        for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
-            o.session.send(opcode, echo.array());
-        }
-        if (player.duelOpponent != null && player.distance2d(player.duelOpponent) > 50) {
-            send(Opcodes.SMSG_DUEL_OUTOFBOUNDS, new byte[0]);
-        }
-        maybeExplore(world);
-        revealNearby(world);
-    }
-
     /**
      * CMaNGOS CheckAreaExploreAndOutdoor — uncover map fog via PLAYER_EXPLORED_ZONES VALUES.
      * Prefer Terrain grid area flag; fall back to AreaTable.exploreFlag for CMSG_ZONEUPDATE area id.
      */
-    private void maybeExplore(World world) {
+    void maybeExplore(World world) {
         if (player == null || !player.alive() || player.ghost) {
             return;
         }
@@ -1279,140 +1218,6 @@ public final class WorldSession {
     }
 
     /** movement.md CMSG_MOVE_SPLINE_DONE — MovementInfo + uint32 counter (CMaNGOS TaxiHandler). */
-    void handleMoveSplineDone(WowBuffer in) {
-        try {
-            MovementInfo.readC2s(in);
-            if (in.remaining() >= 4) {
-                player.lastSplineDoneCounter = in.getU32();
-            }
-        } catch (RuntimeException ignored) {
-        }
-    }
-
-    /**
-     * HandleMoveTimeSkippedOpcode — raw guid + uint32. Observers get MSG_MOVE_TIME_SKIPPED
-     * packed guid + skipped. Sender is excluded. Wrong guid is ignored.
-     */
-    void handleMoveTimeSkipped(World world, WowBuffer in) {
-        if (in.remaining() < 12) {
-            return;
-        }
-        long guid = in.getU64();
-        int skipped = in.getU32();
-        if (guid != player.guid) {
-            return;
-        }
-        WowBuffer data = new WowBuffer(16);
-        data.putPackedGuid(player.guid);
-        data.putU32(skipped);
-        byte[] pkt = data.array();
-        for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
-            if (o != player && o.session != null) {
-                o.session.send(Opcodes.MSG_MOVE_TIME_SKIPPED, pkt);
-            }
-        }
-    }
-
-    /**
-     * HandleMovementOpcodes for CMSG_MOVE_FALL_RESET — apply MovementInfo, do not echo.
-     * The 8606 client has no handler for this CMSG.
-     */
-    void handleFallReset(World world, WowBuffer in) {
-        MovementInfo m = MovementInfo.readC2s(in);
-        if (!acceptsMovement(m)) {
-            return;
-        }
-        float ox = player.x;
-        float oy = player.y;
-        player.relocate(m.x, m.y, m.z, m.o);
-        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
-        player.movement = m;
-    }
-
-    /**
-     * HandleMoveKnockBackAck — packed guid + counter + MovementInfo.
-     * Observers get MSG_MOVE_KNOCK_BACK: packed guid + MovementInfo + jump cos/sin/xy/zspeed.
-     * Sender excluded (SendMessageToAllWhoSeeMeMove).
-     */
-    void handleKnockBackAck(World world, WowBuffer in) {
-        if (!skipAckGuid(in) || in.remaining() < 4) {
-            return;
-        }
-        in.getU32();
-        MovementInfo m = MovementInfo.readC2s(in);
-        if (!acceptsMovement(m)) {
-            return;
-        }
-        float ox = player.x;
-        float oy = player.y;
-        player.relocate(m.x, m.y, m.z, m.o);
-        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
-        player.movement = m;
-        m.stime = (int) world.nowMs();
-        WowBuffer echo = new WowBuffer(80);
-        m.write(echo, true, player.guid, m.stime);
-        echo.putFloat(m.jumpCos);
-        echo.putFloat(m.jumpSin);
-        echo.putFloat(m.jumpXy);
-        echo.putFloat(m.jumpZ);
-        byte[] pkt = echo.array();
-        for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
-            if (o != player && o.session != null) {
-                o.session.send(Opcodes.MSG_MOVE_KNOCK_BACK, pkt);
-            }
-        }
-    }
-
-    /**
-     * HandleMoveFlagChangeOpcode — packed guid + counter + MovementInfo + isApplied u32.
-     * Observers get response MSG (HOVER / WATER_WALK / FEATHER_FALL) with packed guid + MovementInfo.
-     */
-    void handleMoveFlagChangeAck(World world, WowBuffer in, int responseOpcode) {
-        if (!skipAckGuid(in) || in.remaining() < 4) {
-            return;
-        }
-        in.getU32();
-        MovementInfo m = MovementInfo.readC2s(in);
-        if (in.remaining() >= 4) {
-            in.getU32();
-        }
-        if (!acceptsMovement(m)) {
-            return;
-        }
-        float ox = player.x;
-        float oy = player.y;
-        player.relocate(m.x, m.y, m.z, m.o);
-        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
-        player.movement = m;
-        m.stime = (int) world.nowMs();
-        WowBuffer echo = new WowBuffer(64);
-        m.write(echo, true, player.guid, m.stime);
-        byte[] pkt = echo.array();
-        for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, GameMap.VISIBILITY)) {
-            if (o != player && o.session != null) {
-                o.session.send(responseOpcode, pkt);
-            }
-        }
-    }
-
-    /**
-     * HandleMoveNotActiveMoverOpcode — packed guid + MovementInfo. Apply only; no echo.
-     */
-    void handleNotActiveMover(World world, WowBuffer in) {
-        if (!skipAckGuid(in)) {
-            return;
-        }
-        MovementInfo m = MovementInfo.readC2s(in);
-        if (!acceptsMovement(m)) {
-            return;
-        }
-        float ox = player.x;
-        float oy = player.y;
-        player.relocate(m.x, m.y, m.z, m.o);
-        world.map(player.mapId, player.instanceId).reindex(player, ox, oy);
-        player.movement = m;
-    }
-
     /** MiscHandler::HandlePlayedTime — SMSG_PLAYED_TIME total then level, seconds. */
     private void handlePlayedTime() {
         WowBuffer out = new WowBuffer(8);
@@ -1581,51 +1386,6 @@ public final class WorldSession {
     }
 
     /** movement.md — all CMSG_FORCE_*_SPEED_CHANGE_ACK share packed guid + counter + MovementInfo + float. */
-    static boolean isForceSpeedChangeAck(int opcode) {
-        return opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK
-                || opcode == Opcodes.CMSG_FORCE_RUN_BACK_SPEED_CHANGE_ACK
-                || opcode == Opcodes.CMSG_FORCE_SWIM_SPEED_CHANGE_ACK
-                || opcode == Opcodes.CMSG_FORCE_WALK_SPEED_CHANGE_ACK
-                || opcode == Opcodes.CMSG_FORCE_SWIM_BACK_SPEED_CHANGE_ACK
-                || opcode == Opcodes.CMSG_FORCE_TURN_RATE_CHANGE_ACK
-                || opcode == Opcodes.CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK
-                || opcode == Opcodes.CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK;
-    }
-
-    /**
-     * CMaNGOS Opcodes.cpp handlers that call HandleMovementOpcodes with a bare MovementInfo
-     * (no GUID/counter prefix). Do not use a numeric range — it includes SMSG and cheat opcodes.
-     */
-    static boolean isLivingMoveOpcode(int opcode) {
-        return switch (opcode) {
-            case Opcodes.MSG_MOVE_START_FORWARD,
-                    Opcodes.MSG_MOVE_START_BACKWARD,
-                    Opcodes.MSG_MOVE_STOP,
-                    Opcodes.MSG_MOVE_START_STRAFE_LEFT,
-                    Opcodes.MSG_MOVE_START_STRAFE_RIGHT,
-                    Opcodes.MSG_MOVE_STOP_STRAFE,
-                    Opcodes.MSG_MOVE_JUMP,
-                    Opcodes.MSG_MOVE_START_TURN_LEFT,
-                    Opcodes.MSG_MOVE_START_TURN_RIGHT,
-                    Opcodes.MSG_MOVE_STOP_TURN,
-                    Opcodes.MSG_MOVE_START_PITCH_UP,
-                    Opcodes.MSG_MOVE_START_PITCH_DOWN,
-                    Opcodes.MSG_MOVE_STOP_PITCH,
-                    Opcodes.MSG_MOVE_SET_RUN_MODE,
-                    Opcodes.MSG_MOVE_SET_WALK_MODE,
-                    Opcodes.MSG_MOVE_FALL_LAND,
-                    Opcodes.MSG_MOVE_START_SWIM,
-                    Opcodes.MSG_MOVE_STOP_SWIM,
-                    Opcodes.MSG_MOVE_SET_FACING,
-                    Opcodes.MSG_MOVE_SET_PITCH,
-                    Opcodes.MSG_MOVE_HEARTBEAT,
-                    Opcodes.MSG_MOVE_START_ASCEND,
-                    Opcodes.MSG_MOVE_STOP_ASCEND,
-                    Opcodes.MSG_MOVE_START_DESCEND -> true;
-            default -> false;
-        };
-    }
-
     /** spell.md CMSG_STANDSTATECHANGE — stand/sit/sleep/kneel only (CMaNGOS HandleStandStateChangeOpcode). */
     private void handleStandStateChange(WowBuffer in) {
         if (in.remaining() < 4) {

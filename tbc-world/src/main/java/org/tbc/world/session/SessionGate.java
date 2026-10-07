@@ -38,21 +38,8 @@ final class SessionGate {
                 .register(Opcodes.CMSG_OPT_OUT_OF_LOOT, (s, w, in) -> GroupHandler.optOutOfLoot(in));
         // Client flushes UI prefs on logout.
         recentlyLoggedOut.register(Opcodes.CMSG_UPDATE_ACCOUNT_DATA, (s, w, in) -> s.handleUpdateAccountData(w, in));
-        movement.register(Opcodes.MSG_MOVE_WORLDPORT_ACK, (s, w, in) -> s.handleWorldportAck(w))
-                // HandleMoveTeleportAckOpcode: raw guid + counter + time; position is the teleport dest.
-                .register(Opcodes.MSG_MOVE_TELEPORT_ACK, (s, w, in) -> { })
-                .register(Opcodes.CMSG_FORCE_MOVE_ROOT_ACK, (s, w, in) -> s.handleMove(w, Opcodes.CMSG_FORCE_MOVE_ROOT_ACK, in, true))
-                .register(Opcodes.CMSG_FORCE_MOVE_UNROOT_ACK, (s, w, in) -> s.handleMove(w, Opcodes.CMSG_FORCE_MOVE_UNROOT_ACK, in, true))
-                .register(Opcodes.CMSG_MOVE_SPLINE_DONE, (s, w, in) -> s.handleMoveSplineDone(in))
-                .register(Opcodes.CMSG_MOVE_TIME_SKIPPED, (s, w, in) -> s.handleMoveTimeSkipped(w, in))
-                .register(Opcodes.CMSG_MOVE_FALL_RESET, (s, w, in) -> s.handleFallReset(w, in))
-                .register(Opcodes.CMSG_MOVE_SET_FLY, (s, w, in) -> s.handleMove(w, Opcodes.CMSG_MOVE_SET_FLY, in, false))
-                .register(Opcodes.CMSG_MOVE_CHNG_TRANSPORT, (s, w, in) -> s.handleMove(w, Opcodes.CMSG_MOVE_CHNG_TRANSPORT, in, false))
-                .register(Opcodes.CMSG_MOVE_KNOCK_BACK_ACK, (s, w, in) -> s.handleKnockBackAck(w, in))
-                .register(Opcodes.CMSG_MOVE_HOVER_ACK, (s, w, in) -> s.handleMoveFlagChangeAck(w, in, Opcodes.MSG_MOVE_HOVER))
-                .register(Opcodes.CMSG_MOVE_WATER_WALK_ACK, (s, w, in) -> s.handleMoveFlagChangeAck(w, in, Opcodes.MSG_MOVE_WATER_WALK))
-                .register(Opcodes.CMSG_MOVE_FEATHER_FALL_ACK, (s, w, in) -> s.handleMoveFlagChangeAck(w, in, Opcodes.MSG_MOVE_FEATHER_FALL))
-                .register(Opcodes.CMSG_MOVE_NOT_ACTIVE_MOVER, (s, w, in) -> s.handleNotActiveMover(w, in));
+        movement.register(Opcodes.MSG_MOVE_WORLDPORT_ACK, (s, w, in) -> s.handleWorldportAck(w));
+        MovementHandler.register(movement);
     }
 
     /** @return true when the packet was consumed (handled or dropped by status); false leaves it to the caller. */
@@ -70,12 +57,12 @@ final class SessionGate {
             recentlyLoggedOut.dispatch(s, world, opcode, in);
             return true;
         }
-        if (WorldSession.isForceSpeedChangeAck(opcode)) {
-            s.handleForceSpeedChangeAck(world, opcode, in);
+        if (MovementHandler.isForceSpeedChangeAck(opcode)) {
+            MovementHandler.forceSpeedChangeAck(s, world, opcode, in);
             return true;
         }
-        if (WorldSession.isLivingMoveOpcode(opcode)) {
-            s.handleMove(world, opcode, in, false);
+        if (MovementHandler.isLivingMoveOpcode(opcode)) {
+            MovementHandler.move(s, world, opcode, in, false);
             return true;
         }
         return movement.dispatch(s, world, opcode, in);
