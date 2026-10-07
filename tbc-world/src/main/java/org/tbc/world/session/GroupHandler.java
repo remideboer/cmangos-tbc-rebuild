@@ -16,6 +16,18 @@ public final class GroupHandler {
 
     private GroupHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_GROUP_RAID_CONVERT, (s, w, in) -> raidConvert(s))
+                .register(Opcodes.CMSG_GROUP_ASSISTANT_LEADER, (s, w, in) -> assistantLeader(s, in))
+                .register(Opcodes.CMSG_GROUP_CHANGE_SUB_GROUP, (s, w, in) -> changeSubGroup(s, in))
+                .register(Opcodes.CMSG_GROUP_SWAP_SUB_GROUP, (s, w, in) -> swapSubGroup(s, in))
+                .register(Opcodes.CMSG_REQUEST_RAID_INFO, (s, w, in) -> requestRaidInfo(s))
+                .register(Opcodes.MSG_RAID_READY_CHECK, (s, w, in) -> readyCheck(s, in))
+                .register(Opcodes.MSG_RAID_TARGET_UPDATE, (s, w, in) -> raidTargetUpdate(s, in))
+                .register(Opcodes.MSG_RANDOM_ROLL, (s, w, in) -> randomRoll(s, in))
+                .register(Opcodes.MSG_MINIMAP_PING, (s, w, in) -> minimapPing(s, in));
+    }
+
     /** Group.cpp UpdateOfflineLeader. world-loop.md WUPDATE_GROUPS. */
     public static void updateOfflineLeaders(World world) {
         long now = world.nowMs();

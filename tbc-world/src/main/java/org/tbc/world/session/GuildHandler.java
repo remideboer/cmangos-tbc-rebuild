@@ -78,6 +78,20 @@ public final class GuildHandler {
 
     private GuildHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_GUILD_CREATE, GuildHandler::create)
+                .register(Opcodes.CMSG_GUILD_BANKER_ACTIVATE, (s, w, in) -> bankerActivate(s, in))
+                .register(Opcodes.CMSG_GUILD_BANK_QUERY_TAB, GuildHandler::queryTab)
+                .register(Opcodes.CMSG_GUILD_BANK_UPDATE_TAB, GuildHandler::updateTab)
+                .register(Opcodes.CMSG_GUILD_BANK_DEPOSIT_MONEY, GuildHandler::depositMoney)
+                .register(Opcodes.CMSG_GUILD_BANK_WITHDRAW_MONEY, GuildHandler::withdrawMoney)
+                .register(Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS, (s, w, in) -> swapItems(s, in))
+                .register(Opcodes.CMSG_GUILD_BANK_BUY_TAB, GuildHandler::buyTab)
+                .register(Opcodes.MSG_GUILD_BANK_LOG_QUERY, GuildHandler::bankLogQuery)
+                .register(Opcodes.MSG_QUERY_GUILD_BANK_TEXT, GuildHandler::queryBankText)
+                .register(Opcodes.CMSG_SET_GUILD_BANK_TEXT, GuildHandler::setBankText);
+    }
+
     public static void create(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
         if (p.guildId != 0) {

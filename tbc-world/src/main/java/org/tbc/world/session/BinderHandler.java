@@ -24,6 +24,10 @@ public final class BinderHandler {
 
     private BinderHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_BINDER_ACTIVATE, BinderHandler::activate);
+    }
+
     public static void activate(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
         if (p == null) {

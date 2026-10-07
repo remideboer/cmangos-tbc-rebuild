@@ -8,6 +8,18 @@ import org.tbc.world.net.wow8606.Opcodes;
 public final class LfgHandler {
     private LfgHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_SET_LOOKING_FOR_GROUP, (s, w, in) -> setLooking(s))
+                .register(Opcodes.MSG_LOOKING_FOR_GROUP, (s, w, in) -> list(s, in))
+                .register(Opcodes.CMSG_LFG_SET_AUTOJOIN, (s, w, in) -> setAutoJoin(s))
+                .register(Opcodes.CMSG_LFG_CLEAR_AUTOJOIN, (s, w, in) -> clearAutoJoin(s))
+                .register(Opcodes.CMSG_SET_LFG_COMMENT, (s, w, in) -> setComment(s, in))
+                .register(Opcodes.CMSG_CLEAR_LOOKING_FOR_GROUP, (s, w, in) -> clearLookingForGroup(s))
+                .register(Opcodes.CMSG_CLEAR_LOOKING_FOR_MORE, (s, w, in) -> clearLookingForMore(s))
+                .register(Opcodes.CMSG_SET_LOOKING_FOR_MORE, (s, w, in) -> setLookingForMore(s, in))
+                .register(Opcodes.CMSG_ACCEPT_LFG_MATCH, (s, w, in) -> acceptMatch(s));
+    }
+
     public static void setLooking(WorldSession s) {
         s.player().looking = true;
     }

@@ -41,6 +41,23 @@ public final class OpcodeTable {
     public static OpcodeTable loggedIn() {
         OpcodeTable t = new OpcodeTable();
         QueryHandler.register(t);
+        InventoryHandler.register(t);
+        BinderHandler.register(t);
+        TrainerHandler.register(t);
+        ChannelHandler.register(t);
+        LootHandler.register(t);
+        GroupHandler.register(t);
+        GuildHandler.register(t);
+        AuctionHandler.register(t);
+        LfgHandler.register(t);
+        PetHandler.register(t);
+        TalentHandler.register(t);
+        InstanceHandler.register(t);
+        BattlegroundHandler.register(t);
+        GmTicketHandler.register(t);
+        SpellCancelHandler.register(t);
+        MountHandler.register(t);
+        QuestShareHandler.register(t);
         return t;
     }
 }

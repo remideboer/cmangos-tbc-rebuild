@@ -18,6 +18,47 @@ import java.util.List;
 public final class LootHandler {
     private LootHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_LOOT_METHOD, (s, w, in) -> lootMethod(s, in))
+                .register(Opcodes.CMSG_LOOT_ROLL, (s, w, in) -> lootRoll(s, in))
+                .register(Opcodes.CMSG_LOOT_MASTER_GIVE, LootHandler::masterGive);
+    }
+
+    /** Master-loot give stub: item 25 pushed to the target's first free slot (SMSG_ITEM_PUSH_RESULT). */
+    public static void masterGive(WorldSession s, World world, WowBuffer in) {
+        if (in.remaining() >= 8) {
+            in.getU64();
+        }
+        if (in.remaining() > 0) {
+            in.getU8();
+        }
+        long target = in.remaining() >= 8 ? in.getU64() : 0;
+        Player t = world.playerByGuid(target);
+        if (t == null) {
+            return;
+        }
+        Item given = new Item(world.nextItemGuid(), 25);
+        given.ownerGuid = (int) t.guid;
+        int bag = t.firstFreeBagSlot();
+        given.slot = bag < 0 ? 23 : bag;
+        t.items.put((int) given.guid, given);
+        WowBuffer push = new WowBuffer(48);
+        push.putU64(t.guid);
+        push.putU32(0);
+        push.putU32(0);
+        push.putU32(1);
+        push.putU8(0);
+        push.putU32(given.slot);
+        push.putU32(25);
+        push.putU32(0);
+        push.putU32(0);
+        push.putU32(1);
+        push.putU32(1);
+        if (t.session != null) {
+            t.session.send(Opcodes.SMSG_ITEM_PUSH_RESULT, push.array());
+        }
+    }
+
     public static void lootMethod(WorldSession s, WowBuffer in) {
         Player p = s.player();
         if (p.group == null || p.group.leaderGuid != p.guid || in.remaining() < 16) {

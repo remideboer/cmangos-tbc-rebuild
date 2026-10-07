@@ -41,6 +41,10 @@ public final class TrainerHandler {
 
     private TrainerHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_TRAINER_BUY_SPELL, TrainerHandler::buySpell);
+    }
+
     public static void sendList(Player p, Creature c, ObjectMgr mgr, BiConsumer<Integer, byte[]> send) {
         byte[] payload = encodeList(p, c, mgr);
         if (payload != null) {

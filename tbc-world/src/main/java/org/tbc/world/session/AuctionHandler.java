@@ -41,6 +41,10 @@ public final class AuctionHandler {
 
     private AuctionHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_AUCTION_LIST_ITEMS, AuctionHandler::listItems);
+    }
+
     public static void sendHello(Creature c, BiConsumer<Integer, byte[]> send) {
         WowBuffer out = new WowBuffer(12);
         out.putU64(c.guid);

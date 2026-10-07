@@ -37,6 +37,28 @@ public final class PetHandler {
 
     private PetHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_PET_ACTION, PetHandler::action)
+                .register(Opcodes.CMSG_PET_SET_ACTION, (s, w, in) -> {
+                    setAction(s, in);
+                    w.companions.onPetBarChanged(s.player());
+                })
+                .register(Opcodes.CMSG_PET_SPELL_AUTOCAST, (s, w, in) -> {
+                    spellAutocast(s, in);
+                    w.companions.onPetBarChanged(s.player());
+                })
+                .register(Opcodes.CMSG_PET_CAST_SPELL, PetHandler::castSpell)
+                .register(Opcodes.CMSG_PET_STOP_ATTACK, PetHandler::stopAttack)
+                .register(Opcodes.CMSG_PET_CANCEL_AURA, PetHandler::cancelAura)
+                .register(Opcodes.CMSG_REQUEST_PET_INFO, (s, w, in) -> requestPetInfo(s))
+                .register(Opcodes.CMSG_PET_RENAME, (s, w, in) -> rename(s, in))
+                .register(Opcodes.CMSG_PET_ABANDON, (s, w, in) -> abandon(s, in))
+                .register(Opcodes.CMSG_TOTEM_DESTROYED, (s, w, in) -> destroyTotem(s, in))
+                .register(Opcodes.CMSG_STABLE_PET, (s, w, in) -> stablePet(s))
+                .register(Opcodes.CMSG_UNSTABLE_PET, (s, w, in) -> unstablePet(s))
+                .register(Opcodes.CMSG_BUY_STABLE_SLOT, (s, w, in) -> buyStableSlot(s));
+    }
+
     public static void action(WorldSession s, World world, WowBuffer in) {
         Player p = s.player();
         long petGuid = in.remaining() >= 8 ? in.getU64() : 0;

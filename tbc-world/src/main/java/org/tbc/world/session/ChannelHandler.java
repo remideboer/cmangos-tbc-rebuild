@@ -42,6 +42,11 @@ public final class ChannelHandler {
 
     private ChannelHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_TEXT_EMOTE, ChannelHandler::textEmote)
+                .register(Opcodes.CMSG_CHANNEL_LIST, (s, w, in) -> list(s, in));
+    }
+
     public static void join(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() >= 4) {
             in.getU32();

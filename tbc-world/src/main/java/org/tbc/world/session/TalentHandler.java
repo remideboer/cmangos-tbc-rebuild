@@ -3,8 +3,10 @@ package org.tbc.world.session;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
+import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.world.World;
 
 /** CMSG_LEARN_TALENT. Player.cpp LearnTalent. Layout: spec/03-protocol/packets/talents.md */
@@ -21,6 +23,23 @@ public final class TalentHandler {
     public static final int CLASSMASK_WARRIOR = 1;
 
     private TalentHandler() {}
+
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.MSG_TALENT_WIPE_CONFIRM, TalentHandler::wipeConfirm);
+    }
+
+    /** Talent wipe stub: TALENT_WIPE marker aura + SMSG_LEARNED_SPELL, then the confirm echo. */
+    public static void wipeConfirm(WorldSession s, World world, WowBuffer in) {
+        Player p = s.player();
+        p.auras.add(new Unit.Aura(PvpObjectives.TALENT_WIPE, 0, 1));
+        WowBuffer learned = new WowBuffer(4);
+        learned.putU32(PvpObjectives.TALENT_WIPE);
+        s.send(Opcodes.SMSG_LEARNED_SPELL, learned.array());
+        WowBuffer confirm = new WowBuffer(12);
+        confirm.putU64(in.remaining() >= 8 ? in.getU64() : 0);
+        confirm.putU32(0);
+        s.send(Opcodes.MSG_TALENT_WIPE_CONFIRM, confirm.array());
+    }
 
     public static void learn(WorldSession s, World world, WowBuffer in) {
         if (in.remaining() < 8) {

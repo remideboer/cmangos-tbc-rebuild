@@ -10,6 +10,28 @@ import org.tbc.world.world.World;
 public final class ArenaTeamHandler {
     private ArenaTeamHandler() {}
 
+    /** Arena petition turn-in stub (no charter): team 1 roster with the player as captain. */
+    public static void rosterAfterPetitionTurnIn(WorldSession s) {
+        Player p = s.player();
+        p.arenaTeam = 1;
+        WowBuffer roster = new WowBuffer(48);
+        roster.putU32(1);
+        roster.putU32(1);
+        roster.putU32(2);
+        roster.putU64(p.guid);
+        roster.putU8(1);
+        roster.putCString(p.name);
+        roster.putU32(0);
+        roster.putU8(p.level);
+        roster.putU8(p.clazz);
+        roster.putU32(0);
+        roster.putU32(0);
+        roster.putU32(0);
+        roster.putU32(0);
+        roster.putU32(0);
+        s.send(Opcodes.SMSG_ARENA_TEAM_ROSTER, roster.array());
+    }
+
     /** ERR_ARENA_TEAM_PLAYER_NOT_FOUND_S / TARGET_TOO_LOW / … from battleground.md. */
     static final int ERR_ARENA_TEAM_PLAYER_NOT_FOUND_S = 0x0B;
     static final int ERR_ARENA_TEAM_TARGET_TOO_LOW_S = 0x15;

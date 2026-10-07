@@ -22,6 +22,28 @@ import java.util.function.BiConsumer;
 public final class InventoryHandler {
     private InventoryHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_SWAP_INV_ITEM, InventoryHandler::swapInvItem)
+                .register(Opcodes.CMSG_DESTROYITEM, InventoryHandler::destroyItem)
+                .register(Opcodes.CMSG_SPLIT_ITEM, InventoryHandler::splitItem)
+                .register(Opcodes.CMSG_BANKER_ACTIVATE, InventoryHandler::bankerActivate)
+                .register(Opcodes.CMSG_BUY_BANK_SLOT, InventoryHandler::buyBankSlot)
+                .register(Opcodes.CMSG_AUTOBANK_ITEM, (s, w, in) -> autobankItem(s, in))
+                .register(Opcodes.CMSG_AUTOSTORE_BANK_ITEM, (s, w, in) -> autostoreBankItem(s, in))
+                .register(Opcodes.CMSG_AUTOEQUIP_ITEM, InventoryHandler::autoequipItem)
+                .register(Opcodes.CMSG_AUTOSTORE_BAG_ITEM, InventoryHandler::autostoreBagItem)
+                .register(Opcodes.CMSG_SET_AMMO, (s, w, in) -> setAmmo(s, in))
+                .register(Opcodes.CMSG_READ_ITEM, InventoryHandler::readItem)
+                .register(Opcodes.CMSG_WRAP_ITEM, InventoryHandler::wrapItem)
+                .register(Opcodes.CMSG_CANCEL_TEMP_ENCHANTMENT, (s, w, in) -> cancelTempEnchantment(s, in))
+                .register(Opcodes.CMSG_SWAP_ITEM, InventoryHandler::swapItem)
+                .register(Opcodes.CMSG_SELL_ITEM, InventoryHandler::sellItem)
+                .register(Opcodes.CMSG_BUYBACK_ITEM, (s, w, in) -> buybackItem(s, in))
+                .register(Opcodes.CMSG_REPAIR_ITEM, InventoryHandler::repairItem)
+                .register(Opcodes.CMSG_SOCKET_GEMS, (s, w, in) -> socketGems(s, in))
+                .register(Opcodes.CMSG_USE_ITEM, InventoryHandler::useItem);
+    }
+
     /**
      * Official 8606 client sends {@link Player#INVENTORY_SLOT_BAG_0} (255) for paper-doll / backpack.
      * Server storage uses bag 0; leave real bag indices (1–4) unchanged.

@@ -28,13 +28,63 @@ class OpcodeTableTest {
         }
     }
 
+    /** Cycle 1.1 query family + cycle 1.2 former LaterOpcodes families. */
+    static final Set<Integer> EXPECTED = Set.of(
+            // QueryHandler
+            Opcodes.CMSG_CREATURE_QUERY, Opcodes.CMSG_GAMEOBJECT_QUERY, Opcodes.CMSG_ITEM_QUERY_SINGLE,
+            Opcodes.CMSG_QUEST_QUERY, Opcodes.CMSG_PAGE_TEXT_QUERY, Opcodes.CMSG_ITEM_TEXT_QUERY,
+            Opcodes.CMSG_NPC_TEXT_QUERY, Opcodes.CMSG_PET_NAME_QUERY, Opcodes.CMSG_WHOIS,
+            // InventoryHandler
+            Opcodes.CMSG_SWAP_INV_ITEM, Opcodes.CMSG_DESTROYITEM, Opcodes.CMSG_SPLIT_ITEM,
+            Opcodes.CMSG_BANKER_ACTIVATE, Opcodes.CMSG_BUY_BANK_SLOT, Opcodes.CMSG_AUTOBANK_ITEM,
+            Opcodes.CMSG_AUTOSTORE_BANK_ITEM, Opcodes.CMSG_AUTOEQUIP_ITEM, Opcodes.CMSG_AUTOSTORE_BAG_ITEM,
+            Opcodes.CMSG_SET_AMMO, Opcodes.CMSG_READ_ITEM, Opcodes.CMSG_WRAP_ITEM,
+            Opcodes.CMSG_CANCEL_TEMP_ENCHANTMENT, Opcodes.CMSG_SWAP_ITEM, Opcodes.CMSG_SELL_ITEM,
+            Opcodes.CMSG_BUYBACK_ITEM, Opcodes.CMSG_REPAIR_ITEM, Opcodes.CMSG_SOCKET_GEMS, Opcodes.CMSG_USE_ITEM,
+            // Binder / Trainer / Channel / Auction / Talent
+            Opcodes.CMSG_BINDER_ACTIVATE, Opcodes.CMSG_TRAINER_BUY_SPELL,
+            Opcodes.CMSG_TEXT_EMOTE, Opcodes.CMSG_CHANNEL_LIST,
+            Opcodes.CMSG_AUCTION_LIST_ITEMS, Opcodes.MSG_TALENT_WIPE_CONFIRM,
+            // LootHandler
+            Opcodes.CMSG_LOOT_METHOD, Opcodes.CMSG_LOOT_ROLL, Opcodes.CMSG_LOOT_MASTER_GIVE,
+            // GroupHandler
+            Opcodes.CMSG_GROUP_RAID_CONVERT, Opcodes.CMSG_GROUP_ASSISTANT_LEADER,
+            Opcodes.CMSG_GROUP_CHANGE_SUB_GROUP, Opcodes.CMSG_GROUP_SWAP_SUB_GROUP,
+            Opcodes.CMSG_REQUEST_RAID_INFO, Opcodes.MSG_RAID_READY_CHECK, Opcodes.MSG_RAID_TARGET_UPDATE,
+            Opcodes.MSG_RANDOM_ROLL, Opcodes.MSG_MINIMAP_PING,
+            // GuildHandler (bank)
+            Opcodes.CMSG_GUILD_CREATE, Opcodes.CMSG_GUILD_BANKER_ACTIVATE, Opcodes.CMSG_GUILD_BANK_QUERY_TAB,
+            Opcodes.CMSG_GUILD_BANK_UPDATE_TAB, Opcodes.CMSG_GUILD_BANK_DEPOSIT_MONEY,
+            Opcodes.CMSG_GUILD_BANK_WITHDRAW_MONEY, Opcodes.CMSG_GUILD_BANK_SWAP_ITEMS,
+            Opcodes.CMSG_GUILD_BANK_BUY_TAB, Opcodes.MSG_GUILD_BANK_LOG_QUERY,
+            Opcodes.MSG_QUERY_GUILD_BANK_TEXT, Opcodes.CMSG_SET_GUILD_BANK_TEXT,
+            // LfgHandler
+            Opcodes.CMSG_SET_LOOKING_FOR_GROUP, Opcodes.MSG_LOOKING_FOR_GROUP, Opcodes.CMSG_LFG_SET_AUTOJOIN,
+            Opcodes.CMSG_LFG_CLEAR_AUTOJOIN, Opcodes.CMSG_SET_LFG_COMMENT, Opcodes.CMSG_CLEAR_LOOKING_FOR_GROUP,
+            Opcodes.CMSG_CLEAR_LOOKING_FOR_MORE, Opcodes.CMSG_SET_LOOKING_FOR_MORE, Opcodes.CMSG_ACCEPT_LFG_MATCH,
+            // PetHandler
+            Opcodes.CMSG_PET_ACTION, Opcodes.CMSG_PET_SET_ACTION, Opcodes.CMSG_PET_SPELL_AUTOCAST,
+            Opcodes.CMSG_PET_CAST_SPELL, Opcodes.CMSG_PET_STOP_ATTACK, Opcodes.CMSG_PET_CANCEL_AURA,
+            Opcodes.CMSG_REQUEST_PET_INFO, Opcodes.CMSG_PET_RENAME, Opcodes.CMSG_PET_ABANDON,
+            Opcodes.CMSG_TOTEM_DESTROYED, Opcodes.CMSG_STABLE_PET, Opcodes.CMSG_UNSTABLE_PET,
+            Opcodes.CMSG_BUY_STABLE_SLOT,
+            // InstanceHandler
+            Opcodes.CMSG_RESET_INSTANCES, Opcodes.MSG_SET_DUNGEON_DIFFICULTY,
+            // BattlegroundHandler
+            Opcodes.CMSG_LEAVE_BATTLEFIELD, Opcodes.CMSG_BATTLEFIELD_PORT, Opcodes.CMSG_REPORT_PVP_AFK,
+            Opcodes.MSG_INSPECT_HONOR_STATS,
+            // GmTicketHandler
+            Opcodes.CMSG_GMTICKET_GETTICKET, Opcodes.CMSG_GMTICKET_UPDATETEXT,
+            Opcodes.CMSG_GMTICKET_DELETETICKET, Opcodes.CMSG_GMTICKET_SYSTEMSTATUS,
+            // SpellCancelHandler
+            Opcodes.CMSG_CANCEL_CAST, Opcodes.CMSG_CANCEL_AUTO_REPEAT_SPELL, Opcodes.CMSG_CANCEL_CHANNELLING,
+            Opcodes.CMSG_CANCEL_AURA,
+            // MountHandler / QuestShareHandler
+            Opcodes.CMSG_MOUNTSPECIAL_ANIM, Opcodes.CMSG_CANCEL_MOUNT_AURA, Opcodes.CMSG_PUSHQUESTTOPARTY);
+
     @Test
     void loggedInWhenBuiltShouldRegisterExactlyTheMovedFamilies() {
-        Set<Integer> expected = Set.of(
-                Opcodes.CMSG_CREATURE_QUERY, Opcodes.CMSG_GAMEOBJECT_QUERY, Opcodes.CMSG_ITEM_QUERY_SINGLE,
-                Opcodes.CMSG_QUEST_QUERY, Opcodes.CMSG_PAGE_TEXT_QUERY, Opcodes.CMSG_ITEM_TEXT_QUERY,
-                Opcodes.CMSG_NPC_TEXT_QUERY, Opcodes.CMSG_PET_NAME_QUERY, Opcodes.CMSG_WHOIS);
-        assertEquals(expected, OpcodeTable.loggedIn().opcodes());
+        assertEquals(EXPECTED, OpcodeTable.loggedIn().opcodes());
     }
 
     @Test
