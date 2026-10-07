@@ -687,6 +687,37 @@ class Slice17P0Test {
                 WowClientDouble.u32le(lastPayload(relog, Opcodes.SMSG_CORPSE_RECLAIM_DELAY), 0));
     }
 
+    /** TP-SL03-007 — SMSG_CHAR_ENUM flags include CHARACTER_FLAG_GHOST (0x2000) for a released ghost. */
+    @Test
+    void tpSl03GhostShouldShowGhostIconOnCharEnum() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "CharDead");
+        Player p = client.session().player();
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        client.session().logout(world, true);
+
+        WowClientDouble select = new WowClientDouble();
+        select.connect(ACC);
+        select.handle(world, Opcodes.CMSG_CHAR_ENUM, new byte[0]);
+        WowBuffer enumer = new WowBuffer(select.payload(Opcodes.SMSG_CHAR_ENUM));
+        assertEquals(1, enumer.getU8());
+        enumer.getU64();
+        enumer.getCString();
+        for (int i = 0; i < 9; i++) {
+            enumer.getU8();
+        }
+        enumer.getU32();
+        enumer.getU32();
+        enumer.getFloat();
+        enumer.getFloat();
+        enumer.getFloat();
+        enumer.getU32();
+        assertEquals(0x2000, enumer.getU32() & 0x2000);
+    }
+
     /** CMaNGOS HandlePlayerLogin: dead → CastSpell(8326) + SetWaterWalk after Map::Add (create-self). */
     @Test
     void tpSl17GhostReloginShouldCastGhostSpellAndWaterWalkAfterCreateSelf() {

@@ -189,7 +189,7 @@ public final class CharacterStore {
         List<Player> out = new ArrayList<>();
         try (Connection c = chars.get()) {
             PreparedStatement ps = c.prepareStatement(
-                    "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,guildId,playerFlags FROM characters WHERE account = ? AND deleteDate IS NULL");
+                    "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,playerFlags FROM characters WHERE account = ? AND deleteDate IS NULL");
             ps.setInt(1, accountId);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
@@ -204,7 +204,7 @@ public final class CharacterStore {
         } catch (Exception e) {
             try (Connection c = chars.get()) {
                 PreparedStatement ps = c.prepareStatement(
-                        "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4 FROM characters WHERE account = ? AND deleteDate IS NULL");
+                        "SELECT guid,name,race,class,gender,level,zone,map,position_x,position_y,position_z,playerBytes,playerBytes2,at_login,cinematic,orientation,money,health,power1,power4,playerFlags FROM characters WHERE account = ? AND deleteDate IS NULL");
                 ps.setInt(1, accountId);
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {

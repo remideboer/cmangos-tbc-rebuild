@@ -83,6 +83,15 @@ class CharacterStorePositionTest {
             assertTrue(loaded.ghost);
             assertEquals(Player.PLAYER_FLAGS_GHOST,
                     loaded.getInt(UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST);
+
+            // CMaNGOS HandleCharEnum reads playerFlags → CHARACTER_FLAG_GHOST. Lab tbccharacters
+            // has no characters.guildId, so enum must not SELECT that column (fallback dropped flags).
+            CharacterStore enumStore = new CharacterStore(chars);
+            Player listed = enumStore.enumAccount(1, mgr).stream()
+                    .filter(c -> c.guid == p.guid)
+                    .findFirst()
+                    .orElseThrow();
+            assertTrue(listed.ghost);
         }
     }
 
