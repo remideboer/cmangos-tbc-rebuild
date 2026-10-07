@@ -154,6 +154,21 @@ class CompanionServiceTest {
         byte[] creatureReply = observer.last.get(Opcodes.SMSG_CREATURE_QUERY_RESPONSE);
         assertNotNull(creatureReply);
         assertEquals("Acantha", cString(creatureReply, 4));
+        int subOff = 4 + "Acantha".length() + 1 + 3;
+        assertEquals("Companion", cString(creatureReply, subOff));
+    }
+
+    @Test
+    void summonWhenOkShouldSetCreatedBySpellForCompanionNameplateTitle() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        assertEquals(CompanionService.OK_SUMMON, world.companions.summon(world, owner, "Alt"));
+        Creature body = owner.companion.worldBody();
+        assertEquals(CompanionService.COMPANION_TITLE_SPELL,
+                body.getInt(UpdateFields.UNIT_CREATED_BY_SPELL),
+                "8606 nameplate uses SummonProperties Title of UNIT_CREATED_BY_SPELL ('s Companion, not 's Minion)");
     }
 
     @Test

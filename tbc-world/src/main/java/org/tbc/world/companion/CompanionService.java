@@ -48,6 +48,11 @@ public final class CompanionService {
      * never lists it as a spell (CMaNGOS pets never learn it; IsAutocastable is false).
      */
     public static final int MELEE_ATTACK_SPELL = 6603;
+    /**
+     * Spell 10679 (Summon White Kitten) — SummonProperties Title = UNITNAME_SUMMON_TITLE_COMPANION
+     * so the 8606 client paints "{owner}'s Companion" instead of "{owner}'s Minion".
+     */
+    public static final int COMPANION_TITLE_SPELL = 10679;
 
     private final Map<Long, int[]> savedBars = new HashMap<>();
 
@@ -233,6 +238,7 @@ public final class CompanionService {
         }
         c.setGuid(UpdateFields.UNIT_FIELD_SUMMONEDBY, owner.guid);
         c.setGuid(UpdateFields.UNIT_FIELD_CREATEDBY, owner.guid);
+        c.setInt(UpdateFields.UNIT_CREATED_BY_SPELL, COMPANION_TITLE_SPELL);
         c.setInt(UpdateFields.UNIT_FIELD_PETNUMBER, Guid.low(snap.guid));
         int nameTimestamp = (int) (System.currentTimeMillis() / 1000L);
         pet.nameTimestamp = nameTimestamp;
