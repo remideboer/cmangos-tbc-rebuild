@@ -81,6 +81,39 @@ public final class SocialHandler {
 
     private SocialHandler() {}
 
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_CONTACT_LIST, (s, w, in) -> contactList(s, w))
+                .register(Opcodes.CMSG_GROUP_INVITE, SocialHandler::groupInvite)
+                .register(Opcodes.CMSG_GROUP_ACCEPT, (s, w, in) -> groupAccept(s, w))
+                .register(Opcodes.CMSG_GROUP_DECLINE, (s, w, in) -> groupDecline(s))
+                .register(Opcodes.CMSG_GROUP_UNINVITE, (s, w, in) -> groupUninvite(s, in))
+                .register(Opcodes.CMSG_GROUP_UNINVITE_GUID, (s, w, in) -> groupUninviteGuid(s, in))
+                .register(Opcodes.CMSG_GROUP_SET_LEADER, SocialHandler::groupSetLeader)
+                .register(Opcodes.CMSG_GROUP_DISBAND, (s, w, in) -> groupDisband(s))
+                .register(Opcodes.CMSG_REQUEST_PARTY_MEMBER_STATS, SocialHandler::requestPartyMemberStats)
+                .register(Opcodes.CMSG_INITIATE_TRADE, SocialHandler::initiateTrade)
+                .register(Opcodes.CMSG_BEGIN_TRADE, (s, w, in) -> beginTrade(s))
+                .register(Opcodes.CMSG_SET_TRADE_ITEM, (s, w, in) -> setTradeItem(s, in))
+                .register(Opcodes.CMSG_SET_TRADE_GOLD, (s, w, in) -> setTradeGold(s, in))
+                .register(Opcodes.CMSG_ACCEPT_TRADE, (s, w, in) -> acceptTrade(s, in))
+                .register(Opcodes.CMSG_CANCEL_TRADE, (s, w, in) -> cancelTrade(s))
+                .register(Opcodes.CMSG_WHO, SocialHandler::who)
+                .register(Opcodes.CMSG_ADD_FRIEND, SocialHandler::addFriend)
+                .register(Opcodes.CMSG_SET_CONTACT_NOTES, SocialHandler::setContactNotes)
+                .register(Opcodes.CMSG_ADD_IGNORE, SocialHandler::addIgnore)
+                .register(Opcodes.CMSG_DEL_IGNORE, SocialHandler::delIgnore)
+                .register(Opcodes.CMSG_DEL_FRIEND, SocialHandler::delFriend)
+                .register(Opcodes.CMSG_SEND_MAIL, SocialHandler::sendMail)
+                .register(Opcodes.CMSG_GET_MAIL_LIST, SocialHandler::getMailList)
+                .register(Opcodes.CMSG_MAIL_TAKE_ITEM, SocialHandler::takeMailItem)
+                .register(Opcodes.CMSG_MAIL_TAKE_MONEY, SocialHandler::takeMailMoney)
+                .register(Opcodes.CMSG_MAIL_MARK_AS_READ, SocialHandler::markMailRead)
+                .register(Opcodes.CMSG_MAIL_RETURN_TO_SENDER, SocialHandler::returnMailToSender)
+                .register(Opcodes.CMSG_MAIL_CREATE_TEXT_ITEM, SocialHandler::createMailTextItem)
+                .register(Opcodes.MSG_QUERY_NEXT_MAIL_TIME, SocialHandler::queryNextMailTime)
+                .register(Opcodes.CMSG_MAIL_DELETE, SocialHandler::deleteMail);
+    }
+
     public static void contactList(WorldSession s, World world) {
         Player p = s.player();
         if (p == null) {

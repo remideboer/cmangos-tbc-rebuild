@@ -452,7 +452,6 @@ public final class WorldSession {
                 player.zoneClient = in.getU32();
                 maybeExplore(world);
             }
-            case Opcodes.CMSG_CONTACT_LIST -> SocialHandler.contactList(this, world);
             case Opcodes.CMSG_SET_ACTION_BUTTON -> {
                 int button = in.getU8();
                 int packed = in.getU32();
@@ -513,26 +512,6 @@ public final class WorldSession {
             case Opcodes.CMSG_QUESTGIVER_COMPLETE_QUEST -> handleQuestRequestReward(world, in);
             case Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD -> handleQuestComplete(world, in);
             case Opcodes.CMSG_QUESTLOG_REMOVE_QUEST -> handleQuestLogRemove(world, in);
-            case Opcodes.CMSG_GROUP_INVITE -> SocialHandler.groupInvite(this, world, in);
-            case Opcodes.CMSG_GROUP_ACCEPT -> SocialHandler.groupAccept(this, world);
-            case Opcodes.CMSG_GROUP_DECLINE -> SocialHandler.groupDecline(this);
-            case Opcodes.CMSG_GROUP_UNINVITE -> SocialHandler.groupUninvite(this, in);
-            case Opcodes.CMSG_GROUP_UNINVITE_GUID -> SocialHandler.groupUninviteGuid(this, in);
-            case Opcodes.CMSG_GROUP_SET_LEADER -> SocialHandler.groupSetLeader(this, world, in);
-            case Opcodes.CMSG_GROUP_DISBAND -> SocialHandler.groupDisband(this);
-            case Opcodes.CMSG_REQUEST_PARTY_MEMBER_STATS -> SocialHandler.requestPartyMemberStats(this, world, in);
-            case Opcodes.CMSG_INITIATE_TRADE -> SocialHandler.initiateTrade(this, world, in);
-            case Opcodes.CMSG_BEGIN_TRADE -> SocialHandler.beginTrade(this);
-            case Opcodes.CMSG_SET_TRADE_ITEM -> SocialHandler.setTradeItem(this, in);
-            case Opcodes.CMSG_SET_TRADE_GOLD -> SocialHandler.setTradeGold(this, in);
-            case Opcodes.CMSG_ACCEPT_TRADE -> SocialHandler.acceptTrade(this, in);
-            case Opcodes.CMSG_CANCEL_TRADE -> SocialHandler.cancelTrade(this);
-            case Opcodes.CMSG_WHO -> SocialHandler.who(this, world, in);
-            case Opcodes.CMSG_ADD_FRIEND -> SocialHandler.addFriend(this, world, in);
-            case Opcodes.CMSG_SET_CONTACT_NOTES -> SocialHandler.setContactNotes(this, world, in);
-            case Opcodes.CMSG_ADD_IGNORE -> SocialHandler.addIgnore(this, world, in);
-            case Opcodes.CMSG_DEL_IGNORE -> SocialHandler.delIgnore(this, world, in);
-            case Opcodes.CMSG_DEL_FRIEND -> SocialHandler.delFriend(this, world, in);
             case Opcodes.CMSG_GUILD_INVITE -> GuildHandler.invite(this, world, in);
             case Opcodes.CMSG_GUILD_ACCEPT -> GuildHandler.accept(this, world);
             case Opcodes.CMSG_GUILD_DECLINE -> GuildHandler.decline(this, world);
@@ -564,15 +543,6 @@ public final class WorldSession {
                     ArenaTeamHandler.rosterAfterPetitionTurnIn(this);
                 }
             }
-            case Opcodes.CMSG_SEND_MAIL -> SocialHandler.sendMail(this, world, in);
-            case Opcodes.CMSG_GET_MAIL_LIST -> SocialHandler.getMailList(this, world, in);
-            case Opcodes.CMSG_MAIL_TAKE_ITEM -> SocialHandler.takeMailItem(this, world, in);
-            case Opcodes.CMSG_MAIL_TAKE_MONEY -> SocialHandler.takeMailMoney(this, world, in);
-            case Opcodes.CMSG_MAIL_MARK_AS_READ -> SocialHandler.markMailRead(this, world, in);
-            case Opcodes.CMSG_MAIL_RETURN_TO_SENDER -> SocialHandler.returnMailToSender(this, world, in);
-            case Opcodes.CMSG_MAIL_CREATE_TEXT_ITEM -> SocialHandler.createMailTextItem(this, world, in);
-            case Opcodes.MSG_QUERY_NEXT_MAIL_TIME -> SocialHandler.queryNextMailTime(this, world, in);
-            case Opcodes.CMSG_MAIL_DELETE -> SocialHandler.deleteMail(this, world, in);
             case Opcodes.MSG_AUCTION_HELLO -> handleAuctionHello(world, in);
             case Opcodes.CMSG_AUCTION_SELL_ITEM -> AuctionHandler.sellItem(this, world, in);
             case Opcodes.CMSG_AUCTION_PLACE_BID -> AuctionHandler.placeBid(this, world, in);

@@ -41,6 +41,7 @@ public final class OpcodeTable {
     public static OpcodeTable loggedIn() {
         OpcodeTable t = new OpcodeTable();
         QueryHandler.register(t);
+        SocialHandler.register(t);
         InventoryHandler.register(t);
         BinderHandler.register(t);
         TrainerHandler.register(t);

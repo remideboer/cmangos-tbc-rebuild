@@ -21,8 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ArchitectureRulesTest {
     /** Ratchets — lower only. Baseline measured 2026-10-07. */
-    static final int WORLD_SESSION_MAX_LINES = 2443;
-    static final int WORLD_SESSION_MAX_CASE_LABELS = 166;
+    static final int WORLD_SESSION_MAX_LINES = 2413;
+    static final int WORLD_SESSION_MAX_CASE_LABELS = 136;
     static final int LATER_OPCODES_MAX_LINES = 0;
     static final int WORLD_MAX_LINES = 1759;
     static final int WORLD_MAX_SESSION_REFS = 141;

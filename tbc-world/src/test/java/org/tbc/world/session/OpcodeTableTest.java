@@ -34,6 +34,17 @@ class OpcodeTableTest {
             Opcodes.CMSG_CREATURE_QUERY, Opcodes.CMSG_GAMEOBJECT_QUERY, Opcodes.CMSG_ITEM_QUERY_SINGLE,
             Opcodes.CMSG_QUEST_QUERY, Opcodes.CMSG_PAGE_TEXT_QUERY, Opcodes.CMSG_ITEM_TEXT_QUERY,
             Opcodes.CMSG_NPC_TEXT_QUERY, Opcodes.CMSG_PET_NAME_QUERY, Opcodes.CMSG_WHOIS,
+            // SocialHandler (contacts, group, trade, who, mail)
+            Opcodes.CMSG_CONTACT_LIST, Opcodes.CMSG_GROUP_INVITE, Opcodes.CMSG_GROUP_ACCEPT,
+            Opcodes.CMSG_GROUP_DECLINE, Opcodes.CMSG_GROUP_UNINVITE, Opcodes.CMSG_GROUP_UNINVITE_GUID,
+            Opcodes.CMSG_GROUP_SET_LEADER, Opcodes.CMSG_GROUP_DISBAND, Opcodes.CMSG_REQUEST_PARTY_MEMBER_STATS,
+            Opcodes.CMSG_INITIATE_TRADE, Opcodes.CMSG_BEGIN_TRADE, Opcodes.CMSG_SET_TRADE_ITEM,
+            Opcodes.CMSG_SET_TRADE_GOLD, Opcodes.CMSG_ACCEPT_TRADE, Opcodes.CMSG_CANCEL_TRADE,
+            Opcodes.CMSG_WHO, Opcodes.CMSG_ADD_FRIEND, Opcodes.CMSG_SET_CONTACT_NOTES, Opcodes.CMSG_ADD_IGNORE,
+            Opcodes.CMSG_DEL_IGNORE, Opcodes.CMSG_DEL_FRIEND,
+            Opcodes.CMSG_SEND_MAIL, Opcodes.CMSG_GET_MAIL_LIST, Opcodes.CMSG_MAIL_TAKE_ITEM,
+            Opcodes.CMSG_MAIL_TAKE_MONEY, Opcodes.CMSG_MAIL_MARK_AS_READ, Opcodes.CMSG_MAIL_RETURN_TO_SENDER,
+            Opcodes.CMSG_MAIL_CREATE_TEXT_ITEM, Opcodes.MSG_QUERY_NEXT_MAIL_TIME, Opcodes.CMSG_MAIL_DELETE,
             // InventoryHandler
             Opcodes.CMSG_SWAP_INV_ITEM, Opcodes.CMSG_DESTROYITEM, Opcodes.CMSG_SPLIT_ITEM,
             Opcodes.CMSG_BANKER_ACTIVATE, Opcodes.CMSG_BUY_BANK_SLOT, Opcodes.CMSG_AUTOBANK_ITEM,
