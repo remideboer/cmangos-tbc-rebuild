@@ -28,6 +28,8 @@ class ArchitectureRulesTest {
     static final int WORLD_MAX_SESSION_REFS = 99;
     static final int OBJECT_MGR_MAX_LINES = 2067;
     static final int SPELL_ENGINE_MAX_LINES = 3765;
+    /** Content is a facade over QuestGiver/Gossip/Vendor/Banker; new NPC behavior goes into those, not here. */
+    static final int CONTENT_MAX_LINES = 511;
     /** Lines in entity/spell/combat/content/map that name {@code org.tbc.world.session.}. */
     static final int DOMAIN_SESSION_DEPENDENCIES_MAX = 20;
     /**
@@ -110,6 +112,11 @@ class ArchitectureRulesTest {
                         && !h.matches(".*/content/\\w+(Seed|Loader)\\.java: .*"))
                 .toList();
         ratchet("raw catalog map reads", hits.size(), RAW_CATALOG_MAP_READS_MAX);
+    }
+
+    @Test
+    void contentFacadeShouldNotGrow() {
+        ratchet("Content lines", read(MAIN.resolve("content/Content.java")).size(), CONTENT_MAX_LINES);
     }
 
     @Test

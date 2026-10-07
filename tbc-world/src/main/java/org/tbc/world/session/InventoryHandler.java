@@ -1,6 +1,7 @@
 package org.tbc.world.session;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.content.Banker;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.DurabilityCosts;
 import org.tbc.world.content.ObjectMgr;
@@ -16,8 +17,6 @@ import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
 
 import java.util.Arrays;
-import java.util.function.BiConsumer;
-
 /** Bag 0 swap. Layout: spec/03-protocol/packets/inventory.md */
 public final class InventoryHandler {
     private InventoryHandler() {}
@@ -375,16 +374,7 @@ public final class InventoryHandler {
         if (npc == null || Content.outOfRange(p, npc)) {
             return;
         }
-        sendShowBank(npc, s::send);
-    }
-
-    public static void sendShowBank(Creature c, BiConsumer<Integer, byte[]> send) {
-        if ((c.npcFlags & Content.UNIT_NPC_FLAG_BANKER) == 0) {
-            return;
-        }
-        WowBuffer shown = new WowBuffer(8);
-        shown.putU64(c.guid);
-        send.accept(Opcodes.SMSG_SHOW_BANK, shown.array());
+        Banker.sendShowBank(npc, s::send);
     }
 
     /** guid raw banker. CMaNGOS HandleBuyBankSlotOpcode. inventory.md */
