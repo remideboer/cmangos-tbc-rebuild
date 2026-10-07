@@ -180,7 +180,7 @@ public final class WorldSession {
         if (player.online && player.nextSaveMs > 0) {
             if (diff >= player.nextSaveMs) {
                 world.characters.save(player);
-                player.nextSaveMs = world.saveIntervalMs;
+                player.nextSaveMs = world.config.saveIntervalMs();
             } else {
                 player.nextSaveMs -= diff;
             }
@@ -321,7 +321,7 @@ public final class WorldSession {
             sink.close();
             return;
         }
-        if (world.inboundOpcodeTrace && InboundOpcodeTrace.shouldLog(opcode)) {
+        if (world.config.inboundOpcodeTrace() && InboundOpcodeTrace.shouldLog(opcode)) {
             String who = player == null ? "-" : player.name;
             log.info(InboundOpcodeTrace.format(who, opcode, payload == null ? 0 : payload.length));
         }
@@ -568,7 +568,7 @@ public final class WorldSession {
         long now = world.nowMs();
         if (lastPingMs != 0 && now - lastPingMs < 27_000) {
             overspeedPings++;
-            if (overspeedPings > world.maxOverspeedPings && world.maxOverspeedPings > 0) {
+            if (overspeedPings > world.config.maxOverspeedPings() && world.config.maxOverspeedPings() > 0) {
                 int gm = account == null ? 0 : account.gmlevel();
                 if (gm == 0) {
                     sink.close();
@@ -796,7 +796,7 @@ public final class WorldSession {
         }
         int tag = 0;
         if (type == 0x01 || type == 0x06) {
-            double range = type == 0x06 ? world.yellRange : world.sayRange;
+            double range = type == 0x06 ? world.config.yellRange() : world.config.sayRange();
             byte[] pkt = chatPacket(type, lang, player.guid, player.guid, msg, tag);
             send(Opcodes.SMSG_MESSAGECHAT, pkt);
             for (Player o : world.map(player.mapId, player.instanceId).nearbyPlayers(player, range)) {
@@ -882,7 +882,7 @@ public final class WorldSession {
                 || (player.movement.moveFlags & fallMask) != 0;
         boolean inst = player.resting
                 || player.taxiPath != 0
-                || account.gmlevel() >= world.instantLogout;
+                || account.gmlevel() >= world.config.instantLogout();
         WowBuffer b = new WowBuffer(5);
         b.putU32(cant ? 1 : 0);
         b.putU8(!cant && inst ? 1 : 0);

@@ -110,15 +110,8 @@ public final class World implements Runnable {
     private final org.tbc.world.ai.PathFinder pathFinder;
     public final AreaTable areas;
     public final GraveyardManager graveyards;
-    public final String motd;
-    public final int realmId;
-    public final int instantLogout;
-    public final int maxOverspeedPings;
-    public final double sayRange;
-    public final double yellRange;
-    public final int saveIntervalMs;
-    /** Lab: log inbound C2S opcodes (non-movement) when Mangosd {@code LogInboundOpcodes = 1}. */
-    public final boolean inboundOpcodeTrace;
+    /** mangosd.conf tunables (motd, realm id, logout, ping, chat range, save interval, opcode trace). */
+    public final WorldConfig config;
     /** World.cpp MinPetitionSigns default 9. */
     public int minPetitionSigns = 9;
 
@@ -161,14 +154,7 @@ public final class World implements Runnable {
         this.objectMgr.factions = this.factions;
         this.graveyards.load(worldDb);
         this.gm = new GmCommands(conf == null || conf.getBool("GM.LowerSecurity", true));
-        this.motd = conf == null ? "Welcome to the 8606 rebuild." : conf.get("Motd", "Welcome to the 8606 rebuild.");
-        this.realmId = conf == null ? 1 : conf.getInt("RealmID", 1);
-        this.instantLogout = conf == null ? 3 : conf.getInt("InstantLogout", 3);
-        this.maxOverspeedPings = conf == null ? 2 : conf.getInt("MaxOverspeedPings", 2);
-        this.sayRange = 25;
-        this.yellRange = 300;
-        this.saveIntervalMs = conf == null ? 900_000 : conf.getInt("PlayerSave.Interval", 900_000);
-        this.inboundOpcodeTrace = conf != null && conf.getBool("LogInboundOpcodes", false);
+        this.config = conf == null ? WorldConfig.inMemory() : WorldConfig.fromConf(conf);
         loadCommandOverlay();
         seedStarterMobs();
         setRealmOffline(false);
@@ -274,7 +260,7 @@ public final class World implements Runnable {
     }
 
     public int jitteredFirstSaveMs() {
-        return jitteredFirstSaveMs(saveIntervalMs, ThreadLocalRandom.current().nextInt());
+        return jitteredFirstSaveMs(config.saveIntervalMs(), ThreadLocalRandom.current().nextInt());
     }
 
     /** Test / domain clock advance (logout delay, BG capture timers). */
@@ -1676,13 +1662,13 @@ public final class World implements Runnable {
         try (Connection c = login.get(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, REALM_FLAG_OFFLINE);
             if (offline) {
-                ps.setInt(2, realmId);
+                ps.setInt(2, config.realmId());
             } else {
                 ps.setString(2, Integer.toString(Srp6.BUILD_8606));
-                ps.setInt(3, realmId);
+                ps.setInt(3, config.realmId());
             }
             ps.executeUpdate();
-            log.info("realm {} {}", realmId, offline ? "offline" : "online");
+            log.info("realm {} {}", config.realmId(), offline ? "offline" : "online");
         } catch (Exception e) {
             log.warn("realmflags {}", e.getMessage());
         }

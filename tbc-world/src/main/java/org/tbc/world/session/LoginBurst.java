@@ -63,7 +63,7 @@ public final class LoginBurst {
         s.send(Opcodes.SMSG_EXPECTED_SPAM_RECORDS, u32(0));
         sent.add(Opcodes.SMSG_EXPECTED_SPAM_RECORDS);
         WowBuffer motd = new WowBuffer(64);
-        String[] lines = world.motd.split("@");
+        String[] lines = world.config.motd().split("@");
         motd.putU32(lines.length);
         for (String line : lines) {
             motd.putCString(line);

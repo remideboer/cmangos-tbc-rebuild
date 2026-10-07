@@ -138,7 +138,7 @@ public class PersistSteps {
 
     @When("the first periodic save window elapses")
     public void firstPeriodicSaveWindowElapses() {
-        int wait = world.saveIntervalMs + world.saveIntervalMs / 2;
+        int wait = world.config.saveIntervalMs() + world.config.saveIntervalMs() / 2;
         client.session().tick(world, wait);
     }
 
