@@ -20,6 +20,19 @@ import java.sql.ResultSet;
 public final class QueryHandler {
     private QueryHandler() {}
 
+    /** Logged-in query opcodes. CMSG_GUILD_QUERY stays in WorldSession (STATUS_AUTHED). */
+    public static void register(OpcodeTable t) {
+        t.register(Opcodes.CMSG_CREATURE_QUERY, QueryHandler::creature)
+                .register(Opcodes.CMSG_GAMEOBJECT_QUERY, QueryHandler::gameObject)
+                .register(Opcodes.CMSG_ITEM_QUERY_SINGLE, QueryHandler::item)
+                .register(Opcodes.CMSG_QUEST_QUERY, QueryHandler::quest)
+                .register(Opcodes.CMSG_PAGE_TEXT_QUERY, QueryHandler::pageText)
+                .register(Opcodes.CMSG_ITEM_TEXT_QUERY, QueryHandler::itemText)
+                .register(Opcodes.CMSG_NPC_TEXT_QUERY, QueryHandler::npcText)
+                .register(Opcodes.CMSG_PET_NAME_QUERY, QueryHandler::petName)
+                .register(Opcodes.CMSG_WHOIS, QueryHandler::whois);
+    }
+
     public static void creature(WorldSession session, World world, WowBuffer in) {
         int entry = readU32(in);
         long guid = readU64(in);

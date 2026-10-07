@@ -40,6 +40,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class WorldSession {
     private static final Logger log = LoggerFactory.getLogger(WorldSession.class);
     private static final AtomicLong NEXT_ID = new AtomicLong(1);
+    /** Logged-in opcode handlers registered per family; consulted before {@code handleRest}. */
+    private static final OpcodeTable TABLE = OpcodeTable.loggedIn();
     public static final int STATUS_NEVER = 0;
     public static final int STATUS_AUTHED = 1;
     public static final int STATUS_LOGGEDIN = 2;
@@ -444,15 +446,6 @@ public final class WorldSession {
             case Opcodes.CMSG_EMOTE -> handleEmote(world, in);
             case Opcodes.CMSG_NAME_QUERY -> handleNameQuery(world, in);
             case Opcodes.CMSG_QUERY_TIME -> handleQueryTime(world);
-            case Opcodes.CMSG_CREATURE_QUERY -> QueryHandler.creature(this, world, in);
-            case Opcodes.CMSG_GAMEOBJECT_QUERY -> QueryHandler.gameObject(this, world, in);
-            case Opcodes.CMSG_ITEM_QUERY_SINGLE -> QueryHandler.item(this, world, in);
-            case Opcodes.CMSG_QUEST_QUERY -> QueryHandler.quest(this, world, in);
-            case Opcodes.CMSG_PAGE_TEXT_QUERY -> QueryHandler.pageText(this, world, in);
-            case Opcodes.CMSG_ITEM_TEXT_QUERY -> QueryHandler.itemText(this, world, in);
-            case Opcodes.CMSG_NPC_TEXT_QUERY -> QueryHandler.npcText(this, world, in);
-            case Opcodes.CMSG_PET_NAME_QUERY -> QueryHandler.petName(this, world, in);
-            case Opcodes.CMSG_WHOIS -> QueryHandler.whois(this, world, in);
             case Opcodes.CMSG_TIME_SYNC_RESP -> in.skip(Math.min(8, in.remaining()));
             case Opcodes.CMSG_SET_ACTIVE_MOVER -> in.getU64();
             case Opcodes.CMSG_ZONEUPDATE -> {
@@ -655,7 +648,11 @@ public final class WorldSession {
             case Opcodes.MSG_BATTLEGROUND_PLAYER_POSITIONS -> sendBgPlayerPositions();
             case Opcodes.CMSG_BATTLEFIELD_LIST -> sendBattlefieldList(in);
             case Opcodes.CMSG_BATTLEMASTER_HELLO -> battlemasterHello(world, in);
-            default -> handleRest(world, opcode, in);
+            default -> {
+                if (!TABLE.dispatch(this, world, opcode, in)) {
+                    handleRest(world, opcode, in);
+                }
+            }
         }
     }
 
