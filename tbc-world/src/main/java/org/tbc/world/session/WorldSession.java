@@ -311,6 +311,10 @@ public final class WorldSession {
             sink.close();
             return;
         }
+        if (world.inboundOpcodeTrace && InboundOpcodeTrace.shouldLog(opcode)) {
+            String who = player == null ? "-" : player.name;
+            log.info(InboundOpcodeTrace.format(who, opcode, payload == null ? 0 : payload.length));
+        }
         WowBuffer in = new WowBuffer(payload == null ? new byte[0] : payload);
         if (opcode == Opcodes.CMSG_PING) {
             handlePing(world, in);

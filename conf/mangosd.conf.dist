@@ -23,3 +23,5 @@ GM.LowerSecurity = 1
 InstantLogout = 3
 Death.SicknessLevel = 11
 MaxHonorPoints = 75000
+# Lab: log inbound C2S opcodes (skip ping/movement) to world.log. 0 = off.
+# LogInboundOpcodes = 0

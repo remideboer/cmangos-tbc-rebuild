@@ -125,6 +125,8 @@ public final class World implements Runnable {
     public final double sayRange;
     public final double yellRange;
     public final int saveIntervalMs;
+    /** Lab: log inbound C2S opcodes (non-movement) when Mangosd {@code LogInboundOpcodes = 1}. */
+    public final boolean inboundOpcodeTrace;
     /** World.cpp MinPetitionSigns default 9. */
     public int minPetitionSigns = 9;
 
@@ -174,6 +176,7 @@ public final class World implements Runnable {
         this.sayRange = 25;
         this.yellRange = 300;
         this.saveIntervalMs = conf == null ? 900_000 : conf.getInt("PlayerSave.Interval", 900_000);
+        this.inboundOpcodeTrace = conf != null && conf.getBool("LogInboundOpcodes", false);
         loadCommandOverlay();
         seedStarterMobs();
         setRealmOffline(false);
