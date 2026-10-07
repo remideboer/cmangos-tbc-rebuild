@@ -27,13 +27,8 @@ final class SessionGate {
         handshake.register(Opcodes.CMSG_PING, (s, w, in) -> s.handlePing(w, in))
                 .register(Opcodes.CMSG_KEEP_ALIVE, (s, w, in) -> { })
                 .register(Opcodes.CMSG_AUTH_SESSION, (s, w, in) -> s.handleAuthSession(w, in));
-        characterScreen.register(Opcodes.CMSG_CHAR_ENUM, (s, w, in) -> s.handleCharEnum(w))
-                .register(Opcodes.CMSG_CHAR_CREATE, (s, w, in) -> s.handleCharCreate(w, in))
-                .register(Opcodes.CMSG_CHAR_DELETE, (s, w, in) -> s.handleCharDelete(w, in))
-                .register(Opcodes.CMSG_CHAR_RENAME, (s, w, in) -> s.handleCharRename(w, in))
-                .register(Opcodes.CMSG_SET_PLAYER_DECLINED_NAMES, (s, w, in) -> s.handleSetPlayerDeclinedNames(w, in))
-                .register(Opcodes.CMSG_PLAYER_LOGIN, (s, w, in) -> s.handleLogin(w, in))
-                .register(Opcodes.CMSG_GUILD_QUERY, QueryHandler::guild)
+        CharacterHandler.register(characterScreen);
+        characterScreen.register(Opcodes.CMSG_GUILD_QUERY, QueryHandler::guild)
                 .register(Opcodes.CMSG_REALM_SPLIT, (s, w, in) -> s.handleRealmSplit(in))
                 .register(Opcodes.CMSG_OPT_OUT_OF_LOOT, (s, w, in) -> GroupHandler.optOutOfLoot(in));
         // Client flushes UI prefs on logout.
