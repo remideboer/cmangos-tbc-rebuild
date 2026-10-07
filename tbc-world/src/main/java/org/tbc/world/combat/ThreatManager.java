@@ -14,7 +14,11 @@ public final class ThreatManager {
     }
 
     public float threatOf(Unit attacker) {
-        return byGuid.getOrDefault(attacker.guid, 0f);
+        return attacker == null ? 0f : threatOf(attacker.guid);
+    }
+
+    public float threatOf(long guid) {
+        return byGuid.getOrDefault(guid, 0f);
     }
 
     public void reset() {

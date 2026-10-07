@@ -594,6 +594,30 @@ class CompanionServiceTest {
         assertTrue(owner.alive());
     }
 
+    /**
+     * Owner stays IN_COMBAT while a living mob fights only the companion (owner threat 0).
+     * CombatManager must not HandleExitCombat until the prey dies or the owner disengages.
+     */
+    @Test
+    void worldTickWhenCompanionTanksShouldKeepOwnerInCombat() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = spawnPrey(world, owner, body, 500);
+        owner.victim = mob.guid;
+        CompanionBehavior.tick(world, owner, 50);
+        assertTrue(owner.inCombat, "assist pulls owner into combat");
+        assertEquals(body.guid, mob.victim);
+        assertEquals(0f, mob.threatManager.threatOf(owner), "owner never swung");
+        world.tick(50);
+        assertTrue(owner.inCombat, "owner must stay in combat while companion tanks");
+        assertEquals(Unit.UNIT_FLAG_IN_COMBAT,
+                owner.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_IN_COMBAT);
+    }
+
     @Test
     void creatureMeleeHitWhenOwnerDiesWithCompanionThreatShouldKeepFightingCompanion() {
         World world = World.inMemory();

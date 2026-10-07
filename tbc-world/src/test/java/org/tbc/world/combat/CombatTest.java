@@ -555,6 +555,52 @@ class CombatTest {
     }
 
     @Test
+    void hasHostilesWhenMobTargetsCompanionShouldKeepOwnerHostile() {
+        Creature pet = new Creature();
+        pet.guid = 0xF140000000000042L;
+        pet.playerControlledPet = true;
+        p.pet = new org.tbc.world.entity.Pet();
+        p.pet.guid = pet.guid;
+        p.inCombat = true;
+        c.inCombat = true;
+        c.victim = pet.guid;
+        assertTrue(combat.hasHostiles(p, java.util.List.of(c)),
+                "owner stays hostile while mob's victim is the pet");
+        c.victim = 0;
+        c.threatManager.add(pet, 10f);
+        assertTrue(combat.hasHostiles(p, java.util.List.of(c)),
+                "owner stays hostile while mob has pet threat");
+        assertFalse(combat.shouldLeaveCombat(p, java.util.List.of(c)));
+    }
+
+    @Test
+    void shouldLeaveCombatWhenCompanionBodyStillFightingShouldStay() {
+        p.inCombat = true;
+        Creature body = new Creature();
+        body.guid = 0xF140000000000043L;
+        body.inCombat = true;
+        body.setHealth(100);
+        org.tbc.world.entity.Pet pet = new org.tbc.world.entity.Pet();
+        pet.guid = body.guid;
+        p.pet = pet;
+        p.companion = new org.tbc.world.companion.Companion(1L, p, pet);
+        assertFalse(Combat.companionHoldsCombat(p), "no world body yet");
+        p.companion.setWorldBody(body);
+        assertTrue(Combat.companionHoldsCombat(p));
+        assertFalse(combat.shouldLeaveCombat(p, java.util.List.of()),
+                "empty nearby list must not drop owner while companion fights");
+        body.setHealth(0);
+        assertFalse(Combat.companionHoldsCombat(p), "dead companion body");
+        body.setHealth(100);
+        body.inCombat = false;
+        assertFalse(Combat.companionHoldsCombat(p));
+        assertTrue(combat.shouldLeaveCombat(p, java.util.List.of()));
+        assertFalse(Combat.companionHoldsCombat(null));
+        p.companion = null;
+        assertFalse(Combat.companionHoldsCombat(p));
+    }
+
+    @Test
     void shouldLeaveCombatWhenInCombatWithoutHostiles() {
         assertFalse(combat.shouldLeaveCombat(p, java.util.List.of(c)));
         p.inCombat = true;

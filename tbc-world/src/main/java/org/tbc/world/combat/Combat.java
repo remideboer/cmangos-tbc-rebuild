@@ -359,17 +359,22 @@ public final class Combat {
     }
 
     /**
-     * CMaNGOS HostileRefManager::getSize — a living in-combat creature still hates this player.
+     * CMaNGOS HostileRefManager::getSize — a living in-combat creature still hates this player
+     * or their companion/pet (threat and victim stay on the pet body while the owner remains in combat).
      */
     public boolean hasHostiles(Player p, Iterable<Creature> creatures) {
         if (p == null || creatures == null) {
             return false;
         }
+        long petGuid = p.pet != null ? p.pet.guid : 0L;
         for (Creature c : creatures) {
             if (!c.inCombat || !c.alive()) {
                 continue;
             }
             if (c.victim == p.guid || c.threatManager.threatOf(p) > 0f) {
+                return true;
+            }
+            if (petGuid != 0L && (c.victim == petGuid || c.threatManager.threatOf(petGuid) > 0f)) {
                 return true;
             }
         }
@@ -378,10 +383,22 @@ public final class Combat {
 
     /**
      * CMaNGOS CombatManager player path: IN_COMBAT and empty HostileRefManager → HandleExitCombat.
-     * Duel partners are player hostiles (not on the creature threat list).
+     * Duel partners are player hostiles (not on the creature threat list). A living companion still
+     * in combat also keeps the owner flagged (pet tanks while owner threat is zero).
      */
     public boolean shouldLeaveCombat(Player p, Iterable<Creature> creatures) {
-        return p != null && p.inCombat && p.duelOpponent == null && !hasHostiles(p, creatures);
+        return p != null && p.inCombat && p.duelOpponent == null
+                && !hasHostiles(p, creatures)
+                && !companionHoldsCombat(p);
+    }
+
+    /** Companion body still fighting — owner must not HandleExitCombat yet. */
+    static boolean companionHoldsCombat(Player p) {
+        if (p == null || p.companion == null) {
+            return false;
+        }
+        Creature body = p.companion.worldBody();
+        return body != null && body.alive() && body.inCombat;
     }
 
     public MeleeTable.Result swing(Player p, Creature c, long nowMs) {
