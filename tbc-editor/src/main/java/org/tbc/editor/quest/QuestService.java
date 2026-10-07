@@ -193,7 +193,7 @@ public final class QuestService {
             }
             float sx = 0;
             float sy = 0;
-            for (ObjectMgr.Spawn s : mgr.spawns) {
+            for (ObjectMgr.Spawn s : mgr.creatureSpawns()) {
                 if (s.entry() == t.entry()) {
                     sx = s.x();
                     sy = s.y();
@@ -230,7 +230,7 @@ public final class QuestService {
             return List.of();
         }
         Map<Integer, ZoneNpc> byEntry = new LinkedHashMap<>();
-        for (ObjectMgr.Spawn s : mgr.spawns) {
+        for (ObjectMgr.Spawn s : mgr.creatureSpawns()) {
             if (!spawnInArea(s, area)) {
                 continue;
             }
@@ -279,7 +279,7 @@ public final class QuestService {
             float sx = 0;
             float sy = 0;
             boolean inZone = query.zone() == null;
-            for (ObjectMgr.Spawn s : mgr.spawns) {
+            for (ObjectMgr.Spawn s : mgr.creatureSpawns()) {
                 if (s.entry() != t.entry()) {
                     continue;
                 }
@@ -424,16 +424,7 @@ public final class QuestService {
             return;
         }
         for (NpcEditSession.Pose pose : session.moved()) {
-            for (int i = 0; i < mgr.spawns.size(); i++) {
-                ObjectMgr.Spawn spawn = mgr.spawns.get(i);
-                if (spawn.guid() != pose.guid()) {
-                    continue;
-                }
-                mgr.spawns.set(i, new ObjectMgr.Spawn(spawn.guid(), spawn.entry(), spawn.map(),
-                        pose.x(), pose.y(), pose.z(), pose.o(), spawn.spawnDist(), spawn.movementType(),
-                        spawn.respawnMinSecs(), spawn.respawnMaxSecs()));
-                break;
-            }
+            mgr.moveSpawn(pose.guid(), pose.x(), pose.y(), pose.z(), pose.o());
         }
         for (NpcEditSession.Look look : session.changedLooks()) {
             ObjectMgr.CreatureTemplate template = mgr.creatures.get(look.entry());

@@ -39,8 +39,8 @@ public final class MapSpawnLayer {
         }
         WorldMapAreaMapper mapper = new WorldMapAreaMapper(area);
         List<Pin> pins = new ArrayList<>();
-        add(pins, Kind.CREATURE, mgr.spawns, mgr, mapper, area);
-        add(pins, Kind.OBJECT, mgr.goSpawns, mgr, mapper, area);
+        add(pins, Kind.CREATURE, mgr.creatureSpawns(), mgr, mapper, area);
+        add(pins, Kind.OBJECT, mgr.gameObjectSpawns(), mgr, mapper, area);
         return List.copyOf(pins);
     }
 

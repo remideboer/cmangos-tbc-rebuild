@@ -399,7 +399,7 @@ public final class Content {
         if (stock.isEmpty() || !stock.contains(itemId)) {
             return;
         }
-        ObjectMgr.ItemTemplate t = mgr.items.get(itemId);
+        ObjectMgr.ItemTemplate t = mgr.item(itemId);
         if (t == null) {
             return;
         }
@@ -483,7 +483,7 @@ public final class Content {
         if (giverGuid == 0) {
             return;
         }
-        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        ObjectMgr.QuestTemplate q = mgr.quest(questId);
         if (q == null) {
             return;
         }
@@ -505,7 +505,7 @@ public final class Content {
         if (slot < 0) {
             return;
         }
-        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        ObjectMgr.QuestTemplate q = mgr.quest(questId);
         if (q == null || !readyToTurnIn(p, slot, q)) {
             return;
         }
@@ -610,7 +610,7 @@ public final class Content {
     }
 
     private int relationStatus(Player p, int entry, int questId, boolean involved) {
-        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        ObjectMgr.QuestTemplate q = mgr.quest(questId);
         if (q == null) {
             return DIALOG_STATUS_NONE;
         }
@@ -753,7 +753,7 @@ public final class Content {
             }
             giverEntry = go.entry;
         }
-        ObjectMgr.QuestTemplate taken = mgr.quests.get(questId);
+        ObjectMgr.QuestTemplate taken = mgr.quest(questId);
         if (taken == null || !repAndDailyAllow(p, taken)) {
             return;
         }
@@ -830,7 +830,7 @@ public final class Content {
         if (slot < 0) {
             return;
         }
-        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        ObjectMgr.QuestTemplate q = mgr.quest(questId);
         if (q == null || !readyToTurnIn(p, slot, q)) {
             return;
         }
@@ -916,7 +916,7 @@ public final class Content {
         it.bag = 0;
         it.slot = bagSlot;
         it.count = count;
-        ObjectMgr.ItemTemplate t = mgr.items.get(itemId);
+        ObjectMgr.ItemTemplate t = mgr.item(itemId);
         if (t != null) {
             it.displayId = t.displayId;
             it.quality = t.quality;
@@ -1042,7 +1042,7 @@ public final class Content {
             return credited;
         }
         for (int questId : offered) {
-            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            ObjectMgr.QuestTemplate q = mgr.quest(questId);
             if (q != null && canTake(p, q)) {
                 send.accept(Opcodes.SMSG_QUESTGIVER_QUEST_DETAILS, encodeDetails(go.guid, q));
                 return true;
@@ -1060,7 +1060,7 @@ public final class Content {
         if (slot < 0) {
             return;
         }
-        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        ObjectMgr.QuestTemplate q = mgr.quest(questId);
         if (q == null) {
             return;
         }
@@ -1085,7 +1085,7 @@ public final class Content {
             if (extra == null || extra.reqSpell1() != spellId || p.questLogCounts[slot][0] > 0) {
                 continue;
             }
-            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            ObjectMgr.QuestTemplate q = mgr.quest(questId);
             if (q == null) {
                 continue;
             }
@@ -1100,7 +1100,7 @@ public final class Content {
             if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
                 continue;
             }
-            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            ObjectMgr.QuestTemplate q = mgr.quest(questId);
             ObjectMgr.QuestExtras extra = mgr.questExtras.get(questId);
             if (q == null || q.type() != QUEST_TYPE_ESCORT || extra == null || p.questLogCounts[slot][0] > 0) {
                 continue;
@@ -1145,7 +1145,7 @@ public final class Content {
             if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
                 continue;
             }
-            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            ObjectMgr.QuestTemplate q = mgr.quest(questId);
             if (q == null) {
                 continue;
             }
@@ -1250,7 +1250,7 @@ public final class Content {
             if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
                 continue;
             }
-            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            ObjectMgr.QuestTemplate q = mgr.quest(questId);
             if (q == null) {
                 continue;
             }
@@ -1311,7 +1311,7 @@ public final class Content {
             add.putU64(victim.guid);
             send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
             writeLogField(p, slot);
-            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            ObjectMgr.QuestTemplate q = mgr.quest(questId);
             boolean done = q != null && objectivesMet(p, slot, q);
             if (done) {
                 p.questLogState[slot] = QUEST_STATE_COMPLETE;
@@ -1357,7 +1357,7 @@ public final class Content {
             add.putU64(npc.guid);
             send.accept(Opcodes.SMSG_QUESTUPDATE_ADD_KILL, add.array());
             writeLogField(p, slot);
-            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            ObjectMgr.QuestTemplate q = mgr.quest(questId);
             boolean done = objectivesMet(p, slot, q);
             if (done) {
                 p.questLogState[slot] = QUEST_STATE_COMPLETE;
@@ -1415,7 +1415,7 @@ public final class Content {
             if (questId == 0 || p.questLogState[slot] == QUEST_STATE_COMPLETE) {
                 continue;
             }
-            ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+            ObjectMgr.QuestTemplate q = mgr.quest(questId);
             if (q == null) {
                 continue;
             }
@@ -1513,7 +1513,7 @@ public final class Content {
     }
 
     private boolean includeGossipQuest(Player p, int entry, int questId, boolean fromGiver) {
-        ObjectMgr.QuestTemplate q = mgr.quests.get(questId);
+        ObjectMgr.QuestTemplate q = mgr.quest(questId);
         if (q == null) {
             return true;
         }
@@ -1557,7 +1557,7 @@ public final class Content {
         }
         b.putU32(quests.size());
         for (int id : quests) {
-            ObjectMgr.QuestTemplate q = mgr.quests.get(id);
+            ObjectMgr.QuestTemplate q = mgr.quest(id);
             b.putU32(id);
             b.putU32(questMenuIcon(p, id, q));
             b.putU32(q == null ? 1 : shownQuestLevel(q));
@@ -1595,7 +1595,7 @@ public final class Content {
         b.putU8(stock.size());
         int slot = 1;
         for (int itemId : stock) {
-            ObjectMgr.ItemTemplate t = mgr.items.get(itemId);
+            ObjectMgr.ItemTemplate t = mgr.item(itemId);
             b.putU32(slot++);
             b.putU32(itemId);
             b.putU32(t == null ? 0 : t.displayId);
@@ -1679,7 +1679,7 @@ public final class Content {
     }
 
     private int displayId(int itemId) {
-        ObjectMgr.ItemTemplate t = mgr.items.get(itemId);
+        ObjectMgr.ItemTemplate t = mgr.item(itemId);
         return t == null ? 0 : t.displayId;
     }
 

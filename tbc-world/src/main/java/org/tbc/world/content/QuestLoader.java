@@ -83,7 +83,7 @@ final class QuestLoader {
                         int choiceCount1 = cols >= 16 ? rs.getInt(14) : 0;
                         int choiceId2 = cols >= 16 ? rs.getInt(15) : 0;
                         int choiceCount2 = cols >= 16 ? rs.getInt(16) : 0;
-                        m.quests.put(rs.getInt(1), new QuestTemplate(rs.getInt(1), ObjectMgr.nz(rs.getString(2)),
+                        m.quests.put(rs.getInt(1), new QuestTemplate(rs.getInt(1), SqlText.nz(rs.getString(2)),
                                 rs.getInt(3), rs.getInt(4), 0, "", "", reqId, reqCount, itemId, itemCount,
                                 qLevel, maxMoney, rewItem, rewCount, choiceId1, choiceCount1, choiceId2, choiceCount2));
                     }
@@ -95,8 +95,8 @@ final class QuestLoader {
     }
 
     private static QuestTemplate fullQuest(ResultSet rs) throws Exception {
-        return new QuestTemplate(rs.getInt("entry"), ObjectMgr.nz(rs.getString("Title")), rs.getInt("MinLevel"), rs.getInt("Type"),
-                rs.getInt("RewOrReqMoney"), ObjectMgr.nz(rs.getString("Details")), ObjectMgr.nz(rs.getString("Objectives")),
+        return new QuestTemplate(rs.getInt("entry"), SqlText.nz(rs.getString("Title")), rs.getInt("MinLevel"), rs.getInt("Type"),
+                rs.getInt("RewOrReqMoney"), SqlText.nz(rs.getString("Details")), SqlText.nz(rs.getString("Objectives")),
                 rs.getInt("ReqCreatureOrGOId1"), rs.getInt("ReqCreatureOrGOCount1"),
                 rs.getInt("ReqItemId1"), rs.getInt("ReqItemCount1"),
                 rs.getInt("QuestLevel"), rs.getInt("RewMoneyMaxLevel"),

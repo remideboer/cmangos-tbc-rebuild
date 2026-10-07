@@ -167,28 +167,28 @@ final class CreatureLoader {
         try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 int entry = rs.getInt(1);
-                String name = ObjectMgr.nz(rs.getString(2));
+                String name = SqlText.nz(rs.getString(2));
                 if (full && combat) {
                     int inhabit = inhabitTypeOrDefault(rs);
                     m.creatures.put(entry, new CreatureTemplate(
                             entry, name, rs.getInt(5), rs.getInt(17), Math.max(1, rs.getInt(18)), rs.getInt(19),
-                            rs.getInt(20), ObjectMgr.nz(rs.getString(21)), "", 0,
-                            ObjectMgr.nz(rs.getString(3)), ObjectMgr.nz(rs.getString(4)), rs.getInt(6), rs.getInt(7), rs.getInt(8),
+                            rs.getInt(20), SqlText.nz(rs.getString(21)), "", 0,
+                            SqlText.nz(rs.getString(3)), SqlText.nz(rs.getString(4)), rs.getInt(6), rs.getInt(7), rs.getInt(8),
                             rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13),
                             rs.getFloat(14), rs.getFloat(15), rs.getInt(16),
-                            ObjectMgr.nz(rs.getString(22)), rs.getInt(23), rs.getFloat(24), rs.getFloat(25),
+                            SqlText.nz(rs.getString(22)), rs.getInt(23), rs.getFloat(24), rs.getFloat(25),
                             Math.max(1, rs.getInt(26)), 0f, rs.getInt(27), rs.getInt(28), rs.getInt(29), inhabit));
                 } else if (full) {
                     m.creatures.put(entry, new CreatureTemplate(
                             entry, name, rs.getInt(5), rs.getInt(17), Math.max(1, rs.getInt(18)), rs.getInt(19),
-                            rs.getInt(20), ObjectMgr.nz(rs.getString(21)), "", 0,
-                            ObjectMgr.nz(rs.getString(3)), ObjectMgr.nz(rs.getString(4)), rs.getInt(6), rs.getInt(7), rs.getInt(8),
+                            rs.getInt(20), SqlText.nz(rs.getString(21)), "", 0,
+                            SqlText.nz(rs.getString(3)), SqlText.nz(rs.getString(4)), rs.getInt(6), rs.getInt(7), rs.getInt(8),
                             rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13),
                             rs.getFloat(14), rs.getFloat(15), rs.getInt(16)));
                 } else {
                     m.creatures.put(entry, new CreatureTemplate(
                             entry, name, rs.getInt(5), rs.getInt(17), Math.max(1, rs.getInt(18)), rs.getInt(19),
-                            rs.getInt(20), ObjectMgr.nz(rs.getString(21)), "", 0));
+                            rs.getInt(20), SqlText.nz(rs.getString(21)), "", 0));
                 }
             }
             return true;
@@ -275,8 +275,8 @@ final class CreatureLoader {
             while (rs.next()) {
                 int entry = rs.getInt(1);
                 m.creatures.put(entry, new CreatureTemplate(
-                        entry, ObjectMgr.nz(rs.getString(2)), rs.getInt(3), rs.getInt(4),
-                        Math.max(1, rs.getInt(5)), rs.getInt(6), rs.getInt(7), ObjectMgr.nz(rs.getString(8)), "", 0));
+                        entry, SqlText.nz(rs.getString(2)), rs.getInt(3), rs.getInt(4),
+                        Math.max(1, rs.getInt(5)), rs.getInt(6), rs.getInt(7), SqlText.nz(rs.getString(8)), "", 0));
             }
             return true;
         } catch (Exception e) {

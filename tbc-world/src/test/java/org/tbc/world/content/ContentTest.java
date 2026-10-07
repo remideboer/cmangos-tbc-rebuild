@@ -1020,7 +1020,7 @@ class ContentTest {
         mgr.vendorItems.put(Content.NPC_CORINA_STEELE,
                 new ArrayList<>(List.of(Content.ITEM_TOUGH_HUNK_OF_BREAD)));
         mgr.items.putIfAbsent(Content.ITEM_TOUGH_HUNK_OF_BREAD,
-                ObjectMgr.ItemTemplate.toughHunkOfBread());
+                ItemSeed.toughHunkOfBread());
         p.setMoney(1000);
         content.buy(p, map, buy(vendor.guid, Content.ITEM_TOUGH_HUNK_OF_BREAD, 5), false,
                 () -> nextItem++, this::capture);
@@ -1040,7 +1040,7 @@ class ContentTest {
         mgr.vendorItems.put(Content.NPC_CORINA_STEELE,
                 new ArrayList<>(List.of(Content.ITEM_TOUGH_HUNK_OF_BREAD)));
         mgr.items.putIfAbsent(Content.ITEM_TOUGH_HUNK_OF_BREAD,
-                ObjectMgr.ItemTemplate.toughHunkOfBread());
+                ItemSeed.toughHunkOfBread());
         p.setMoney(1000);
         content.buy(p, map, buy(vendor.guid, Content.ITEM_TOUGH_HUNK_OF_BREAD, 4), false,
                 () -> nextItem++, this::capture);

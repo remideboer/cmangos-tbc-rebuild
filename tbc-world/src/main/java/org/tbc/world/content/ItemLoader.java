@@ -201,7 +201,7 @@ final class ItemLoader {
                     t.entry = rs.getInt(1);
                     t.itemClass = rs.getInt(2);
                     t.subClass = rs.getInt(3);
-                    t.name = ObjectMgr.nz(rs.getString(4));
+                    t.name = SqlText.nz(rs.getString(4));
                     t.displayId = rs.getInt(5);
                     t.quality = rs.getInt(6);
                     t.flags = rs.getInt(7);
@@ -218,7 +218,7 @@ final class ItemLoader {
                     t.armor = rs.getInt(18);
                     t.delay = rs.getInt(19);
                     t.bonding = rs.getInt(20);
-                    t.description = ObjectMgr.nz(rs.getString(21));
+                    t.description = SqlText.nz(rs.getString(21));
                     t.maxDurability = rs.getInt(22);
                     t.duration = rs.getInt(23);
                     t.requiredDisenchantSkill = rs.getInt(24);

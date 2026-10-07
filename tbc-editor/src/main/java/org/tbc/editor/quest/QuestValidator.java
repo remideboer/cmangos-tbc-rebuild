@@ -185,7 +185,7 @@ public final class QuestValidator {
             return;
         }
         for (QuestDocument.SpawnDraft s : doc.spawns()) {
-            for (ObjectMgr.Spawn existing : mgr.spawns) {
+            for (ObjectMgr.Spawn existing : mgr.creatureSpawns()) {
                 if (existing.map() != s.map()) {
                     continue;
                 }

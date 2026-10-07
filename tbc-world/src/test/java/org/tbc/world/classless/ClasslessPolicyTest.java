@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ChrStatic;
+import org.tbc.world.content.ItemSeed;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Player;
@@ -34,7 +35,7 @@ class ClasslessPolicyTest {
         Player p = new Player();
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
         p.addArmorProficiency(ClasslessConfig.ARMOR_CLOTH_MASK);
-        ObjectMgr.ItemTemplate leather = ObjectMgr.ItemTemplate.tunicOfWestfall();
+        ObjectMgr.ItemTemplate leather = ItemSeed.tunicOfWestfall();
         var mods = ArmorPenaltyPolicy.forPiece(p, leather);
         assertEquals(Math.round(92 * 0.9f), mods.armor());
         assertEquals(Math.round(11 * 0.9f), mods.agility());
@@ -46,7 +47,7 @@ class ClasslessPolicyTest {
         Player p = new Player();
         p.clazz = ClasslessConfig.CLASS_CLASSLESS;
         p.addArmorProficiency(ClasslessConfig.ARMOR_CLOTH_MASK);
-        ObjectMgr.ItemTemplate cloth = ObjectMgr.ItemTemplate.seersRobe();
+        ObjectMgr.ItemTemplate cloth = ItemSeed.seersRobe();
         var mods = ArmorPenaltyPolicy.forPiece(p, cloth);
         assertEquals(35, mods.armor());
         assertEquals(0f, mods.speedPenaltyPct(), 1e-6);

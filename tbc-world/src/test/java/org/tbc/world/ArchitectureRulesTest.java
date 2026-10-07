@@ -26,10 +26,15 @@ class ArchitectureRulesTest {
     static final int LATER_OPCODES_MAX_LINES = 0;
     static final int WORLD_MAX_LINES = 1678;
     static final int WORLD_MAX_SESSION_REFS = 99;
-    static final int OBJECT_MGR_MAX_LINES = 3241;
+    static final int OBJECT_MGR_MAX_LINES = 2067;
     static final int SPELL_ENGINE_MAX_LINES = 4150;
     /** Lines in entity/spell/combat/content/map that name {@code org.tbc.world.session.}. */
     static final int DOMAIN_SESSION_DEPENDENCIES_MAX = 20;
+    /**
+     * Raw {@code objectMgr.items.get(...)} map reads and {@code objectMgr.spawns} list touches outside
+     * ObjectMgr and its seeds/loaders; consumers go through the content/catalog interfaces.
+     */
+    static final int RAW_CATALOG_MAP_READS_MAX = 0;
 
     private static final Path MAIN = mainRoot();
 
@@ -94,6 +99,17 @@ class ArchitectureRulesTest {
     @Test
     void objectMgrShouldNotGrow() {
         ratchet("ObjectMgr lines", read(MAIN.resolve("content/ObjectMgr.java")).size(), OBJECT_MGR_MAX_LINES);
+    }
+
+    @Test
+    void rawCatalogMapReadsShouldNotGrow() {
+        java.util.regex.Pattern raw = java.util.regex.Pattern.compile(
+                "\\b(objectMgr|mgr)\\.((items|creatures|quests|gameObjects)\\.(get|containsKey|getOrDefault)\\(|(spawns|goSpawns)\\b)");
+        List<String> hits = linesMatching(MAIN, l -> raw.matcher(l).find()).stream()
+                .filter(h -> !h.contains("/content/ObjectMgr.java")
+                        && !h.matches(".*/content/\\w+(Seed|Loader)\\.java: .*"))
+                .toList();
+        ratchet("raw catalog map reads", hits.size(), RAW_CATALOG_MAP_READS_MAX);
     }
 
     @Test

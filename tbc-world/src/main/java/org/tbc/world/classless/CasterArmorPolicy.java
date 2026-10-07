@@ -1,6 +1,7 @@
 package org.tbc.world.classless;
 
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.content.catalog.ItemCatalog;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
@@ -47,7 +48,7 @@ public final class CasterArmorPolicy {
     }
 
     /** Highest cloth/leather/mail/plate step among equipped armor (0 if none / cloth only). */
-    public static int heaviestArmorStep(Player p, ObjectMgr mgr) {
+    public static int heaviestArmorStep(Player p, ItemCatalog mgr) {
         if (p == null || mgr == null) {
             return 0;
         }
@@ -57,7 +58,7 @@ public final class CasterArmorPolicy {
             if (it == null) {
                 continue;
             }
-            ObjectMgr.ItemTemplate t = mgr.items.get(it.entry);
+            ObjectMgr.ItemTemplate t = mgr.item(it.entry);
             if (t == null || t.itemClass != Player.ITEM_CLASS_ARMOR) {
                 continue;
             }
@@ -91,12 +92,12 @@ public final class CasterArmorPolicy {
     }
 
     /** Steps of penalty after Battlecaster: max(0, worn − unlocked). */
-    public static int effectivePenaltyStep(Player p, ObjectMgr mgr) {
+    public static int effectivePenaltyStep(Player p, ItemCatalog mgr) {
         return Math.max(0, heaviestArmorStep(p, mgr) - battlecasterUnlockedStep(p));
     }
 
     /** Relative to unlocked baseline: 1, 1/2, 1/4, 1/8, … */
-    public static float casterEffectiveness(Player p, ObjectMgr mgr) {
+    public static float casterEffectiveness(Player p, ItemCatalog mgr) {
         int step = effectivePenaltyStep(p, mgr);
         if (step <= 0) {
             return 1f;
@@ -123,7 +124,7 @@ public final class CasterArmorPolicy {
         return (school & CASTER_SCHOOL_MASK) != 0;
     }
 
-    public static int scaleCasterAmount(Player caster, int amount, SpellInfo sp, ObjectMgr mgr) {
+    public static int scaleCasterAmount(Player caster, int amount, SpellInfo sp, ItemCatalog mgr) {
         if (amount <= 0 || sp == null || !ClasslessCharacterPolicy.isClassless(caster)) {
             return amount;
         }
@@ -138,7 +139,7 @@ public final class CasterArmorPolicy {
     }
 
     /** 1.0 cloth/leather; 1/3 in mail or plate (worn step ≥ 2). */
-    public static float stealthEffectiveness(Player p, ObjectMgr mgr) {
+    public static float stealthEffectiveness(Player p, ItemCatalog mgr) {
         if (!ClasslessCharacterPolicy.isClassless(p)) {
             return 1f;
         }
@@ -151,7 +152,7 @@ public final class CasterArmorPolicy {
     /**
      * Visibility including Hero mail/plate stealth reveal (1/3 effectiveness → detect yards).
      */
-    public static boolean visibleTo(Unit subject, Unit observer, ObjectMgr mgr) {
+    public static boolean visibleTo(Unit subject, Unit observer, ItemCatalog mgr) {
         if (subject == null || observer == null) {
             return true;
         }

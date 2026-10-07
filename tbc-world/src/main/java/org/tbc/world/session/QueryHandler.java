@@ -36,7 +36,7 @@ public final class QueryHandler {
     public static void creature(WorldSession session, World world, WowBuffer in) {
         int entry = readU32(in);
         long guid = readU64(in);
-        ObjectMgr.CreatureTemplate t = world.objectMgr.creatures.get(entry);
+        ObjectMgr.CreatureTemplate t = world.objectMgr.creature(entry);
         // HandleCreatureQueryOpcode answers from creature_template. Only player-controlled
         // companion bodies (synthetic entry, no template) use the Companion SubName reply —
         // never a normal map NPC that happens to share a missing-template guid.
@@ -94,7 +94,7 @@ public final class QueryHandler {
     public static void gameObject(WorldSession session, World world, WowBuffer in) {
         int entry = readU32(in);
         readU64(in);
-        ObjectMgr.GameObjectTemplate t = world.objectMgr.gameObjects.get(entry);
+        ObjectMgr.GameObjectTemplate t = world.objectMgr.gameObject(entry);
         if (t == null) {
             session.send(Opcodes.SMSG_GAMEOBJECT_QUERY_RESPONSE, fail(entry));
             return;
@@ -119,7 +119,7 @@ public final class QueryHandler {
 
     public static void item(WorldSession session, World world, WowBuffer in) {
         int itemId = readU32(in);
-        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(itemId);
+        ObjectMgr.ItemTemplate t = world.objectMgr.item(itemId);
         if (t == null) {
             session.send(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, fail(itemId));
             return;
@@ -142,7 +142,7 @@ public final class QueryHandler {
 
     public static void quest(WorldSession session, World world, WowBuffer in) {
         int id = readU32(in);
-        ObjectMgr.QuestTemplate t = world.objectMgr.quests.get(id);
+        ObjectMgr.QuestTemplate t = world.objectMgr.quest(id);
         if (t == null) {
             session.send(Opcodes.SMSG_QUEST_QUERY_RESPONSE, fail(id));
             return;

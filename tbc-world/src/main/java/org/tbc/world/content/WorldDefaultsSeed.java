@@ -5,7 +5,6 @@ import org.tbc.world.content.ObjectMgr.Auction;
 import org.tbc.world.content.ObjectMgr.CreateInfo;
 import org.tbc.world.content.ObjectMgr.CreatureTemplate;
 import org.tbc.world.content.ObjectMgr.GossipMenuItem;
-import org.tbc.world.content.ObjectMgr.ItemTemplate;
 import org.tbc.world.content.ObjectMgr.LootRow;
 import org.tbc.world.content.ObjectMgr.QuestTemplate;
 import org.tbc.world.content.ObjectMgr.Spawn;
@@ -212,73 +211,73 @@ final class WorldDefaultsSeed {
         m.battleMasterBg.putIfAbsent(2302, 2);
         m.creatures.putIfAbsent(Content.NPC_LLANE_BESHERE, new CreatureTemplate(Content.NPC_LLANE_BESHERE, "Llane Beshere", 0, 12, 100, 5,
                 Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_QUESTGIVER | Content.UNIT_NPC_FLAG_TRAINER, "", "", 0));
-        m.items.putIfAbsent(25, ItemTemplate.wornShortsword());
-        m.items.putIfAbsent(Content.ITEM_SKINNING_KNIFE, ItemTemplate.skinningKnife());
-        m.items.putIfAbsent(38, ItemTemplate.recruitsShirt());
-        m.items.putIfAbsent(39, ItemTemplate.recruitsPants());
-        m.items.putIfAbsent(40, ItemTemplate.recruitsBoots());
-        m.items.putIfAbsent(Content.ITEM_RIVERPAW_LEATHER_VEST, ItemTemplate.riverpawLeatherVest());
-        m.items.putIfAbsent(Content.ITEM_TUNIC_OF_WESTFALL, ItemTemplate.tunicOfWestfall());
-        m.items.putIfAbsent(Content.ITEM_BRACKWATER_VEST, ItemTemplate.brackwaterVest());
-        m.items.putIfAbsent(Content.ITEM_SEERS_ROBE, ItemTemplate.seersRobe());
-        m.items.putIfAbsent(Content.ITEM_BLACKENED_DEFIAS_ARMOR, ItemTemplate.blackenedDefiasArmor());
-        m.items.putIfAbsent(Content.ITEM_LIGHTFORGE_BREASTPLATE, ItemTemplate.lightforgeBreastplate());
-        m.items.putIfAbsent(Content.ITEM_LAWBRINGER_CHESTGUARD, ItemTemplate.lawbringerChestguard());
-        m.items.putIfAbsent(Content.ITEM_LIVING_BREASTPLATE, ItemTemplate.livingBreastplate());
-        m.items.putIfAbsent(Content.ITEM_ICEBANE_BREASTPLATE, ItemTemplate.icebaneBreastplate());
-        m.items.putIfAbsent(Content.ITEM_SHADESTEEL_GREAVES, ItemTemplate.shadesteelGreaves());
-        m.items.putIfAbsent(Content.ITEM_SOULCLOTH_VEST, ItemTemplate.soulclothVest());
-        m.items.putIfAbsent(Content.ITEM_BLADE_OF_HANNA, ItemTemplate.bladeOfHanna());
-        m.items.putIfAbsent(Content.ITEM_DESTROYER_CHESTGUARD, ItemTemplate.destroyerChestguard());
-        m.items.putIfAbsent(Content.ITEM_DESTROYER_BREASTPLATE, ItemTemplate.destroyerBreastplate());
-        m.items.putIfAbsent(Content.ITEM_GLADIATORS_PLATE_CHESTPIECE, ItemTemplate.gladiatorsPlateChestpiece());
-        m.items.putIfAbsent(Content.ITEM_ONSLAUGHT_CHESTGUARD, ItemTemplate.onslaughtChestguard());
-        m.items.putIfAbsent(Content.ITEM_WARHARNESS_OF_RECKLESS_FURY, ItemTemplate.warharnessOfRecklessFury());
-        m.items.putIfAbsent(Content.ITEM_GAUNTLETS_OF_ENFORCEMENT, ItemTemplate.gauntletsOfEnforcement());
+        m.items.putIfAbsent(25, ItemSeed.wornShortsword());
+        m.items.putIfAbsent(Content.ITEM_SKINNING_KNIFE, ItemSeed.skinningKnife());
+        m.items.putIfAbsent(38, ItemSeed.recruitsShirt());
+        m.items.putIfAbsent(39, ItemSeed.recruitsPants());
+        m.items.putIfAbsent(40, ItemSeed.recruitsBoots());
+        m.items.putIfAbsent(Content.ITEM_RIVERPAW_LEATHER_VEST, ItemSeed.riverpawLeatherVest());
+        m.items.putIfAbsent(Content.ITEM_TUNIC_OF_WESTFALL, ItemSeed.tunicOfWestfall());
+        m.items.putIfAbsent(Content.ITEM_BRACKWATER_VEST, ItemSeed.brackwaterVest());
+        m.items.putIfAbsent(Content.ITEM_SEERS_ROBE, ItemSeed.seersRobe());
+        m.items.putIfAbsent(Content.ITEM_BLACKENED_DEFIAS_ARMOR, ItemSeed.blackenedDefiasArmor());
+        m.items.putIfAbsent(Content.ITEM_LIGHTFORGE_BREASTPLATE, ItemSeed.lightforgeBreastplate());
+        m.items.putIfAbsent(Content.ITEM_LAWBRINGER_CHESTGUARD, ItemSeed.lawbringerChestguard());
+        m.items.putIfAbsent(Content.ITEM_LIVING_BREASTPLATE, ItemSeed.livingBreastplate());
+        m.items.putIfAbsent(Content.ITEM_ICEBANE_BREASTPLATE, ItemSeed.icebaneBreastplate());
+        m.items.putIfAbsent(Content.ITEM_SHADESTEEL_GREAVES, ItemSeed.shadesteelGreaves());
+        m.items.putIfAbsent(Content.ITEM_SOULCLOTH_VEST, ItemSeed.soulclothVest());
+        m.items.putIfAbsent(Content.ITEM_BLADE_OF_HANNA, ItemSeed.bladeOfHanna());
+        m.items.putIfAbsent(Content.ITEM_DESTROYER_CHESTGUARD, ItemSeed.destroyerChestguard());
+        m.items.putIfAbsent(Content.ITEM_DESTROYER_BREASTPLATE, ItemSeed.destroyerBreastplate());
+        m.items.putIfAbsent(Content.ITEM_GLADIATORS_PLATE_CHESTPIECE, ItemSeed.gladiatorsPlateChestpiece());
+        m.items.putIfAbsent(Content.ITEM_ONSLAUGHT_CHESTGUARD, ItemSeed.onslaughtChestguard());
+        m.items.putIfAbsent(Content.ITEM_WARHARNESS_OF_RECKLESS_FURY, ItemSeed.warharnessOfRecklessFury());
+        m.items.putIfAbsent(Content.ITEM_GAUNTLETS_OF_ENFORCEMENT, ItemSeed.gauntletsOfEnforcement());
         m.items.putIfAbsent(Content.ITEM_VENGEFUL_GLADIATORS_DRAGONHIDE_TUNIC,
-                ItemTemplate.vengefulGladiatorsDragonhideTunic());
-        m.items.putIfAbsent(Content.ITEM_AUCHENAI_ANCHORITES_ROBE, ItemTemplate.auchenaiAnchoritesRobe());
-        m.items.putIfAbsent(Content.ITEM_GARMENTS_OF_SERENE_SHORES, ItemTemplate.garmentsOfSereneShores());
-        m.items.putIfAbsent(Content.ITEM_SUNGLOW_VEST, ItemTemplate.sunglowVest());
-        m.items.putIfAbsent(Content.ITEM_WORN_WOODEN_SHIELD, ItemTemplate.wornWoodenShield());
-        m.items.putIfAbsent(Content.ITEM_CLOAK_OF_DARKNESS, ItemTemplate.cloakOfDarkness());
-        m.items.putIfAbsent(Content.ITEM_NETHERSTRAND_LONGBOW, ItemTemplate.netherstrandLongbow());
-        m.items.putIfAbsent(Content.ITEM_TWIN_BLADES_OF_AZZINOTH, ItemTemplate.twinBladesOfAzzinoth());
-        m.items.putIfAbsent(Content.ITEM_JYOO_TEST_ITEM, ItemTemplate.jyooTestItem());
-        m.items.putIfAbsent(Content.ITEM_TOMS_BOOTS_1, ItemTemplate.tomsBoots1());
-        m.items.putIfAbsent(Content.ITEM_TEST_HP_RING, ItemTemplate.testHpRing());
-        m.items.putIfAbsent(Content.ITEM_TEST_HOLY_RESIST_VEST, ItemTemplate.testHolyResistVest());
-        m.items.putIfAbsent(Content.ITEM_TEST_MP_RING, ItemTemplate.testMpRing());
-        m.items.putIfAbsent(Content.ITEM_BAND_OF_THE_ETERNAL_CHAMPION, ItemTemplate.bandOfTheEternalChampion());
-        m.items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemTemplate.guildCharter());
-        m.items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemTemplate.hearthstone());
-        m.items.putIfAbsent(Content.ITEM_TOUGH_JERKY, ItemTemplate.toughJerky());
-        m.items.putIfAbsent(Content.ITEM_TOUGH_HUNK_OF_BREAD, ItemTemplate.toughHunkOfBread());
-        m.items.putIfAbsent(Content.ITEM_RED_BURLAP_BANDANA, ItemTemplate.redBurlapBandana());
+                ItemSeed.vengefulGladiatorsDragonhideTunic());
+        m.items.putIfAbsent(Content.ITEM_AUCHENAI_ANCHORITES_ROBE, ItemSeed.auchenaiAnchoritesRobe());
+        m.items.putIfAbsent(Content.ITEM_GARMENTS_OF_SERENE_SHORES, ItemSeed.garmentsOfSereneShores());
+        m.items.putIfAbsent(Content.ITEM_SUNGLOW_VEST, ItemSeed.sunglowVest());
+        m.items.putIfAbsent(Content.ITEM_WORN_WOODEN_SHIELD, ItemSeed.wornWoodenShield());
+        m.items.putIfAbsent(Content.ITEM_CLOAK_OF_DARKNESS, ItemSeed.cloakOfDarkness());
+        m.items.putIfAbsent(Content.ITEM_NETHERSTRAND_LONGBOW, ItemSeed.netherstrandLongbow());
+        m.items.putIfAbsent(Content.ITEM_TWIN_BLADES_OF_AZZINOTH, ItemSeed.twinBladesOfAzzinoth());
+        m.items.putIfAbsent(Content.ITEM_JYOO_TEST_ITEM, ItemSeed.jyooTestItem());
+        m.items.putIfAbsent(Content.ITEM_TOMS_BOOTS_1, ItemSeed.tomsBoots1());
+        m.items.putIfAbsent(Content.ITEM_TEST_HP_RING, ItemSeed.testHpRing());
+        m.items.putIfAbsent(Content.ITEM_TEST_HOLY_RESIST_VEST, ItemSeed.testHolyResistVest());
+        m.items.putIfAbsent(Content.ITEM_TEST_MP_RING, ItemSeed.testMpRing());
+        m.items.putIfAbsent(Content.ITEM_BAND_OF_THE_ETERNAL_CHAMPION, ItemSeed.bandOfTheEternalChampion());
+        m.items.putIfAbsent(Content.ITEM_GUILD_CHARTER, ItemSeed.guildCharter());
+        m.items.putIfAbsent(Content.ITEM_HEARTHSTONE, ItemSeed.hearthstone());
+        m.items.putIfAbsent(Content.ITEM_TOUGH_JERKY, ItemSeed.toughJerky());
+        m.items.putIfAbsent(Content.ITEM_TOUGH_HUNK_OF_BREAD, ItemSeed.toughHunkOfBread());
+        m.items.putIfAbsent(Content.ITEM_RED_BURLAP_BANDANA, ItemSeed.redBurlapBandana());
         m.items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_COPPER_ORE,
-                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_COPPER_ORE, "Copper Ore", 4681, 20, 5));
+                ItemSeed.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_COPPER_ORE, "Copper Ore", 4681, 20, 5));
         m.items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_TIN_ORE,
-                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_TIN_ORE, "Tin Ore", 4690, 100, 25));
+                ItemSeed.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_TIN_ORE, "Tin Ore", 4690, 100, 25));
         m.items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_IRON_ORE,
-                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_IRON_ORE, "Iron Ore", 4689, 600, 150));
+                ItemSeed.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_IRON_ORE, "Iron Ore", 4689, 600, 150));
         m.items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_MITHRIL_ORE,
-                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_MITHRIL_ORE, "Mithril Ore", 20661, 1000, 250));
+                ItemSeed.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_MITHRIL_ORE, "Mithril Ore", 20661, 1000, 250));
         m.items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_THORIUM_ORE,
-                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_THORIUM_ORE, "Thorium Ore", 20658, 1000, 250));
+                ItemSeed.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_THORIUM_ORE, "Thorium Ore", 20658, 1000, 250));
         m.items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_FEL_IRON_ORE,
-                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_FEL_IRON_ORE, "Fel Iron Ore", 38645, 4000, 1000));
+                ItemSeed.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_FEL_IRON_ORE, "Fel Iron Ore", 38645, 4000, 1000));
         m.items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_ADAMANTITE_ORE,
-                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_ADAMANTITE_ORE, "Adamantite Ore", 38648, 6000, 1500));
+                ItemSeed.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_ADAMANTITE_ORE, "Adamantite Ore", 38648, 6000, 1500));
         m.items.putIfAbsent(org.tbc.world.profession.CoinFromOre.ITEM_COAL,
-                ItemTemplate.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_COAL, "Coal", 7340, 500, 125));
-        m.items.putIfAbsent(Content.ITEM_REFRESHING_SPRING_WATER, ItemTemplate.refreshingSpringWater());
-        m.items.putIfAbsent(Content.ITEM_MINOR_HEALING_POTION, ItemTemplate.minorHealingPotion());
+                ItemSeed.tradeOre(org.tbc.world.profession.CoinFromOre.ITEM_COAL, "Coal", 7340, 500, 125));
+        m.items.putIfAbsent(Content.ITEM_REFRESHING_SPRING_WATER, ItemSeed.refreshingSpringWater());
+        m.items.putIfAbsent(Content.ITEM_MINOR_HEALING_POTION, ItemSeed.minorHealingPotion());
         // SQL load may have created empty spell rows; force usable-item spells from seeds.
-        m.mergeUsableItemSpells(ItemTemplate.hearthstone());
-        m.mergeUsableItemSpells(ItemTemplate.toughJerky());
-        m.mergeUsableItemSpells(ItemTemplate.toughHunkOfBread());
-        m.mergeUsableItemSpells(ItemTemplate.refreshingSpringWater());
-        m.mergeUsableItemSpells(ItemTemplate.minorHealingPotion());
+        m.mergeUsableItemSpells(ItemSeed.hearthstone());
+        m.mergeUsableItemSpells(ItemSeed.toughJerky());
+        m.mergeUsableItemSpells(ItemSeed.toughHunkOfBread());
+        m.mergeUsableItemSpells(ItemSeed.refreshingSpringWater());
+        m.mergeUsableItemSpells(ItemSeed.minorHealingPotion());
         // Keep consumable max-stack for 8606 client even if a thin SQL row set stackable=1.
         m.ensureStackable(Content.ITEM_TOUGH_JERKY, 20);
         m.ensureStackable(Content.ITEM_TOUGH_HUNK_OF_BREAD, 20);

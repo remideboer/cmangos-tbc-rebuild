@@ -1,6 +1,7 @@
 package org.tbc.world.companion;
 
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.content.catalog.ItemCatalog;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
@@ -37,7 +38,7 @@ public final class CompanionAppearance {
     private CompanionAppearance() {}
 
     /** Apply race/class/gender, clone flag, mirror aura, and weapon virtual items. */
-    public static void applyOnSpawn(Creature body, Player snap, ObjectMgr mgr) {
+    public static void applyOnSpawn(Creature body, Player snap, ItemCatalog mgr) {
         if (body == null || snap == null) {
             return;
         }
@@ -56,18 +57,18 @@ public final class CompanionAppearance {
         copyMeleeStats(body, snap);
     }
 
-    static void applyVirtualWeapons(Creature body, Player snap, ObjectMgr mgr) {
+    static void applyVirtualWeapons(Creature body, Player snap, ItemCatalog mgr) {
         applyVirtualSlot(body, 0, snap.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND), mgr);
         applyVirtualSlot(body, 1, snap.itemAt(0, Player.EQUIPMENT_SLOT_OFFHAND), mgr);
         applyVirtualSlot(body, 2, snap.itemAt(0, Player.EQUIPMENT_SLOT_RANGED), mgr);
     }
 
-    private static void applyVirtualSlot(Creature body, int virtSlot, Item it, ObjectMgr mgr) {
+    private static void applyVirtualSlot(Creature body, int virtSlot, Item it, ItemCatalog mgr) {
         if (it == null) {
             body.clearVirtualItem(virtSlot);
             return;
         }
-        ObjectMgr.ItemTemplate t = mgr != null ? mgr.items.get(it.entry) : null;
+        ObjectMgr.ItemTemplate t = mgr != null ? mgr.item(it.entry) : null;
         int display = it.displayId > 0 ? it.displayId : (t != null ? t.displayId : 0);
         int itemClass = it.itemClass != 0 ? it.itemClass : (t != null ? t.itemClass : 0);
         int subClass = it.subClass != 0 ? it.subClass : (t != null ? t.subClass : 0);
@@ -93,7 +94,7 @@ public final class CompanionAppearance {
     }
 
     /** Eleven equipment display ids for SMSG_MIRRORIMAGE_DATA (CMaNGOS slot order). */
-    public static int[] mirrorEquipmentDisplays(Player snap, ObjectMgr mgr) {
+    public static int[] mirrorEquipmentDisplays(Player snap, ItemCatalog mgr) {
         int[] out = new int[11];
         if (snap == null) {
             return out;
@@ -112,7 +113,7 @@ public final class CompanionAppearance {
         return out;
     }
 
-    public static int displayInSlot(Player snap, int slot, ObjectMgr mgr) {
+    public static int displayInSlot(Player snap, int slot, ItemCatalog mgr) {
         Item it = snap.itemAt(0, slot);
         if (it == null) {
             return 0;
@@ -121,7 +122,7 @@ public final class CompanionAppearance {
             return it.displayId;
         }
         if (mgr != null) {
-            ObjectMgr.ItemTemplate t = mgr.items.get(it.entry);
+            ObjectMgr.ItemTemplate t = mgr.item(it.entry);
             if (t != null) {
                 return t.displayId;
             }

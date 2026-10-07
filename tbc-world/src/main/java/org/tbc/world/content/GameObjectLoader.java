@@ -48,7 +48,7 @@ final class GameObjectLoader {
         try (PreparedStatement ps = c.prepareStatement("SELECT entry, text, next_page FROM page_text LIMIT 20000");
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                m.pageTexts.put(rs.getInt(1), new PageText(rs.getInt(1), ObjectMgr.nz(rs.getString(2)), rs.getInt(3)));
+                m.pageTexts.put(rs.getInt(1), new PageText(rs.getInt(1), SqlText.nz(rs.getString(2)), rs.getInt(3)));
             }
         } catch (Exception e) {
             log.debug("page_text load skipped: {}", e.getMessage());

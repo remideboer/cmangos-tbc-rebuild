@@ -86,7 +86,7 @@ public final class PetitionHandler {
             GuildHandler.commandResult(s, GuildHandler.GUILD_CREATE_S, name, ERR_GUILD_NAME_EXISTS_S);
             return;
         }
-        if (world.objectMgr.items.get(Content.ITEM_GUILD_CHARTER) == null) {
+        if (world.objectMgr.item(Content.ITEM_GUILD_CHARTER) == null) {
             buyFailed(s, 0, Content.ITEM_GUILD_CHARTER, BUY_ERR_CANT_FIND_ITEM);
             return;
         }

@@ -97,7 +97,7 @@ public final class AuctionHandler {
             commandResult(s, 0, AUCTION_STARTED, AUCTION_ERR_INVENTORY, EQUIP_ERR_ITEM_NOT_FOUND);
             return;
         }
-        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(it.entry);
+        ObjectMgr.ItemTemplate t = world.objectMgr.item(it.entry);
         if (it.soulbound || (it.flags & ITEM_FLAG_CONJURED) != 0
                 || (t != null && ((t.flags & ITEM_FLAG_CONJURED) != 0 || t.duration != 0))) {
             commandResult(s, 0, AUCTION_STARTED, AUCTION_ERR_INVENTORY, EQUIP_ERR_CANNOT_TRADE_THAT);

@@ -3,6 +3,7 @@ package org.tbc.world.session;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
 import org.tbc.world.content.ObjectMgr;
+import org.tbc.world.content.catalog.ItemCatalog;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
@@ -39,7 +40,7 @@ public final class BinderHandler {
 
     public static void activate(Player p, GameMap map, Terrain terrain, WowBuffer in,
                                 BiConsumer<Integer, byte[]> send, LongSupplier nextItemGuid,
-                                ObjectMgr mgr) {
+                                ItemCatalog mgr) {
         if (!p.alive()) {
             return;
         }
@@ -57,7 +58,7 @@ public final class BinderHandler {
 
     /** NPCHandler.cpp SendBindPoint → CastSpell 3286 (EffectBind + EffectCreateItem). */
     static void sendBindPoint(Player p, Creature npc, Terrain terrain, BiConsumer<Integer, byte[]> send,
-                              LongSupplier nextItemGuid, ObjectMgr mgr) {
+                              LongSupplier nextItemGuid, ItemCatalog mgr) {
         int areaId = terrain == null ? 0 : terrain.area(p.mapId, p.x, p.y);
         p.setHomebindToLocation(p.mapId, areaId, p.x, p.y, p.z);
         WowBuffer bind = new WowBuffer(20);
@@ -83,7 +84,7 @@ public final class BinderHandler {
      * Spell 3286 EffectCreateItem — Hearthstone 6948 (MaxCount 1).
      * CMaNGOS DoCreateItem / CanStoreNewItem skips when unique already owned.
      */
-    static void createHearthstoneIfMissing(Player p, LongSupplier nextItemGuid, ObjectMgr mgr,
+    static void createHearthstoneIfMissing(Player p, LongSupplier nextItemGuid, ItemCatalog mgr,
                                            BiConsumer<Integer, byte[]> send) {
         if (p == null || nextItemGuid == null || send == null) {
             return;
@@ -105,7 +106,7 @@ public final class BinderHandler {
         it.slot = slot;
         it.count = 1;
         if (mgr != null) {
-            ObjectMgr.ItemTemplate t = mgr.items.get(Content.ITEM_HEARTHSTONE);
+            ObjectMgr.ItemTemplate t = mgr.item(Content.ITEM_HEARTHSTONE);
             if (t != null) {
                 it.displayId = t.displayId;
                 it.quality = t.quality;
@@ -121,7 +122,7 @@ public final class BinderHandler {
         send.accept(inv.opcode(), inv.payload());
         // Push proto with ON_USE 8690 — same as LoginBurst.sendInventory item-query sync.
         if (mgr != null) {
-            ObjectMgr.ItemTemplate proto = mgr.items.get(Content.ITEM_HEARTHSTONE);
+            ObjectMgr.ItemTemplate proto = mgr.item(Content.ITEM_HEARTHSTONE);
             if (proto != null) {
                 send.accept(Opcodes.SMSG_ITEM_QUERY_SINGLE_RESPONSE, QueryHandler.encodeItemQuery(proto));
             }

@@ -3,7 +3,6 @@ package org.tbc.world.content;
 import org.tbc.world.content.ObjectMgr.CreatureHitObjective;
 import org.tbc.world.content.ObjectMgr.CreatureTemplate;
 import org.tbc.world.content.ObjectMgr.EmoteNearNpcObjective;
-import org.tbc.world.content.ObjectMgr.ItemTemplate;
 import org.tbc.world.content.ObjectMgr.QuestTemplate;
 import org.tbc.world.content.ObjectMgr.Spawn;
 import org.tbc.world.content.ObjectMgr.TrainerSpell;
@@ -127,7 +126,7 @@ final class HeroClassSeed {
 
     private void seedHeroWarriorFollowUps(int wyrm, int unlockQuest) {
         int strip = org.tbc.world.classless.HeroClassUnlock.ITEM_TRAINING_STRIP;
-        m.items.putIfAbsent(strip, ItemTemplate.heroTrainingStrip());
+        m.items.putIfAbsent(strip, ItemSeed.heroTrainingStrip());
 
         int rally = org.tbc.world.classless.HeroClassUnlock.QUEST_RALLY_THE_LINE;
         m.quests.putIfAbsent(rally, heroFollowUpQuest(rally, "Rally the Line",
@@ -177,7 +176,7 @@ final class HeroClassSeed {
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.DEVOTION_AURA, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_BLESSING_OF_MIGHT, 100, 1),
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.HOLY_LIGHT, 100, 1));
-        m.items.putIfAbsent(token, ItemTemplate.heroQuestJunk(
+        m.items.putIfAbsent(token, ItemSeed.heroQuestJunk(
                 token, "Protective Token"));
         m.quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Vow Tested",
                 "Recover the lost protective token and defeat a Mana Wyrm that threatens the ward. Return alive.",
@@ -197,8 +196,8 @@ final class HeroClassSeed {
     private void seedHeroPaladinFollowUps(int wyrm, int unlockQuest) {
         int blessing = org.tbc.world.classless.HeroClassUnlock.ITEM_BLESSING_TOKEN;
         int kit = org.tbc.world.classless.HeroClassUnlock.ITEM_HEALING_KIT;
-        m.items.putIfAbsent(blessing, ItemTemplate.heroQuestJunk(blessing, "Blessing Token"));
-        m.items.putIfAbsent(kit, ItemTemplate.heroQuestJunk(kit, "Healing Kit"));
+        m.items.putIfAbsent(blessing, ItemSeed.heroQuestJunk(blessing, "Blessing Token"));
+        m.items.putIfAbsent(kit, ItemSeed.heroQuestJunk(kit, "Healing Kit"));
 
         int stand = org.tbc.world.classless.HeroClassUnlock.QUEST_STAND_FAST;
         m.quests.putIfAbsent(stand, heroFollowUpQuest(stand, "Stand Fast",
@@ -230,7 +229,7 @@ final class HeroClassSeed {
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_TOUCH, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_MOONFIRE, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_MARK_OF_THE_WILD, 100, 1));
-        m.items.putIfAbsent(seed, ItemTemplate.heroQuestJunk(seed, "Blighted Seed"));
+        m.items.putIfAbsent(seed, ItemSeed.heroQuestJunk(seed, "Blighted Seed"));
         m.quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Living Balance",
                 "Recover a blighted seed from the grove edge, then defeat a Mana Wyrm that feeds on it. Return alive.",
                 "Collect 1 Blighted Seed. Defeat 1 Mana Wyrm.",
@@ -250,9 +249,9 @@ final class HeroClassSeed {
         int salve = org.tbc.world.classless.HeroClassUnlock.ITEM_GROVE_SALVE;
         int mark = org.tbc.world.classless.HeroClassUnlock.ITEM_MOONLIGHT_MARK;
         int offering = org.tbc.world.classless.HeroClassUnlock.ITEM_WILD_OFFERING;
-        m.items.putIfAbsent(salve, ItemTemplate.heroQuestJunk(salve, "Grove Salve"));
-        m.items.putIfAbsent(mark, ItemTemplate.heroQuestJunk(mark, "Moonlight Mark"));
-        m.items.putIfAbsent(offering, ItemTemplate.heroQuestJunk(offering, "Wild Offering"));
+        m.items.putIfAbsent(salve, ItemSeed.heroQuestJunk(salve, "Grove Salve"));
+        m.items.putIfAbsent(mark, ItemSeed.heroQuestJunk(mark, "Moonlight Mark"));
+        m.items.putIfAbsent(offering, ItemSeed.heroQuestJunk(offering, "Wild Offering"));
 
         int touch = org.tbc.world.classless.HeroClassUnlock.QUEST_TOUCH_OF_THE_GROVE;
         m.quests.putIfAbsent(touch, heroFollowUpQuest(touch, "Touch of the Grove",
@@ -284,7 +283,7 @@ final class HeroClassSeed {
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_HEALING_WAVE, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_EARTH_SHOCK, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_STONESKIN_TOTEM, 100, 1));
-        m.items.putIfAbsent(token, ItemTemplate.heroQuestJunk(token, "Elemental Token"));
+        m.items.putIfAbsent(token, ItemSeed.heroQuestJunk(token, "Elemental Token"));
         m.quests.putIfAbsent(questId, heroFollowUpQuest(questId, "Listen to the Elements",
                 "Recover a local elemental token, present it at the trainer's shrine, and defeat a Mana Wyrm that disturbs the site. Return alive.",
                 "Collect 1 Elemental Token. Defeat 1 Mana Wyrm.",
@@ -304,9 +303,9 @@ final class HeroClassSeed {
         int herbs = org.tbc.world.classless.HeroClassUnlock.ITEM_HEALING_HERBS;
         int marker = org.tbc.world.classless.HeroClassUnlock.ITEM_ELEMENTAL_MARKER;
         int earth = org.tbc.world.classless.HeroClassUnlock.ITEM_EARTH_SAMPLE;
-        m.items.putIfAbsent(herbs, ItemTemplate.heroQuestJunk(herbs, "Healing Herbs"));
-        m.items.putIfAbsent(marker, ItemTemplate.heroQuestJunk(marker, "Elemental Marker"));
-        m.items.putIfAbsent(earth, ItemTemplate.heroQuestJunk(earth, "Earth Sample"));
+        m.items.putIfAbsent(herbs, ItemSeed.heroQuestJunk(herbs, "Healing Herbs"));
+        m.items.putIfAbsent(marker, ItemSeed.heroQuestJunk(marker, "Elemental Marker"));
+        m.items.putIfAbsent(earth, ItemSeed.heroQuestJunk(earth, "Earth Sample"));
 
         int mend = org.tbc.world.classless.HeroClassUnlock.QUEST_MEND_THE_WOUNDED;
         m.quests.putIfAbsent(mend, heroFollowUpQuest(mend, "Mend the Wounded",
@@ -338,7 +337,7 @@ final class HeroClassSeed {
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_BOLT, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_IMMOLATE, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SUMMON_IMP, 100, 1));
-        m.items.putIfAbsent(mark, ItemTemplate.heroQuestJunk(mark, "Binding Mark"));
+        m.items.putIfAbsent(mark, ItemSeed.heroQuestJunk(mark, "Binding Mark"));
         m.quests.putIfAbsent(questId, heroFollowUpQuest(questId, "The Bound Flame",
                 "Recover a binding mark from the local cult and contain a Mana Wyrm that threatens the site. Return alive.",
                 "Collect 1 Binding Mark. Defeat 1 Mana Wyrm.",
@@ -358,9 +357,9 @@ final class HeroClassSeed {
         int page = org.tbc.world.classless.HeroClassUnlock.ITEM_SHADOWED_PAGE;
         int ember = org.tbc.world.classless.HeroClassUnlock.ITEM_FEL_EMBER;
         int reagents = org.tbc.world.classless.HeroClassUnlock.ITEM_BINDING_REAGENTS;
-        m.items.putIfAbsent(page, ItemTemplate.heroQuestJunk(page, "Shadowed Page"));
-        m.items.putIfAbsent(ember, ItemTemplate.heroQuestJunk(ember, "Controlled Fel Ember"));
-        m.items.putIfAbsent(reagents, ItemTemplate.heroQuestJunk(reagents, "Binding Reagents"));
+        m.items.putIfAbsent(page, ItemSeed.heroQuestJunk(page, "Shadowed Page"));
+        m.items.putIfAbsent(ember, ItemSeed.heroQuestJunk(ember, "Controlled Fel Ember"));
+        m.items.putIfAbsent(reagents, ItemSeed.heroQuestJunk(reagents, "Binding Reagents"));
 
         int shadow = org.tbc.world.classless.HeroClassUnlock.QUEST_SHADOW_IN_RESERVE;
         m.quests.putIfAbsent(shadow, heroFollowUpQuest(shadow, "Shadow in Reserve",
@@ -392,7 +391,7 @@ final class HeroClassSeed {
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.FROST_ARMOR, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_ARCANE_INTELLECT, 100, 1),
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.FROSTBOLT, 100, 1));
-        m.items.putIfAbsent(fragments, ItemTemplate.heroQuestJunk(fragments, "Arcane Fragments"));
+        m.items.putIfAbsent(fragments, ItemSeed.heroQuestJunk(fragments, "Arcane Fragments"));
         m.quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Controlled Spark",
                 "Recover arcane fragments, stabilize them at the trainer's focus, and defeat a Mana Wyrm. Return alive.",
                 "Collect 1 Arcane Fragments. Defeat 1 Mana Wyrm.",
@@ -411,8 +410,8 @@ final class HeroClassSeed {
     private void seedHeroMageFollowUps(int wyrm, int unlockQuest) {
         int focus = org.tbc.world.classless.HeroClassUnlock.ITEM_FROST_TREATED_FOCUS;
         int notes = org.tbc.world.classless.HeroClassUnlock.ITEM_STUDY_NOTES;
-        m.items.putIfAbsent(focus, ItemTemplate.heroQuestJunk(focus, "Frost-Treated Focus"));
-        m.items.putIfAbsent(notes, ItemTemplate.heroQuestJunk(notes, "Study Notes"));
+        m.items.putIfAbsent(focus, ItemSeed.heroQuestJunk(focus, "Frost-Treated Focus"));
+        m.items.putIfAbsent(notes, ItemSeed.heroQuestJunk(notes, "Study Notes"));
 
         int cooler = org.tbc.world.classless.HeroClassUnlock.QUEST_A_COOLER_HEAD;
         m.quests.putIfAbsent(cooler, heroFollowUpQuest(cooler, "A Cooler Head",
@@ -444,7 +443,7 @@ final class HeroClassSeed {
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SMITE, 100, 1),
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.POWER_WORD_FORTITUDE, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SHADOW_WORD_PAIN, 100, 1));
-        m.items.putIfAbsent(supplies, ItemTemplate.heroQuestJunk(supplies, "Healing Supplies"));
+        m.items.putIfAbsent(supplies, ItemSeed.heroQuestJunk(supplies, "Healing Supplies"));
         m.quests.putIfAbsent(questId, heroFollowUpQuest(questId, "Mercy and Judgment",
                 "Recover healing supplies for a wounded trainee and defeat a Mana Wyrm that threatens the route. Return alive.",
                 "Collect 1 Healing Supplies. Defeat 1 Mana Wyrm.",
@@ -463,8 +462,8 @@ final class HeroClassSeed {
     private void seedHeroPriestFollowUps(int wyrm, int unlockQuest) {
         int scroll = org.tbc.world.classless.HeroClassUnlock.ITEM_WARDING_SCROLL;
         int shadow = org.tbc.world.classless.HeroClassUnlock.ITEM_SHADOW_MARKED_TOKEN;
-        m.items.putIfAbsent(scroll, ItemTemplate.heroQuestJunk(scroll, "Warding Scroll"));
-        m.items.putIfAbsent(shadow, ItemTemplate.heroQuestJunk(shadow, "Shadow-Marked Token"));
+        m.items.putIfAbsent(scroll, ItemSeed.heroQuestJunk(scroll, "Warding Scroll"));
+        m.items.putIfAbsent(shadow, ItemSeed.heroQuestJunk(shadow, "Shadow-Marked Token"));
 
         int judgment = org.tbc.world.classless.HeroClassUnlock.QUEST_JUDGMENT_FROM_AFAR;
         m.quests.putIfAbsent(judgment, heroFollowUpQuest(judgment, "Judgment from Afar",
@@ -495,7 +494,7 @@ final class HeroClassSeed {
                 new TrainerSpell(org.tbc.world.spell.SpellEngine.SPELL_STEALTH, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_EVISCERATE, 100, 1),
                 new TrainerSpell(org.tbc.world.classless.HeroClassUnlock.SPELL_SLICE_AND_DICE, 100, 1));
-        m.items.putIfAbsent(token, ItemTemplate.heroQuestJunk(token, "Camp Token"));
+        m.items.putIfAbsent(token, ItemSeed.heroQuestJunk(token, "Camp Token"));
         m.quests.putIfAbsent(questId, heroFollowUpQuest(questId, "A Quiet Hand",
                 "Recover the trainer's token from a local hostile's camp. Return alive.",
                 "Collect 1 Camp Token.",
@@ -515,8 +514,8 @@ final class HeroClassSeed {
         int shadowed = org.tbc.world.classless.HeroClassUnlock.ITEM_SHADOWED_TOKEN;
         int notes = org.tbc.world.classless.HeroClassUnlock.ITEM_FINISHING_NOTES;
         int wyrm = org.tbc.world.classless.HeroClassUnlock.CREATURE_MANA_WYRM;
-        m.items.putIfAbsent(shadowed, ItemTemplate.heroQuestJunk(shadowed, "Shadowed Token"));
-        m.items.putIfAbsent(notes, ItemTemplate.heroQuestJunk(notes, "Finishing-Form Notes"));
+        m.items.putIfAbsent(shadowed, ItemSeed.heroQuestJunk(shadowed, "Shadowed Token"));
+        m.items.putIfAbsent(notes, ItemSeed.heroQuestJunk(notes, "Finishing-Form Notes"));
 
         int disappear = org.tbc.world.classless.HeroClassUnlock.QUEST_DISAPPEAR_FROM_SIGHT;
         m.quests.putIfAbsent(disappear, heroFollowUpQuest(disappear, "Disappear from Sight",
@@ -568,7 +567,7 @@ final class HeroClassSeed {
 
     private void seedHeroHunterFollowUps(int wyrm, int unlockQuest) {
         int venom = org.tbc.world.classless.HeroClassUnlock.ITEM_VENOM_SAMPLE;
-        m.items.putIfAbsent(venom, ItemTemplate.heroQuestJunk(venom, "Venom Sample"));
+        m.items.putIfAbsent(venom, ItemSeed.heroQuestJunk(venom, "Venom Sample"));
 
         int steady = org.tbc.world.classless.HeroClassUnlock.QUEST_STEADY_AIM;
         m.quests.putIfAbsent(steady, heroFollowUpQuest(steady, "Steady Aim",

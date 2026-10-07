@@ -50,7 +50,7 @@ final class GossipLoader {
                 }
                 int entry = rs.getInt(1);
                 m.pointsOfInterest.put(entry, new PointOfInterest(entry, x, y, rs.getInt(4), rs.getInt(5),
-                        rs.getInt(6), ObjectMgr.nz(rs.getString(7))));
+                        rs.getInt(6), SqlText.nz(rs.getString(7))));
                 n++;
             }
             log.info("loaded {} points_of_interest", n);
@@ -132,7 +132,7 @@ final class GossipLoader {
                     if (boxed) {
                         coded = rs.getInt(col++);
                         boxMoney = rs.getInt(col++);
-                        boxText = ObjectMgr.nz(rs.getString(col++));
+                        boxText = SqlText.nz(rs.getString(col++));
                     }
                     if (condCol) {
                         conditionId = rs.getInt(col);
@@ -140,13 +140,13 @@ final class GossipLoader {
                 } else if (boxed) {
                     coded = rs.getInt(7);
                     boxMoney = rs.getInt(8);
-                    boxText = ObjectMgr.nz(rs.getString(9));
+                    boxText = SqlText.nz(rs.getString(9));
                 }
                 if (actionPoi != 0 && !m.pointsOfInterest.containsKey(actionPoi)) {
                     actionPoi = 0;
                 }
                 m.gossipOptions.computeIfAbsent(menuId, k -> new ArrayList<>()).add(new GossipMenuItem(
-                        menuId, rs.getInt(2), rs.getInt(3), ObjectMgr.nz(rs.getString(4)), rs.getInt(5), rs.getInt(6),
+                        menuId, rs.getInt(2), rs.getInt(3), SqlText.nz(rs.getString(4)), rs.getInt(5), rs.getInt(6),
                         coded, boxMoney, boxText, actionMenu, actionPoi, conditionId));
                 n++;
             }
@@ -194,8 +194,8 @@ final class GossipLoader {
                 NpcTextSlot[] slots = new NpcTextSlot[Content.MAX_GOSSIP_TEXT_OPTIONS];
                 int col = 2;
                 for (int i = 0; i < slots.length; i++) {
-                    String text0 = ObjectMgr.nz(rs.getString(col++));
-                    String text1 = ObjectMgr.nz(rs.getString(col++));
+                    String text0 = SqlText.nz(rs.getString(col++));
+                    String text1 = SqlText.nz(rs.getString(col++));
                     int language = rs.getInt(col++);
                     float probability = rs.getFloat(col++);
                     int[] emotes = new int[6];

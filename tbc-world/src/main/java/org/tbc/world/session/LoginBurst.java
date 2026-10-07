@@ -227,11 +227,11 @@ public final class LoginBurst {
         world.objectMgr.applyEquippedMelee(p);
         Item mh = p.itemAt(0, Player.EQUIPMENT_SLOT_MAINHAND);
         if (mh != null) {
-            QueryHandler.sendItemQuery(s, world.objectMgr.items.get(mh.entry));
+            QueryHandler.sendItemQuery(s, world.objectMgr.item(mh.entry));
         }
         Item oh = p.itemAt(0, Player.EQUIPMENT_SLOT_OFFHAND);
         if (oh != null) {
-            QueryHandler.sendItemQuery(s, world.objectMgr.items.get(oh.entry));
+            QueryHandler.sendItemQuery(s, world.objectMgr.item(oh.entry));
         }
         var atk = UpdateBuilder.maybeCompress(UpdateBuilder.values(p,
                 UpdateFields.UNIT_FIELD_MINDAMAGE, UpdateFields.UNIT_FIELD_MAXDAMAGE,
@@ -260,7 +260,7 @@ public final class LoginBurst {
             entries.add(it.entry);
         }
         for (int entry : entries) {
-            QueryHandler.sendItemQuery(s, world.objectMgr.items.get(entry));
+            QueryHandler.sendItemQuery(s, world.objectMgr.item(entry));
         }
     }
 

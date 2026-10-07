@@ -170,7 +170,7 @@ public final class InventoryHandler {
         if (src == null || dst == null || src.entry != dst.entry || world == null) {
             return false;
         }
-        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(src.entry);
+        ObjectMgr.ItemTemplate t = world.objectMgr.item(src.entry);
         if (t == null || t.stackable <= 1) {
             return false;
         }
@@ -493,7 +493,7 @@ public final class InventoryHandler {
         if (it == null) {
             return;
         }
-        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(it.entry);
+        ObjectMgr.ItemTemplate t = world.objectMgr.item(it.entry);
         int invType = t != null ? t.inventoryType : it.inventoryType;
         int dest = world.objectMgr.destEquipSlot(p, invType);
         if (dest < 0 || dest == srcSlot) {
@@ -635,7 +635,7 @@ public final class InventoryHandler {
         if (it == null) {
             return;
         }
-        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(it.entry);
+        ObjectMgr.ItemTemplate t = world.objectMgr.item(it.entry);
         if (t == null || t.pageText == 0) {
             return;
         }
@@ -680,11 +680,11 @@ public final class InventoryHandler {
         if (gift.soulbound) {
             return;
         }
-        ObjectMgr.ItemTemplate giftTpl = world.objectMgr.items.get(gift.entry);
+        ObjectMgr.ItemTemplate giftTpl = world.objectMgr.item(gift.entry);
         if (giftTpl != null && giftTpl.maxCount > 0) {
             return;
         }
-        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(paper.entry);
+        ObjectMgr.ItemTemplate t = world.objectMgr.item(paper.entry);
         if (t == null || (t.flags & Content.ITEM_FLAG_IS_WRAPPER) == 0 || t.stackable <= 1) {
             return;
         }
@@ -779,7 +779,7 @@ public final class InventoryHandler {
         if (it == null || UpdateBuilder.itemGuid(it) != itemGuid) {
             return;
         }
-        ObjectMgr.ItemTemplate proto = world.objectMgr.items.get(it.entry);
+        ObjectMgr.ItemTemplate proto = world.objectMgr.item(it.entry);
         if (proto == null) {
             return;
         }
@@ -859,7 +859,7 @@ public final class InventoryHandler {
         if (it == null) {
             return;
         }
-        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(it.entry);
+        ObjectMgr.ItemTemplate t = world.objectMgr.item(it.entry);
         if (t == null) {
             sendSellError(s, vendor.guid, itemGuid, SELL_ERR_CANT_FIND_ITEM);
             return;
@@ -987,7 +987,7 @@ public final class InventoryHandler {
         if (it == null) {
             return false;
         }
-        ObjectMgr.ItemTemplate t = world.objectMgr.items.get(it.entry);
+        ObjectMgr.ItemTemplate t = world.objectMgr.item(it.entry);
         int max = it.maxDurability;
         if (max <= 0 && t != null) {
             max = t.maxDurability;

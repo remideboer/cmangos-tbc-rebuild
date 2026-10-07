@@ -196,16 +196,16 @@ public final class World implements Runnable {
 
     /** Places every loaded creature and gameobject row for this map onto instance 0. */
     private void seedStarterMobs() {
-        if (objectMgr.spawns.isEmpty()) {
+        if (objectMgr.creatureSpawns().isEmpty()) {
             map(0, 0).add(objectMgr.spawnCreature(6, 0, -8900f, -120f, 80f, 0f, scripts));
         }
         java.util.Set<Integer> mapIds = new java.util.LinkedHashSet<>();
-        for (ObjectMgr.Spawn s : objectMgr.spawns) {
+        for (ObjectMgr.Spawn s : objectMgr.creatureSpawns()) {
             if (placesSpawnOnBoot(worldDb != null, s.map())) {
                 mapIds.add(s.map());
             }
         }
-        for (ObjectMgr.Spawn s : objectMgr.goSpawns) {
+        for (ObjectMgr.Spawn s : objectMgr.gameObjectSpawns()) {
             if (placesSpawnOnBoot(worldDb != null, s.map())) {
                 mapIds.add(s.map());
             }
@@ -213,14 +213,14 @@ public final class World implements Runnable {
         for (int mapId : mapIds) {
             ensureMapSpawns(mapId, 0);
         }
-        if (!objectMgr.spawns.isEmpty()) {
-            log.info("instantiated {} creature spawns", objectMgr.spawns.size());
+        if (!objectMgr.creatureSpawns().isEmpty()) {
+            log.info("instantiated {} creature spawns", objectMgr.creatureSpawns().size());
         }
-        if (!objectMgr.goSpawns.isEmpty()) {
-            log.info("instantiated {} gameobject spawns", objectMgr.goSpawns.size());
+        if (!objectMgr.gameObjectSpawns().isEmpty()) {
+            log.info("instantiated {} gameobject spawns", objectMgr.gameObjectSpawns().size());
         }
         boolean haveGruul = false;
-        for (ObjectMgr.Spawn s : objectMgr.spawns) {
+        for (ObjectMgr.Spawn s : objectMgr.creatureSpawns()) {
             if (s.entry() == 19044) {
                 haveGruul = true;
                 break;
@@ -277,12 +277,12 @@ public final class World implements Runnable {
             return;
         }
         dest.spawnsPlaced = true;
-        for (ObjectMgr.Spawn s : objectMgr.spawns) {
+        for (ObjectMgr.Spawn s : objectMgr.creatureSpawns()) {
             if (s.map() == mapId) {
                 dest.add(objectMgr.spawnCreature(s, scripts));
             }
         }
-        for (ObjectMgr.Spawn s : objectMgr.goSpawns) {
+        for (ObjectMgr.Spawn s : objectMgr.gameObjectSpawns()) {
             if (s.map() == mapId) {
                 dest.add(objectMgr.spawnGameObject(s));
             }
