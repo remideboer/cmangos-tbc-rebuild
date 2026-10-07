@@ -630,12 +630,13 @@ public final class World implements Runnable {
                 // CURRENT_MELEE_SPELL cast() — SPELL_GO + damage log; no white ATTACKERSTATEUPDATE.
                 spells.finishNextMeleeSwing(p, c, spellId, castCount, r.damage(), nowMs(), p.session::send);
             } else {
-                p.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, combat.encodeAttack(p, c, r, false, offhand));
+                // CMaNGOS Unit::SendAttackStateUpdate → SendMessageToSet(data, true): self + nearby.
+                sendAttackerStateUpdate(p, c, combat.encodeAttack(p, c, r, false, offhand), hitMap);
             }
             sendDirtySkillValues(p);
             if (c.alive()) {
                 var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
-                p.session.send(hp.opcode(), hp.payload());
+                sendCombatHpUpdate(p, c, hp.opcode(), hp.payload(), hitMap);
             }
             if (r.damage() > 0 || (nextMeleeSpell && spellId != 0)) {
                 if (org.tbc.world.classless.ClasslessCharacterPolicy.isClassless(p)) {
@@ -865,27 +866,53 @@ public final class World implements Runnable {
         }
         byte[] log = combat.encodeAttack(body, prey, r);
         var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));
-        // Owner always gets the combat log (player white swings go to p.session); nearby is extra.
-        LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
-        viewers.put(owner.guid, owner);
-        for (Player pl : hitMap.nearbyPlayers(prey, GameMap.VISIBILITY)) {
-            viewers.putIfAbsent(pl.guid, pl);
-        }
-        for (Player pl : hitMap.nearbyPlayers(body, GameMap.VISIBILITY)) {
-            viewers.putIfAbsent(pl.guid, pl);
-        }
-        for (Player pl : viewers.values()) {
-            if (pl.session == null) {
-                continue;
-            }
-            pl.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, log);
-            if (prey.alive()) {
-                pl.session.send(hp.opcode(), hp.payload());
-            }
+        sendAttackerStateUpdate(owner, prey, log, hitMap);
+        if (prey.alive()) {
+            sendCombatHpUpdate(owner, prey, hp.opcode(), hp.payload(), hitMap);
         }
         if (wasAlive && !prey.alive()) {
             onCreatureKilled(owner, prey);
         }
+    }
+
+    /**
+     * CMaNGOS {@code Unit::SendAttackStateUpdate} → {@code SendMessageToSet(data, true)}:
+     * always include {@code self}, then nearby players of attacker and victim.
+     */
+    private void sendAttackerStateUpdate(Player self, Unit other, byte[] log, GameMap hitMap) {
+        for (Player pl : combatLogViewers(self, other, hitMap)) {
+            pl.session.send(Opcodes.SMSG_ATTACKERSTATEUPDATE, log);
+        }
+    }
+
+    private void sendCombatHpUpdate(Player self, Unit other, int opcode, byte[] payload, GameMap hitMap) {
+        for (Player pl : combatLogViewers(self, other, hitMap)) {
+            pl.session.send(opcode, payload);
+        }
+    }
+
+    private static List<Player> combatLogViewers(Player self, Unit other, GameMap hitMap) {
+        LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
+        if (self != null && self.session != null) {
+            viewers.put(self.guid, self);
+        }
+        if (hitMap != null) {
+            if (self != null) {
+                for (Player pl : hitMap.nearbyPlayers(self, GameMap.VISIBILITY)) {
+                    if (pl.session != null) {
+                        viewers.putIfAbsent(pl.guid, pl);
+                    }
+                }
+            }
+            if (other != null) {
+                for (Player pl : hitMap.nearbyPlayers(other, GameMap.VISIBILITY)) {
+                    if (pl.session != null) {
+                        viewers.putIfAbsent(pl.guid, pl);
+                    }
+                }
+            }
+        }
+        return List.copyOf(viewers.values());
     }
 
     /** CMaNGOS AttackStart + SMSG_ATTACKSTART to nearby (combat-log.md). */

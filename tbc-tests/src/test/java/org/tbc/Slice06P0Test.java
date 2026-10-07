@@ -78,6 +78,11 @@ class Slice06P0Test {
         client.session().tick(world, 0);
         assertTrue(client.saw(Opcodes.SMSG_ATTACKERSTATEUPDATE));
         assertTrue(c.health() < hp || !c.alive());
+        WowBuffer swing = new WowBuffer(client.payload(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        swing.getU32();
+        assertEquals(p.guid, swing.getPackedGuid(), "attacker is the swinging player");
+        assertEquals(c.guid, swing.getPackedGuid(), "target is the creature");
+        assertTrue(swing.getU32() > 0, "totalDamage must be positive for combat log CLEU");
     }
 
     /**
