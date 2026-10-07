@@ -4,15 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tbc.common.DbPool;
 import org.tbc.world.content.ChrStatic;
-import org.tbc.world.content.Content;
 import org.tbc.world.content.LevelStats;
 import org.tbc.world.content.ObjectMgr;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Mail;
 import org.tbc.world.entity.Player;
-import org.tbc.world.entity.Unit;
-import org.tbc.world.spell.SpellEngine;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
@@ -195,7 +192,7 @@ public final class CharacterStore {
             while (rs.next()) {
                 Player p = fromRow(rs, accountId, mgr);
                 try {
-                    loadInventory(c, p);
+                    InventoryPersist.load(c, p);
                 } catch (Exception ignored) {
                 }
                 attachStartItems(p, mgr);
@@ -210,7 +207,7 @@ public final class CharacterStore {
                 while (rs.next()) {
                     Player p = fromRow(rs, accountId, mgr);
                     try {
-                        loadInventory(c, p);
+                        InventoryPersist.load(c, p);
                     } catch (Exception ignored) {
                     }
                     attachStartItems(p, mgr);
@@ -590,7 +587,7 @@ public final class CharacterStore {
                 log.warn("load actions {}", e.getMessage());
             }
             try {
-                loadInventory(c, p);
+                InventoryPersist.load(c, p);
                 noteItemGuids(p);
             } catch (Exception e) {
                 log.warn("load inventory {}", e.getMessage());
@@ -607,17 +604,17 @@ public final class CharacterStore {
                 log.warn("load declined {}", e.getMessage());
             }
             try {
-                loadSpellCooldowns(c, p);
+                SpellPersist.loadSpellCooldowns(c, p);
             } catch (Exception e) {
                 log.warn("load spell cooldowns {}", e.getMessage());
             }
             try {
-                loadAuras(c, p);
+                AuraPersist.load(c, p);
             } catch (Exception e) {
                 log.warn("load auras {}", e.getMessage());
             }
             try {
-                if (!loadSpells(c, p) && mgr != null && p.spells.isEmpty()) {
+                if (!SpellPersist.loadSpells(c, p) && mgr != null && p.spells.isEmpty()) {
                     List<Integer> sp = mgr.createSpells.get((int) ObjectMgr.key(p.race, p.clazz));
                     if (sp != null) {
                         p.spells.addAll(sp);
@@ -627,7 +624,7 @@ public final class CharacterStore {
                 log.warn("load spells {}", e.getMessage());
             }
             try {
-                if (!loadSkills(c, p) && mgr != null) {
+                if (!SpellPersist.loadSkills(c, p) && mgr != null) {
                     mgr.applyCreateSkills(p);
                 }
             } catch (Exception e) {
@@ -637,7 +634,7 @@ public final class CharacterStore {
                 log.warn("load skills {}", e.getMessage());
             }
             try {
-                loadQuestStatus(c, p);
+                QuestStatusPersist.load(c, p);
             } catch (Exception e) {
                 log.warn("load quest status {}", e.getMessage());
             }
@@ -672,7 +669,7 @@ public final class CharacterStore {
         Player loaded = new Player();
         loaded.guid = player.guid;
         try (Connection c = chars.get()) {
-            loadSpells(c, loaded);
+            SpellPersist.loadSpells(c, loaded);
             loadActions(c, loaded);
             player.spells.clear();
             player.spells.addAll(loaded.spells);
@@ -744,54 +741,6 @@ public final class CharacterStore {
         return n;
     }
 
-    private static void loadInventory(Connection c, Player p) throws Exception {
-        try {
-            loadInventoryJoin(c, p, true);
-        } catch (Exception e) {
-            loadInventoryJoin(c, p, false);
-        }
-    }
-
-    private static void loadInventoryJoin(Connection c, Player p, boolean itemEntry) throws Exception {
-        String sql = itemEntry
-                ? "SELECT ci.bag, ci.slot, ci.item, ci.item_template, ii.count, ii.durability FROM character_inventory ci JOIN item_instance ii ON ci.item = ii.guid WHERE ci.guid = ? ORDER BY ci.bag, ci.slot"
-                : "SELECT ci.bag, ci.slot, ci.item, ci.item_template, ii.data FROM character_inventory ci JOIN item_instance ii ON ci.item = ii.guid WHERE ci.guid = ? ORDER BY ci.bag, ci.slot";
-        PreparedStatement ps = c.prepareStatement(sql);
-        ps.setInt(1, Guid.low(p.guid));
-        ResultSet rs = ps.executeQuery();
-        while (rs.next()) {
-            int itemGuid = rs.getInt("item");
-            int entry = rs.getInt("item_template");
-            Item it = new Item(itemGuid, entry);
-            it.bag = rs.getInt("bag");
-            it.slot = rs.getInt("slot");
-            it.ownerGuid = Guid.low(p.guid);
-            if (itemEntry) {
-                it.count = Math.max(1, rs.getInt("count"));
-                it.durability = rs.getInt("durability");
-            } else {
-                String data = rs.getString("data");
-                parseItemData(it, data);
-            }
-            p.items.put(itemGuid, it);
-        }
-    }
-
-    private static void parseItemData(Item it, String data) {
-        if (data == null || data.isEmpty()) {
-            return;
-        }
-        int colon = data.indexOf(':');
-        if (colon <= 0) {
-            return;
-        }
-        try {
-            it.entry = Integer.parseInt(data.substring(0, colon));
-            it.count = Math.max(1, Integer.parseInt(data.substring(colon + 1)));
-        } catch (NumberFormatException ignored) {
-        }
-    }
-
     public void save(Player p) {
         p.dirty = false;
         int g = Guid.low(p.guid);
@@ -810,35 +759,35 @@ public final class CharacterStore {
                     log.warn("save actions {}", e.getMessage());
                 }
                 try {
-                    writeSpellCooldowns(c, p);
+                    SpellPersist.writeSpellCooldowns(c, p);
                 } catch (Exception e) {
                     log.warn("save spell cooldowns {}", e.getMessage());
                 }
                 try {
-                    writeAuras(c, p);
+                    AuraPersist.write(c, p);
                 } catch (Exception e) {
                     log.warn("save auras {}", e.getMessage());
                 }
                 try {
-                    writeSpells(c, p);
+                    SpellPersist.writeSpells(c, p);
                 } catch (Exception e) {
                     log.warn("save spells {}", e.getMessage());
                 }
                 try {
-                    writeSkills(c, p);
+                    SpellPersist.writeSkills(c, p);
                 } catch (Exception e) {
                     log.warn("save skills {}", e.getMessage());
                 }
                 Savepoint inv = c.setSavepoint();
                 try {
-                    writeInventory(c, p);
+                    InventoryPersist.write(c, p);
                 } catch (Exception e) {
                     c.rollback(inv);
                     log.warn("save inventory {}", e.getMessage());
                 }
                 Savepoint quests = c.setSavepoint();
                 try {
-                    writeQuestStatus(c, p);
+                    QuestStatusPersist.write(c, p);
                 } catch (Exception e) {
                     c.rollback(quests);
                     log.warn("save quest status {}", e.getMessage());
@@ -911,49 +860,6 @@ public final class CharacterStore {
         // CMaNGOS SaveToDB actionBars = GetByteValue(PLAYER_FIELD_BYTES, 2).
         ins.setInt(i++, (p.getInt(org.tbc.world.net.wow8606.UpdateFields.PLAYER_FIELD_BYTES) >>> 16) & 0xFF);
         ins.executeUpdate();
-    }
-
-    private static void writeQuestStatus(Connection c, Player p) throws Exception {
-        PreparedStatement del = c.prepareStatement("DELETE FROM character_queststatus WHERE guid = ?");
-        del.setInt(1, Guid.low(p.guid));
-        del.executeUpdate();
-        PreparedStatement ins = c.prepareStatement(
-                "INSERT INTO character_queststatus (guid, quest, status, rewarded, explored, timer, "
-                        + "mobcount1, mobcount2, mobcount3, mobcount4, itemcount1, itemcount2, itemcount3, itemcount4) "
-                        + "VALUES (?,?,?,?,0,0,?,?,?,?,?,?,?,?)");
-        for (int slot = 0; slot < p.questLogId.length; slot++) {
-            int quest = p.questLogId[slot];
-            if (quest == 0) {
-                continue;
-            }
-            ins.setInt(1, Guid.low(p.guid));
-            ins.setInt(2, quest);
-            ins.setInt(3, dbQuestStatus(p.questLogState[slot]));
-            ins.setInt(4, 0);
-            ins.setInt(5, p.questLogCounts[slot][0]);
-            ins.setInt(6, p.questLogCounts[slot][1]);
-            ins.setInt(7, p.questLogCounts[slot][2]);
-            ins.setInt(8, p.questLogCounts[slot][3]);
-            ins.setInt(9, p.questLogItemCount[slot][0]);
-            ins.setInt(10, p.questLogItemCount[slot][1]);
-            ins.setInt(11, p.questLogItemCount[slot][2]);
-            ins.setInt(12, p.questLogItemCount[slot][3]);
-            ins.addBatch();
-        }
-        for (int quest : p.rewardedQuests) {
-            if (questInLog(p, quest)) {
-                continue;
-            }
-            ins.setInt(1, Guid.low(p.guid));
-            ins.setInt(2, quest);
-            ins.setInt(3, 1);
-            ins.setInt(4, 1);
-            for (int i = 5; i <= 12; i++) {
-                ins.setInt(i, 0);
-            }
-            ins.addBatch();
-        }
-        ins.executeBatch();
     }
 
     private static void writeHeroStats(Connection c, Player p) throws Exception {
@@ -1046,75 +952,6 @@ public final class CharacterStore {
         org.tbc.world.classless.ClasslessCharacterPolicy.applyStartingStats(p, ls);
     }
 
-    private static void loadQuestStatus(Connection c, Player p) throws Exception {
-        PreparedStatement ps = c.prepareStatement(
-                "SELECT quest, status, rewarded, mobcount1, mobcount2, mobcount3, mobcount4, "
-                        + "itemcount1, itemcount2, itemcount3, itemcount4 FROM character_queststatus WHERE guid = ?");
-        ps.setInt(1, Guid.low(p.guid));
-        ResultSet rs = ps.executeQuery();
-        while (rs.next()) {
-            int quest = rs.getInt("quest");
-            if (rs.getInt("rewarded") != 0) {
-                p.rewardedQuests.add(quest);
-                continue;
-            }
-            int slot = freeQuestSlot(p);
-            if (slot < 0) {
-                continue;
-            }
-            p.questLogId[slot] = quest;
-            p.questLogState[slot] = logQuestState(rs.getInt("status"));
-            p.questLogCounts[slot][0] = rs.getInt("mobcount1");
-            p.questLogCounts[slot][1] = rs.getInt("mobcount2");
-            p.questLogCounts[slot][2] = rs.getInt("mobcount3");
-            p.questLogCounts[slot][3] = rs.getInt("mobcount4");
-            p.questLogItemCount[slot][0] = rs.getInt("itemcount1");
-            p.questLogItemCount[slot][1] = rs.getInt("itemcount2");
-            p.questLogItemCount[slot][2] = rs.getInt("itemcount3");
-            p.questLogItemCount[slot][3] = rs.getInt("itemcount4");
-        }
-        Content.syncQuestLogFields(p);
-    }
-
-    /** QuestDef.h QUEST_STATUS_COMPLETE 1 / INCOMPLETE 3 / FAILED 5. */
-    static int dbQuestStatus(int logState) {
-        if (logState == org.tbc.world.content.Content.QUEST_STATE_COMPLETE) {
-            return 1;
-        }
-        if (logState == org.tbc.world.content.Content.QUEST_STATE_FAIL) {
-            return 5;
-        }
-        return 3;
-    }
-
-    static int logQuestState(int status) {
-        if (status == 1) {
-            return org.tbc.world.content.Content.QUEST_STATE_COMPLETE;
-        }
-        if (status == 5) {
-            return org.tbc.world.content.Content.QUEST_STATE_FAIL;
-        }
-        return 0;
-    }
-
-    private static boolean questInLog(Player p, int quest) {
-        for (int id : p.questLogId) {
-            if (id == quest) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static int freeQuestSlot(Player p) {
-        for (int i = 0; i < p.questLogId.length; i++) {
-            if (p.questLogId[i] == 0) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     private static void writeActions(Connection c, Player p) throws Exception {
         PreparedStatement del = c.prepareStatement("DELETE FROM character_action WHERE guid = ?");
         del.setInt(1, Guid.low(p.guid));
@@ -1133,252 +970,6 @@ public final class CharacterStore {
             ins.addBatch();
         }
         ins.executeBatch();
-    }
-
-    private static void writeSpells(Connection c, Player p) throws Exception {
-        PreparedStatement del = c.prepareStatement("DELETE FROM character_spell WHERE guid = ?");
-        del.setInt(1, Guid.low(p.guid));
-        del.executeUpdate();
-        PreparedStatement ins = c.prepareStatement(
-                "INSERT INTO character_spell (guid, spell, active, disabled) VALUES (?,?,1,0)");
-        for (int spell : p.spells) {
-            if (spell <= 0) {
-                continue;
-            }
-            ins.setInt(1, Guid.low(p.guid));
-            ins.setInt(2, spell);
-            ins.addBatch();
-        }
-        ins.executeBatch();
-    }
-
-    private static void writeSkills(Connection c, Player p) throws Exception {
-        PreparedStatement del = c.prepareStatement("DELETE FROM character_skills WHERE guid = ?");
-        del.setInt(1, Guid.low(p.guid));
-        del.executeUpdate();
-        PreparedStatement ins = c.prepareStatement(
-                "INSERT INTO character_skills (guid, skill, `value`, `max`) VALUES (?,?,?,?)");
-        for (int slot = 0; slot < 127; slot++) {
-            int base = org.tbc.world.net.wow8606.UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
-            int skill = p.getInt(base) & 0xFFFF;
-            if (skill == 0) {
-                continue;
-            }
-            int packed = p.getInt(base + 1);
-            ins.setInt(1, Guid.low(p.guid));
-            ins.setInt(2, skill);
-            ins.setInt(3, packed & 0xFFFF);
-            ins.setInt(4, (packed >>> 16) & 0xFFFF);
-            ins.addBatch();
-        }
-        ins.executeBatch();
-    }
-
-    /** @return true if at least one spell row was loaded (replaces create defaults). */
-    private static boolean loadSpells(Connection c, Player p) throws Exception {
-        PreparedStatement ps = c.prepareStatement(
-                "SELECT spell FROM character_spell WHERE guid = ? AND disabled = 0");
-        ps.setInt(1, Guid.low(p.guid));
-        ResultSet rs = ps.executeQuery();
-        java.util.ArrayList<Integer> loaded = new java.util.ArrayList<>();
-        while (rs.next()) {
-            loaded.add(rs.getInt(1));
-        }
-        if (loaded.isEmpty()) {
-            return false;
-        }
-        p.spells.clear();
-        p.spells.addAll(loaded);
-        return true;
-    }
-
-    /** @return true if at least one skill row was loaded. */
-    private static boolean loadSkills(Connection c, Player p) throws Exception {
-        PreparedStatement ps = c.prepareStatement(
-                "SELECT skill, `value`, `max` FROM character_skills WHERE guid = ?");
-        ps.setInt(1, Guid.low(p.guid));
-        ResultSet rs = ps.executeQuery();
-        boolean any = false;
-        while (rs.next()) {
-            any = true;
-            int skill = rs.getInt(1);
-            int value = rs.getInt(2);
-            int max = rs.getInt(3);
-            p.learnSkill(skill, value, max, 0);
-        }
-        return any;
-    }
-
-    /** Player::_LoadSpellCooldowns — SpellExpireTime is unix seconds. */
-    private static void loadSpellCooldowns(Connection c, Player p) throws Exception {
-        PreparedStatement ps = c.prepareStatement(
-                "SELECT SpellId, SpellExpireTime, Category, CategoryExpireTime, ItemId FROM character_spell_cooldown WHERE guid = ?");
-        ps.setInt(1, Guid.low(p.guid));
-        ResultSet rs = ps.executeQuery();
-        long nowMs = System.currentTimeMillis();
-        while (rs.next()) {
-            int spellId = rs.getInt("SpellId");
-            long expireMs = rs.getLong("SpellExpireTime") * 1000L;
-            p.cooldowns.restoreSpell(spellId, expireMs, nowMs);
-        }
-    }
-
-    /** Player::_SaveSpellCooldowns — DELETE-all then INSERT; expire as unix seconds. */
-    private static void writeSpellCooldowns(Connection c, Player p) throws Exception {
-        PreparedStatement del = c.prepareStatement("DELETE FROM character_spell_cooldown WHERE guid = ?");
-        del.setInt(1, Guid.low(p.guid));
-        del.executeUpdate();
-        PreparedStatement ins = c.prepareStatement(
-                "INSERT INTO character_spell_cooldown (guid, SpellId, SpellExpireTime, Category, CategoryExpireTime, ItemId) VALUES (?,?,?,?,?,?)");
-        long nowMs = System.currentTimeMillis();
-        for (var e : p.cooldowns.unexpiredSpellExpireMs(nowMs).entrySet()) {
-            ins.setInt(1, Guid.low(p.guid));
-            ins.setInt(2, e.getKey());
-            ins.setLong(3, e.getValue() / 1000L);
-            ins.setInt(4, 0);
-            ins.setLong(5, 0);
-            ins.setInt(6, 0);
-            ins.addBatch();
-        }
-        ins.executeBatch();
-    }
-
-    /**
-     * Player::_SaveAuras — DELETE-all then INSERT. Skip passive Battle Stance 2457 and expired
-     * timed holders. remaintime/maxduration are milliseconds; permanent uses remaintime −1.
-     */
-    private static void writeAuras(Connection c, Player p) throws Exception {
-        PreparedStatement del = c.prepareStatement("DELETE FROM character_aura WHERE guid = ?");
-        del.setInt(1, Guid.low(p.guid));
-        del.executeUpdate();
-        PreparedStatement ins = c.prepareStatement(
-                "INSERT INTO character_aura (guid, caster_guid, item_guid, spell, stackcount, remaincharges, "
-                        + "basepoints0, basepoints1, basepoints2, periodictime0, periodictime1, periodictime2, "
-                        + "maxduration, remaintime, effIndexMask) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        long nowMs = System.currentTimeMillis();
-        for (Unit.Aura a : p.auras) {
-            if (a.spellId() <= 0 || a.spellId() == SpellEngine.SPELL_BATTLE_STANCE) {
-                continue;
-            }
-            int remaintime;
-            if (a.expireAtMs() <= 0) {
-                // Timed holders must not be written as permanent (−1) — client shows 0s forever.
-                remaintime = a.durationMs() > 0 ? a.durationMs() : -1;
-            } else {
-                long left = a.expireAtMs() - nowMs;
-                if (left <= 0) {
-                    continue;
-                }
-                remaintime = (int) Math.min(Integer.MAX_VALUE, left);
-            }
-            long caster = a.casterGuid() != 0 ? a.casterGuid() : p.guid;
-            ins.setInt(1, Guid.low(p.guid));
-            ins.setLong(2, caster);
-            ins.setInt(3, 0);
-            ins.setInt(4, a.spellId());
-            ins.setInt(5, Math.max(1, a.stacks()));
-            ins.setInt(6, 0);
-            ins.setInt(7, 0);
-            ins.setInt(8, 0);
-            ins.setInt(9, 0);
-            ins.setInt(10, a.amplitudeMs());
-            ins.setInt(11, 0);
-            ins.setInt(12, 0);
-            ins.setInt(13, a.durationMs());
-            ins.setInt(14, remaintime);
-            ins.setInt(15, 1);
-            ins.addBatch();
-        }
-        ins.executeBatch();
-    }
-
-    /**
-     * Player::_LoadAuras — restore holders; positive buffs keep full remaintime (no offline tick).
-     * expireAtMs = now + remaintime when remaintime ≥ 0; permanent when remaintime &lt; 0.
-     */
-    private static void loadAuras(Connection c, Player p) throws Exception {
-        PreparedStatement ps = c.prepareStatement(
-                "SELECT caster_guid, item_guid, spell, stackcount, remaincharges, "
-                        + "basepoints0, basepoints1, basepoints2, periodictime0, periodictime1, periodictime2, "
-                        + "maxduration, remaintime, effIndexMask FROM character_aura WHERE guid = ?");
-        ps.setInt(1, Guid.low(p.guid));
-        ResultSet rs = ps.executeQuery();
-        long nowMs = System.currentTimeMillis();
-        while (rs.next()) {
-            int spellId = rs.getInt("spell");
-            if (spellId <= 0 || spellId == SpellEngine.SPELL_BATTLE_STANCE) {
-                continue;
-            }
-            int stacks = Math.max(1, rs.getInt("stackcount"));
-            int maxduration = rs.getInt("maxduration");
-            int remaintime = rs.getInt("remaintime");
-            int amplitude = rs.getInt("periodictime0");
-            long caster = rs.getLong("caster_guid");
-            long expireAt;
-            if (remaintime < 0) {
-                // Heal bad rows: timed maxduration saved as permanent remaintime −1.
-                expireAt = maxduration > 0 ? nowMs + maxduration : 0;
-            } else {
-                expireAt = nowMs + remaintime;
-            }
-            long nextTick = amplitude > 0 && expireAt > 0 ? nowMs + amplitude : 0;
-            p.auras.add(new Unit.Aura(spellId, maxduration, stacks, 0, expireAt, amplitude, nextTick, caster));
-        }
-    }
-
-    private static void writeInventory(Connection c, Player p) throws Exception {
-        PreparedStatement delInv = c.prepareStatement("DELETE FROM character_inventory WHERE guid = ?");
-        delInv.setInt(1, Guid.low(p.guid));
-        delInv.executeUpdate();
-        PreparedStatement delInst = c.prepareStatement("DELETE FROM item_instance WHERE owner_guid = ?");
-        delInst.setInt(1, Guid.low(p.guid));
-        delInst.executeUpdate();
-        for (Item it : p.items.values()) {
-            if (!writeItemInstance(c, p, it)) {
-                continue;
-            }
-            PreparedStatement inv = c.prepareStatement(
-                    "INSERT INTO character_inventory (guid, bag, slot, item, item_template) VALUES (?,?,?,?,?)");
-            inv.setInt(1, Guid.low(p.guid));
-            inv.setInt(2, it.bag);
-            inv.setInt(3, it.slot);
-            inv.setInt(4, Guid.low(it.guid));
-            inv.setInt(5, it.entry);
-            inv.executeUpdate();
-        }
-    }
-
-    private static boolean writeItemInstance(Connection c, Player p, Item it) {
-        try (PreparedStatement ii = c.prepareStatement(
-                "INSERT INTO item_instance (guid,owner_guid,itemEntry,creatorGuid,giftCreatorGuid,count,duration,charges,flags,enchantments,randomPropertyId,durability,itemTextId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
-            int i = 1;
-            ii.setInt(i++, Guid.low(it.guid));
-            ii.setInt(i++, Guid.low(p.guid));
-            ii.setInt(i++, it.entry);
-            ii.setInt(i++, 0);
-            ii.setInt(i++, 0);
-            ii.setInt(i++, Math.max(1, it.count));
-            ii.setInt(i++, 0);
-            ii.setString(i++, "0 0 0 0 0");
-            ii.setInt(i++, 0);
-            ii.setString(i++, "0");
-            ii.setInt(i++, 0);
-            ii.setInt(i++, it.durability);
-            ii.setInt(i++, 0);
-            ii.executeUpdate();
-            return true;
-        } catch (Exception e) {
-            try (PreparedStatement ii = c.prepareStatement(
-                    "INSERT INTO item_instance (guid,owner_guid,data) VALUES (?,?,?)")) {
-                ii.setInt(1, Guid.low(it.guid));
-                ii.setInt(2, Guid.low(p.guid));
-                ii.setString(3, it.entry + ":" + it.count);
-                ii.executeUpdate();
-                return true;
-            } catch (Exception e2) {
-                return false;
-            }
-        }
     }
 
     private void persistNew(Player p) {
