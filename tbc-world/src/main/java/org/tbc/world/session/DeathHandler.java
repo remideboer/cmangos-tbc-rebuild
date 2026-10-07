@@ -388,8 +388,21 @@ public final class DeathHandler {
     }
 
     private static void resurrect(WorldSession s, World world, Player p) {
-        p.setGhost(false);
+        // CMaNGOS ResurrectPlayer: RemoveAurasDueToSpell(8326) then AddUpdateCreateObject.
+        int ghostSlot = AuraSlots.slotOf(p, PvpObjectives.GHOST_AURA);
+        world.spells.cancelAura(p, PvpObjectives.GHOST_AURA);
+        world.spells.unapplyAura(p, PvpObjectives.GHOST_AURA);
         p.auras.removeIf(a -> a.spellId() == PvpObjectives.GHOST_AURA);
+        if (ghostSlot >= 0) {
+            AuraSlots.clearVisible(p, ghostSlot);
+            var auraUpd = UpdateBuilder.maybeCompress(UpdateBuilder.values(p,
+                    UpdateFields.UNIT_FIELD_AURA + ghostSlot,
+                    UpdateFields.UNIT_FIELD_AURAFLAGS + ghostSlot / 4,
+                    UpdateFields.UNIT_FIELD_AURALEVELS + ghostSlot / 4,
+                    UpdateFields.UNIT_FIELD_AURAAPPLICATIONS + ghostSlot / 4));
+            s.send(auraUpd.opcode(), auraUpd.payload());
+        }
+        p.setGhost(false);
         p.stand();
         p.setBytes1MiscFlags(0);
         p.sendMoveRoot(false);
@@ -401,6 +414,8 @@ public final class DeathHandler {
         s.send(Opcodes.SMSG_DEATH_RELEASE_LOC, hide.array());
         sendWaterWalk(s, false);
         sendGhostValues(s, p);
+        var self = UpdateBuilder.maybeCompress(UpdateBuilder.createUnit(p, true, (int) world.nowMs()));
+        s.send(self.opcode(), self.payload());
         s.hideSpiritService(world);
     }
 

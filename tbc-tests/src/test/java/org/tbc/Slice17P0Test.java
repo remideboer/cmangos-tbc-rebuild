@@ -435,6 +435,14 @@ class Slice17P0Test {
         assertEquals(50, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_POWER4));
         assertEquals(0, client.valuesField(p.guid, UpdateFields.PLAYER_FLAGS) & Player.PLAYER_FLAGS_GHOST);
         assertTrue(client.saw(Opcodes.SMSG_MOVE_LAND_WALK));
+        // CMaNGOS ResurrectPlayer RemoveAurasDueToSpell(8326) + AddUpdateCreateObject — living create-self.
+        Map<Integer, Integer> living = client.selfCreateValues();
+        assertFalse(living.isEmpty());
+        assertEquals(0, living.getOrDefault(UpdateFields.PLAYER_FLAGS, 0) & Player.PLAYER_FLAGS_GHOST);
+        for (int slot = 0; slot < 56; slot++) {
+            assertFalse(Integer.valueOf(PvpObjectives.GHOST_AURA)
+                    .equals(living.get(UpdateFields.UNIT_FIELD_AURA + slot)));
+        }
     }
 
     /**
