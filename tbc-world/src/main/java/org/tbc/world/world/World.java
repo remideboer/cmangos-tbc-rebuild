@@ -424,9 +424,7 @@ public final class World implements Runnable {
                 WowBuffer obs = new WowBuffer(64);
                 p.movement.write(obs, true, p.guid, (int) nowMs());
                 for (Player other : map(p.mapId, p.instanceId).nearbyPlayers(p, GameMap.VISIBILITY)) {
-                    if (other.session != null) {
-                        other.session.send(Opcodes.MSG_MOVE_TELEPORT, obs.array());
-                    }
+                    Broadcaster.toPlayer(other, Opcodes.MSG_MOVE_TELEPORT, obs.array());
                 }
             }
             return;
@@ -537,12 +535,8 @@ public final class World implements Runnable {
             return;
         }
         byte[] complete = new byte[]{1};
-        if (loser.session != null) {
-            loser.session.send(Opcodes.SMSG_DUEL_COMPLETE, complete);
-        }
-        if (winner.session != null) {
-            winner.session.send(Opcodes.SMSG_DUEL_COMPLETE, complete);
-        }
+        Broadcaster.toPlayer(loser, Opcodes.SMSG_DUEL_COMPLETE, complete);
+        Broadcaster.toPlayer(winner, Opcodes.SMSG_DUEL_COMPLETE, complete);
         WowBuffer names = new WowBuffer(64);
         names.putU8(0);
         names.putCString(winner.name);
@@ -670,9 +664,7 @@ public final class World implements Runnable {
         objectMgr.fillCorpseLoot(c, tapper);
         byte[] stop = c.motion.stop(c);
         if (stop != null) {
-            if (p.session != null) {
-                p.session.send(Opcodes.SMSG_MONSTER_MOVE, stop);
-            }
+            Broadcaster.toPlayer(p, Opcodes.SMSG_MONSTER_MOVE, stop);
             for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
                 if (pl.session != null && pl.guid != p.guid) {
                     pl.session.send(Opcodes.SMSG_MONSTER_MOVE, stop);
@@ -685,9 +677,7 @@ public final class World implements Runnable {
         if (p.mapId == 30 && av.onGeneralKilled(c.entry)) {
             byte[] log = av.endedPvpLogPayload();
             for (Player pl : m.players()) {
-                if (pl.session != null) {
-                    pl.session.send(Opcodes.MSG_PVP_LOG_DATA, log);
-                }
+                Broadcaster.toPlayer(pl, Opcodes.MSG_PVP_LOG_DATA, log);
             }
         }
     }
@@ -973,11 +963,7 @@ public final class World implements Runnable {
             m.reindex(c, ox, oy);
         }
         if (stopMove != null) {
-            for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
-                if (pl.session != null) {
-                    pl.session.send(Opcodes.SMSG_MONSTER_MOVE, stopMove);
-                }
-            }
+            Broadcaster.nearby(m, c, GameMap.VISIBILITY, Opcodes.SMSG_MONSTER_MOVE, stopMove);
         }
         if (!fresh) {
             return;
@@ -1018,11 +1004,7 @@ public final class World implements Runnable {
             m.reindex(attacker, ox, oy);
         }
         if (stopMove != null) {
-            for (Player pl : m.nearbyPlayers(attacker, GameMap.VISIBILITY)) {
-                if (pl.session != null) {
-                    pl.session.send(Opcodes.SMSG_MONSTER_MOVE, stopMove);
-                }
-            }
+            Broadcaster.nearby(m, attacker, GameMap.VISIBILITY, Opcodes.SMSG_MONSTER_MOVE, stopMove);
         }
         if (!fresh) {
             return;
@@ -1165,18 +1147,10 @@ public final class World implements Runnable {
     private void onCreatureKilledByNpc(Creature killer, Creature victim, GameMap m) {
         byte[] stop = victim.motion.stop(victim);
         if (stop != null) {
-            for (Player pl : m.nearbyPlayers(victim, GameMap.VISIBILITY)) {
-                if (pl.session != null) {
-                    pl.session.send(Opcodes.SMSG_MONSTER_MOVE, stop);
-                }
-            }
+            Broadcaster.nearby(m, victim, GameMap.VISIBILITY, Opcodes.SMSG_MONSTER_MOVE, stop);
         }
         byte[] atkStop = combat.encodeAttackStop(killer.guid, victim.guid, false);
-        for (Player pl : m.nearbyPlayers(victim, GameMap.VISIBILITY)) {
-            if (pl.session != null) {
-                pl.session.send(Opcodes.SMSG_ATTACKSTOP, atkStop);
-            }
-        }
+        Broadcaster.nearby(m, victim, GameMap.VISIBILITY, Opcodes.SMSG_ATTACKSTOP, atkStop);
         sendCorpseValues(m, victim);
         m.dbScripts.start(objectMgr.dbScriptStore, DbScriptStore.CREATURE_DEATH, victim.entry, victim, null,
                 (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
@@ -1383,11 +1357,7 @@ public final class World implements Runnable {
                     byte[] spline = c.motion.update(c, diff, surfaces);
                     m.reindex(c, ox, oy);
                     if (spline != null) {
-                        for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
-                            if (pl.session != null) {
-                                pl.session.send(Opcodes.SMSG_MONSTER_MOVE, spline);
-                            }
-                        }
+                        Broadcaster.nearby(m, c, GameMap.VISIBILITY, Opcodes.SMSG_MONSTER_MOVE, spline);
                     }
                     if (c.motion.homeArrived(c)) {
                         combat.finishEvade(c, sink);
@@ -1508,16 +1478,7 @@ public final class World implements Runnable {
     }
 
     private void pulseUnitPeriodic(GameMap m, Unit u, long now) {
-        BiConsumer<Integer, byte[]> send = (op, payload) -> {
-            if (u instanceof Player self && self.session != null) {
-                self.session.send(op, payload);
-            }
-            for (Player pl : m.nearbyPlayers(u, GameMap.VISIBILITY)) {
-                if (pl.session != null) {
-                    pl.session.send(op, payload);
-                }
-            }
-        };
+        BiConsumer<Integer, byte[]> send = Broadcaster.nearbyAndSelfSink(m, u, GameMap.VISIBILITY);
         AuraSlots.pulsePeriodic(u, now, a -> {
             SpellEngine.SpellInfo sp = spells.info(a.spellId());
             if (spells.eatDrinkRegen(sp)) {
@@ -1591,16 +1552,7 @@ public final class World implements Runnable {
      * Caster gets SMSG_CLEAR_EXTRA_AURA_INFO (SpellAuraHolder::ClearExtraAuraInfo).
      */
     private void expireUnitAuras(GameMap m, Unit u, long now) {
-        BiConsumer<Integer, byte[]> broadcast = (op, payload) -> {
-            if (u instanceof Player self && self.session != null) {
-                self.session.send(op, payload);
-            }
-            for (Player pl : m.nearbyPlayers(u, GameMap.VISIBILITY)) {
-                if (pl.session != null) {
-                    pl.session.send(op, payload);
-                }
-            }
-        };
+        BiConsumer<Integer, byte[]> broadcast = Broadcaster.nearbyAndSelfSink(m, u, GameMap.VISIBILITY);
         AuraSlots.expireTimed(u, now, broadcast, spellId -> {
             spells.unapplyAura(u, spellId);
             if (u instanceof Player p && p.session != null) {

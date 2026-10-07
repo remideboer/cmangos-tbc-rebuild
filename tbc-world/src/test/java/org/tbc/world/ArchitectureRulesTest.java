@@ -24,8 +24,8 @@ class ArchitectureRulesTest {
     static final int WORLD_SESSION_MAX_LINES = 1797;
     static final int WORLD_SESSION_MAX_CASE_LABELS = 63;
     static final int LATER_OPCODES_MAX_LINES = 0;
-    static final int WORLD_MAX_LINES = 1749;
-    static final int WORLD_MAX_SESSION_REFS = 141;
+    static final int WORLD_MAX_LINES = 1701;
+    static final int WORLD_MAX_SESSION_REFS = 113;
     static final int OBJECT_MGR_MAX_LINES = 5768;
     static final int SPELL_ENGINE_MAX_LINES = 4152;
     /** Lines in entity/spell/combat/content/map that name {@code org.tbc.world.session.}. */
