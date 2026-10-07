@@ -76,7 +76,6 @@ public final class WorldSession {
     /** Kept after logout for CMSG_UPDATE_ACCOUNT_DATA (STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT). */
     private int lastCharGuidLow;
     public Player pendingInviteFrom;
-    public final List<String> channels = new ArrayList<>();
     public String lastTicket = "";
     public int bgQueue;
     public int worldStates2476;
@@ -1146,6 +1145,7 @@ public final class WorldSession {
         world.characters.setOnline(player, false);
         send(Opcodes.SMSG_LOGOUT_COMPLETE, new byte[0]);
         status = STATUS_AUTHED;
+        world.channels.leaveAll(player.guid);
         player.session = null;
         player = null;
         logoutAt = 0;

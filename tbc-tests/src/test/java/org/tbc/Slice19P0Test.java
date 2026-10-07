@@ -85,7 +85,7 @@ class Slice19P0Test {
         World world = World.inMemory();
         WowClientDouble client = login(world, ACC_A, "Leaver");
         client.handle(world, Opcodes.CMSG_JOIN_CHANNEL, joinGeneral().array());
-        assertTrue(client.session().channels.contains("General"));
+        assertTrue(world.channels.isMember("General", client.session().player().guid));
         client.clear();
         WowBuffer leave = new WowBuffer(32);
         leave.putU32(0);
@@ -96,7 +96,7 @@ class Slice19P0Test {
         assertEquals("General", n.getCString());
         assertEquals(ChannelHandler.CHANNEL_ID_GENERAL, n.getU32());
         assertEquals(0, n.getU8());
-        assertFalse(client.session().channels.contains("General"));
+        assertFalse(world.channels.isMember("General", client.session().player().guid));
     }
 
     @Test
@@ -128,7 +128,7 @@ class Slice19P0Test {
         WowBuffer n = new WowBuffer(lastPayload(client, Opcodes.SMSG_CHANNEL_NOTIFY));
         assertEquals(ChannelHandler.WRONG_PASSWORD, n.getU8());
         assertEquals("General", n.getCString());
-        assertFalse(client.session().channels.contains("General"));
+        assertFalse(world.channels.isMember("General", client.session().player().guid));
     }
 
     @Test

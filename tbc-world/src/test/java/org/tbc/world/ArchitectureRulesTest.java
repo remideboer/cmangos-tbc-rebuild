@@ -24,7 +24,7 @@ class ArchitectureRulesTest {
     static final int WORLD_SESSION_MAX_LINES = 2238;
     static final int WORLD_SESSION_MAX_CASE_LABELS = 67;
     static final int LATER_OPCODES_MAX_LINES = 0;
-    static final int WORLD_MAX_LINES = 1759;
+    static final int WORLD_MAX_LINES = 1749;
     static final int WORLD_MAX_SESSION_REFS = 141;
     static final int OBJECT_MGR_MAX_LINES = 5768;
     static final int SPELL_ENGINE_MAX_LINES = 4152;

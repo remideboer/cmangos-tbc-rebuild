@@ -101,18 +101,8 @@ public final class World implements Runnable {
     public final GameEventMgr events = new GameEventMgr();
     public final WorldTimers timers = new WorldTimers();
     public final Map<Long, Corpse> corpses = new ConcurrentHashMap<>();
-    /** Channel name → password for CMSG_CHANNEL_PASSWORD / join checks. */
-    public final Map<String, String> channelPasswords = new ConcurrentHashMap<>();
-    /** Custom channel → owner guid (Channel.cpp first joiner when !IsPublic). */
-    public final Map<String, Long> channelOwners = new ConcurrentHashMap<>();
-    /** Custom channel → member guid → Channel.h PlayerInfo flags. */
-    public final Map<String, ConcurrentHashMap<Long, Integer>> channelMemberFlags = new ConcurrentHashMap<>();
-    /** Custom channel → banned member guids (Channel.cpp IsBanned). */
-    public final Map<String, Set<Long>> channelBans = new ConcurrentHashMap<>();
-    /** Channel name → join/leave announcements (custom default true, Channel.cpp). */
-    public final Map<String, Boolean> channelAnnouncements = new ConcurrentHashMap<>();
-    /** Channel name → moderation (Channel.cpp m_moderation default false). */
-    public final Map<String, Boolean> channelModeration = new ConcurrentHashMap<>();
+    /** Chat channels: membership, owner, flags, password, bans, toggles (Channel.cpp). */
+    public final ChannelRegistry channels = new ChannelRegistry();
     public final Terrain terrain;
     private final SurfaceQuery surfaces;
     private final org.tbc.world.ai.PathFinder pathFinder;
