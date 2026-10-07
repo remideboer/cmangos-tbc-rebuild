@@ -42,6 +42,7 @@ public final class WorldSession {
     private static final AtomicLong NEXT_ID = new AtomicLong(1);
     /** Logged-in opcode handlers registered per family; consulted before {@code handleRest}. */
     private static final OpcodeTable TABLE = OpcodeTable.loggedIn();
+    private static final SessionGate GATE = new SessionGate();
     public static final int STATUS_NEVER = 0;
     public static final int STATUS_AUTHED = 1;
     public static final int STATUS_LOGGEDIN = 2;
@@ -318,125 +319,24 @@ public final class WorldSession {
             log.info(InboundOpcodeTrace.format(who, opcode, payload == null ? 0 : payload.length));
         }
         WowBuffer in = new WowBuffer(payload == null ? new byte[0] : payload);
-        if (opcode == Opcodes.CMSG_PING) {
-            handlePing(world, in);
+        if (GATE.dispatch(this, world, opcode, in)) {
             return;
         }
-        if (opcode == Opcodes.CMSG_KEEP_ALIVE) {
-            return;
-        }
-        if (opcode == Opcodes.CMSG_AUTH_SESSION) {
-            handleAuthSession(world, in);
-            return;
-        }
-        if (status < STATUS_AUTHED) {
-            return;
-        }
-        if (opcode == Opcodes.CMSG_CHAR_ENUM) {
-            handleCharEnum(world);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_CHAR_CREATE) {
-            handleCharCreate(world, in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_CHAR_DELETE) {
-            handleCharDelete(world, in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_CHAR_RENAME) {
-            handleCharRename(world, in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_SET_PLAYER_DECLINED_NAMES) {
-            handleSetPlayerDeclinedNames(world, in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_PLAYER_LOGIN) {
-            handleLogin(world, in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_GUILD_QUERY) {
-            QueryHandler.guild(this, world, in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_REALM_SPLIT) {
-            handleRealmSplit(in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_OPT_OUT_OF_LOOT) {
-            GroupHandler.optOutOfLoot(in);
-            return;
-        }
-        // STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT — client flushes UI prefs on logout.
-        if (status < STATUS_LOGGEDIN) {
-            if (opcode == Opcodes.CMSG_UPDATE_ACCOUNT_DATA) {
-                handleUpdateAccountData(world, in);
-            }
-            return;
-        }
-        if (opcode == Opcodes.MSG_MOVE_WORLDPORT_ACK) {
-            handleWorldportAck(world);
-            return;
-        }
-        if (opcode == Opcodes.MSG_MOVE_TELEPORT_ACK) {
-            // HandleMoveTeleportAckOpcode: raw guid + counter + time; position is the teleport dest.
-            return;
-        }
-        if (isForceSpeedChangeAck(opcode)) {
-            try {
-                handleMove(world, opcode, in, true);
-                if (in.remaining() >= 4) {
-                    player.lastAckSpeed = in.getFloat();
-                }
-            } catch (RuntimeException ignored) {
-            }
-            return;
-        }
-        if (isLivingMoveOpcode(opcode)) {
-            handleMove(world, opcode, in, false);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_FORCE_MOVE_ROOT_ACK || opcode == Opcodes.CMSG_FORCE_MOVE_UNROOT_ACK) {
+        handleLoggedIn(world, opcode, in);
+    }
+
+    void handleForceSpeedChangeAck(World world, int opcode, WowBuffer in) {
+        try {
             handleMove(world, opcode, in, true);
-            return;
+            if (in.remaining() >= 4) {
+                player.lastAckSpeed = in.getFloat();
+            }
+        } catch (RuntimeException ignored) {
         }
-        if (opcode == Opcodes.CMSG_MOVE_SPLINE_DONE) {
-            handleMoveSplineDone(in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_MOVE_TIME_SKIPPED) {
-            handleMoveTimeSkipped(world, in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_MOVE_FALL_RESET) {
-            handleFallReset(world, in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_MOVE_SET_FLY || opcode == Opcodes.CMSG_MOVE_CHNG_TRANSPORT) {
-            handleMove(world, opcode, in, false);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_MOVE_KNOCK_BACK_ACK) {
-            handleKnockBackAck(world, in);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_MOVE_HOVER_ACK) {
-            handleMoveFlagChangeAck(world, in, Opcodes.MSG_MOVE_HOVER);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_MOVE_WATER_WALK_ACK) {
-            handleMoveFlagChangeAck(world, in, Opcodes.MSG_MOVE_WATER_WALK);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_MOVE_FEATHER_FALL_ACK) {
-            handleMoveFlagChangeAck(world, in, Opcodes.MSG_MOVE_FEATHER_FALL);
-            return;
-        }
-        if (opcode == Opcodes.CMSG_MOVE_NOT_ACTIVE_MOVER) {
-            handleNotActiveMover(world, in);
-            return;
-        }
+    }
+
+    /** STATUS_LOGGEDIN opcodes still implemented on the session itself (see refactoring plan Phase 2). */
+    private void handleLoggedIn(World world, int opcode, WowBuffer in) {
         switch (opcode) {
             case Opcodes.CMSG_LOGOUT_REQUEST -> handleLogoutRequest(world);
             case Opcodes.CMSG_LOGOUT_CANCEL -> handleLogoutCancel();
@@ -616,7 +516,7 @@ public final class WorldSession {
         return true;
     }
 
-    private void handleAuthSession(World world, WowBuffer in) {
+    void handleAuthSession(World world, WowBuffer in) {
         if (authedOnce) {
             sink.close();
             return;
@@ -667,7 +567,7 @@ public final class WorldSession {
         world.addSession(this);
     }
 
-    private void handlePing(World world, WowBuffer in) {
+    void handlePing(World world, WowBuffer in) {
         int ping = in.remaining() >= 4 ? in.getU32() : 0;
         if (in.remaining() >= 4) {
             in.getU32();
@@ -691,7 +591,7 @@ public final class WorldSession {
         send(Opcodes.SMSG_PONG, out.array());
     }
 
-    private void handleCharEnum(World world) {
+    void handleCharEnum(World world) {
         List<Player> list = world.characters.enumAccount(account.id(), world.objectMgr);
         WowBuffer out = new WowBuffer(64);
         out.putU8(list.size());
@@ -741,7 +641,7 @@ public final class WorldSession {
         send(Opcodes.SMSG_CHAR_ENUM, out.array());
     }
 
-    private void handleCharCreate(World world, WowBuffer in) {
+    void handleCharCreate(World world, WowBuffer in) {
         String name = in.getCString();
         int race = in.getU8();
         int clazz = in.getU8();
@@ -775,14 +675,14 @@ public final class WorldSession {
         send(Opcodes.SMSG_CHAR_CREATE, new byte[]{(byte) Codes.CHAR_CREATE_SUCCESS});
     }
 
-    private void handleCharDelete(World world, WowBuffer in) {
+    void handleCharDelete(World world, WowBuffer in) {
         long guid = in.getU64();
         boolean ok = world.characters.delete(account.id(), guid);
         send(Opcodes.SMSG_CHAR_DELETE, new byte[]{(byte) (ok ? Codes.CHAR_DELETE_SUCCESS : Codes.CHAR_DELETE_FAILED_GUILD_LEADER)});
     }
 
     /** CharacterHandler.cpp HandleCharRenameOpcode — STATUS_AUTHED, fail is uint8 only. */
-    private void handleCharRename(World world, WowBuffer in) {
+    void handleCharRename(World world, WowBuffer in) {
         if (in.remaining() < 8) {
             send(Opcodes.SMSG_CHAR_RENAME, new byte[]{(byte) Codes.CHAR_NAME_NO_NAME});
             return;
@@ -811,7 +711,7 @@ public final class WorldSession {
     }
 
     /** CharacterHandler.cpp HandleSetPlayerDeclinedNamesOpcode — Cyrillic persist, else result 1. */
-    private void handleSetPlayerDeclinedNames(World world, WowBuffer in) {
+    void handleSetPlayerDeclinedNames(World world, WowBuffer in) {
         if (in.remaining() < 8) {
             sendDeclinedNamesResult(1, 0);
             return;
@@ -852,7 +752,7 @@ public final class WorldSession {
         send(Opcodes.SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, out.array());
     }
 
-    private void handleLogin(World world, WowBuffer in) {
+    void handleLogin(World world, WowBuffer in) {
         if (in.remaining() < 8) {
             return;
         }
@@ -929,7 +829,7 @@ public final class WorldSession {
         return !player.teleportPending && MapCoords.valid(m.x, m.y, m.z, m.o);
     }
 
-    private void handleMove(World world, int opcode, WowBuffer in, boolean ack) {
+    void handleMove(World world, int opcode, WowBuffer in, boolean ack) {
         if (ack) {
             if (!skipAckGuid(in)) {
                 return;
@@ -986,7 +886,7 @@ public final class WorldSession {
         send(upd.opcode(), upd.payload());
     }
 
-    private void handleWorldportAck(World world) {
+    void handleWorldportAck(World world) {
         if (player == null) {
             return;
         }
@@ -1379,7 +1279,7 @@ public final class WorldSession {
     }
 
     /** movement.md CMSG_MOVE_SPLINE_DONE — MovementInfo + uint32 counter (CMaNGOS TaxiHandler). */
-    private void handleMoveSplineDone(WowBuffer in) {
+    void handleMoveSplineDone(WowBuffer in) {
         try {
             MovementInfo.readC2s(in);
             if (in.remaining() >= 4) {
@@ -1393,7 +1293,7 @@ public final class WorldSession {
      * HandleMoveTimeSkippedOpcode — raw guid + uint32. Observers get MSG_MOVE_TIME_SKIPPED
      * packed guid + skipped. Sender is excluded. Wrong guid is ignored.
      */
-    private void handleMoveTimeSkipped(World world, WowBuffer in) {
+    void handleMoveTimeSkipped(World world, WowBuffer in) {
         if (in.remaining() < 12) {
             return;
         }
@@ -1417,7 +1317,7 @@ public final class WorldSession {
      * HandleMovementOpcodes for CMSG_MOVE_FALL_RESET — apply MovementInfo, do not echo.
      * The 8606 client has no handler for this CMSG.
      */
-    private void handleFallReset(World world, WowBuffer in) {
+    void handleFallReset(World world, WowBuffer in) {
         MovementInfo m = MovementInfo.readC2s(in);
         if (!acceptsMovement(m)) {
             return;
@@ -1434,7 +1334,7 @@ public final class WorldSession {
      * Observers get MSG_MOVE_KNOCK_BACK: packed guid + MovementInfo + jump cos/sin/xy/zspeed.
      * Sender excluded (SendMessageToAllWhoSeeMeMove).
      */
-    private void handleKnockBackAck(World world, WowBuffer in) {
+    void handleKnockBackAck(World world, WowBuffer in) {
         if (!skipAckGuid(in) || in.remaining() < 4) {
             return;
         }
@@ -1467,7 +1367,7 @@ public final class WorldSession {
      * HandleMoveFlagChangeOpcode — packed guid + counter + MovementInfo + isApplied u32.
      * Observers get response MSG (HOVER / WATER_WALK / FEATHER_FALL) with packed guid + MovementInfo.
      */
-    private void handleMoveFlagChangeAck(World world, WowBuffer in, int responseOpcode) {
+    void handleMoveFlagChangeAck(World world, WowBuffer in, int responseOpcode) {
         if (!skipAckGuid(in) || in.remaining() < 4) {
             return;
         }
@@ -1498,7 +1398,7 @@ public final class WorldSession {
     /**
      * HandleMoveNotActiveMoverOpcode — packed guid + MovementInfo. Apply only; no echo.
      */
-    private void handleNotActiveMover(World world, WowBuffer in) {
+    void handleNotActiveMover(World world, WowBuffer in) {
         if (!skipAckGuid(in)) {
             return;
         }
@@ -1522,7 +1422,7 @@ public final class WorldSession {
     }
 
     /** MiscHandler::HandleUpdateAccountData + WorldSession::SetAccountData. */
-    private void handleUpdateAccountData(World world, WowBuffer in) {
+    void handleUpdateAccountData(World world, WowBuffer in) {
         int type = accountData.update(in);
         if (type < 0) {
             return;
@@ -1648,7 +1548,7 @@ public final class WorldSession {
     }
 
     /** MiscHandler::HandleRealmSplitOpcode — echo unk, state 0 (normal), date 01/01/01. */
-    private void handleRealmSplit(WowBuffer in) {
+    void handleRealmSplit(WowBuffer in) {
         if (in.remaining() < 4) {
             return;
         }
@@ -1681,7 +1581,7 @@ public final class WorldSession {
     }
 
     /** movement.md — all CMSG_FORCE_*_SPEED_CHANGE_ACK share packed guid + counter + MovementInfo + float. */
-    private static boolean isForceSpeedChangeAck(int opcode) {
+    static boolean isForceSpeedChangeAck(int opcode) {
         return opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK
                 || opcode == Opcodes.CMSG_FORCE_RUN_BACK_SPEED_CHANGE_ACK
                 || opcode == Opcodes.CMSG_FORCE_SWIM_SPEED_CHANGE_ACK
