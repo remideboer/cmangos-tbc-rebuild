@@ -66,7 +66,7 @@ class ObjectMgrHeroWarriorTrainerTest {
     @Test
     void seedQueryDefaultsWhenSqlWorldShouldBindNativeSunstriderTrainersNotDuplicates() {
         ObjectMgr mgr = new ObjectMgr();
-        mgr.seedQueryDefaults();
+        WorldDefaultsSeed.queryDefaults(mgr);
         int[] trainers = {
                 HeroClassUnlock.NPC_HERO_WARRIOR_TRAINER,
                 HeroClassUnlock.NPC_HERO_PALADIN_TRAINER,
