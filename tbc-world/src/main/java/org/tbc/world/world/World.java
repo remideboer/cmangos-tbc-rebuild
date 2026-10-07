@@ -52,6 +52,7 @@ import org.tbc.world.session.WorldSession;
 import org.tbc.world.spell.AuraSlots;
 import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.spell.SpellEngine;
+import org.tbc.world.spell.SpellWiring;
 import org.tbc.world.spell.SpellTemplateLoader;
 import org.tbc.world.events.GameEventMgr;
 
@@ -137,8 +138,9 @@ public final class World implements Runnable {
         this.combat = conf == null
                 ? new Combat(MeleeTable.alwaysHit(), () -> 0.0)
                 : new Combat();
-        this.spells = conf == null ? SpellEngine.alwaysHit() : new SpellEngine();
-        this.spells.visibilityUpdater = this::updateObjectVisibility;
+        SpellWiring wiring = SpellWiring.defaults().withVisibilityUpdater(this::updateObjectVisibility)
+                .withSkillLineAbilities(objectMgr.skillLineAbilities).withObjectMgr(objectMgr);
+        this.spells = conf == null ? SpellEngine.alwaysHit(wiring) : new SpellEngine(wiring);
         this.login = login;
         this.worldDb = worldDb;
         this.charsDb = charsDb;
@@ -153,8 +155,6 @@ public final class World implements Runnable {
         this.areas.loadFromDataDir(dataDir);
         this.graveyards = GraveyardManager.seeded();
         this.objectMgr.load(worldDb, scripts, dataDir);
-        this.spells.skillLineAbilities = this.objectMgr.skillLineAbilities;
-        this.spells.objectMgr = this.objectMgr;
         SpellTemplateLoader.load(worldDb, dataDir, spells);
         this.factions = Factions.seeded();
         this.factions.loadFromDataDir(dataDir);

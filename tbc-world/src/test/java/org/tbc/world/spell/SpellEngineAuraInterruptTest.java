@@ -17,9 +17,8 @@ class SpellEngineAuraInterruptTest {
 
     @Test
     void removeAurasWhenAttackingShouldDropStealth() {
-        SpellEngine eng = new SpellEngine();
         AtomicInteger vis = new AtomicInteger();
-        eng.visibilityUpdater = u -> vis.incrementAndGet();
+        SpellEngine eng = new SpellEngine(SpellWiring.defaults().withVisibilityUpdater(u -> vis.incrementAndGet()));
         Player p = new Player();
         eng.apply(p, p, eng.info(SpellEngine.SPELL_STEALTH));
         assertEquals(Unit.Visibility.GROUP_STEALTH, p.visibility());

@@ -115,13 +115,11 @@ class SpellEngineCasterArmorTest {
     }
 
     private static SpellEngine engWithArmor() {
-        SpellEngine eng = SpellEngine.alwaysHit();
         ObjectMgr mgr = new ObjectMgr();
         mgr.load(null, null);
         putArmor(mgr, 900_002, ClasslessConfig.ARMOR_LEATHER);
         putArmor(mgr, 900_004, ClasslessConfig.ARMOR_PLATE);
-        eng.objectMgr = mgr;
-        return eng;
+        return SpellEngine.alwaysHit(SpellWiring.defaults().withObjectMgr(mgr));
     }
 
     private static void putArmor(ObjectMgr mgr, int entry, int sub) {

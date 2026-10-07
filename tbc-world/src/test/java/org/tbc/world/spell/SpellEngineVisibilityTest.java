@@ -20,18 +20,16 @@ class SpellEngineVisibilityTest {
 
     @Test
     void unapplyAuraWhenUnknownSpellShouldNotNotifyVisibility() {
-        SpellEngine eng = new SpellEngine();
         AtomicInteger calls = new AtomicInteger();
-        eng.visibilityUpdater = u -> calls.incrementAndGet();
+        SpellEngine eng = new SpellEngine(SpellWiring.defaults().withVisibilityUpdater(u -> calls.incrementAndGet()));
         eng.unapplyAura(new Player(), 999_999);
         assertEquals(0, calls.get());
     }
 
     @Test
     void applyAndUnapplyStealthShouldNotifyVisibilityUpdater() {
-        SpellEngine eng = new SpellEngine();
         AtomicInteger calls = new AtomicInteger();
-        eng.visibilityUpdater = u -> calls.incrementAndGet();
+        SpellEngine eng = new SpellEngine(SpellWiring.defaults().withVisibilityUpdater(u -> calls.incrementAndGet()));
         Player p = new Player();
         eng.apply(p, p, eng.info(SpellEngine.SPELL_STEALTH));
         assertEquals(1, calls.get());
@@ -85,9 +83,8 @@ class SpellEngineVisibilityTest {
 
     @Test
     void unapplyWhenVisibilityExtraShouldNotifyEvenIfPrimaryDoesNot() {
-        SpellEngine eng = new SpellEngine();
         AtomicInteger calls = new AtomicInteger();
-        eng.visibilityUpdater = u -> calls.incrementAndGet();
+        SpellEngine eng = new SpellEngine(SpellWiring.defaults().withVisibilityUpdater(u -> calls.incrementAndGet()));
         eng.putTemplate(900_200, SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_MOD_RESISTANCE,
                 16, 0, 10, 10, 0f, 0, 0, 0, 30_000,
                 SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STEALTH, 0, 0,
@@ -101,9 +98,8 @@ class SpellEngineVisibilityTest {
 
     @Test
     void unapplyWhenPrimaryVisibilityAndNonVisibilityExtraShouldShortCircuitOr() {
-        SpellEngine eng = new SpellEngine();
         AtomicInteger calls = new AtomicInteger();
-        eng.visibilityUpdater = u -> calls.incrementAndGet();
+        SpellEngine eng = new SpellEngine(SpellWiring.defaults().withVisibilityUpdater(u -> calls.incrementAndGet()));
         eng.putTemplate(900_201, SpellEngine.EFFECT_APPLY_AURA, AuraEngine.SPELL_AURA_MOD_STEALTH,
                 0, 0, 0, 0, 0f, 0, 0, 0, 30_000,
                 SpellEngine.EFFECT_APPLY_AURA, SpellEngine.SPELL_AURA_MOD_RESISTANCE, 16, 0,
@@ -117,9 +113,8 @@ class SpellEngineVisibilityTest {
 
     @Test
     void applyAreaAuraWhenStealthShouldNotifyVisibility() {
-        SpellEngine eng = new SpellEngine();
         AtomicInteger calls = new AtomicInteger();
-        eng.visibilityUpdater = u -> calls.incrementAndGet();
+        SpellEngine eng = new SpellEngine(SpellWiring.defaults().withVisibilityUpdater(u -> calls.incrementAndGet()));
         eng.putTemplate(900_202, SpellEngine.EFFECT_APPLY_AREA_AURA_PARTY, AuraEngine.SPELL_AURA_MOD_STEALTH,
                 0, 0, 0, 0, 0f, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);

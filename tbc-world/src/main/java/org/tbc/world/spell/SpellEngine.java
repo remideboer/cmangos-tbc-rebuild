@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 import org.tbc.common.Codes;
 import org.tbc.common.WowBuffer;
 import org.tbc.world.content.Content;
-import org.tbc.world.content.SkillLineAbility;
 import org.tbc.world.combat.MainhandWeaponStats;
 import org.tbc.world.entity.Corpse;
 import org.tbc.world.entity.Creature;
@@ -35,7 +34,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
-import java.util.function.IntSupplier;
 
 /** CMSG_CAST_SPELL + SMSG_CAST_RESULT 0x130. SPELL_CAST_OK 0xFF is never sent. */
 public final class SpellEngine {
@@ -465,26 +463,24 @@ public final class SpellEngine {
     private BiConsumer<Integer, byte[]> effectSend;
     /** True when this cast's STANDING_CANCELS aura moved the target from stand to sit. */
     private boolean satFromStandingCancel;
-    /**
-     * After MOD_STEALTH / MOD_INVISIBILITY apply or unapply — World.updateObjectVisibility
-     * (CMaNGOS UpdateVisibilityAndView). Default no-op for domain unit tests.
-     */
-    public Consumer<Unit> visibilityUpdater = u -> { };
-    /** SkillLineAbility bands for UpdateCraftSkill after CREATE_ITEM. */
-    public SkillLineAbility skillLineAbilities = SkillLineAbility.seeded();
-    /** Item templates for Hero caster-armor scaling (World wires objectMgr). */
-    public org.tbc.world.content.ObjectMgr objectMgr;
-    /** irand(1,1000) for UpdateSkillPro; in-memory World forces success. */
-    public IntSupplier craftSkillRoll = () -> ThreadLocalRandom.current().nextInt(1, 1001);
-    /** Same roll for UpdateGatherSkill after skinning / open-lock gather. */
-    public IntSupplier gatherSkillRoll = () -> ThreadLocalRandom.current().nextInt(1, 1001);
+    /** World-wired collaborators (visibility updater, skill bands, item templates, skill rolls). */
+    private final SpellWiring wiring;
 
     public SpellEngine() {
         this(() -> ThreadLocalRandom.current().nextDouble());
     }
 
     public SpellEngine(DoubleSupplier missRoll) {
+        this(missRoll, SpellWiring.defaults());
+    }
+
+    public SpellEngine(SpellWiring wiring) {
+        this(() -> ThreadLocalRandom.current().nextDouble(), wiring);
+    }
+
+    public SpellEngine(DoubleSupplier missRoll, SpellWiring wiring) {
         this.missRoll = missRoll;
+        this.wiring = wiring;
         spells.put(HEROIC_STRIKE, new SpellInfo(HEROIC_STRIKE, EFFECT_WEAPON_DAMAGE, 0, 0, 150, 1, 3, 5f)
                 .withPowerType(Player.POWER_RAGE));
         // Spell.dbc StartRecoveryTime 1500 / StartRecoveryCategory 133; on-next-swing Heroic Strike has none.
@@ -759,10 +755,12 @@ public final class SpellEngine {
     }
 
     public static SpellEngine alwaysHit() {
-        SpellEngine eng = new SpellEngine(() -> 1.0);
-        eng.craftSkillRoll = () -> 1;
-        eng.gatherSkillRoll = () -> 1;
-        return eng;
+        return alwaysHit(SpellWiring.defaults());
+    }
+
+    /** Deterministic engine: every miss roll hits and every skill roll succeeds. */
+    public static SpellEngine alwaysHit(SpellWiring wiring) {
+        return new SpellEngine(() -> 1.0, wiring.alwaysSucceedSkillRolls());
     }
 
     public SpellInfo info(int id) {
@@ -1555,7 +1553,7 @@ public final class SpellEngine {
             }
         }
         if (vis) {
-            visibilityUpdater.accept(target);
+            wiring.visibilityUpdater().accept(target);
         }
     }
 
@@ -1995,7 +1993,7 @@ public final class SpellEngine {
                 || sp.effect == EFFECT_WEAPON_DAMAGE_NOSCHOOL) {
             int dmg = Math.max(1, (sp.minDmg + sp.maxDmg) / 2);
             if (sp.effect == EFFECT_SCHOOL_DAMAGE && caster instanceof Player cp) {
-                dmg = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, dmg, sp, objectMgr);
+                dmg = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, dmg, sp, wiring.objectMgr());
             }
             target.setHealth(target.health() - dmg);
             return dmg;
@@ -2007,7 +2005,7 @@ public final class SpellEngine {
                 heal += heal / 2;
             }
             if (caster instanceof Player cp) {
-                heal = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, heal, sp, objectMgr);
+                heal = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, heal, sp, wiring.objectMgr());
             }
             target.setHealth(target.health() + heal);
             return 0;
@@ -2025,7 +2023,7 @@ public final class SpellEngine {
             addOrRefreshAuraHolder(target, caster, sp, nowMs);
             auras.apply(target, sp);
             if (affectsVisibility(sp)) {
-                visibilityUpdater.accept(target);
+                wiring.visibilityUpdater().accept(target);
             }
             return 0;
         }
@@ -2037,7 +2035,7 @@ public final class SpellEngine {
             addOrRefreshAuraHolder(target, caster, sp, nowMs);
             auras.apply(target, sp);
             if (affectsVisibility(sp)) {
-                visibilityUpdater.accept(target);
+                wiring.visibilityUpdater().accept(target);
             }
             return 0;
         }
@@ -2062,7 +2060,7 @@ public final class SpellEngine {
             long guid = target instanceof Player p ? p.items.size() + 1L : 0;
             Item created = createItem(target, sp.misc(), count, guid);
             if (created != null && caster instanceof Player p) {
-                p.updateCraftSkill(sp.id, skillLineAbilities, craftSkillRoll);
+                p.updateCraftSkill(sp.id, wiring.skillLineAbilities(), wiring.craftSkillRoll());
             }
             return 0;
         }
@@ -2669,7 +2667,7 @@ public final class SpellEngine {
         int skillId = skillForLockType(lockType);
         int pure = skillId == 0 ? 0 : p.skillValue(skillId);
         if (pure > 0) {
-            p.updateGatherSkill(skillId, pure, 1, 1, gatherSkillRoll);
+            p.updateGatherSkill(skillId, pure, 1, 1, wiring.gatherSkillRoll());
         }
         p.showOpenLockLoot(item.guid);
     }
@@ -3014,7 +3012,7 @@ public final class SpellEngine {
         if (pure > 0) {
             int reqValue = c.level < 10 ? 0 : c.level < 20 ? (c.level - 10) * 10 : c.level * 5;
             int mult = c.rank > 0 ? 2 : 1;
-            p.updateGatherSkill(skill, pure, reqValue, mult, gatherSkillRoll);
+            p.updateGatherSkill(skill, pure, reqValue, mult, wiring.gatherSkillRoll());
         }
         p.showSkinningLoot(c.guid);
     }
@@ -3787,7 +3785,7 @@ public final class SpellEngine {
         if (sp.aura == SPELL_AURA_PERIODIC_DAMAGE) {
             int dmg = (sp.minDmg + sp.maxDmg) / 2;
             if (caster instanceof Player cp) {
-                dmg = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, dmg, sp, objectMgr);
+                dmg = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, dmg, sp, wiring.objectMgr());
             }
             int before = target.health();
             target.setHealth(before - dmg);

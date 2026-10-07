@@ -15,8 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SpellEngineCraftSkillTest {
     @Test
     void applyWhenCreateItemCraftSpellShouldRaiseBlacksmithing() {
-        SpellEngine eng = SpellEngine.alwaysHit();
-        eng.skillLineAbilities = SkillLineAbility.seeded();
+        SpellEngine eng = SpellEngine.alwaysHit(
+                SpellWiring.defaults().withSkillLineAbilities(SkillLineAbility.seeded()));
         Player p = new Player();
         p.guid = 1;
         p.learnSkill(Content.SKILL_BLACKSMITHING, 1, 75, 1);
