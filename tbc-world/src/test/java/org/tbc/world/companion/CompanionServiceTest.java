@@ -638,6 +638,108 @@ class CompanionServiceTest {
     }
 
     @Test
+    void tryAutoCastWhenManaTapOnPreyShouldDrainManaNotHealth() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, Player.CLASS_MAGE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        alt.spells.add(28734);
+        alt.actionButtons[0] = 28734;
+        alt.setInt(UpdateFields.UNIT_FIELD_POWER1, 200);
+        alt.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 200);
+        world.characters.save(alt);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        body.x = owner.x;
+        body.y = owner.y;
+        body.z = owner.z;
+        int bodyHp = body.health();
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000F1L;
+        mob.setHealth(40);
+        mob.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 100);
+        mob.setInt(UpdateFields.UNIT_FIELD_POWER1, 100);
+        mob.mapId = owner.mapId;
+        mob.x = owner.x + 5f;
+        mob.y = owner.y;
+        mob.z = owner.z;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        owner.pet.victim = mob.guid;
+        owner.companion.requestSpell(28734, mob.guid);
+        sink.last.clear();
+
+        CompanionBehavior.tick(world, owner, 50);
+
+        assertEquals(40, mob.health(), "Mana Tap must not strip HP");
+        assertTrue(mob.getInt(UpdateFields.UNIT_FIELD_POWER1) < 100, "Mana Tap drains mana");
+        assertFalse(sink.last.containsKey(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG),
+                "power drain is not a damage combat-log line");
+        assertEquals(bodyHp, body.health());
+        assertTrue(body.alive());
+    }
+
+    @Test
+    void tryAutoCastWhenVictimIsCompanionBodyShouldNotDamageSelf() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, Player.CLASS_MAGE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        alt.spells.add(28734);
+        alt.actionButtons[0] = 28734;
+        world.characters.save(alt);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        int hpBefore = body.health();
+        owner.pet.victim = body.guid;
+        owner.companion.requestSpell(28734, body.guid);
+        sink.last.clear();
+
+        CompanionBehavior.tick(world, owner, 50);
+
+        assertEquals(hpBefore, body.health(), "companion must not damage herself");
+        assertTrue(body.alive());
+        assertEquals(0L, owner.pet.victim, "self victim must be cleared");
+    }
+
+    @Test
+    void tryAutoCastWhenOnlyManaTapEnabledShouldNotAutoCastAsDamage() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, Player.CLASS_MAGE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        alt.spells.add(28734);
+        alt.actionButtons[0] = 28734;
+        world.characters.save(alt);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        body.x = owner.x;
+        body.y = owner.y;
+        body.z = owner.z;
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000F2L;
+        mob.setHealth(40);
+        mob.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 100);
+        mob.setInt(UpdateFields.UNIT_FIELD_POWER1, 100);
+        mob.mapId = owner.mapId;
+        mob.x = owner.x + 5f;
+        mob.y = owner.y;
+        mob.z = owner.z;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        owner.victim = mob.guid;
+        sink.last.clear();
+
+        CompanionBehavior.tick(world, owner, 50);
+
+        assertTrue(mob.health() > 0 && mob.health() >= 30,
+                "Mana Tap must not auto-cast as a 50 HP strip; melee-only is fine, hp=" + mob.health());
+        assertFalse(sink.last.containsKey(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG),
+                "Mana Tap must not be auto-picked as a damage spell");
+    }
+
+    @Test
     void behaviorWhenRangedAutoSpellReadyShouldHoldCastingRange() {
         World world = World.inMemory();
         Sink sink = login(world, "Owner");

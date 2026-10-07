@@ -77,6 +77,15 @@ public final class CompanionBehavior {
             }
             return;
         }
+        if (isFriendlyCompanionTarget(owner, body, prey)) {
+            owner.pet.victim = 0;
+            companion.clearRequestedSpell();
+            clearCombatMotion(body);
+            if (owner.pet.commandState == PetHandlerBar.COMMAND_FOLLOW) {
+                followOwner(world, owner, body);
+            }
+            return;
+        }
         owner.pet.victim = target;
         markCombatTarget(body, prey);
         AutoCastChoice autoCast = autoCastChoice(world, owner, prey);
@@ -144,6 +153,11 @@ public final class CompanionBehavior {
         if (companion.castCooldownMs > 0 || owner.session == null) {
             return false;
         }
+        if (isFriendlyCompanionTarget(owner, body, prey)) {
+            owner.pet.victim = 0;
+            companion.clearRequestedSpell();
+            return false;
+        }
         Player snap = companion.snapshot();
         int spellId = choice.spellId();
         SpellEngine.SpellInfo sp = choice.spell();
@@ -166,14 +180,22 @@ public final class CompanionBehavior {
         byte[] damageLog = null;
         byte[] hpPayload = null;
         int hpOpcode = 0;
-        if (sp.minDmg() > 0 || sp.maxDmg() > 0) {
-            dmg = Math.max(1, (sp.minDmg() + sp.maxDmg()) / 2);
-            world.onCreatureAttackedBySpell(owner, prey, dmg);
-            prey.setHealth(Math.max(0, prey.health() - dmg));
-            damageLog = world.spells.encodeDamageLog(prey.guid, owner.pet.guid, sp, dmg);
-            var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));
-            hpOpcode = hp.opcode();
-            hpPayload = hp.payload();
+        long now = world.nowMs();
+        if (isCombatDamageEffect(sp.effect())) {
+            dmg = world.spells.apply(body, prey, sp, now);
+            if (dmg > 0) {
+                world.onCreatureAttackedBySpell(owner, prey, dmg);
+                damageLog = world.spells.encodeDamageLog(prey.guid, owner.pet.guid, sp, dmg);
+                var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));
+                hpOpcode = hp.opcode();
+                hpPayload = hp.payload();
+            }
+        } else if (sp.effect() == SpellEngine.EFFECT_POWER_DRAIN) {
+            int amount = Math.max(0, (sp.minDmg() + sp.maxDmg()) / 2);
+            // Energize companion snapshot mana (CMaNGOS caster≠target); never strip HP.
+            world.spells.powerDrain(snap, prey, amount);
+        } else {
+            world.spells.apply(body, prey, sp, now);
         }
         LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
         viewers.put(owner.guid, owner);
@@ -208,6 +230,11 @@ public final class CompanionBehavior {
     }
 
     private static AutoCastChoice autoCastChoice(World world, Player owner, Creature prey) {
+        if (isFriendlyCompanionTarget(owner, owner.companion.worldBody(), prey)) {
+            owner.pet.victim = 0;
+            owner.companion.clearRequestedSpell();
+            return null;
+        }
         Player snap = owner.companion.snapshot();
         int requested = owner.companion.requestedSpellId();
         if (requested != 0 && owner.companion.requestedSpellTarget() == prey.guid) {
@@ -228,7 +255,7 @@ public final class CompanionBehavior {
                 continue;
             }
             SpellEngine.SpellInfo sp = world.spells.info(spellId);
-            if (sp == null) {
+            if (sp == null || !isCombatDamageEffect(sp.effect())) {
                 continue;
             }
             if (!hasPower(snap, sp)) {
@@ -237,6 +264,26 @@ public final class CompanionBehavior {
             return new AutoCastChoice(spellId, sp, false);
         }
         return null;
+    }
+
+    /** Companion must never cast harmful effects at herself or the owner. */
+    private static boolean isFriendlyCompanionTarget(Player owner, Creature body, Creature prey) {
+        if (owner == null || prey == null) {
+            return true;
+        }
+        if (body != null && prey.guid == body.guid) {
+            return true;
+        }
+        if (owner.pet != null && prey.guid == owner.pet.guid) {
+            return true;
+        }
+        return prey.guid == owner.guid;
+    }
+
+    private static boolean isCombatDamageEffect(int effect) {
+        return effect == SpellEngine.EFFECT_SCHOOL_DAMAGE
+                || effect == SpellEngine.EFFECT_WEAPON_DAMAGE
+                || effect == SpellEngine.EFFECT_WEAPON_DAMAGE_NOSCHOOL;
     }
 
     private static boolean hasPower(Player snap, SpellEngine.SpellInfo spell) {
