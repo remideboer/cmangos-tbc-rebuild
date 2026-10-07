@@ -18,6 +18,8 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.map.GameMap;
 import org.tbc.world.map.GraveyardManager;
+import org.tbc.world.spell.effects.EffectHandler;
+import org.tbc.world.spell.effects.EffectTable;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
@@ -459,6 +461,8 @@ public final class SpellEngine {
     private final Map<Integer, Integer> auraInterruptFlags = new HashMap<>();
     private final DoubleSupplier missRoll;
     private final AuraEngine auras = new AuraEngine();
+    /** Effect families moved out of {@link #apply}; effects it does not list stay inline below. */
+    private static final EffectTable EFFECTS = EffectTable.standard();
     /** Wire sink while {@link #finishCast} runs effects (dispel VALUES). Null outside cast. */
     private BiConsumer<Integer, byte[]> effectSend;
     /** True when this cast's STANDING_CANCELS aura moved the target from stand to sit. */
@@ -1635,355 +1639,17 @@ public final class SpellEngine {
         if (NO_OP_EFFECTS.contains(sp.effect)) {
             return 0;
         }
-        if (sp.effect == EFFECT_INSTAKILL) {
-            instakill(target);
-            return 0;
+        EffectHandler handler = EFFECTS.get(sp.effect);
+        if (handler != null) {
+            return handler.apply(this, caster, target, sp, nowMs);
         }
         if (sp.effect == EFFECT_TELEPORT_UNITS) {
             // Player NearTeleportTo is World.teleport (MSG_MOVE_TELEPORT_ACK / SMSG_NEW_WORLD).
             // Domain NearTeleportTo for hearthstone: callers use teleportUnits() directly.
             return 0;
         }
-        if (sp.effect == EFFECT_TELEPORT_UNITS_FACE_CASTER) {
-            teleportUnitsFaceCaster(caster, target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_HEALTH_LEECH) {
-            return healthLeech(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-        }
-        if (sp.effect == EFFECT_POWER_DRAIN) {
-            return powerDrain(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-        }
-        if (sp.effect == EFFECT_ADD_COMBO_POINTS) {
-            addComboPoints(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_INTERRUPT_CAST) {
-            interruptCast(target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_SANCTUARY) {
-            sanctuary(target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_DUEL) {
-            duel(caster, target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_STUCK) {
-            stuck(caster);
-            return 0;
-        }
-        if (sp.effect == EFFECT_SUMMON_PLAYER) {
-            summonPlayer(caster, target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_ACTIVATE_OBJECT) {
-            GameObject go = caster instanceof Player p ? p.spellGameObjectTarget() : null;
-            activateObject(go, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_ADD_EXTRA_ATTACKS) {
-            addExtraAttacks(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_BIND) {
-            bindHearth(target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_ATTACK_ME) {
-            attackMe(caster, target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_QUEST_COMPLETE) {
-            questComplete(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_RESURRECT) {
-            resurrect(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_RESURRECT_NEW) {
-            resurrectNew(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_SPIRIT_HEAL) {
-            spiritHeal(target, sp.id);
-            return 0;
-        }
-        if (sp.effect == EFFECT_ENVIRONMENTAL_DAMAGE) {
-            return environmentalDamage(caster, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-        }
         if (sp.effect == EFFECT_DISPEL) {
             dispel(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), effectSend);
-            return 0;
-        }
-        if (sp.effect == EFFECT_POWER_BURN) {
-            return powerBurn(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), sp.misc());
-        }
-        if (sp.effect == EFFECT_THREAT) {
-            addThreat(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_HEAL_PCT) {
-            healPct(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_ENERGIZE_PCT) {
-            energizePct(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2), sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_INEBRIATE) {
-            inebriate(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_QUEST_FAIL) {
-            questFail(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_SELF_RESURRECT) {
-            selfResurrect(caster, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_HEAL_MECHANICAL) {
-            healMechanical(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_DESTROY_ALL_TOTEMS) {
-            destroyAllTotems(caster);
-            return 0;
-        }
-        if (sp.effect == EFFECT_DURABILITY_DAMAGE) {
-            durabilityDamage(target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_DURABILITY_DAMAGE_PCT) {
-            durabilityDamagePct(target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_DUAL_WIELD) {
-            dualWield(target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_SKILL_STEP) {
-            skillStep(target, sp.misc(), (sp.minDmg + sp.maxDmg) / 2);
-            return 0;
-        }
-        if (sp.effect == EFFECT_PARRY) {
-            enableParry(caster);
-            return 0;
-        }
-        if (sp.effect == EFFECT_BLOCK) {
-            enableBlock(caster);
-            return 0;
-        }
-        if (sp.effect == EFFECT_SPAWN) {
-            spawn(caster);
-            return 0;
-        }
-        if (sp.effect == EFFECT_PROFICIENCY) {
-            proficiency(caster, sp.equippedItemClass(), sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_WEAPON_PERCENT_DAMAGE) {
-            return weaponPercentDamage(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-        }
-        if (sp.effect == EFFECT_NORMALIZED_WEAPON_DMG) {
-            return normalizedWeaponDamage(caster, target);
-        }
-        if (sp.effect == EFFECT_DISTRACT) {
-            float destX = caster != null ? caster.x : target.x;
-            float destY = caster != null ? caster.y : target.y;
-            distract(target, destX, destY);
-            return 0;
-        }
-        if (sp.effect == EFFECT_DISPEL_MECHANIC) {
-            dispelMechanic(target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_SUMMON_DEAD_PET) {
-            summonDeadPet(caster);
-            return 0;
-        }
-        if (sp.effect == EFFECT_CREATE_PET) {
-            createTamedPet(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_TAME_CREATURE) {
-            tameCreature(caster, target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_SUMMON_PET) {
-            summonPet(caster, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_SEND_TAXI) {
-            sendTaxi(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_KILL_CREDIT_GROUP) {
-            killCreditGroup(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_CHARGE) {
-            charge(caster, target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_CHARGE_DEST) {
-            chargeDest(caster, sp.maxRange);
-            return 0;
-        }
-        if (sp.effect == EFFECT_OPEN_LOCK) {
-            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
-            openLock(caster, item, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_OPEN_LOCK_ITEM) {
-            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
-            openLock(caster, item, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_SUMMON_CHANGE_ITEM) {
-            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
-            summonChangeItem(caster, item, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_ENCHANT_HELD_ITEM) {
-            enchantHeldItem(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_ENCHANT_ITEM) {
-            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
-            enchantItem(caster, item, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_ENCHANT_ITEM_TEMPORARY) {
-            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
-            enchantItemTemporary(caster, item, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_PROSPECTING) {
-            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
-            prospecting(caster, item);
-            return 0;
-        }
-        if (sp.effect == EFFECT_DISENCHANT) {
-            Item item = caster instanceof Player p ? p.spellItemTarget() : null;
-            disenchant(caster, item);
-            return 0;
-        }
-        if (sp.effect == EFFECT_FEED_PET) {
-            Item food = caster instanceof Player p ? p.spellItemTarget() : null;
-            feedPet(caster, food, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_PICKPOCKET) {
-            pickPocket(caster, target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_SKINNING) {
-            skinning(caster, target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_SKIN_PLAYER_CORPSE) {
-            skinPlayerCorpse(caster, target);
-            return 0;
-        }
-        if (sp.effect == EFFECT_TELEPORT_GRAVEYARD) {
-            teleportGraveyard(target, GraveyardManager.seeded());
-            return 0;
-        }
-        if (sp.effect == EFFECT_DISMISS_PET) {
-            dismissPet(caster);
-            return 0;
-        }
-        if (sp.effect == EFFECT_PLAY_MUSIC) {
-            playMusic(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_PLAY_SOUND) {
-            playSound(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_PULL_TOWARDS) {
-            pullTowards(caster, target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_PULL_TOWARDS_DEST) {
-            if (caster != null) {
-                float destX = caster.x + sp.maxRange * (float) Math.cos(caster.o);
-                float destY = caster.y + sp.maxRange * (float) Math.sin(caster.o);
-                pullTowardsDest(target, destX, destY, caster.z, sp.misc());
-            }
-            return 0;
-        }
-        if (sp.effect == EFFECT_LEAP) {
-            leapForward(target, sp.maxRange);
-            return 0;
-        }
-        if (sp.effect == EFFECT_LEAP_BACK) {
-            leapBack(caster, target, sp.misc() / 10f, (sp.minDmg + sp.maxDmg) / 2 / 10f);
-            return 0;
-        }
-        if (sp.effect == EFFECT_STEAL_BENEFICIAL_BUFF) {
-            stealBeneficialBuff(caster, target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_UNLEARN_SPECIALIZATION) {
-            unlearnSpecialization(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_KNOCK_BACK) {
-            knockBack(caster, target, sp.misc() / 10f, Math.max(0, (sp.minDmg + sp.maxDmg) / 2) / 10f);
-            return 0;
-        }
-        if (sp.effect == EFFECT_KNOCKBACK_FROM_POSITION) {
-            if (caster != null) {
-                knockBackFromPosition(target, caster.x, caster.y,
-                        sp.misc() / 10f, Math.max(0, (sp.minDmg + sp.maxDmg) / 2) / 10f);
-            }
-            return 0;
-        }
-        if (sp.effect == EFFECT_MODIFY_THREAT_PERCENT) {
-            modifyThreatPercent(caster, target, (sp.minDmg + sp.maxDmg) / 2);
-            return 0;
-        }
-        if (sp.effect == EFFECT_REPUTATION) {
-            modifyReputation(target, sp.misc(), (sp.minDmg + sp.maxDmg) / 2);
-            return 0;
-        }
-        if (sp.effect == EFFECT_SUMMON_OBJECT_SLOT1) {
-            summonObjectSlot(caster, 0, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_SUMMON_OBJECT_SLOT2) {
-            summonObjectSlot(caster, 1, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_SUMMON_OBJECT_WILD) {
-            summonObjectWild(caster, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_TRANS_DOOR) {
-            transmitted(caster, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_SUMMON) {
-            summon(caster, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_PERSISTENT_AREA_AURA) {
-            if (caster != null) {
-                persistentAreaAura(caster, sp.id, caster.x, caster.y, caster.z, 0f);
-            }
-            return 0;
-        }
-        if (sp.effect == EFFECT_SEND_EVENT) {
-            sendEvent(caster, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_REDIRECT_THREAT) {
-            redirectThreat(caster, target);
             return 0;
         }
         if (sp.effect == EFFECT_SCHOOL_DAMAGE && missRoll.getAsDouble() < magicMissChance(caster)) {
@@ -2008,10 +1674,6 @@ public final class SpellEngine {
                 heal = org.tbc.world.classless.CasterArmorPolicy.scaleCasterAmount(cp, heal, sp, wiring.objectMgr());
             }
             target.setHealth(target.health() + heal);
-            return 0;
-        }
-        if (sp.effect == EFFECT_HEAL_MAX_HEALTH) {
-            target.setHealth(target.maxHealth());
             return 0;
         }
         if (sp.effect == EFFECT_APPLY_AURA) {
@@ -2039,59 +1701,12 @@ public final class SpellEngine {
             }
             return 0;
         }
-        if (sp.effect == EFFECT_ENERGIZE) {
-            energize(target, Math.max(1, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_ADD_HONOR) {
-            addHonor(target, Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-            return 0;
-        }
-        if (sp.effect == EFFECT_LEARN_SPELL) {
-            learnSpell(target, sp.misc());
-            return 0;
-        }
-        if (sp.effect == EFFECT_LEARN_PET_SPELL) {
-            learnPetSpell(caster, sp.misc());
-            return 0;
-        }
         if (sp.effect == EFFECT_CREATE_ITEM) {
             int count = Math.max(0, (sp.minDmg + sp.maxDmg) / 2);
             long guid = target instanceof Player p ? p.items.size() + 1L : 0;
             Item created = createItem(target, sp.misc(), count, guid);
             if (created != null && caster instanceof Player p) {
                 p.updateCraftSkill(sp.id, wiring.skillLineAbilities(), wiring.craftSkillRoll());
-            }
-            return 0;
-        }
-        if (sp.effect == EFFECT_TRIGGER_SPELL) {
-            SpellInfo nested = info(sp.misc());
-            if (nested == null) {
-                return 0;
-            }
-            return apply(caster, target, nested);
-        }
-        if (sp.effect == EFFECT_TRIGGER_MISSILE) {
-            return triggerMissile(caster, target, sp.misc());
-        }
-        if (sp.effect == EFFECT_TRIGGER_SPELL_2) {
-            return triggerRitualOfSummoning(caster, target, sp.misc());
-        }
-        if (sp.effect == EFFECT_SUMMON_RAF_FRIEND) {
-            return summonRafFriend(caster, sp.misc());
-        }
-        if (sp.effect == EFFECT_FORCE_CAST) {
-            return forceCast(target, sp.misc());
-        }
-        if (sp.effect == EFFECT_FORCE_CAST_WITH_VALUE) {
-            return forceCastWithValue(target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-        }
-        if (sp.effect == EFFECT_TRIGGER_SPELL_WITH_VALUE) {
-            return triggerSpellWithValue(caster, target, sp.misc(), Math.max(0, (sp.minDmg + sp.maxDmg) / 2));
-        }
-        if (sp.effect == EFFECT_ADD_FARSIGHT) {
-            if (caster instanceof Player p) {
-                addFarsight(p, target.guid);
             }
             return 0;
         }

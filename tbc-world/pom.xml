@@ -67,6 +67,7 @@
                 <include>org/tbc/world/combat/Combat*</include>
                 <include>org/tbc/world/combat/MeleeTable*</include>
                 <include>org/tbc/world/spell/SpellEngine*</include>
+                <include>org/tbc/world/spell/effects/*</include>
                 <include>org/tbc/world/spell/SpellCastTargets*</include>
                 <include>org/tbc/world/content/Content*</include>
               </includes>
@@ -78,6 +79,7 @@
                     <include>org.tbc.world.combat.Combat</include>
                     <include>org.tbc.world.combat.MeleeTable</include>
                     <include>org.tbc.world.spell.SpellEngine</include>
+                    <include>org.tbc.world.spell.effects.*</include>
                     <include>org.tbc.world.spell.SpellCastTargets</include>
                     <include>org.tbc.world.content.Content</include>
                   </includes>
