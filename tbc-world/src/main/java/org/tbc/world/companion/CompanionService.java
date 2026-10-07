@@ -29,6 +29,7 @@ public final class CompanionService {
     public static final String ERR_SELF = "You cannot summon your current character.";
     public static final String ERR_ONLINE = "That character is online.";
     public static final String ERR_ALREADY = "You already have a companion.";
+    public static final String ERR_DEAD = "That character is dead.";
     public static final String ERR_NONE = "You have no companion.";
     public static final String OK_SUMMON = "Companion summoned.";
     public static final String OK_DISMISS = "Companion dismissed.";
@@ -93,6 +94,9 @@ public final class CompanionService {
         Player snap = world.characters.load(owner.accountId, listed.guid, world.objectMgr);
         if (snap == null) {
             return ERR_NOT_FOUND;
+        }
+        if (snap.ghost || !snap.alive()) {
+            return ERR_DEAD;
         }
         world.characters.refreshCompanionAbilities(snap);
         snap.session = null;
@@ -165,6 +169,7 @@ public final class CompanionService {
         Companion c = owner.companion;
         c.syncBarFromPet();
         savedBars.put(c.sourceGuid(), c.companionBar().clone());
+        writeWorldStateToSnapshot(c, owner);
         world.characters.save(c.snapshot());
         despawnWorldBody(world, owner, c.worldBody());
         owner.companion = null;
@@ -179,6 +184,28 @@ public final class CompanionService {
             s.send(Opcodes.SMSG_PET_SPELLS, hide.array());
         }
         CompanionPartyAddon.pushState(s);
+    }
+
+    /** Write companion map position and combat state onto the character snapshot before save. */
+    static void writeWorldStateToSnapshot(Companion c, Player owner) {
+        if (c == null) {
+            return;
+        }
+        Player snap = c.snapshot();
+        Creature body = c.worldBody();
+        if (snap == null || body == null) {
+            return;
+        }
+        snap.mapId = body.mapId;
+        snap.instanceId = owner != null ? owner.instanceId : snap.instanceId;
+        if (owner != null && owner.zoneId != 0) {
+            snap.zoneId = owner.zoneId;
+        }
+        snap.relocate(body.x, body.y, body.z, body.o);
+        snap.setHealth(body.health());
+        if (snap.health() <= 0) {
+            snap.setGhost(false);
+        }
     }
 
     static Creature spawnWorldBody(World world, Player owner, Player snap, Pet pet) {
@@ -197,9 +224,13 @@ public final class CompanionService {
         c.playerControlledPet = true;
         c.temporarySummon = true;
         int display = snap.displayId > 0 ? snap.displayId : 49;
-        int hp = Math.max(1, snap.maxHealth() > 0 ? snap.maxHealth() : 100);
+        int maxHp = Math.max(1, snap.maxHealth() > 0 ? snap.maxHealth() : 100);
         int faction = owner.faction != 0 ? owner.faction : snap.faction;
-        c.applyTemplate(c.entry, c.name, display, faction, hp, Math.max(1, snap.level));
+        c.applyTemplate(c.entry, c.name, display, faction, maxHp, Math.max(1, snap.level));
+        int curHp = snap.health();
+        if (curHp > 0 && curHp < maxHp) {
+            c.setHealth(curHp);
+        }
         c.setGuid(UpdateFields.UNIT_FIELD_SUMMONEDBY, owner.guid);
         c.setGuid(UpdateFields.UNIT_FIELD_CREATEDBY, owner.guid);
         c.setInt(UpdateFields.UNIT_FIELD_PETNUMBER, Guid.low(snap.guid));

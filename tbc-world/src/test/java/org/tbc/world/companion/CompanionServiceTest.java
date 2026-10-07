@@ -369,6 +369,31 @@ class CompanionServiceTest {
     }
 
     @Test
+    void summonWhenAltIsGhostShouldRefuse() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alt.setGhost(true);
+        alt.setHealth(1);
+        world.characters.save(alt);
+        assertEquals(CompanionService.ERR_DEAD, world.companions.summon(world, owner, "Alt"));
+        assertNull(owner.companion);
+    }
+
+    @Test
+    void summonWhenAltHasNoHealthShouldRefuse() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        alt.setHealth(0);
+        world.characters.save(alt);
+        assertEquals(CompanionService.ERR_DEAD, world.companions.summon(world, owner, "Alt"));
+        assertNull(owner.companion);
+    }
+
+    @Test
     void dismissWhenSummonedShouldHideBarAndClear() {
         World world = World.inMemory();
         Sink sink = login(world, "Owner");
@@ -393,6 +418,53 @@ class CompanionServiceTest {
         sink.session.logout(world, true);
         assertNull(owner.companion);
         assertNull(owner.pet);
+    }
+
+    @Test
+    void logoutWhenCompanionMovedShouldPersistPositionAndHealthOnAlt() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        long altGuid = alt.guid;
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        body.mapId = owner.mapId;
+        body.relocate(10381.6f, -6399.23f, 38.5306f, 1.2f);
+        body.setHealth(Math.max(1, body.maxHealth() / 2));
+        int savedHp = body.health();
+        sink.session.logout(world, true);
+
+        Player loaded = world.characters.load(ACC.id(), altGuid, world.objectMgr);
+        assertEquals(10381.6f, loaded.x, 0.01f);
+        assertEquals(-6399.23f, loaded.y, 0.01f);
+        assertEquals(38.5306f, loaded.z, 0.01f);
+        assertEquals(1.2f, loaded.o, 0.01f);
+        assertEquals(owner.mapId, loaded.mapId);
+        assertEquals(savedHp, loaded.health());
+        assertFalse(loaded.ghost);
+        assertTrue(loaded.alive());
+    }
+
+    @Test
+    void logoutWhenCompanionDiedShouldPersistDeadAlt() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        long altGuid = alt.guid;
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        body.relocate(100f, 200f, 10f, 0f);
+        body.setHealth(0);
+        sink.session.logout(world, true);
+
+        Player loaded = world.characters.load(ACC.id(), altGuid, world.objectMgr);
+        assertEquals(100f, loaded.x, 0.01f);
+        assertEquals(200f, loaded.y, 0.01f);
+        assertEquals(0, loaded.health());
+        assertFalse(loaded.alive());
+        assertEquals(CompanionService.ERR_DEAD, world.companions.summon(world, owner, "Alt"));
     }
 
     @Test
