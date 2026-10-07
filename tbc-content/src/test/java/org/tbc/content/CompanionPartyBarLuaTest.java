@@ -67,6 +67,15 @@ class CompanionPartyBarLuaTest {
         assertTrue(lua.contains("CompanionPartyBarDB.buttonsBuilt"));
     }
 
+    @Test
+    void companionPartyBarWhenSpellSlotRightClickedShouldToggleAutocastAndHighlightEdge() throws Exception {
+        String lua = Files.readString(addonLua());
+
+        assertTrue(lua.contains("\"RightButtonUp\""));
+        assertTrue(lua.contains("\"Autocast;\""));
+        assertTrue(lua.contains("border:SetVertexColor(1, 0.82, 0)"));
+    }
+
     private static Path addonLua() {
         Path lua = Path.of(System.getProperty("user.dir"))
                 .resolve("../content/addons/CompanionPartyBar/CompanionPartyBar.lua")

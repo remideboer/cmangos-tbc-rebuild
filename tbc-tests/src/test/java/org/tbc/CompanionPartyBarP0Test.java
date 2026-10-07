@@ -15,6 +15,7 @@ import org.tbc.world.world.World;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -89,6 +90,42 @@ class CompanionPartyBarP0Test {
         sendAddon(f.client, f.world, "Action;11;1");
 
         assertEquals(0L, f.owner.pet.victim);
+    }
+
+    @Test
+    void tpCompUi004AutocastToggleShouldFlipSlotAndPushState() {
+        Fixture f = fixture();
+        sendAddon(f.client, f.world, "enable");
+        f.world.companions.summon(f.world, f.owner, "Acantha");
+        f.client.clear();
+
+        sendAddon(f.client, f.world, "Autocast;4");
+
+        assertEquals(SpellEngine.FIREBALL + "," + PetHandler.ACT_DISABLED,
+                lastCompanionState(f.client).split(";")[6]);
+        assertEquals(PetHandler.ACT_DISABLED, (f.owner.pet.actionBar[3] >>> 24) & 0xFF);
+
+        f.client.clear();
+        sendAddon(f.client, f.world, "Autocast;4");
+
+        assertEquals(SpellEngine.FIREBALL + "," + PetHandler.ACT_ENABLED,
+                lastCompanionState(f.client).split(";")[6]);
+        assertEquals(PetHandler.ACT_ENABLED, (f.owner.pet.actionBar[3] >>> 24) & 0xFF);
+    }
+
+    @Test
+    void tpCompUi004AutocastOnCommandEmptyOrMalformedSlotShouldBeIgnored() {
+        Fixture f = fixture();
+        sendAddon(f.client, f.world, "enable");
+        f.world.companions.summon(f.world, f.owner, "Acantha");
+        int[] before = f.owner.pet.actionBar.clone();
+
+        sendAddon(f.client, f.world, "Autocast;1");
+        sendAddon(f.client, f.world, "Autocast;7");
+        sendAddon(f.client, f.world, "Autocast;x");
+        sendAddon(f.client, f.world, "Autocast;4;extra");
+
+        assertArrayEquals(before, f.owner.pet.actionBar);
     }
 
     @Test

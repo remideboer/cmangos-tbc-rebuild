@@ -97,9 +97,23 @@ local function savePosition()
     CompanionPartyBarDB.y = y
 end
 
+-- CMaNGOS ActiveStates: ACT_ENABLED 0xC1 (autocast on), ACT_DISABLED 0x81 (autocast off).
+local ACT_ENABLED = 193
+local ACT_DISABLED = 129
+
+local function isSpellSlot(slot)
+    local data = slots[slot]
+    return data ~= nil and data.action ~= 0
+        and (data.actionType == ACT_ENABLED or data.actionType == ACT_DISABLED)
+end
+
 local function sendAction(slot)
     local target = UnitGUID("target") or "0"
     send("Action;" .. slot .. ";" .. target)
+end
+
+local function sendAutocast(slot)
+    send("Autocast;" .. slot)
 end
 
 local function buttonTooltip(button)
@@ -119,6 +133,10 @@ local function buttonTooltip(button)
         if spellRank and spellRank ~= "" then
             GameTooltip:AddLine(spellRank, 0.7, 0.7, 0.7)
         end
+        if isSpellSlot(slot) then
+            local state = data.actionType == ACT_ENABLED and "on" or "off"
+            GameTooltip:AddLine("Autocast: " .. state .. " (right-click to toggle)", 0.7, 0.7, 0.7)
+        end
     end
     GameTooltip:Show()
 end
@@ -129,7 +147,7 @@ local function createButton(slot)
     button:SetHeight(32)
     button:SetFrameLevel(bar:GetFrameLevel() + 2)
     button.slot = slot
-    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
     local buttonBackground = button:CreateTexture(nil, "BACKGROUND")
     buttonBackground:SetAllPoints(button)
@@ -147,6 +165,7 @@ local function createButton(slot)
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetAllPoints(button)
     border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
+    button.border = border
 
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetPoint("TOPLEFT", button, "TOPLEFT", 3, -3)
@@ -162,8 +181,12 @@ local function createButton(slot)
     label:SetShadowOffset(1, -1)
     button.label = label
 
-    button:SetScript("OnClick", function()
-        sendAction(slot)
+    button:SetScript("OnClick", function(_, mouseButton)
+        if mouseButton == "RightButton" and isSpellSlot(slot) then
+            sendAutocast(slot)
+        else
+            sendAction(slot)
+        end
     end)
     button:SetScript("OnEnter", buttonTooltip)
     button:SetScript("OnLeave", function()
@@ -233,6 +256,7 @@ local function updateButton(slot)
     if not button or not data then
         return
     end
+    button.border:SetVertexColor(1, 1, 1)
     if command then
         button.icon:SetTexture(COMMAND_ICONS[slot])
         button.label:SetText(command)
@@ -247,7 +271,13 @@ local function updateButton(slot)
         button:Enable()
         button.background:SetVertexColor(0.12, 0.12, 0.12)
         button.icon:SetVertexColor(1, 1, 1)
-        button.icon:SetAlpha(spellName and 0.80 or 0.35)
+        if data.actionType == ACT_ENABLED then
+            -- Autocast on: gold edge like the stock pet bar's AutoCastable shine.
+            button.border:SetVertexColor(1, 0.82, 0)
+            button.icon:SetAlpha(spellName and 1 or 0.35)
+        else
+            button.icon:SetAlpha(spellName and 0.60 or 0.35)
+        end
     else
         button.icon:SetTexture("Interface\\Buttons\\UI-Quickslot")
         button.label:SetText("-")
@@ -344,7 +374,8 @@ SlashCmdList.COMPANIONPARTYBAR = function(command)
         )
     else
         DEFAULT_CHAT_FRAME:AddMessage(
-            "CompanionPartyBar: drag to move; /cpb show forces visibility; /cpb status shows sync state."
+            "CompanionPartyBar: drag to move; right-click a spell toggles autocast; "
+            .. "/cpb show forces visibility; /cpb status shows sync state."
         )
     end
 end

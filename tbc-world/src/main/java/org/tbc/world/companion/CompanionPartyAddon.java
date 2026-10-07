@@ -31,6 +31,8 @@ public final class CompanionPartyAddon {
             pushState(session);
         } else if (body.startsWith("Action;")) {
             action(session, world, body);
+        } else if (body.startsWith("Autocast;")) {
+            autocast(session, world, body);
         }
         return true;
     }
@@ -80,6 +82,40 @@ public final class CompanionPartyAddon {
         packet.putU64(target);
         PetHandler.action(session, world, packet);
         pushState(session);
+    }
+
+    /** Right-click on a spell slot: same path as CMSG_PET_SPELL_AUTOCAST (pet.md, u64 pet, u32 spell, u8 state). */
+    private static void autocast(WorldSession session, World world, String body) {
+        Player owner = session.player();
+        if (!session.companionPartyAddonEnabled()
+                || owner == null || owner.companion == null || owner.pet == null) {
+            return;
+        }
+        String[] fields = body.split(";", -1);
+        if (fields.length != 2) {
+            return;
+        }
+        int slot;
+        try {
+            slot = Integer.parseInt(fields[1]);
+        } catch (NumberFormatException e) {
+            return;
+        }
+        if (slot < 1 || slot > owner.pet.actionBar.length) {
+            return;
+        }
+        int packed = owner.pet.actionBar[slot - 1];
+        int act = (packed >>> 24) & 0xFF;
+        int spellId = packed & 0xFFFFFF;
+        if (spellId == 0 || (act != PetHandler.ACT_ENABLED && act != PetHandler.ACT_DISABLED)) {
+            return;
+        }
+        WowBuffer packet = new WowBuffer(13);
+        packet.putU64(owner.pet.guid);
+        packet.putU32(spellId);
+        packet.putU8(act == PetHandler.ACT_DISABLED ? 1 : 0);
+        PetHandler.spellAutocast(session, packet);
+        world.companions.onPetBarChanged(owner);
     }
 
     private static long parseGuid(String value) {

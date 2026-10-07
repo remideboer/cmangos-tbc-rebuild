@@ -8,6 +8,8 @@ Companion-only controls for the offline-character companion. The movable frame a
 
 The title is the summoned character's name. Buttons send their slot and the current target GUID through `LANG_ADDON`; the server validates the slot and executes it through the normal pet-action handler.
 
+Right-click a spell button to toggle its autocast, like the stock pet bar. A gold edge means the companion will use that spell on its own in combat; a plain edge means it only casts it when you left-click. The melee Attack ability never appears as a spell: the Attack command already covers it.
+
 ## Install
 
 From `tbc-server` run:

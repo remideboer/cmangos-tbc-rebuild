@@ -42,6 +42,11 @@ public final class CompanionService {
 
     /** ActionButtonType ACTION_BUTTON_SPELL = 0. */
     private static final int ACTION_SPELL = 0;
+    /**
+     * Spell 6603 (Attack). Melee is driven by COMMAND_ATTACK on the pet bar, so the companion
+     * never lists it as a spell (CMaNGOS pets never learn it; IsAutocastable is false).
+     */
+    public static final int MELEE_ATTACK_SPELL = 6603;
 
     private final Map<Long, int[]> savedBars = new HashMap<>();
 
@@ -281,7 +286,8 @@ public final class CompanionService {
         pet.entry = COMPANION_ENTRY_BASE + (Guid.low(snap.guid) & 0xFFFF);
         pet.spells.clear();
         for (int spellId : snap.spells) {
-            if (knownAtLevel(spellId, snap.level, objectMgr)
+            if (spellId != MELEE_ATTACK_SPELL
+                    && knownAtLevel(spellId, snap.level, objectMgr)
                     && hasCompleteRankChain(spellId, snap, objectMgr)) {
                 pet.spells.add(spellId);
             }

@@ -270,6 +270,28 @@ class CompanionServiceTest {
     }
 
     @Test
+    void summonWhenAltKnowsMeleeAttackShouldKeepItOffCompanionSpellsAndBar() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, Player.CLASS_MAGE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        alt.spells.add(CompanionService.MELEE_ATTACK_SPELL);
+        alt.spells.add(SpellEngine.FIREBALL);
+        alt.actionButtons[0] = CompanionService.MELEE_ATTACK_SPELL;
+        alt.actionButtons[1] = SpellEngine.FIREBALL;
+        world.characters.save(alt);
+
+        world.companions.summon(world, owner, "Alt");
+
+        assertFalse(owner.pet.spells.contains(CompanionService.MELEE_ATTACK_SPELL),
+                "Attack command already drives melee");
+        assertTrue(owner.pet.spells.contains(SpellEngine.FIREBALL));
+        assertEquals(SpellEngine.FIREBALL | (PetHandler.ACT_ENABLED << 24),
+                owner.pet.actionBar[PetHandlerBar.SPELL_SLOT_START]);
+    }
+
+    @Test
     void summonWhenKnownSpellRequiresHigherLevelShouldKeepItOffPetBar() {
         World world = World.inMemory();
         Sink sink = login(world, "Owner");
