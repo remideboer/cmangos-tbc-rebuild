@@ -23,6 +23,9 @@ public final class CompanionBehavior {
     private static final float FOLLOW_BROADCAST_DIST_SQ = 0.25f;
     private static final int AUTO_CAST_GCD_MS = 1500;
     private static final int FACING_SPLINE_ID = 1;
+    /** Leave combat and run when at or below 20% max health. */
+    private static final int FLEE_HEALTH_DENOM = 5;
+    private static final float FLEE_YARDS = 18f;
 
     private CompanionBehavior() {}
 
@@ -56,6 +59,14 @@ public final class CompanionBehavior {
             owner.pet.retreating = false;
             return;
         }
+        if (shouldFlee(body)) {
+            if (!companion.fleeing) {
+                fleeFromCombat(world, owner, body);
+                companion.fleeing = true;
+            }
+            return;
+        }
+        companion.fleeing = false;
 
         long target = owner.pet.victim != 0
                 ? owner.pet.victim
@@ -70,8 +81,7 @@ public final class CompanionBehavior {
         }
         Creature prey = world.map(owner.mapId, owner.instanceId).creatures.get(target);
         if (prey == null || !prey.alive()) {
-            owner.pet.victim = 0;
-            clearCombatMotion(body);
+            leaveCombat(world, owner, body, target);
             if (owner.pet.commandState == PetHandlerBar.COMMAND_FOLLOW) {
                 followOwner(world, owner, body);
             }
@@ -139,8 +149,106 @@ public final class CompanionBehavior {
         body.victim = 0;
         body.inCombat = false;
         body.setGuid(UpdateFields.UNIT_FIELD_TARGET, 0);
+        body.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                body.getInt(UpdateFields.UNIT_FIELD_FLAGS) & ~Unit.UNIT_FLAG_IN_COMBAT);
         if (body.motion.type() == MotionMaster.CHASE) {
             body.motion.moveIdle();
+        }
+    }
+
+    static boolean shouldFlee(Creature body) {
+        int max = body.maxHealth();
+        return max > 0 && body.health() * FLEE_HEALTH_DENOM <= max;
+    }
+
+    /**
+     * Drop the current victim, clear IN_COMBAT on the wire, and run away from the prey.
+     */
+    static void fleeFromCombat(World world, Player owner, Creature body) {
+        long preyGuid = owner.pet != null ? owner.pet.victim : body.victim;
+        Creature prey = preyGuid != 0
+                ? world.map(owner.mapId, owner.instanceId).creatures.get(preyGuid) : null;
+        if (owner.pet != null) {
+            owner.pet.victim = 0;
+        }
+        owner.companion.clearRequestedSpell();
+        clearCombatMotion(body);
+        body.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                body.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_FLEEING);
+        float dx = 1f;
+        float dy = 0f;
+        if (prey != null) {
+            dx = body.x - prey.x;
+            dy = body.y - prey.y;
+            float len = (float) Math.hypot(dx, dy);
+            if (len < 0.05f) {
+                dx = 1f;
+                dy = 0f;
+                len = 1f;
+            }
+            dx /= len;
+            dy /= len;
+        }
+        float nx = body.x + dx * FLEE_YARDS;
+        float ny = body.y + dy * FLEE_YARDS;
+        float nz = body.z;
+        byte[] spline = MotionMaster.monsterMove(body, nx, ny, nz, UpdateBuilder.RUN);
+        float ox = body.x;
+        float oy = body.y;
+        body.relocate(nx, ny, nz, body.o);
+        world.map(owner.mapId, owner.instanceId).reindex(body, ox, oy);
+        broadcastMove(world, owner, body, spline);
+        sendLeaveCombat(world, owner, body, preyGuid);
+    }
+
+    /** Prey died or was dropped: stop melee anim on the 8606 client. */
+    public static void leaveCombat(World world, Player owner, Creature body, long preyGuid) {
+        if (owner.pet != null && (preyGuid == 0 || owner.pet.victim == preyGuid || !alivePrey(world, owner, owner.pet.victim))) {
+            owner.pet.victim = 0;
+        }
+        if (owner.companion != null) {
+            owner.companion.fleeing = false;
+        }
+        if (body != null) {
+            body.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                    body.getInt(UpdateFields.UNIT_FIELD_FLAGS) & ~Unit.UNIT_FLAG_FLEEING);
+            clearCombatMotion(body);
+        }
+        sendLeaveCombat(world, owner, body, preyGuid);
+    }
+
+    private static boolean alivePrey(World world, Player owner, long guid) {
+        if (guid == 0) {
+            return false;
+        }
+        Creature c = world.map(owner.mapId, owner.instanceId).creatures.get(guid);
+        return c != null && c.alive();
+    }
+
+    static void sendLeaveCombat(World world, Player owner, Creature body, long preyGuid) {
+        if (owner == null || body == null) {
+            return;
+        }
+        byte[] stop = preyGuid != 0 ? world.combat.encodeAttackStop(body.guid, preyGuid, false) : null;
+        var vis = UpdateBuilder.maybeCompress(UpdateBuilder.values(body,
+                UpdateFields.UNIT_FIELD_TARGET, UpdateFields.UNIT_FIELD_TARGET + 1,
+                UpdateFields.UNIT_FIELD_FLAGS));
+        LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
+        if (owner.session != null) {
+            viewers.put(owner.guid, owner);
+        }
+        GameMap map = world.map(owner.mapId, owner.instanceId);
+        for (Player pl : map.nearbyPlayers(body, GameMap.VISIBILITY)) {
+            viewers.putIfAbsent(pl.guid, pl);
+        }
+        for (Player pl : viewers.values()) {
+            if (pl.session == null) {
+                continue;
+            }
+            if (stop != null) {
+                pl.session.send(Opcodes.SMSG_ATTACKSTOP, stop);
+            }
+            pl.session.send(vis.opcode(), vis.payload());
         }
     }
 
@@ -184,7 +292,9 @@ public final class CompanionBehavior {
         if (isCombatDamageEffect(sp.effect())) {
             dmg = world.spells.apply(body, prey, sp, now);
             if (dmg > 0) {
-                world.onCreatureAttackedBySpell(owner, prey, dmg);
+                prey.threatManager.add(body, dmg);
+                prey.threat += dmg;
+                world.pullOrRetarget(body, prey, owner);
                 damageLog = world.spells.encodeDamageLog(prey.guid, owner.pet.guid, sp, dmg);
                 var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));
                 hpOpcode = hp.opcode();
@@ -220,6 +330,7 @@ public final class CompanionBehavior {
             }
         }
         if (dmg > 0 && !prey.alive()) {
+            leaveCombat(world, owner, body, prey.guid);
             world.onCreatureKilled(owner, prey);
         }
         companion.castCooldownMs = AUTO_CAST_GCD_MS;

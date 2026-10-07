@@ -5,6 +5,7 @@ import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.PacketSink;
@@ -516,7 +517,9 @@ class CompanionServiceTest {
         int afterFirst = mob.health();
         assertTrue(afterFirst < hpBefore, "one swing should land");
         assertTrue(mob.inCombat, "mob must enter combat");
-        assertTrue(mob.threatManager.threatOf(owner) > 0f || mob.victim == owner.guid);
+        assertTrue(mob.threatManager.threatOf(body) > 0f, "companion swing threat is on the pet body");
+        assertEquals(0f, mob.threatManager.threatOf(owner), "owner did not swing — no owner threat");
+        assertEquals(body.guid, mob.victim);
         CompanionBehavior.tick(world, owner, 50);
         assertEquals(afterFirst, mob.health(), "second tick within swing CD must not strip HP");
         assertTrue(sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE),
@@ -526,6 +529,97 @@ class CompanionServiceTest {
         assertEquals(owner.pet.guid, swingLog.getPackedGuid(), "attacker is the companion pet");
         swingLog.getPackedGuid();
         assertTrue(swingLog.getU32() > 0, "totalDamage must be positive");
+    }
+
+    @Test
+    void companionAssistMeleeWhenCompanionHitsAndOwnerDoesNotShouldMakeMobAttackCompanion() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = spawnPrey(world, owner, body, 500);
+        owner.victim = mob.guid;
+        CompanionBehavior.tick(world, owner, 50);
+        assertEquals(body.guid, mob.victim);
+        assertTrue(mob.threatManager.threatOf(body) > mob.threatManager.threatOf(owner));
+        int hp = body.health();
+        world.creatureMeleeHit(mob, body);
+        assertTrue(body.health() < hp, "mob must fight the companion, not ignore it");
+        assertTrue(owner.alive());
+    }
+
+    @Test
+    void creatureMeleeHitWhenOwnerDiesWithCompanionThreatShouldKeepFightingCompanion() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = spawnPrey(world, owner, body, 500);
+        mob.ai = new org.tbc.world.ai.PetAI();
+        owner.victim = mob.guid;
+        CompanionBehavior.tick(world, owner, 50);
+        assertEquals(body.guid, mob.victim);
+        owner.setHealth(1);
+        mob.applyCombatStats(50f, 50f, 2000, 1.5f);
+        world.creatureMeleeHit(mob, owner);
+        assertFalse(owner.alive());
+        assertFalse(mob.evading, "companion still on the threat list — do not evade");
+        assertTrue(mob.inCombat);
+        assertEquals(body.guid, mob.victim);
+        int hp = body.health();
+        world.creatureMeleeHit(mob, body);
+        assertTrue(body.health() < hp, "after owner death the mob must still hit the companion");
+    }
+
+    @Test
+    void companionAssistMeleeWhenPreyDiesShouldSendAttackStopAndClearCompanionCombat() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = spawnPrey(world, owner, body, 1);
+        owner.victim = mob.guid;
+        sink.last.clear();
+        CompanionBehavior.tick(world, owner, 50);
+        assertFalse(mob.alive());
+        assertFalse(body.inCombat);
+        assertEquals(0L, body.getGuid(UpdateFields.UNIT_FIELD_TARGET));
+        assertEquals(0, body.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_IN_COMBAT);
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_ATTACKSTOP),
+                "client needs SMSG_ATTACKSTOP or combat anim sticks");
+        WowBuffer stop = new WowBuffer(sink.last.get(Opcodes.SMSG_ATTACKSTOP));
+        assertEquals(owner.pet.guid, stop.getPackedGuid());
+        assertEquals(mob.guid, stop.getPackedGuid());
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_UPDATE_OBJECT)
+                        || sink.last.containsKey(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT),
+                "companion UNIT_FIELD_TARGET / IN_COMBAT must go to the client");
+    }
+
+    @Test
+    void behaviorWhenCompanionNearDeathShouldFleeInsteadOfMelee() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = spawnPrey(world, owner, body, 500);
+        body.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, 100);
+        body.setHealth(15);
+        owner.victim = mob.guid;
+        int preyHp = mob.health();
+        CompanionBehavior.tick(world, owner, 50);
+        assertEquals(preyHp, mob.health(), "near-death companion must not keep swinging");
+        assertFalse(body.inCombat);
+        assertEquals(0L, owner.pet.victim);
+        assertEquals(Unit.UNIT_FLAG_FLEEING, body.getInt(UpdateFields.UNIT_FIELD_FLAGS) & Unit.UNIT_FLAG_FLEEING);
+        assertTrue(body.distance2d(mob) > 1f, "companion must move away from the prey");
     }
 
     @Test
@@ -947,6 +1041,19 @@ class CompanionServiceTest {
         assertNotNull(p.pet);
         assertNull(p.companion);
         assertTrue(sink.last.containsKey(Opcodes.SMSG_PET_SPELLS));
+    }
+
+    private static Creature spawnPrey(World world, Player owner, Creature body, int health) {
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000A1L;
+        mob.applyTemplate(6, "Prey", 1, 7, health, 1);
+        mob.applyCombatStats(5f, 5f, 2000, 1.5f);
+        mob.mapId = owner.mapId;
+        mob.x = body.x;
+        mob.y = body.y;
+        mob.z = body.z;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        return mob;
     }
 
     private static Sink login(World world, String name) {

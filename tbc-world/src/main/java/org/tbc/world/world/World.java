@@ -835,8 +835,8 @@ public final class World implements Runnable {
     }
 
     /**
-     * Companion pet assist swing — gated by range/facing/timer; threat and engage on the owner,
-     * not raw setHealth every tick.
+     * Companion pet assist swing — gated by range/facing/timer; threat on the companion body
+     * (CMaNGOS pet threat), not credited to the owner unless the owner also hit.
      */
     public void companionAssistMelee(Player owner, Creature body, Creature prey) {
         if (owner == null || body == null || prey == null || !prey.alive() || !body.alive()) {
@@ -859,14 +859,8 @@ public final class World implements Runnable {
         boolean wasAlive = prey.alive();
         MeleeTable.Result r = combat.swing(body, prey, nowMs(),
                 (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell));
-        if (r.damage() > 0) {
-            onCreatureAttackedBySpell(owner, prey, r.damage());
-        } else if (prey.alive() && !prey.evading && r.outcome() != MeleeTable.Outcome.EVADE) {
-            if (!prey.inCombat) {
-                engage(prey, owner);
-            } else {
-                combat.setInCombatWith(owner, prey);
-            }
+        if (r.damage() > 0 || (prey.alive() && !prey.evading && r.outcome() != MeleeTable.Outcome.EVADE)) {
+            pullOrRetarget(body, prey, owner);
         }
         byte[] log = combat.encodeAttack(body, prey, r);
         var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));
@@ -875,8 +869,47 @@ public final class World implements Runnable {
             sendCombatHpUpdate(owner, prey, hp.opcode(), hp.payload(), hitMap);
         }
         if (wasAlive && !prey.alive()) {
+            org.tbc.world.companion.CompanionBehavior.leaveCombat(this, owner, body, prey.guid);
             onCreatureKilled(owner, prey);
         }
+    }
+
+    /**
+     * Hostile damage from a companion body or player: tag loot to the owner, threat to the dealer,
+     * and AttackStart the current highest-threat living unit.
+     */
+    public void pullOrRetarget(Unit attacker, Creature prey, Player tapper) {
+        if (attacker == null || prey == null || !prey.alive() || prey.evading) {
+            return;
+        }
+        if (prey.taggedBy == 0 && tapper != null) {
+            prey.taggedBy = tapper.guid;
+        }
+        if (!prey.inCombat) {
+            if (attacker instanceof Player p) {
+                engage(prey, p);
+            } else if (attacker instanceof Creature body) {
+                engage(prey, body);
+            }
+            if (tapper != null && tapper.alive() && tapper != attacker) {
+                combat.setInCombatWith(tapper, prey);
+            }
+            prey.lastHitMs = nowMs();
+            prey.lastRefreshX = prey.x;
+            prey.lastRefreshY = prey.y;
+            return;
+        }
+        long top = prey.threatManager.highestGuid();
+        if (top != 0) {
+            prey.victim = top;
+            prey.setGuid(UpdateFields.UNIT_FIELD_TARGET, top);
+        }
+        if (tapper != null && tapper.alive()) {
+            combat.setInCombatWith(tapper, prey);
+        }
+        prey.lastHitMs = nowMs();
+        prey.lastRefreshX = prey.x;
+        prey.lastRefreshY = prey.y;
     }
 
     /**
@@ -1093,13 +1126,13 @@ public final class World implements Runnable {
         if (wasAlive && !p.alive() && p.session != null) {
             DeathHandler.killPlayer(p.session, this);
             EventAi.SpellCast sink = (cr, t, spell) -> sendEventAiCast(hitMap, cr, t, spell);
-            enterEvadeMode(hitMap, c, sink);
+            retargetOrEvadeAfterLostUnit(hitMap, c, p, sink);
             for (Creature other : hitMap.creatures.values()) {
                 if (other == c || !other.alive()) {
                     continue;
                 }
                 if (other.victim == p.guid || other.threatManager.threatOf(p) > 0f) {
-                    enterEvadeMode(hitMap, other, sink);
+                    retargetOrEvadeAfterLostUnit(hitMap, other, p, sink);
                 }
             }
         }
@@ -1181,6 +1214,34 @@ public final class World implements Runnable {
         } else if (victim instanceof Creature foe) {
             creatureMeleeHit(c, foe);
         }
+    }
+
+    /**
+     * Drop a dead player's threat and keep fighting a living companion (or other unit) still on
+     * the list. Evade only when nothing living remains to hate.
+     */
+    private void retargetOrEvadeAfterLostUnit(GameMap m, Creature c, Unit lost, EventAi.SpellCast sink) {
+        if (c == null || !c.alive()) {
+            return;
+        }
+        if (lost != null) {
+            c.threatManager.modifyThreatPercent(lost, -101);
+        }
+        long next = c.threatManager.highestGuid();
+        Unit living = unitByGuid(m, next);
+        if (living != null && living.alive() && living != c) {
+            c.inCombat = true;
+            c.evading = false;
+            c.victim = living.guid;
+            c.setGuid(UpdateFields.UNIT_FIELD_TARGET, living.guid);
+            c.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                    c.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_IN_COMBAT);
+            if (c.combatMovement) {
+                c.motion.moveChase(living);
+            }
+            return;
+        }
+        enterEvadeMode(m, c, sink);
     }
 
     private Unit unitByGuid(GameMap m, long guid) {

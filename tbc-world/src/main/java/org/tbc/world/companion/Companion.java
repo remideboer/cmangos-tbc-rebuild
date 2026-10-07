@@ -21,6 +21,8 @@ public final class Companion {
     public boolean hasBroadcastPos;
     /** Global GCD-style gate for companion auto-cast (ms remaining). */
     public int castCooldownMs;
+    /** Near-death escape: already launched flee motion. */
+    public boolean fleeing;
     private int requestedSpellId;
     private long requestedSpellTarget;
 
