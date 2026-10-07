@@ -23,6 +23,8 @@ public final class CompanionBehavior {
     private static final float FOLLOW_BROADCAST_DIST_SQ = 0.25f;
     private static final int AUTO_CAST_GCD_MS = 1500;
     private static final int FACING_SPLINE_ID = 1;
+    /** Spells with maxRange above this act like Imp/warlock minions (hold range, no white melee). */
+    private static final float RANGED_SPELL_RANGE = 10f;
     /** Leave combat and run when at or below 20% max health. */
     private static final int FLEE_HEALTH_DENOM = 5;
     private static final float FLEE_YARDS = 18f;
@@ -98,6 +100,10 @@ public final class CompanionBehavior {
         }
         owner.pet.victim = target;
         markCombatTarget(body, prey);
+        if (companion.isCasting()) {
+            updatePendingCast(world, owner, body, prey, diff);
+            return;
+        }
         AutoCastChoice autoCast = autoCastChoice(world, owner, prey);
         if (autoCast != null) {
             float castRange = Math.max(5f, autoCast.spell().maxRange());
@@ -113,6 +119,19 @@ public final class CompanionBehavior {
             return;
         }
 
+        // Imp-style: while a ranged damage spell is known/ready, do not close to melee.
+        if (isRangedCaster(world, owner)) {
+            float hold = rangedHoldDistance(world, owner);
+            if (body.distance2d(prey) > hold) {
+                ensureChasing(body, prey, hold * 0.85f);
+                advanceChase(world, owner, body, diff);
+            } else if (body.motion.type() == MotionMaster.CHASE) {
+                body.motion.moveIdle();
+            }
+            return;
+        }
+
+        // Hunter-pet style melee: close to melee range then white swings.
         ensureChasing(body, prey, -1f);
         advanceChase(world, owner, body, diff);
         if (!Combat.hasMeleeFacing(body, prey) && Combat.canReachWithMeleeAttack(body, prey)) {
@@ -172,6 +191,7 @@ public final class CompanionBehavior {
             owner.pet.victim = 0;
         }
         owner.companion.clearRequestedSpell();
+        cancelPendingCast(owner.companion);
         clearCombatMotion(body);
         body.setInt(UpdateFields.UNIT_FIELD_FLAGS,
                 body.getInt(UpdateFields.UNIT_FIELD_FLAGS) | Unit.UNIT_FLAG_FLEEING);
@@ -208,6 +228,7 @@ public final class CompanionBehavior {
         }
         if (owner.companion != null) {
             owner.companion.fleeing = false;
+            cancelPendingCast(owner.companion);
         }
         if (body != null) {
             body.setInt(UpdateFields.UNIT_FIELD_FLAGS,
@@ -254,11 +275,12 @@ public final class CompanionBehavior {
 
     /**
      * Try one enabled bar spell (slots 3–6) when mana and range allow.
-     * @return true if a cast was started (skip melee this tick)
+     * Non-instant spells send SPELL_START and finish on later ticks (real cast time).
+     * @return true if a cast was started or is in progress (skip melee this tick)
      */
     static boolean tryAutoCast(World world, Player owner, Creature body, Creature prey, AutoCastChoice choice) {
         Companion companion = owner.companion;
-        if (companion.castCooldownMs > 0 || owner.session == null) {
+        if (companion.castCooldownMs > 0 || owner.session == null || companion.isCasting()) {
             return false;
         }
         if (isFriendlyCompanionTarget(owner, body, prey)) {
@@ -281,14 +303,55 @@ public final class CompanionBehavior {
         SpellCastTargets targets = new SpellCastTargets();
         targets.mask = SpellCastTargets.UNIT;
         targets.unitGuid = prey.guid;
-        // CMaNGOS pet AI uses TRIGGERED_PET_CAST — finish immediately (ignore castTimeMs).
-        byte[] start = world.spells.encodeStart(owner.pet.guid, spellId, 0, 0, targets);
+        int castMs = Math.max(0, sp.castTimeMs());
+        // CMaNGOS PetAI Cast → SpellStart with normal cast time (TRIGGERED_PET_CAST ≠ instant).
+        byte[] start = world.spells.encodeStart(owner.pet.guid, spellId, 0, castMs, targets);
+        sendToCombatViewers(world, owner, body, prey, Opcodes.SMSG_SPELL_START, start);
+        if (choice.requested()) {
+            companion.clearRequestedSpell();
+        }
+        if (castMs <= 0) {
+            finishCast(world, owner, body, prey, spellId, sp);
+            companion.castCooldownMs = AUTO_CAST_GCD_MS;
+            return true;
+        }
+        companion.beginCast(spellId, prey.guid, castMs, sp.mana());
+        return true;
+    }
+
+    private static void updatePendingCast(World world, Player owner, Creature body, Creature prey, int diff) {
+        Companion companion = owner.companion;
+        if (prey == null || !prey.alive() || prey.guid != companion.pendingTargetGuid()
+                || isFriendlyCompanionTarget(owner, body, prey)) {
+            cancelPendingCast(companion);
+            return;
+        }
+        companion.advanceCast(diff);
+        if (companion.pendingRemainMs() > 0) {
+            return;
+        }
+        int spellId = companion.pendingSpellId();
+        SpellEngine.SpellInfo sp = world.spells.info(spellId);
+        companion.clearPendingCast();
+        if (sp == null) {
+            return;
+        }
+        finishCast(world, owner, body, prey, spellId, sp);
+        companion.castCooldownMs = AUTO_CAST_GCD_MS;
+    }
+
+    private static void finishCast(World world, Player owner, Creature body, Creature prey,
+            int spellId, SpellEngine.SpellInfo sp) {
+        SpellCastTargets targets = new SpellCastTargets();
+        targets.mask = SpellCastTargets.UNIT;
+        targets.unitGuid = prey.guid;
         byte[] go = world.spells.encodeGo(owner.pet.guid, prey.guid, spellId, world.nowMs(), targets);
         int dmg = 0;
         byte[] damageLog = null;
         byte[] hpPayload = null;
         int hpOpcode = 0;
         long now = world.nowMs();
+        Player snap = owner.companion.snapshot();
         if (isCombatDamageEffect(sp.effect())) {
             dmg = world.spells.apply(body, prey, sp, now);
             if (dmg > 0) {
@@ -302,25 +365,15 @@ public final class CompanionBehavior {
             }
         } else if (sp.effect() == SpellEngine.EFFECT_POWER_DRAIN) {
             int amount = Math.max(0, (sp.minDmg() + sp.maxDmg()) / 2);
-            // Energize companion snapshot mana (CMaNGOS caster≠target); never strip HP.
             world.spells.powerDrain(snap, prey, amount);
         } else {
             world.spells.apply(body, prey, sp, now);
         }
-        LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
-        viewers.put(owner.guid, owner);
-        GameMap map = world.map(owner.mapId, owner.instanceId);
-        for (Player pl : map.nearbyPlayers(body, GameMap.VISIBILITY)) {
-            viewers.putIfAbsent(pl.guid, pl);
-        }
-        for (Player pl : map.nearbyPlayers(prey, GameMap.VISIBILITY)) {
-            viewers.putIfAbsent(pl.guid, pl);
-        }
+        LinkedHashMap<Long, Player> viewers = combatViewers(world, owner, body, prey);
         for (Player pl : viewers.values()) {
             if (pl.session == null) {
                 continue;
             }
-            pl.session.send(Opcodes.SMSG_SPELL_START, start);
             pl.session.send(Opcodes.SMSG_SPELL_GO, go);
             if (damageLog != null) {
                 pl.session.send(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG, damageLog);
@@ -333,11 +386,86 @@ public final class CompanionBehavior {
             leaveCombat(world, owner, body, prey.guid);
             world.onCreatureKilled(owner, prey);
         }
-        companion.castCooldownMs = AUTO_CAST_GCD_MS;
-        if (choice.requested()) {
-            companion.clearRequestedSpell();
+    }
+
+    private static void cancelPendingCast(Companion companion) {
+        if (companion == null) {
+            return;
         }
-        return true;
+        if (companion.pendingSpellId() == 0) {
+            companion.clearPendingCast();
+            return;
+        }
+        Player snap = companion.snapshot();
+        int refund = companion.pendingManaCost();
+        if (refund > 0 && snap != null) {
+            int cur = snap.getInt(UpdateFields.UNIT_FIELD_POWER1);
+            int max = snap.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+            snap.setInt(UpdateFields.UNIT_FIELD_POWER1, Math.min(max > 0 ? max : cur + refund, cur + refund));
+        }
+        companion.clearPendingCast();
+    }
+
+    /** True when an enabled combat-damage bar spell has Imp-like ranged maxRange. */
+    static boolean isRangedCaster(World world, Player owner) {
+        return firstRangedAutoSpell(world, owner) != null;
+    }
+
+    private static float rangedHoldDistance(World world, Player owner) {
+        SpellEngine.SpellInfo sp = firstRangedAutoSpell(world, owner);
+        return sp == null ? 25f : Math.max(5f, sp.maxRange());
+    }
+
+    private static SpellEngine.SpellInfo firstRangedAutoSpell(World world, Player owner) {
+        if (owner == null || owner.pet == null || world == null) {
+            return null;
+        }
+        Player snap = owner.companion != null ? owner.companion.snapshot() : null;
+        for (int i = PetHandlerBar.SPELL_SLOT_START; i < PetHandlerBar.SPELL_SLOT_END; i++) {
+            int packed = owner.pet.actionBar[i];
+            int act = (packed >>> 24) & 0xFF;
+            int spellId = packed & 0xFFFFFF;
+            if (spellId == 0 || act != PetHandler.ACT_ENABLED || !owner.pet.spells.contains(spellId)) {
+                continue;
+            }
+            SpellEngine.SpellInfo sp = world.spells.info(spellId);
+            if (sp == null || !isCombatDamageEffect(sp.effect()) || sp.maxRange() < RANGED_SPELL_RANGE) {
+                continue;
+            }
+            if (snap != null && !hasPower(snap, sp)) {
+                continue;
+            }
+            return sp;
+        }
+        return null;
+    }
+
+    private static LinkedHashMap<Long, Player> combatViewers(World world, Player owner, Creature body, Creature prey) {
+        LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
+        if (owner != null) {
+            viewers.put(owner.guid, owner);
+        }
+        GameMap map = world.map(owner.mapId, owner.instanceId);
+        if (body != null) {
+            for (Player pl : map.nearbyPlayers(body, GameMap.VISIBILITY)) {
+                viewers.putIfAbsent(pl.guid, pl);
+            }
+        }
+        if (prey != null) {
+            for (Player pl : map.nearbyPlayers(prey, GameMap.VISIBILITY)) {
+                viewers.putIfAbsent(pl.guid, pl);
+            }
+        }
+        return viewers;
+    }
+
+    private static void sendToCombatViewers(World world, Player owner, Creature body, Creature prey,
+            int opcode, byte[] payload) {
+        for (Player pl : combatViewers(world, owner, body, prey).values()) {
+            if (pl.session != null) {
+                pl.session.send(opcode, payload);
+            }
+        }
     }
 
     private static AutoCastChoice autoCastChoice(World world, Player owner, Creature prey) {

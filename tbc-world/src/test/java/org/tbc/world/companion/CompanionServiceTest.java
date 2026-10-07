@@ -1,6 +1,7 @@
 package org.tbc.world.companion;
 
 import org.tbc.common.WowBuffer;
+import org.tbc.world.combat.Combat;
 import org.tbc.world.entity.Creature;
 import org.tbc.world.entity.Guid;
 import org.tbc.world.entity.Item;
@@ -891,7 +892,15 @@ class CompanionServiceTest {
         int manaBefore = owner.companion.snapshot().getInt(UpdateFields.UNIT_FIELD_POWER1);
         int hpBefore = mob.health();
         CompanionBehavior.tick(world, owner, 50);
-        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_GO), "triggered pet cast finishes with SPELL_GO");
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_START), "cast bar must start");
+        assertFalse(sink.last.containsKey(Opcodes.SMSG_SPELL_GO),
+                "cast time must elapse before SPELL_GO");
+        assertEquals(hpBefore, mob.health(), "no damage until cast finishes");
+        assertTrue(owner.companion.isCasting(), "companion pending cast active");
+
+        sink.last.clear();
+        CompanionBehavior.tick(world, owner, world.spells.info(SpellEngine.FIREBALL).castTimeMs());
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_GO), "cast finishes with SPELL_GO");
         assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG),
                 "spell damage must appear in the combat log");
         WowBuffer log = new WowBuffer(sink.last.get(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
@@ -901,6 +910,68 @@ class CompanionServiceTest {
         assertTrue(log.getU32() > 0, "spell damage > 0");
         assertTrue(mob.health() < hpBefore, "prey HP reduced");
         assertTrue(owner.companion.snapshot().getInt(UpdateFields.UNIT_FIELD_POWER1) < manaBefore);
+        assertFalse(owner.companion.isCasting());
+    }
+
+    @Test
+    void behaviorWhenCasterCompanionInRangeShouldNotMelee() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        Player alt = world.characters.create(ACC.id(), "Alt", 1, Player.CLASS_MAGE, 0, 1, 1, 1, 1, 0,
+                world.objectMgr);
+        alt.spells.add(SpellEngine.FIREBALL);
+        alt.actionButtons[0] = SpellEngine.FIREBALL;
+        alt.setInt(UpdateFields.UNIT_FIELD_POWER1, 2000);
+        alt.setInt(UpdateFields.UNIT_FIELD_MAXPOWER1, 2000);
+        world.characters.save(alt);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        body.x = owner.x;
+        body.y = owner.y;
+        body.z = owner.z;
+        Creature mob = spawnPrey(world, owner, body, 5000);
+        mob.x = body.x + 8f;
+        mob.y = body.y;
+        owner.victim = mob.guid;
+        sink.last.clear();
+        int hpBefore = mob.health();
+        CompanionBehavior.tick(world, owner, 50);
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_START));
+        assertFalse(sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE),
+                "ranged caster must not white-swing while casting from range");
+        assertEquals(hpBefore, mob.health());
+    }
+
+    @Test
+    void behaviorWhenMeleeCompanionShouldCloseAndSwing() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = new Creature();
+        mob.guid = 0xF1300000000000A2L;
+        mob.applyTemplate(6, "Prey", 1, 7, 500, 1);
+        mob.applyCombatStats(5f, 5f, 2000, 1.5f);
+        mob.mapId = owner.mapId;
+        mob.x = body.x + 25f;
+        mob.y = body.y;
+        mob.z = body.z;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        owner.victim = mob.guid;
+        float startDist = (float) body.distance2d(mob);
+        for (int i = 0; i < 80; i++) {
+            CompanionBehavior.tick(world, owner, 200);
+            if (sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE)) {
+                break;
+            }
+        }
+        assertTrue(body.distance2d(mob) < startDist - 5f, "melee companion must close distance");
+        assertTrue(Combat.canReachWithMeleeAttack(body, mob)
+                        || sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE),
+                "melee companion reaches melee or has swung");
     }
 
     @Test

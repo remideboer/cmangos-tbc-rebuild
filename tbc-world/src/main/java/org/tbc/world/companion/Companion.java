@@ -23,6 +23,11 @@ public final class Companion {
     public int castCooldownMs;
     /** Near-death escape: already launched flee motion. */
     public boolean fleeing;
+    /** Pending non-instant cast (CMaNGOS PetAI SpellStart with real cast time). */
+    private int pendingSpellId;
+    private long pendingTargetGuid;
+    private int pendingRemainMs;
+    private int pendingManaCost;
     private int requestedSpellId;
     private long requestedSpellTarget;
 
@@ -80,5 +85,45 @@ public final class Companion {
     public void clearRequestedSpell() {
         requestedSpellId = 0;
         requestedSpellTarget = 0;
+    }
+
+    public boolean isCasting() {
+        return pendingSpellId != 0 && pendingRemainMs > 0;
+    }
+
+    public int pendingSpellId() {
+        return pendingSpellId;
+    }
+
+    public long pendingTargetGuid() {
+        return pendingTargetGuid;
+    }
+
+    public int pendingRemainMs() {
+        return pendingRemainMs;
+    }
+
+    public int pendingManaCost() {
+        return pendingManaCost;
+    }
+
+    public void beginCast(int spellId, long targetGuid, int castTimeMs, int manaCost) {
+        pendingSpellId = spellId;
+        pendingTargetGuid = targetGuid;
+        pendingRemainMs = Math.max(0, castTimeMs);
+        pendingManaCost = Math.max(0, manaCost);
+    }
+
+    public void advanceCast(int diff) {
+        if (pendingRemainMs > 0) {
+            pendingRemainMs = Math.max(0, pendingRemainMs - Math.max(0, diff));
+        }
+    }
+
+    public void clearPendingCast() {
+        pendingSpellId = 0;
+        pendingTargetGuid = 0;
+        pendingRemainMs = 0;
+        pendingManaCost = 0;
     }
 }
