@@ -865,7 +865,16 @@ public final class World implements Runnable {
         }
         byte[] log = combat.encodeAttack(body, prey, r);
         var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));
+        // Owner always gets the combat log (player white swings go to p.session); nearby is extra.
+        LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
+        viewers.put(owner.guid, owner);
         for (Player pl : hitMap.nearbyPlayers(prey, GameMap.VISIBILITY)) {
+            viewers.putIfAbsent(pl.guid, pl);
+        }
+        for (Player pl : hitMap.nearbyPlayers(body, GameMap.VISIBILITY)) {
+            viewers.putIfAbsent(pl.guid, pl);
+        }
+        for (Player pl : viewers.values()) {
             if (pl.session == null) {
                 continue;
             }

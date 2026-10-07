@@ -14,6 +14,8 @@ import org.tbc.world.spell.SpellCastTargets;
 import org.tbc.world.spell.SpellEngine;
 import org.tbc.world.world.World;
 
+import java.util.LinkedHashMap;
+
 /**
  * PetAI-shaped companion tick: follow left OOC; chase + auto-cast + melee in combat.
  */
@@ -157,19 +159,46 @@ public final class CompanionBehavior {
         SpellCastTargets targets = new SpellCastTargets();
         targets.mask = SpellCastTargets.UNIT;
         targets.unitGuid = prey.guid;
-        owner.session.send(Opcodes.SMSG_SPELL_START,
-                world.spells.encodeStart(owner.pet.guid, spellId, 0, sp.castTimeMs(), targets));
-        if (sp.castTimeMs() == 0) {
-            owner.session.send(Opcodes.SMSG_SPELL_GO,
-                    world.spells.encodeGo(owner.pet.guid, prey.guid, spellId, world.nowMs(), targets));
-            if (sp.minDmg() > 0 || sp.maxDmg() > 0) {
-                int dmg = Math.max(1, (sp.minDmg() + sp.maxDmg()) / 2);
-                world.onCreatureAttackedBySpell(owner, prey, dmg);
-                prey.setHealth(Math.max(0, prey.health() - dmg));
-                if (!prey.alive()) {
-                    world.onCreatureKilled(owner, prey);
+        // CMaNGOS pet AI uses TRIGGERED_PET_CAST — finish immediately (ignore castTimeMs).
+        byte[] start = world.spells.encodeStart(owner.pet.guid, spellId, 0, 0, targets);
+        byte[] go = world.spells.encodeGo(owner.pet.guid, prey.guid, spellId, world.nowMs(), targets);
+        int dmg = 0;
+        byte[] damageLog = null;
+        byte[] hpPayload = null;
+        int hpOpcode = 0;
+        if (sp.minDmg() > 0 || sp.maxDmg() > 0) {
+            dmg = Math.max(1, (sp.minDmg() + sp.maxDmg()) / 2);
+            world.onCreatureAttackedBySpell(owner, prey, dmg);
+            prey.setHealth(Math.max(0, prey.health() - dmg));
+            damageLog = world.spells.encodeDamageLog(prey.guid, owner.pet.guid, sp, dmg);
+            var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));
+            hpOpcode = hp.opcode();
+            hpPayload = hp.payload();
+        }
+        LinkedHashMap<Long, Player> viewers = new LinkedHashMap<>();
+        viewers.put(owner.guid, owner);
+        GameMap map = world.map(owner.mapId, owner.instanceId);
+        for (Player pl : map.nearbyPlayers(body, GameMap.VISIBILITY)) {
+            viewers.putIfAbsent(pl.guid, pl);
+        }
+        for (Player pl : map.nearbyPlayers(prey, GameMap.VISIBILITY)) {
+            viewers.putIfAbsent(pl.guid, pl);
+        }
+        for (Player pl : viewers.values()) {
+            if (pl.session == null) {
+                continue;
+            }
+            pl.session.send(Opcodes.SMSG_SPELL_START, start);
+            pl.session.send(Opcodes.SMSG_SPELL_GO, go);
+            if (damageLog != null) {
+                pl.session.send(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG, damageLog);
+                if (prey.alive()) {
+                    pl.session.send(hpOpcode, hpPayload);
                 }
             }
+        }
+        if (dmg > 0 && !prey.alive()) {
+            world.onCreatureKilled(owner, prey);
         }
         companion.castCooldownMs = AUTO_CAST_GCD_MS;
         if (choice.requested()) {

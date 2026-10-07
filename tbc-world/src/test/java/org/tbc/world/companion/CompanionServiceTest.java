@@ -447,8 +447,47 @@ class CompanionServiceTest {
         assertTrue(mob.threatManager.threatOf(owner) > 0f || mob.victim == owner.guid);
         CompanionBehavior.tick(world, owner, 50);
         assertEquals(afterFirst, mob.health(), "second tick within swing CD must not strip HP");
-        assertTrue(sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE)
-                || owner.inCombat);
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE),
+                "owner must receive SMSG_ATTACKERSTATEUPDATE for companion melee");
+        WowBuffer swingLog = new WowBuffer(sink.last.get(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        swingLog.getU32();
+        assertEquals(owner.pet.guid, swingLog.getPackedGuid(), "attacker is the companion pet");
+        swingLog.getPackedGuid();
+        assertTrue(swingLog.getU32() > 0, "totalDamage must be positive");
+    }
+
+    @Test
+    void companionAssistMeleeWhenOwnerFarFromPreyShouldStillSendAttackerStateToOwner() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        world.characters.create(ACC.id(), "Alt", 1, 1, 0, 1, 1, 1, 1, 0, world.objectMgr);
+        world.companions.summon(world, owner, "Alt");
+        Creature body = owner.companion.worldBody();
+        Creature mob = new Creature();
+        mob.guid = 0xF130000000000091L;
+        mob.setHealth(500);
+        mob.mapId = owner.mapId;
+        mob.x = body.x;
+        mob.y = body.y;
+        mob.z = body.z;
+        world.map(owner.mapId, owner.instanceId).creatures.put(mob.guid, mob);
+        float oldX = owner.x;
+        float oldY = owner.y;
+        owner.x = body.x + 200f;
+        owner.y = body.y;
+        world.map(owner.mapId, owner.instanceId).reindex(owner, oldX, oldY);
+        sink.last.clear();
+
+        world.companionAssistMelee(owner, body, mob);
+
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_ATTACKERSTATEUPDATE),
+                "owner must get combat log even outside prey visibility");
+        WowBuffer swingLog = new WowBuffer(sink.last.get(Opcodes.SMSG_ATTACKERSTATEUPDATE));
+        swingLog.getU32();
+        assertEquals(owner.pet.guid, swingLog.getPackedGuid());
+        swingLog.getPackedGuid();
+        assertTrue(swingLog.getU32() > 0);
     }
 
     @Test
@@ -584,9 +623,17 @@ class CompanionServiceTest {
         owner.victim = mob.guid;
         sink.last.clear();
         int manaBefore = owner.companion.snapshot().getInt(UpdateFields.UNIT_FIELD_POWER1);
+        int hpBefore = mob.health();
         CompanionBehavior.tick(world, owner, 50);
-        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_START)
-                || sink.last.containsKey(Opcodes.SMSG_SPELL_GO));
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELL_GO), "triggered pet cast finishes with SPELL_GO");
+        assertTrue(sink.last.containsKey(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG),
+                "spell damage must appear in the combat log");
+        WowBuffer log = new WowBuffer(sink.last.get(Opcodes.SMSG_SPELLNONMELEEDAMAGELOG));
+        assertEquals(mob.guid, log.getPackedGuid());
+        assertEquals(owner.pet.guid, log.getPackedGuid());
+        assertEquals(SpellEngine.FIREBALL, log.getU32());
+        assertTrue(log.getU32() > 0, "spell damage > 0");
+        assertTrue(mob.health() < hpBefore, "prey HP reduced");
         assertTrue(owner.companion.snapshot().getInt(UpdateFields.UNIT_FIELD_POWER1) < manaBefore);
     }
 
