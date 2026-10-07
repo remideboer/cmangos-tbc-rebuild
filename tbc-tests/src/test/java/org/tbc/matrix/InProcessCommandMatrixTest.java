@@ -159,7 +159,7 @@ class InProcessCommandMatrixTest {
             if (opcode == Opcodes.CMSG_FORCE_MOVE_ROOT_ACK
                     || opcode == Opcodes.CMSG_FORCE_MOVE_UNROOT_ACK
                     || opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
-                b.putPackedGuid(s.player().guid);
+                b.putU64(s.player().guid);
             }
             if (opcode == Opcodes.CMSG_FORCE_RUN_SPEED_CHANGE_ACK) {
                 b.putU32(1);

@@ -192,6 +192,13 @@ public final class Player extends Unit {
     public int bindMap, bindZone;
     public float bindX, bindY, bindZ;
 
+    /** CMaNGOS Player::RelocateToHomebind — map + position at the hearth. */
+    public void relocateToHomebind() {
+        mapId = bindMap;
+        zoneId = bindZone;
+        relocate(bindX, bindY, bindZ, o);
+    }
+
     /** CMaNGOS Player::SetHomebindToLocation — hearth map/area/xyz. */
     public void setHomebindToLocation(int mapId, int areaId, float x, float y, float z) {
         bindMap = mapId;
@@ -204,6 +211,8 @@ public final class Player extends Unit {
     public boolean online;
     public boolean ghost;
     public long ghostTimeMs;
+    /** CMaNGOS IsBeingTeleportedFar: SMSG_NEW_WORLD sent, MSG_MOVE_WORLDPORT_ACK not yet received. */
+    public boolean teleportPending;
     /** 0 = inactive; else wall clock when KillPlayer timer forces repop. */
     public long deathTimerEndsAtMs;
     public final java.util.Set<Long> afkReporterGuids = new java.util.HashSet<>();

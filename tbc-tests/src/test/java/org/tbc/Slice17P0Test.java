@@ -165,6 +165,61 @@ class Slice17P0Test {
     }
 
     /**
+     * TP-SL17-025 — KillPlayer roots; the 8606 client answers CMSG_FORCE_MOVE_ROOT_ACK with a
+     * raw u64 guid (CMaNGOS HandleForceSpeedChangeAck {@code >> ObjectGuid}). Release must still
+     * use the death spot → Sunstrider GY 912 on map 530, not a misparsed void / Horde default.
+     */
+    @Test
+    void tpSl17RepopAfterRootAckRawGuidShouldUseSunstriderSpiritHealer() {
+        World world = World.inMemory();
+        WowClientDouble client = loginBloodElf(world, "Berootack",
+                org.tbc.world.classless.ClasslessConfig.CLASS_CLASSLESS);
+        Player p = client.session().player();
+        p.relocate(10381.6f, -6399.23f, 38.5306f, 3.74096f);
+        DeathHandler.killPlayer(client.session(), world);
+        assertTrue(client.saw(Opcodes.SMSG_FORCE_MOVE_ROOT));
+        client.handle(world, Opcodes.CMSG_FORCE_MOVE_ROOT_ACK,
+                rawGuidAck(p.guid, 10381.6f, -6399.23f, 38.5306f, 3.74096f));
+        client.clear();
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        byte[] loc = lastPayload(client, Opcodes.SMSG_DEATH_RELEASE_LOC);
+        assertEquals(530, WowClientDouble.u32le(loc, 0));
+        assertEquals(10458.5f, WowClientDouble.floatle(loc, 4), 0.5f);
+        assertEquals(-6364.61f, WowClientDouble.floatle(loc, 8), 0.5f);
+        assertEquals(39.7907f, WowClientDouble.floatle(loc, 12), 0.5f);
+        assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
+        assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
+    }
+
+    /**
+     * TP-SL17-026 — HandleMoveTeleportAckOpcode: the client answers the repop MSG_MOVE_TELEPORT_ACK
+     * with raw guid + counter + time only. The ghost stays at the spirit healer (teleport dest),
+     * not relocated to (0,0,0) from a MovementInfo the packet does not carry.
+     */
+    @Test
+    void tpSl17TeleportAckAfterRepopShouldKeepGhostAtSpiritHealer() {
+        World world = World.inMemory();
+        WowClientDouble client = loginBloodElf(world, "Betpack",
+                org.tbc.world.classless.ClasslessConfig.CLASS_CLASSLESS);
+        Player p = client.session().player();
+        p.relocate(10381.6f, -6399.23f, 38.5306f, 3.74096f);
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        WowBuffer ack = new WowBuffer(16);
+        ack.putU64(p.guid);
+        ack.putU32(0);
+        ack.putU32(1000);
+        client.handle(world, Opcodes.MSG_MOVE_TELEPORT_ACK, ack.array());
+        assertEquals(10458.5f, p.x, 0.5f);
+        assertEquals(-6364.61f, p.y, 0.5f);
+        assertEquals(39.7907f, p.z, 0.5f);
+    }
+
+    /**
      * CMaNGOS TeleportTo clears MOVEFLAG_FALLING* so a ghost who died in the void still
      * lands at the GY instead of keeping fall flags on MSG_MOVE_TELEPORT_ACK.
      */
@@ -788,6 +843,20 @@ class Slice17P0Test {
         assertTrue(p.ghost);
         assertTrue(client.saw(Opcodes.MSG_MOVE_TELEPORT_ACK));
         assertFalse(client.saw(Opcodes.SMSG_NEW_WORLD));
+    }
+
+    /** movement.md force/flag ACK: raw u64 guid + u32 counter + MovementInfo. */
+    private static byte[] rawGuidAck(long guid, float x, float y, float z, float o) {
+        org.tbc.world.net.wow8606.MovementInfo m = new org.tbc.world.net.wow8606.MovementInfo();
+        m.x = x;
+        m.y = y;
+        m.z = z;
+        m.o = o;
+        WowBuffer ack = new WowBuffer(64);
+        ack.putU64(guid);
+        ack.putU32(0);
+        m.write(ack, false, guid, 1000);
+        return ack.array();
     }
 
     private static boolean sawSpellGo(WowClientDouble client, int spellId) {

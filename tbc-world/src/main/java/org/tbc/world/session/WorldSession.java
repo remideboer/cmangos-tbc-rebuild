@@ -16,6 +16,7 @@ import org.tbc.world.entity.Player;
 import org.tbc.world.entity.PlayerNames;
 import org.tbc.world.entity.Unit;
 import org.tbc.world.map.GameMap;
+import org.tbc.world.map.MapCoords;
 import org.tbc.world.net.wow8606.AddonInfo;
 import org.tbc.world.net.wow8606.MovementInfo;
 import org.tbc.world.net.wow8606.Opcodes;
@@ -373,10 +374,7 @@ public final class WorldSession {
             return;
         }
         if (opcode == Opcodes.MSG_MOVE_TELEPORT_ACK) {
-            try {
-                handleMove(world, opcode, in, true);
-            } catch (RuntimeException ignored) {
-            }
+            // HandleMoveTeleportAckOpcode: raw guid + counter + time; position is the teleport dest.
             return;
         }
         if (isForceSpeedChangeAck(opcode)) {
@@ -1021,12 +1019,34 @@ public final class WorldSession {
         maybeExplore(world);
     }
 
+    /** CMaNGOS-tbc movement ACKs: {@code >> ObjectGuid} is a raw u64 (movement.md). */
+    private static boolean skipAckGuid(WowBuffer in) {
+        if (in.remaining() < 8) {
+            return false;
+        }
+        in.getU64();
+        return true;
+    }
+
+    /**
+     * ProcessMovementInfo: ignore while IsBeingTeleported; VerifyMovementInfo drops
+     * !IsValidMapCoord so a bad packet cannot strand the player in the void.
+     */
+    private boolean acceptsMovement(MovementInfo m) {
+        return !player.teleportPending && MapCoords.valid(m.x, m.y, m.z, m.o);
+    }
+
     private void handleMove(World world, int opcode, WowBuffer in, boolean ack) {
         if (ack) {
-            in.getPackedGuid();
+            if (!skipAckGuid(in)) {
+                return;
+            }
             in.getU32();
         }
         MovementInfo m = MovementInfo.readC2s(in);
+        if (!acceptsMovement(m)) {
+            return;
+        }
         // CMaNGOS MovementHandler: MOVEFLAG_MASK_MOVING_OR_TURN while sitting → SetStandState(STAND)
         // (removes STANDING_CANCELS food/drink via leaveSeatedAuras).
         if ((m.moveFlags & MovementInfo.MOVEFLAG_MASK_MOVING_OR_TURN) != 0 && player.isSitState()) {
@@ -1077,6 +1097,7 @@ public final class WorldSession {
         if (player == null) {
             return;
         }
+        player.teleportPending = false;
         seen.clear();
         seen.add(player.guid);
         LoginBurst.sendInventory(this, player, world);
@@ -1505,6 +1526,9 @@ public final class WorldSession {
      */
     private void handleFallReset(World world, WowBuffer in) {
         MovementInfo m = MovementInfo.readC2s(in);
+        if (!acceptsMovement(m)) {
+            return;
+        }
         float ox = player.x;
         float oy = player.y;
         player.relocate(m.x, m.y, m.z, m.o);
@@ -1518,15 +1542,14 @@ public final class WorldSession {
      * Sender excluded (SendMessageToAllWhoSeeMeMove).
      */
     private void handleKnockBackAck(World world, WowBuffer in) {
-        if (in.remaining() < 5) {
-            return;
-        }
-        in.getPackedGuid();
-        if (in.remaining() < 4) {
+        if (!skipAckGuid(in) || in.remaining() < 4) {
             return;
         }
         in.getU32();
         MovementInfo m = MovementInfo.readC2s(in);
+        if (!acceptsMovement(m)) {
+            return;
+        }
         float ox = player.x;
         float oy = player.y;
         player.relocate(m.x, m.y, m.z, m.o);
@@ -1552,17 +1575,16 @@ public final class WorldSession {
      * Observers get response MSG (HOVER / WATER_WALK / FEATHER_FALL) with packed guid + MovementInfo.
      */
     private void handleMoveFlagChangeAck(World world, WowBuffer in, int responseOpcode) {
-        if (in.remaining() < 5) {
-            return;
-        }
-        in.getPackedGuid();
-        if (in.remaining() < 4) {
+        if (!skipAckGuid(in) || in.remaining() < 4) {
             return;
         }
         in.getU32();
         MovementInfo m = MovementInfo.readC2s(in);
         if (in.remaining() >= 4) {
             in.getU32();
+        }
+        if (!acceptsMovement(m)) {
+            return;
         }
         float ox = player.x;
         float oy = player.y;
@@ -1584,11 +1606,13 @@ public final class WorldSession {
      * HandleMoveNotActiveMoverOpcode — packed guid + MovementInfo. Apply only; no echo.
      */
     private void handleNotActiveMover(World world, WowBuffer in) {
-        if (in.remaining() < 1) {
+        if (!skipAckGuid(in)) {
             return;
         }
-        in.getPackedGuid();
         MovementInfo m = MovementInfo.readC2s(in);
+        if (!acceptsMovement(m)) {
+            return;
+        }
         float ox = player.x;
         float oy = player.y;
         player.relocate(m.x, m.y, m.z, m.o);

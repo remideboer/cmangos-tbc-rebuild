@@ -115,7 +115,7 @@ class LiveWorldCommandMatrixTest {
                 || opcode == Opcodes.CMSG_FORCE_MOVE_UNROOT_ACK) {
             WowBuffer b = new WowBuffer(48);
             if (opcode == Opcodes.CMSG_FORCE_MOVE_ROOT_ACK || opcode == Opcodes.CMSG_FORCE_MOVE_UNROOT_ACK) {
-                b.putPackedGuid(guid);
+                b.putU64(guid);
                 b.putU32(0);
             }
             b.putU32(0);

@@ -450,6 +450,7 @@ public final class World implements Runnable {
             nw.putFloat(o);
             p.session.send(Opcodes.SMSG_NEW_WORLD, nw.array());
             p.session.forgetSeen();
+            p.teleportPending = true;
         }
         GameMap old = map(p.mapId, p.instanceId);
         old.remove(p);

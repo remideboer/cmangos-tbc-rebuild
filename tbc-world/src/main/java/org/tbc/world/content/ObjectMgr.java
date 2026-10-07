@@ -38,8 +38,6 @@ import java.util.function.LongSupplier;
 public final class ObjectMgr {
     private static final Logger log = LoggerFactory.getLogger(ObjectMgr.class);
     private static final int GOSSIP_MAX_MENU_ITEMS = 32;
-    /** GridDefines.h MAP_HALFSIZE = SIZE_OF_GRIDS * MAX_NUMBER_OF_GRIDS / 2. */
-    private static final float MAP_HALFSIZE = 533.33333f * 64 / 2;
     private static final int GOSSIP_OPTION_GOSSIP = 1;
     private static final int GOSSIP_OPTION_QUESTGIVER = 2;
     private static final int GOSSIP_OPTION_VENDOR = 3;
@@ -4525,7 +4523,7 @@ public final class ObjectMgr {
             while (rs.next()) {
                 float x = rs.getFloat(2);
                 float y = rs.getFloat(3);
-                if (!validMapCoord(x, y)) {
+                if (!org.tbc.world.map.MapCoords.valid(x, y)) {
                     log.debug("points_of_interest entry {} invalid coordinates, ignored", rs.getInt(1));
                     continue;
                 }
@@ -4538,15 +4536,6 @@ public final class ObjectMgr {
         } catch (Exception e) {
             log.debug("points_of_interest load skipped: {}", e.getMessage());
         }
-    }
-
-    /** GridDefines.h MaNGOS::IsValidMapCoord. */
-    static boolean validMapCoord(float x, float y) {
-        return validMapCoord(x) && validMapCoord(y);
-    }
-
-    static boolean validMapCoord(float c) {
-        return Float.isFinite(c) && Math.abs(c) <= MAP_HALFSIZE - 0.5f;
     }
 
     private void loadGossipMenus(Connection c) {

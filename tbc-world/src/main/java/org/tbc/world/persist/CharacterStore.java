@@ -560,6 +560,7 @@ public final class CharacterStore {
                 return null;
             }
             Player copy = PlayerPersist.copy(snap);
+            relocateIfInvalidPosition(copy);
             attachSocial(copy);
             attachDeclined(copy);
             return copy;
@@ -640,6 +641,7 @@ public final class CharacterStore {
             } catch (Exception e) {
                 log.warn("load hero stats {}", e.getMessage());
             }
+            relocateIfInvalidPosition(p);
             memory.put(g, PlayerPersist.copy(p));
             attachSocial(p);
             attachDeclined(p);
@@ -677,6 +679,14 @@ public final class CharacterStore {
             java.util.Arrays.fill(player.actionButtons, 0);
             log.warn("refresh companion abilities {}", e.getMessage());
             return false;
+        }
+    }
+
+    /** Player::LoadFromDB: !IsValidMapCoord → RelocateToHomebind (character saved in the void). */
+    private static void relocateIfInvalidPosition(Player p) {
+        if (!org.tbc.world.map.MapCoords.valid(p.x, p.y, p.z, p.o)) {
+            log.warn("{} has invalid coordinates ({}, {}, {}); relocating to homebind", p.name, p.x, p.y, p.z);
+            p.relocateToHomebind();
         }
     }
 

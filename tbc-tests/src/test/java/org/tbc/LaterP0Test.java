@@ -332,7 +332,7 @@ class LaterP0Test {
         p.auras.add(new Unit.Aura(PvpObjectives.MOUNT_AURA, 0, 1));
         p.mounted = true;
         WowBuffer ack = new WowBuffer(64);
-        ack.putPackedGuid(p.guid);
+        ack.putU64(p.guid);
         ack.putU32(1);
         ack.putU32(0);
         ack.putU8(0);

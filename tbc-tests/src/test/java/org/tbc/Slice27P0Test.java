@@ -86,7 +86,7 @@ class Slice27P0Test {
         WowClientDouble client = login(world, ACC_A, "Mounter");
         Player p = client.session().player();
         WowBuffer ack = new WowBuffer(64);
-        ack.putPackedGuid(p.guid);
+        ack.putU64(p.guid);
         ack.putU32(1);
         ack.putU32(0);
         ack.putU8(0);
@@ -107,7 +107,7 @@ class Slice27P0Test {
         WowClientDouble client = login(world, ACC_A, "Swimmer");
         Player p = client.session().player();
         WowBuffer ack = new WowBuffer(64);
-        ack.putPackedGuid(p.guid);
+        ack.putU64(p.guid);
         ack.putU32(2);
         ack.putU32(0);
         ack.putU8(0);
@@ -280,7 +280,7 @@ class Slice27P0Test {
         float jumpSin = 0.8f;
         float jumpXy = 12f;
         WowBuffer in = new WowBuffer(64);
-        in.putPackedGuid(p.guid);
+        in.putU64(p.guid);
         in.putU32(1);
         in.putU32(MovementInfo.MOVEFLAG_FALLING);
         in.putU8(0);
@@ -335,7 +335,7 @@ class Slice27P0Test {
         float y = p.y + 1f;
         float z = p.z;
         WowBuffer in = new WowBuffer(48);
-        in.putPackedGuid(p.guid);
+        in.putU64(p.guid);
         in.putU32(2);
         in.putU32(0);
         in.putU8(0);
@@ -372,7 +372,7 @@ class Slice27P0Test {
         b.clear();
         float x = p.x + 3f;
         WowBuffer in = new WowBuffer(48);
-        in.putPackedGuid(p.guid);
+        in.putU64(p.guid);
         in.putU32(3);
         in.putU32(0);
         in.putU8(0);
@@ -407,7 +407,7 @@ class Slice27P0Test {
         b.clear();
         float z = p.z + 4f;
         WowBuffer in = new WowBuffer(48);
-        in.putPackedGuid(p.guid);
+        in.putU64(p.guid);
         in.putU32(4);
         in.putU32(0);
         in.putU8(0);
@@ -432,7 +432,7 @@ class Slice27P0Test {
     }
 
     /**
-     * TP-SL27-007 — HandleMoveNotActiveMoverOpcode. Packed guid + MovementInfo applies
+     * TP-SL27-007 — HandleMoveNotActiveMoverOpcode. Raw guid + MovementInfo applies
      * position with no observer echo.
      */
     @Test
@@ -447,7 +447,7 @@ class Slice27P0Test {
         float y = p.y - 2f;
         float z = p.z + 1f;
         WowBuffer in = new WowBuffer(48);
-        in.putPackedGuid(p.guid);
+        in.putU64(p.guid);
         in.putU32(0);
         in.putU8(0);
         in.putU32(80);
@@ -463,6 +463,68 @@ class Slice27P0Test {
         assertFalse(a.saw(Opcodes.CMSG_MOVE_NOT_ACTIVE_MOVER));
         assertFalse(b.saw(Opcodes.CMSG_MOVE_NOT_ACTIVE_MOVER));
         assertFalse(b.saw(Opcodes.MSG_MOVE_HEARTBEAT));
+    }
+
+    /**
+     * TP-SL27-008 — VerifyMovementInfo: !IsValidMapCoord → drop the packet. A heartbeat at
+     * x=-8.2e22 must not move the server position or echo to nearby players.
+     */
+    @Test
+    void tpSl27HeartbeatWithInvalidMapCoordShouldBeIgnored() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Voider");
+        WowClientDouble b = login(world, ACC_B, "Watcher");
+        Player p = a.session().player();
+        float x = p.x;
+        float y = p.y;
+        float z = p.z;
+        b.clear();
+        a.handle(world, Opcodes.MSG_MOVE_HEARTBEAT, heartbeat(-8.23932e22f, -50713.7f, -3.28652e37f));
+        assertEquals(x, p.x, 0.01f);
+        assertEquals(y, p.y, 0.01f);
+        assertEquals(z, p.z, 0.01f);
+        assertFalse(b.saw(Opcodes.MSG_MOVE_HEARTBEAT));
+    }
+
+    /**
+     * TP-SL27-008 — ProcessMovementInfo: IsBeingTeleported → ignore. A root ACK carrying the old
+     * map position between SMSG_NEW_WORLD and MSG_MOVE_WORLDPORT_ACK must not relocate; after
+     * the world port ACK, movement applies again.
+     */
+    @Test
+    void tpSl27AckDuringFarTeleportShouldNotRelocateUntilWorldportAck() {
+        World world = World.inMemory();
+        WowClientDouble a = login(world, ACC_A, "Porter");
+        Player p = a.session().player();
+        float oldX = p.x;
+        float oldY = p.y;
+        float oldZ = p.z;
+        world.teleport(p, 1, -592.601f, -2523.49f, 91.788f, 1.22f);
+        assertTrue(a.saw(Opcodes.SMSG_NEW_WORLD));
+        WowBuffer ack = new WowBuffer(48);
+        ack.putU64(p.guid);
+        ack.putU32(0);
+        ack.putBytes(heartbeat(oldX, oldY, oldZ));
+        a.handle(world, Opcodes.CMSG_FORCE_MOVE_ROOT_ACK, ack.array());
+        assertEquals(-592.601f, p.x, 0.01f);
+        assertEquals(-2523.49f, p.y, 0.01f);
+        a.handle(world, Opcodes.MSG_MOVE_WORLDPORT_ACK, new byte[0]);
+        a.handle(world, Opcodes.MSG_MOVE_HEARTBEAT, heartbeat(-590f, -2520f, 92f));
+        assertEquals(-590f, p.x, 0.01f);
+    }
+
+    /** movement.md C2S MovementInfo: flags, flags2, time, xyz, o, fallTime. */
+    private static byte[] heartbeat(float x, float y, float z) {
+        WowBuffer hb = new WowBuffer(32);
+        hb.putU32(0);
+        hb.putU8(0);
+        hb.putU32(1);
+        hb.putFloat(x);
+        hb.putFloat(y);
+        hb.putFloat(z);
+        hb.putFloat(0f);
+        hb.putU32(0);
+        return hb.array();
     }
 
     private static WowClientDouble login(World world, World.Account acc, String name) {
