@@ -438,6 +438,32 @@ class Slice17P0Test {
     }
 
     /**
+     * TP-SL17-027 — Ghost released at Sunstrider GY 912 talks to the tbc-db spirit healer
+     * (creature 87058, ~7 yd away). GetNPCIfCanInteractWith uses INTERACTION_DISTANCE 5 plus
+     * both combat reaches, so the gossip offers "Return me to life" and selecting it confirms.
+     */
+    @Test
+    void tpSl17GhostAtGraveyardShouldGossipSunstriderSpiritHealer() {
+        World world = World.inMemory();
+        WowClientDouble client = loginBloodElf(world, "Behealer",
+                org.tbc.world.classless.ClasslessConfig.CLASS_CLASSLESS);
+        Player p = client.session().player();
+        p.relocate(10381.6f, -6399.23f, 38.5306f, 3.74096f);
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        Creature healer = spawnSpiritHealer(world, p);
+        healer.relocate(10463.3f, -6369.74f, 39.7908f, 0f);
+        client.clear();
+        client.gossipHello(world, healer.guid);
+        assertTrue(client.saw(Opcodes.SMSG_GOSSIP_MESSAGE));
+        client.gossipSelect(world, healer.guid, 0, 0);
+        byte[] confirm = lastPayload(client, Opcodes.SMSG_SPIRIT_HEALER_CONFIRM);
+        assertEquals(healer.guid, WowClientDouble.u64le(confirm, 0));
+    }
+
+    /**
      * TP-SL17-016 — Spirit service (healer/guide) CREATE only for ghosts
      * ({@code isInvisibleForAlive}). Living {@code revealNearby} skips them; resurrect
      * sends {@code SMSG_DESTROY_OBJECT} raw guid and drops them from seen.

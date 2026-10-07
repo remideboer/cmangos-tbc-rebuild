@@ -965,8 +965,17 @@ public final class Content {
         }
     }
 
+    /**
+     * Player::GetNPCIfCanInteractWith → IsWithinDistInMap(INTERACTION_DISTANCE): 3D distance
+     * against INTERACTION_DISTANCE plus both combat reaches.
+     */
     public static boolean outOfRange(Player p, Creature c) {
-        return p.distance2d(c) > INTERACT_RANGE;
+        float maxDist = INTERACT_RANGE + p.getFloat(UpdateFields.UNIT_FIELD_COMBATREACH)
+                + c.getFloat(UpdateFields.UNIT_FIELD_COMBATREACH);
+        double dx = p.x - c.x;
+        double dy = p.y - c.y;
+        double dz = p.z - c.z;
+        return dx * dx + dy * dy + dz * dz >= (double) maxDist * maxDist;
     }
 
     public static Creature creature(GameMap map, long guid) {
