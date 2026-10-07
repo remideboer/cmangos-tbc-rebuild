@@ -100,6 +100,7 @@ public final class World implements Runnable {
     public final OutdoorPvp outdoorPvp = new OutdoorPvp();
     public final GameEventMgr events = new GameEventMgr();
     public final WorldTimers timers = new WorldTimers();
+    private final WorldTicker ticker;
     public final Map<Long, Corpse> corpses = new ConcurrentHashMap<>();
     /** Chat channels: membership, owner, flags, password, bans, toggles (Channel.cpp). */
     public final ChannelRegistry channels = new ChannelRegistry();
@@ -143,6 +144,7 @@ public final class World implements Runnable {
         this.charsDb = charsDb;
         this.characters = new CharacterStore(charsDb);
         this.characters.clearOnline();
+        this.ticker = buildTicker();
         Path dataDir = conf == null ? null : Path.of(conf.get("DataDir", "."));
         this.terrain = Terrain.fromDataDir(dataDir);
         this.surfaces = SurfaceQuery.combine(terrain.asHeight(), VMapManager.fromDataDir(dataDir));
@@ -1239,13 +1241,35 @@ public final class World implements Runnable {
         return spline;
     }
 
+    /**
+     * CMaNGOS World::Update order; built in the constructor after the engines it schedules exist.
+     * "spells" is Unit::Update -> m_currentSpells[i]->update(diff): cast bars finish there.
+     */
+    private WorldTicker buildTicker() {
+        return new WorldTicker()
+                .every(timers, WorldTimers.AUCTIONS, "auctions", () -> AuctionHandler.expire(this))
+                .step("sessions", this::tickSessions)
+                .step("spells", d -> spells.update(d, nowMs()))
+                .step("periodicAuras", this::tickPeriodicAuras)
+                .step("expireAuras", this::expirePlayerAuras)
+                .step("partyAreaAuras", this::updatePartyAreaAuras)
+                .every(timers::weatherPassed, timers::resetWeather, "weather", () -> WeatherHandler.onTimer(this))
+                .step("creatures", this::tickCreatures)
+                .step("dropCombat", this::dropPlayerCombatWithoutHostiles)
+                .every(timers, WorldTimers.GROUPS, "groups", () -> GroupHandler.updateOfflineLeaders(this))
+                .every(timers, WorldTimers.DELETECHARS, "deleteChars", () -> characters.deleteOldCharacters(nowMs()))
+                .every(timers, WorldTimers.CORPSES, "corpses", () -> DeathHandler.removeOldCorpses(this))
+                .everyWithNextInterval(timers, WorldTimers.EVENTS, "events", () -> events.update(this, nowMs()))
+                .step("quests", this::tickQuests);
+    }
+
     public void tick(int diff) {
         nowMs.set(System.currentTimeMillis() + clockOffsetMs.get());
         timers.advance(diff);
-        if (timers.passed(WorldTimers.AUCTIONS)) {
-            timers.reset(WorldTimers.AUCTIONS);
-            AuctionHandler.expire(this);
-        }
+        ticker.tick(diff);
+    }
+
+    private void tickSessions(int diff) {
         WorldSession add;
         while ((add = addQueue.poll()) != null) {
             sessions.put(add.id(), add);
@@ -1258,15 +1282,9 @@ public final class World implements Runnable {
                 org.tbc.world.companion.CompanionBehavior.tick(this, pl, diff);
             }
         }
-        // Unit::Update → m_currentSpells[i]->update(diff): cast bars finish here.
-        spells.update(diff, nowMs());
-        tickPeriodicAuras();
-        expirePlayerAuras();
-        updatePartyAreaAuras();
-        if (timers.weatherPassed()) {
-            timers.resetWeather();
-            WeatherHandler.onTimer(this);
-        }
+    }
+
+    private void tickCreatures(int diff) {
         for (GameMap m : maps.values()) {
             // CMaNGOS Map::Update → VisitNearbyCellsOf(player), not every continent spawn.
             for (Creature c : m.creaturesNearPlayers(GameMap.VISIBILITY)) {
@@ -1282,13 +1300,9 @@ public final class World implements Runnable {
                         if (wasRemoved) {
                             createCreatureObject(m, c);
                         } else {
-                            for (Player pl : m.nearbyPlayers(c, GameMap.VISIBILITY)) {
-                                if (pl.session != null) {
-                                    var hp = UpdateBuilder.maybeCompress(
-                                            UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
-                                    pl.session.send(hp.opcode(), hp.payload());
-                                }
-                            }
+                            var hp = UpdateBuilder.maybeCompress(
+                                    UpdateBuilder.values(c, UpdateFields.UNIT_FIELD_HEALTH));
+                            Broadcaster.nearby(m, c, GameMap.VISIBILITY, hp.opcode(), hp.payload());
                         }
                     }
                     continue;
@@ -1378,25 +1392,6 @@ public final class World implements Runnable {
             }
             m.dbScripts.process(diff, (src, tgt, spell) -> sendDbScriptCast(m, src, tgt, spell));
         }
-        dropPlayerCombatWithoutHostiles();
-        if (timers.passed(WorldTimers.GROUPS)) {
-            timers.reset(WorldTimers.GROUPS);
-            GroupHandler.updateOfflineLeaders(this);
-        }
-        if (timers.passed(WorldTimers.DELETECHARS)) {
-            timers.reset(WorldTimers.DELETECHARS);
-            characters.deleteOldCharacters(nowMs());
-        }
-        if (timers.passed(WorldTimers.CORPSES)) {
-            timers.reset(WorldTimers.CORPSES);
-            DeathHandler.removeOldCorpses(this);
-        }
-        if (timers.passed(WorldTimers.EVENTS)) {
-            int next = events.update(this, nowMs());
-            timers.setInterval(WorldTimers.EVENTS, next);
-            timers.reset(WorldTimers.EVENTS);
-        }
-        tickQuests();
     }
 
     private long nextDailyResetMs;
