@@ -464,6 +464,41 @@ class Slice17P0Test {
     }
 
     /**
+     * TP-SL17-030 — HandleCreatureQueryOpcode answers from creature_template (queries.md): the 8606
+     * client only lets a ghost interact with an NPC whose TypeFlags carry GHOST_VISIBLE (2), so the
+     * Spirit Healer queried by its real guid must not be answered as a synthetic companion.
+     */
+    @Test
+    void tpSl17SpiritHealerQueryByGuidShouldCarryGhostVisibleTypeFlags() {
+        World world = World.inMemory();
+        WowClientDouble client = login(world, "Query");
+        Player p = client.session().player();
+        p.setHealth(0);
+        WowBuffer repop = new WowBuffer(1);
+        repop.putU8(0);
+        client.handle(world, Opcodes.CMSG_REPOP_REQUEST, repop.array());
+        Creature healer = spawnSpiritHealer(world, p);
+        client.clear();
+
+        WowBuffer q = new WowBuffer(12);
+        q.putU32(healer.entry);
+        q.putU64(healer.guid);
+        client.handle(world, Opcodes.CMSG_CREATURE_QUERY, q.array());
+
+        byte[] r = lastPayload(client, Opcodes.SMSG_CREATURE_QUERY_RESPONSE);
+        assertEquals(healer.entry, WowClientDouble.u32le(r, 0));
+        int off = 4;
+        off = skipCString(r, off);
+        off += 3;
+        int subNameStart = off;
+        off = skipCString(r, off);
+        assertEquals("", new String(r, subNameStart, off - subNameStart - 1, java.nio.charset.StandardCharsets.UTF_8));
+        off = skipCString(r, off);
+        assertEquals(SPIRIT_HEALER_TYPEFLAGS_GHOST_VISIBLE, WowClientDouble.u32le(r, off));
+        assertEquals(SPIRIT_HEALER_CREATURE_TYPE_HUMANOID, WowClientDouble.u32le(r, off + 4));
+    }
+
+    /**
      * TP-SL17-016 — Spirit service (healer/guide) CREATE only for ghosts
      * ({@code isInvisibleForAlive}). Living {@code revealNearby} skips them; resurrect
      * sends {@code SMSG_DESTROY_OBJECT} raw guid and drops them from seen.
@@ -814,11 +849,24 @@ class Slice17P0Test {
         assertFalse(client.saw(Opcodes.SMSG_COMPRESSED_UPDATE_OBJECT));
     }
 
+    /** creature_template 6491: CreatureTypeFlags 2 (CREATURE_TYPEFLAGS_GHOST_VISIBLE), CreatureType 7. */
+    private static final int SPIRIT_HEALER_TYPEFLAGS_GHOST_VISIBLE = 2;
+    private static final int SPIRIT_HEALER_CREATURE_TYPE_HUMANOID = 7;
+
+    private static int skipCString(byte[] p, int off) {
+        while (p[off] != 0) {
+            off++;
+        }
+        return off + 1;
+    }
+
     private static Creature spawnSpiritHealer(World world, Player p) {
         int entry = 6491;
         world.objectMgr.creatures.put(entry, new org.tbc.world.content.ObjectMgr.CreatureTemplate(
                 entry, "Spirit Healer", 0, 35, 100, 60,
-                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_SPIRITHEALER, "", "", 0));
+                Content.UNIT_NPC_FLAG_GOSSIP | Content.UNIT_NPC_FLAG_SPIRITHEALER, "", "", 0,
+                "", "", 0, 0, 0, SPIRIT_HEALER_TYPEFLAGS_GHOST_VISIBLE, SPIRIT_HEALER_CREATURE_TYPE_HUMANOID,
+                0, 0, 0, 1.35f, 1f, 0));
         Creature healer = world.objectMgr.spawnCreature(entry, 0, p.x, p.y, p.z, p.o, world.scripts);
         world.map(p.mapId, p.instanceId).add(healer);
         return healer;

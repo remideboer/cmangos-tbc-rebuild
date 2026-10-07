@@ -24,7 +24,9 @@ public final class QueryHandler {
         int entry = readU32(in);
         long guid = readU64(in);
         ObjectMgr.CreatureTemplate t = world.objectMgr.creatures.get(entry);
-        Creature companion = mapCreature(session.player(), world, guid);
+        // HandleCreatureQueryOpcode answers from creature_template; only a synthetic companion
+        // entry (no template) is resolved from the map body.
+        Creature companion = t != null ? null : mapCreature(session.player(), world, guid);
         if (companion != null && companion.entry != entry) {
             companion = null;
         }
