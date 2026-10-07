@@ -969,14 +969,21 @@ public final class CharacterStore {
                       agi INT NOT NULL,
                       sta INT NOT NULL,
                       inte INT NOT NULL,
-                      spi INT NOT NULL)
+                      spi INT NOT NULL,
+                      reset_count INT NOT NULL DEFAULT 0)
                     """);
+            try {
+                st.execute("ALTER TABLE character_hero_stats ADD COLUMN reset_count INT NOT NULL DEFAULT 0");
+            } catch (Exception ignored) {
+                // column already present
+            }
         }
         PreparedStatement del = c.prepareStatement("DELETE FROM character_hero_stats WHERE guid = ?");
         del.setInt(1, Guid.low(p.guid));
         del.executeUpdate();
         PreparedStatement ins = c.prepareStatement(
-                "INSERT INTO character_hero_stats (guid, unspent, str, agi, sta, inte, spi) VALUES (?,?,?,?,?,?,?)");
+                "INSERT INTO character_hero_stats (guid, unspent, str, agi, sta, inte, spi, reset_count) "
+                        + "VALUES (?,?,?,?,?,?,?,?)");
         ins.setInt(1, Guid.low(p.guid));
         ins.setInt(2, p.heroStats.unspent());
         ins.setInt(3, p.heroStats.spent(org.tbc.world.classless.HeroStatAllocation.STR));
@@ -984,6 +991,7 @@ public final class CharacterStore {
         ins.setInt(5, p.heroStats.spent(org.tbc.world.classless.HeroStatAllocation.STA));
         ins.setInt(6, p.heroStats.spent(org.tbc.world.classless.HeroStatAllocation.INTELLECT));
         ins.setInt(7, p.heroStats.spent(org.tbc.world.classless.HeroStatAllocation.SPI));
+        ins.setInt(8, p.heroStats.resetCount());
         ins.executeUpdate();
     }
 
@@ -994,21 +1002,46 @@ public final class CharacterStore {
         org.tbc.world.content.LevelStats ls = mgr != null && mgr.levelStats != null
                 ? mgr.levelStats : org.tbc.world.content.LevelStats.defaults();
         PreparedStatement ps = c.prepareStatement(
-                "SELECT unspent, str, agi, sta, inte, spi FROM character_hero_stats WHERE guid = ?");
-        ps.setInt(1, Guid.low(p.guid));
+                "SELECT unspent, str, agi, sta, inte, spi, reset_count FROM character_hero_stats WHERE guid = ?");
         ResultSet rs;
         try {
+            ps.setInt(1, Guid.low(p.guid));
             rs = ps.executeQuery();
         } catch (Exception e) {
-            p.heroStats.backfillUnspent(ls, p.race, p.level);
+            // Legacy rows without reset_count — fall back to 6-column select.
+            try {
+                ps.close();
+            } catch (Exception ignored) {
+            }
+            ps = c.prepareStatement(
+                    "SELECT unspent, str, agi, sta, inte, spi FROM character_hero_stats WHERE guid = ?");
+            try {
+                ps.setInt(1, Guid.low(p.guid));
+                rs = ps.executeQuery();
+            } catch (Exception e2) {
+                p.heroStats.backfillUnspent(ls, p.race, p.level);
+                org.tbc.world.classless.ClasslessCharacterPolicy.applyStartingStats(p, ls);
+                return;
+            }
+            if (!rs.next()) {
+                p.heroStats.backfillUnspent(ls, p.race, p.level);
+            } else {
+                p.heroStats.load(rs.getInt("unspent"), rs.getInt("str"), rs.getInt("agi"),
+                        rs.getInt("sta"), rs.getInt("inte"), rs.getInt("spi"), 0);
+            }
             org.tbc.world.classless.ClasslessCharacterPolicy.applyStartingStats(p, ls);
             return;
         }
         if (!rs.next()) {
             p.heroStats.backfillUnspent(ls, p.race, p.level);
         } else {
+            int resets = 0;
+            try {
+                resets = rs.getInt("reset_count");
+            } catch (Exception ignored) {
+            }
             p.heroStats.load(rs.getInt("unspent"), rs.getInt("str"), rs.getInt("agi"),
-                    rs.getInt("sta"), rs.getInt("inte"), rs.getInt("spi"));
+                    rs.getInt("sta"), rs.getInt("inte"), rs.getInt("spi"), resets);
         }
         org.tbc.world.classless.ClasslessCharacterPolicy.applyStartingStats(p, ls);
     }

@@ -110,6 +110,93 @@ class HeroStatAllocationTest {
                 p.getInt(UpdateFields.UNIT_FIELD_POWER1));
     }
 
+    @Test
+    void applyAbsoluteWhenValidShouldRedistributeWithoutChangingBudget() {
+        HeroStatAllocation a = new HeroStatAllocation();
+        a.load(4, 0, 0, 0, 0, 0);
+        assertEquals(4, a.totalBudget());
+        assertTrue(a.applyAbsolute(new int[] { 2, 1, 0, 0, 0 }));
+        assertEquals(1, a.unspent());
+        assertEquals(2, a.spent(HeroStatAllocation.STR));
+        assertEquals(1, a.spent(HeroStatAllocation.AGI));
+        assertEquals(4, a.totalBudget());
+    }
+
+    @Test
+    void applyAbsoluteWhenOverBudgetOrInvalidShouldRefuse() {
+        HeroStatAllocation a = new HeroStatAllocation();
+        a.load(3, 1, 0, 0, 0, 0);
+        assertFalse(a.applyAbsolute(new int[] { 5, 0, 0, 0, 0 }));
+        assertFalse(a.applyAbsolute(new int[] { -1, 0, 0, 0, 0 }));
+        assertFalse(a.applyAbsolute(new int[] { 1, 0, 0 }));
+        assertFalse(a.applyAbsolute(null));
+        assertEquals(3, a.unspent());
+        assertEquals(1, a.spent(HeroStatAllocation.STR));
+    }
+
+    @Test
+    void resetSpentWhenPointsCommittedShouldReturnAllToUnspent() {
+        HeroStatAllocation a = new HeroStatAllocation();
+        a.load(1, 2, 1, 0, 0, 0);
+        a.resetSpent();
+        assertEquals(4, a.unspent());
+        assertEquals(0, a.spent(HeroStatAllocation.STR));
+        assertEquals(0, a.spent(HeroStatAllocation.AGI));
+        assertEquals(4, a.totalBudget());
+    }
+
+    @Test
+    void applyHeroStatsWhenAbsoluteShouldRaiseChosenStats() {
+        Player p = heroAtLevel2WithUnspent();
+        int budget = p.heroStats.totalBudget();
+        int str = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
+        int agi = p.getInt(UpdateFields.UNIT_FIELD_STAT1);
+        assertTrue(p.applyHeroStats(new int[] { 2, 1, 0, 0, 0 }));
+        assertEquals(budget - 3, p.heroStats.unspent());
+        assertEquals(str + 2, p.getInt(UpdateFields.UNIT_FIELD_STAT0));
+        assertEquals(agi + 1, p.getInt(UpdateFields.UNIT_FIELD_STAT1));
+    }
+
+    @Test
+    void resetHeroStatsWhenFirstShouldBeFreeAndIncrementCount() {
+        Player p = heroAtLevel2WithUnspent();
+        assertTrue(p.applyHeroStats(new int[] { 1, 0, 0, 0, 0 }));
+        int money = p.money;
+        int budget = p.heroStats.totalBudget();
+        assertTrue(p.resetHeroStats());
+        assertEquals(0, p.heroStats.spent(HeroStatAllocation.STR));
+        assertEquals(budget, p.heroStats.unspent());
+        assertEquals(1, p.heroStats.resetCount());
+        assertEquals(money, p.money);
+    }
+
+    @Test
+    void resetHeroStatsWhenSecondShouldChargeOneGold() {
+        Player p = heroAtLevel2WithUnspent();
+        assertTrue(p.applyHeroStats(new int[] { 1, 0, 0, 0, 0 }));
+        assertTrue(p.resetHeroStats());
+        assertTrue(p.applyHeroStats(new int[] { 1, 0, 0, 0, 0 }));
+        p.setMoney(15_000);
+        assertTrue(p.resetHeroStats());
+        assertEquals(5_000, p.money);
+        assertEquals(2, p.heroStats.resetCount());
+    }
+
+    @Test
+    void resetHeroStatsWhenPoorShouldRefuse() {
+        Player p = heroAtLevel2WithUnspent();
+        assertTrue(p.applyHeroStats(new int[] { 1, 0, 0, 0, 0 }));
+        assertTrue(p.resetHeroStats());
+        assertTrue(p.applyHeroStats(new int[] { 1, 0, 0, 0, 0 }));
+        p.setMoney(9_999);
+        int str = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
+        assertFalse(p.resetHeroStats());
+        assertEquals(1, p.heroStats.spent(HeroStatAllocation.STR));
+        assertEquals(1, p.heroStats.resetCount());
+        assertEquals(9_999, p.money);
+        assertEquals(str, p.getInt(UpdateFields.UNIT_FIELD_STAT0));
+    }
+
     private static Player heroAtLevel2WithUnspent() {
         Player p = new Player();
         p.race = 1;

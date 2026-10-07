@@ -191,6 +191,7 @@ class PlayerPersistTest {
         Player d = PlayerPersist.copy(src);
         assertEquals(src.heroStats.unspent(), d.heroStats.unspent());
         assertEquals(1, d.heroStats.spent(0));
+        assertEquals(src.heroStats.resetCount(), d.heroStats.resetCount());
         src.heroStats.spend(0, 1);
         assertEquals(1, d.heroStats.spent(0), "clone is independent");
     }

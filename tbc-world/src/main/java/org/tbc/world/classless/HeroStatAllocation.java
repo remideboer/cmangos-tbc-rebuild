@@ -15,6 +15,7 @@ public final class HeroStatAllocation {
 
     private int unspent;
     private final int[] spent = new int[5];
+    private int resetCount;
 
     public int unspent() {
         return unspent;
@@ -25,6 +26,54 @@ public final class HeroStatAllocation {
             return 0;
         }
         return spent[stat];
+    }
+
+    public int resetCount() {
+        return resetCount;
+    }
+
+    public void setResetCount(int count) {
+        resetCount = Math.max(0, count);
+    }
+
+    public int totalBudget() {
+        int sum = unspent;
+        for (int v : spent) {
+            sum += v;
+        }
+        return sum;
+    }
+
+    /**
+     * Set absolute spent totals; leftover budget becomes unspent. Refuses negatives,
+     * wrong length, or sum over current budget.
+     */
+    public boolean applyAbsolute(int[] nextSpent) {
+        if (nextSpent == null || nextSpent.length != 5) {
+            return false;
+        }
+        int sum = 0;
+        for (int v : nextSpent) {
+            if (v < 0) {
+                return false;
+            }
+            sum += v;
+        }
+        int budget = totalBudget();
+        if (sum > budget) {
+            return false;
+        }
+        System.arraycopy(nextSpent, 0, spent, 0, 5);
+        unspent = budget - sum;
+        return true;
+    }
+
+    /** Move every spent point back to unspent. Does not change {@link #resetCount}. */
+    public void resetSpent() {
+        for (int i = 0; i < 5; i++) {
+            unspent += spent[i];
+            spent[i] = 0;
+        }
     }
 
     public static int pointsForGain(LevelStats ls, int race, int fromLevel, int toLevel) {
@@ -72,14 +121,20 @@ public final class HeroStatAllocation {
     public void copyFrom(HeroStatAllocation src) {
         unspent = src.unspent;
         System.arraycopy(src.spent, 0, spent, 0, 5);
+        resetCount = src.resetCount;
     }
 
     public void load(int unspentPts, int str, int agi, int sta, int inte, int spi) {
+        load(unspentPts, str, agi, sta, inte, spi, 0);
+    }
+
+    public void load(int unspentPts, int str, int agi, int sta, int inte, int spi, int resets) {
         this.unspent = Math.max(0, unspentPts);
         spent[STR] = Math.max(0, str);
         spent[AGI] = Math.max(0, agi);
         spent[STA] = Math.max(0, sta);
         spent[INTELLECT] = Math.max(0, inte);
         spent[SPI] = Math.max(0, spi);
+        this.resetCount = Math.max(0, resets);
     }
 }

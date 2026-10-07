@@ -619,6 +619,110 @@ class Slice35P0Test {
         assertFalse(chats.stream().anyMatch(m -> m.contains("StatUpdate")), chats.toString());
     }
 
+    /** TP-SL35-031 — ApplyStats commits absolute draft spent and pushes StatUpdate + ResetCost on enable. */
+    @Test
+    void tpSl35HeroApplyStatsShouldPushStatUpdateAndValues() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Applyhero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        created.xp = 350;
+        world.characters.save(created);
+        client.login(world, created.guid);
+        client.clear();
+        sendHeroPowerEnable(client, world);
+        List<String> enableChats = messageChatBodies(client);
+        assertTrue(enableChats.stream().anyMatch(m -> m.equals("HeroPowerBars\tResetCost;0;0")),
+                "ResetCost on enable: " + enableChats);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.attackSwing(world, c.guid);
+        int n = 0;
+        while (c.alive() && n++ < 400) {
+            world.meleeHit(p, c);
+        }
+        int str = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
+        int agi = p.getInt(UpdateFields.UNIT_FIELD_STAT1);
+        int unspent = p.heroStats.unspent();
+        assertTrue(unspent >= 3);
+        client.clear();
+        sendHeroApplyStats(client, world, 2, 1, 0, 0, 0);
+        assertEquals(str + 2, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT0));
+        assertEquals(agi + 1, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT1));
+        List<String> chats = messageChatBodies(client);
+        assertTrue(chats.stream().anyMatch(m -> m.equals(
+                "HeroPowerBars\tStatUpdate;" + (unspent - 3) + ";2;1;0;0;0")), chats.toString());
+    }
+
+    /** TP-SL35-032 — first ResetStats free; second costs 1g; poor refuse. */
+    @Test
+    void tpSl35HeroResetStatsShouldRefundAndChargeEscalatingCopper() {
+        World world = World.inMemory();
+        WowClientDouble client = new WowClientDouble();
+        world.addSession(client.connect(ACC));
+        Player created = world.characters.create(ACC.id(), "Resethero", 1, ClasslessConfig.CLASS_CLASSLESS,
+                0, 1, 1, 1, 1, 0, world.objectMgr);
+        created.xp = 350;
+        world.characters.save(created);
+        client.login(world, created.guid);
+        sendHeroPowerEnable(client, world);
+        Player p = client.session().player();
+        Creature c = world.objectMgr.spawnCreature(6, 0, p.x, p.y, p.z, p.o, world.scripts);
+        world.map(p.mapId, p.instanceId).add(c);
+        float ox = p.x;
+        float oy = p.y;
+        p.relocate(c.x, c.y, c.z, c.o);
+        world.map(p.mapId, p.instanceId).reindex(p, ox, oy);
+        client.attackSwing(world, c.guid);
+        int n = 0;
+        while (c.alive() && n++ < 400) {
+            world.meleeHit(p, c);
+        }
+        int budget = p.heroStats.unspent();
+        int baseStr = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
+        sendHeroApplyStats(client, world, 1, 0, 0, 0, 0);
+        assertEquals(1, p.heroStats.spent(0));
+        client.clear();
+        sendHeroResetStats(client, world);
+        assertEquals(0, p.heroStats.spent(0));
+        assertEquals(budget, p.heroStats.unspent());
+        assertEquals(baseStr, client.valuesField(p.guid, UpdateFields.UNIT_FIELD_STAT0));
+        List<String> chats = messageChatBodies(client);
+        assertTrue(chats.stream().anyMatch(m -> m.equals(
+                "HeroPowerBars\tStatUpdate;" + budget + ";0;0;0;0;0")), chats.toString());
+        assertTrue(chats.stream().anyMatch(m -> m.equals("HeroPowerBars\tResetCost;10000;1")),
+                chats.toString());
+
+        sendHeroApplyStats(client, world, 1, 0, 0, 0, 0);
+        p.setMoney(15_000);
+        world.characters.save(p);
+        client.clear();
+        sendHeroResetStats(client, world);
+        assertEquals(5_000, p.money);
+        assertEquals(0, p.heroStats.spent(0));
+        assertEquals(2, p.heroStats.resetCount());
+        assertEquals(5_000, client.valuesField(p.guid, UpdateFields.PLAYER_FIELD_COINAGE));
+
+        sendHeroApplyStats(client, world, 1, 0, 0, 0, 0);
+        p.setMoney(9_999);
+        int spentStr = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
+        client.clear();
+        sendHeroResetStats(client, world);
+        assertEquals(1, p.heroStats.spent(0));
+        assertEquals(2, p.heroStats.resetCount());
+        assertEquals(9_999, p.money);
+        assertEquals(spentStr, p.getInt(UpdateFields.UNIT_FIELD_STAT0));
+        List<String> refused = messageChatBodies(client);
+        assertFalse(refused.stream().anyMatch(m -> m.startsWith("HeroPowerBars\tStatUpdate;")),
+                refused.toString());
+    }
+
     @Test
     void tpSl35HeroPowerAddonEnableWhenWarriorShouldNotEnable() {
         World world = World.inMemory();
@@ -900,6 +1004,23 @@ class Slice35P0Test {
         b.putU32(0x01);
         b.putU32(0xFFFFFFFF);
         b.putCString("HeroPowerBars\tSpendStat;" + stat + ";" + amount);
+        client.handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
+    }
+
+    private static void sendHeroApplyStats(WowClientDouble client, World world,
+            int str, int agi, int sta, int inte, int spi) {
+        WowBuffer b = new WowBuffer(80);
+        b.putU32(0x01);
+        b.putU32(0xFFFFFFFF);
+        b.putCString("HeroPowerBars\tApplyStats;" + str + ";" + agi + ";" + sta + ";" + inte + ";" + spi);
+        client.handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
+    }
+
+    private static void sendHeroResetStats(WowClientDouble client, World world) {
+        WowBuffer b = new WowBuffer(64);
+        b.putU32(0x01);
+        b.putU32(0xFFFFFFFF);
+        b.putCString("HeroPowerBars\tResetStats");
         client.handle(world, Opcodes.CMSG_MESSAGECHAT, b.array());
     }
 

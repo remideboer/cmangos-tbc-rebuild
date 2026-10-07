@@ -45,6 +45,14 @@ public final class ClasslessPowerAddon {
             spend(session, world, body);
             return true;
         }
+        if (body.startsWith("ApplyStats;")) {
+            applyStats(session, world, body);
+            return true;
+        }
+        if ("ResetStats".equals(body)) {
+            resetStats(session, world);
+            return true;
+        }
         return true; // known prefix, swallow
     }
 
@@ -57,6 +65,7 @@ public final class ClasslessPowerAddon {
         send(session, "AddonEnabled");
         pushAll(session);
         pushStats(session);
+        pushResetCost(session);
     }
 
     public static void pushAll(WorldSession session) {
@@ -138,6 +147,18 @@ public final class ClasslessPowerAddon {
                 + ";" + p.heroStats.spent(HeroStatAllocation.SPI));
     }
 
+    public static void pushResetCost(WorldSession session) {
+        if (session == null || !session.heroPowerAddonEnabled()) {
+            return;
+        }
+        Player p = session.player();
+        if (!ClasslessCharacterPolicy.isClassless(p)) {
+            return;
+        }
+        int count = p.heroStats.resetCount();
+        send(session, "ResetCost;" + HeroStatResetCost.nextCopperCost(count) + ";" + count);
+    }
+
     public static void pushStatsIfDinged(WorldSession session, int[] changedFields) {
         if (changedFields == null) {
             return;
@@ -174,19 +195,75 @@ public final class ClasslessPowerAddon {
         if (!p.spendHeroStat(stat, amount)) {
             return;
         }
+        pushStatValues(session, world, p, oldHp, oldMaxHp, oldMana, oldMaxMana);
+        pushStats(session);
+    }
+
+    private static void applyStats(WorldSession session, World world, String body) {
+        Player p = session.player();
+        if (!ClasslessCharacterPolicy.isClassless(p)) {
+            return;
+        }
+        String[] parts = body.split(";");
+        if (parts.length < 6) {
+            return;
+        }
+        int[] spent = new int[5];
+        try {
+            for (int i = 0; i < 5; i++) {
+                spent[i] = Integer.parseInt(parts[i + 1]);
+            }
+        } catch (NumberFormatException e) {
+            return;
+        }
+        int oldHp = p.health();
+        int oldMaxHp = p.maxHealth();
+        int oldMana = p.getInt(UpdateFields.UNIT_FIELD_POWER1);
+        int oldMaxMana = p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+        if (!p.applyHeroStats(spent)) {
+            return;
+        }
+        pushStatValues(session, world, p, oldHp, oldMaxHp, oldMana, oldMaxMana);
+        pushStats(session);
+    }
+
+    private static void resetStats(WorldSession session, World world) {
+        Player p = session.player();
+        if (!ClasslessCharacterPolicy.isClassless(p)) {
+            return;
+        }
+        int oldHp = p.health();
+        int oldMaxHp = p.maxHealth();
+        int oldMana = p.getInt(UpdateFields.UNIT_FIELD_POWER1);
+        int oldMaxMana = p.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+        if (!p.resetHeroStats()) {
+            return;
+        }
+        pushStatValues(session, world, p, oldHp, oldMaxHp, oldMana, oldMaxMana);
         if (world != null) {
-            world.objectMgr.applyEquippedMelee(p);
-            p.restoreResourcePercent(oldHp, oldMaxHp, oldMana, oldMaxMana);
-            var upd = UpdateBuilder.maybeCompress(
-                    UpdateBuilder.values(p,
-                            UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
-                            UpdateFields.UNIT_FIELD_STAT2, UpdateFields.UNIT_FIELD_STAT3,
-                            UpdateFields.UNIT_FIELD_STAT4, UpdateFields.UNIT_FIELD_RESISTANCES,
-                            UpdateFields.UNIT_FIELD_MAXHEALTH, UpdateFields.UNIT_FIELD_HEALTH,
-                            UpdateFields.UNIT_FIELD_MAXPOWER1, UpdateFields.UNIT_FIELD_POWER1));
-            session.send(upd.opcode(), upd.payload());
+            var coin = UpdateBuilder.maybeCompress(
+                    UpdateBuilder.values(p, UpdateFields.PLAYER_FIELD_COINAGE));
+            session.send(coin.opcode(), coin.payload());
         }
         pushStats(session);
+        pushResetCost(session);
+    }
+
+    private static void pushStatValues(WorldSession session, World world, Player p,
+            int oldHp, int oldMaxHp, int oldMana, int oldMaxMana) {
+        if (world == null) {
+            return;
+        }
+        world.objectMgr.applyEquippedMelee(p);
+        p.restoreResourcePercent(oldHp, oldMaxHp, oldMana, oldMaxMana);
+        var upd = UpdateBuilder.maybeCompress(
+                UpdateBuilder.values(p,
+                        UpdateFields.UNIT_FIELD_STAT0, UpdateFields.UNIT_FIELD_STAT1,
+                        UpdateFields.UNIT_FIELD_STAT2, UpdateFields.UNIT_FIELD_STAT3,
+                        UpdateFields.UNIT_FIELD_STAT4, UpdateFields.UNIT_FIELD_RESISTANCES,
+                        UpdateFields.UNIT_FIELD_MAXHEALTH, UpdateFields.UNIT_FIELD_HEALTH,
+                        UpdateFields.UNIT_FIELD_MAXPOWER1, UpdateFields.UNIT_FIELD_POWER1));
+        session.send(upd.opcode(), upd.payload());
     }
 
     public static void send(WorldSession session, String body) {

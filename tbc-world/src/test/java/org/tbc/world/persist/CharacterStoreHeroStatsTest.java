@@ -32,12 +32,15 @@ class CharacterStoreHeroStatsTest {
                 0, 1, 1, 1, 1, 0, world.objectMgr);
         p.giveXp(400, null);
         assertTrue(p.spendHeroStat(HeroStatAllocation.STR, 1));
+        assertTrue(p.resetHeroStats());
+        assertTrue(p.spendHeroStat(HeroStatAllocation.STR, 1));
         int str = p.getInt(UpdateFields.UNIT_FIELD_STAT0);
         int unspent = p.heroStats.unspent();
         world.characters.save(p);
         Player loaded = world.characters.load(1, p.guid, world.objectMgr);
         assertEquals(unspent, loaded.heroStats.unspent());
         assertEquals(1, loaded.heroStats.spent(HeroStatAllocation.STR));
+        assertEquals(1, loaded.heroStats.resetCount());
         assertEquals(str, loaded.getInt(UpdateFields.UNIT_FIELD_STAT0));
     }
 

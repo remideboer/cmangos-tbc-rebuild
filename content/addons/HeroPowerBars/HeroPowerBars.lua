@@ -193,17 +193,24 @@ local function handlePowerUpdate(body)
 end
 
 local STAT_NAMES = { "Strength", "Agility", "Stamina", "Intellect", "Spirit" }
-local statCache = { unspent = 0, spent = { 0, 0, 0, 0, 0 } }
+-- Committed values from StatUpdate; draft is edited locally until Apply.
+local statCache = { unspent = 0, spent = { 0, 0, 0, 0, 0 }, resetCopper = 0, resetCount = 0 }
+local draftSpent = { 0, 0, 0, 0, 0 }
+local draftUnspent = 0
 local statPanel
-local statButtons = {}
+local plusButtons = {}
+local minusButtons = {}
+local statLabels = {}
 local unspentText
+local costText
+local applyBtn
+local resetBtn
 
-local function sendSpend(statIndex)
+local function sendAddon(body)
     if not SendAddonMessage then
         return
     end
     local name = UnitName("player")
-    local body = "SpendStat;" .. (statIndex - 1) .. ";1"
     if name then
         SendAddonMessage(PREFIX, body, "WHISPER", name)
     else
@@ -211,26 +218,117 @@ local function sendSpend(statIndex)
     end
 end
 
+local function draftDirty()
+    for i = 1, 5 do
+        if (draftSpent[i] or 0) ~= (statCache.spent[i] or 0) then
+            return true
+        end
+    end
+    return false
+end
+
+local function syncDraftFromCache()
+    draftUnspent = statCache.unspent or 0
+    for i = 1, 5 do
+        draftSpent[i] = statCache.spent[i] or 0
+    end
+end
+
+local function formatCopper(copper)
+    copper = tonumber(copper) or 0
+    if copper <= 0 then
+        return "Free"
+    end
+    local g = math.floor(copper / 10000)
+    local s = math.floor((copper % 10000) / 100)
+    local c = copper % 100
+    if g > 0 then
+        return g .. "g"
+    end
+    if s > 0 then
+        return s .. "s"
+    end
+    return c .. "c"
+end
+
 local function refreshStatPanel()
     if not statPanel then
         return
     end
     if unspentText then
-        unspentText:SetText("Unspent: " .. (statCache.unspent or 0))
+        unspentText:SetText("Unspent: " .. (draftUnspent or 0))
+    end
+    if costText then
+        costText:SetText("Reset: " .. formatCopper(statCache.resetCopper))
     end
     for i = 1, 5 do
-        local btn = statButtons[i]
-        if btn then
-            if btn.label then
-                btn.label:SetText(STAT_NAMES[i] .. ": " .. (statCache.spent[i] or 0))
-            end
-            if (statCache.unspent or 0) < 1 then
-                btn:Disable()
+        if statLabels[i] then
+            statLabels[i]:SetText(STAT_NAMES[i] .. ": " .. (draftSpent[i] or 0))
+        end
+        if plusButtons[i] then
+            if (draftUnspent or 0) < 1 then
+                plusButtons[i]:Disable()
             else
-                btn:Enable()
+                plusButtons[i]:Enable()
+            end
+        end
+        if minusButtons[i] then
+            if (draftSpent[i] or 0) < 1 then
+                minusButtons[i]:Disable()
+            else
+                minusButtons[i]:Enable()
             end
         end
     end
+    if applyBtn then
+        if draftDirty() then
+            applyBtn:Enable()
+        else
+            applyBtn:Disable()
+        end
+    end
+    if resetBtn then
+        local committed = 0
+        for i = 1, 5 do
+            committed = committed + (statCache.spent[i] or 0)
+        end
+        if committed > 0 and not draftDirty() then
+            resetBtn:Enable()
+        else
+            resetBtn:Disable()
+        end
+    end
+end
+
+local function draftPlus(statIndex)
+    if (draftUnspent or 0) < 1 then
+        return
+    end
+    draftSpent[statIndex] = (draftSpent[statIndex] or 0) + 1
+    draftUnspent = draftUnspent - 1
+    refreshStatPanel()
+end
+
+local function draftMinus(statIndex)
+    if (draftSpent[statIndex] or 0) < 1 then
+        return
+    end
+    draftSpent[statIndex] = draftSpent[statIndex] - 1
+    draftUnspent = draftUnspent + 1
+    refreshStatPanel()
+end
+
+local function sendApply()
+    sendAddon("ApplyStats;"
+        .. (draftSpent[1] or 0) .. ";"
+        .. (draftSpent[2] or 0) .. ";"
+        .. (draftSpent[3] or 0) .. ";"
+        .. (draftSpent[4] or 0) .. ";"
+        .. (draftSpent[5] or 0))
+end
+
+local function sendReset()
+    sendAddon("ResetStats")
 end
 
 local function ensureStatPanel()
@@ -239,8 +337,8 @@ local function ensureStatPanel()
     end
     local parent = PaperDollFrame
     statPanel = CreateFrame("Frame", ADDON .. "StatPanel", parent)
-    statPanel:SetWidth(180)
-    statPanel:SetHeight(150)
+    statPanel:SetWidth(200)
+    statPanel:SetHeight(200)
     statPanel:SetPoint("TOPLEFT", parent, "TOPRIGHT", -20, -40)
     local bg = statPanel:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(statPanel)
@@ -249,21 +347,47 @@ local function ensureStatPanel()
     unspentText = statPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     unspentText:SetPoint("TOPLEFT", statPanel, "TOPLEFT", 8, -8)
     unspentText:SetText("Unspent: 0")
+    costText = statPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    costText:SetPoint("TOPRIGHT", statPanel, "TOPRIGHT", -8, -8)
+    costText:SetText("Reset: Free")
     for i = 1, 5 do
-        local btn = CreateFrame("Button", ADDON .. "StatPlus" .. i, statPanel, "UIPanelButtonTemplate")
-        btn:SetWidth(22)
-        btn:SetHeight(18)
-        btn:SetPoint("TOPLEFT", statPanel, "TOPLEFT", 150, -8 - i * 22)
-        btn:SetText("+")
-        btn:SetScript("OnClick", function()
-            sendSpend(i)
-        end)
+        local y = -8 - i * 22
         local label = statPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        label:SetPoint("LEFT", statPanel, "TOPLEFT", 8, -16 - i * 22)
+        label:SetPoint("LEFT", statPanel, "TOPLEFT", 8, y - 8)
         label:SetText(STAT_NAMES[i] .. ": 0")
-        btn.label = label
-        statButtons[i] = btn
+        statLabels[i] = label
+        local minus = CreateFrame("Button", ADDON .. "StatMinus" .. i, statPanel, "UIPanelButtonTemplate")
+        minus:SetWidth(22)
+        minus:SetHeight(18)
+        minus:SetPoint("TOPLEFT", statPanel, "TOPLEFT", 128, y)
+        minus:SetText("-")
+        minus:SetScript("OnClick", function()
+            draftMinus(i)
+        end)
+        minusButtons[i] = minus
+        local plus = CreateFrame("Button", ADDON .. "StatPlus" .. i, statPanel, "UIPanelButtonTemplate")
+        plus:SetWidth(22)
+        plus:SetHeight(18)
+        plus:SetPoint("TOPLEFT", statPanel, "TOPLEFT", 152, y)
+        plus:SetText("+")
+        plus:SetScript("OnClick", function()
+            draftPlus(i)
+        end)
+        plusButtons[i] = plus
     end
+    applyBtn = CreateFrame("Button", ADDON .. "StatApply", statPanel, "UIPanelButtonTemplate")
+    applyBtn:SetWidth(70)
+    applyBtn:SetHeight(20)
+    applyBtn:SetPoint("BOTTOMLEFT", statPanel, "BOTTOMLEFT", 8, 8)
+    applyBtn:SetText("Apply")
+    applyBtn:SetScript("OnClick", sendApply)
+    resetBtn = CreateFrame("Button", ADDON .. "StatReset", statPanel, "UIPanelButtonTemplate")
+    resetBtn:SetWidth(70)
+    resetBtn:SetHeight(20)
+    resetBtn:SetPoint("BOTTOMRIGHT", statPanel, "BOTTOMRIGHT", -8, 8)
+    resetBtn:SetText("Reset")
+    resetBtn:SetScript("OnClick", sendReset)
+    syncDraftFromCache()
     statPanel:Show()
     refreshStatPanel()
     return true
@@ -284,6 +408,22 @@ local function handleStatUpdate(body)
     statCache.spent[3] = tonumber(s2)
     statCache.spent[4] = tonumber(s3)
     statCache.spent[5] = tonumber(s4)
+    syncDraftFromCache()
+    ensureStatPanel()
+    refreshStatPanel()
+end
+
+local function handleResetCost(body)
+    local rest = string.match(body, "^ResetCost;(.+)$")
+    if not rest then
+        return
+    end
+    local copper, count = string.match(rest, "^(%d+);(%d+)$")
+    if not copper then
+        return
+    end
+    statCache.resetCopper = tonumber(copper)
+    statCache.resetCount = tonumber(count)
     ensureStatPanel()
     refreshStatPanel()
 end
@@ -299,6 +439,7 @@ local function handleAddonMessage(prefix, msg)
     end
     handlePowerUpdate(msg)
     handleStatUpdate(msg)
+    handleResetCost(msg)
 end
 
 frame:RegisterEvent("PLAYER_LOGIN")

@@ -1004,6 +1004,55 @@ public final class Player extends Unit {
         return true;
     }
 
+    /**
+     * Commit absolute Hero spent totals from a draft Apply. Refuses ordinary classes
+     * and over-budget allocations. Preserves current HP and mana percentages.
+     */
+    public boolean applyHeroStats(int[] spent) {
+        if (!ClasslessCharacterPolicy.isClassless(this)) {
+            return false;
+        }
+        int oldHp = health();
+        int oldMaxHp = maxHealth();
+        int oldMana = getInt(UpdateFields.UNIT_FIELD_POWER1);
+        int oldMaxMana = getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+        if (!heroStats.applyAbsolute(spent)) {
+            return false;
+        }
+        ClasslessCharacterPolicy.applyStartingStats(this, levelStats);
+        restoreResourcePercent(oldHp, oldMaxHp, oldMana, oldMaxMana);
+        return true;
+    }
+
+    /**
+     * Refund all committed spent points to unspent. First reset is free; later resets
+     * cost {@link org.tbc.world.classless.HeroStatResetCost#nextCopperCost(int)}.
+     */
+    public boolean resetHeroStats() {
+        if (!ClasslessCharacterPolicy.isClassless(this)) {
+            return false;
+        }
+        if (heroStats.totalBudget() - heroStats.unspent() <= 0) {
+            return false;
+        }
+        int cost = org.tbc.world.classless.HeroStatResetCost.nextCopperCost(heroStats.resetCount());
+        if (cost > money) {
+            return false;
+        }
+        int oldHp = health();
+        int oldMaxHp = maxHealth();
+        int oldMana = getInt(UpdateFields.UNIT_FIELD_POWER1);
+        int oldMaxMana = getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+        if (cost > 0) {
+            setMoney(money - cost);
+        }
+        heroStats.resetSpent();
+        heroStats.setResetCount(heroStats.resetCount() + 1);
+        ClasslessCharacterPolicy.applyStartingStats(this, levelStats);
+        restoreResourcePercent(oldHp, oldMaxHp, oldMana, oldMaxMana);
+        return true;
+    }
+
     public void restoreResourcePercent(int oldHp, int oldMaxHp, int oldMana, int oldMaxMana) {
         if (oldMaxHp > 0) {
             setHealth(Math.max(1, Math.round(oldHp * (float) maxHealth() / oldMaxHp)));
