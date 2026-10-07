@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ObjectMgrQuestLoadTest {
     @Test
     void questQueriesWhenLoadingShouldIncludeDetailsRelationsAndNoLimit() {
-        String templates = String.join("\n", ObjectMgr.questTemplateQueries());
+        String templates = String.join("\n", QuestLoader.questTemplateQueries());
         assertTrue(templates.contains("Details"), templates);
         assertTrue(templates.contains("Objectives"), templates);
         assertTrue(templates.contains("ReqCreatureOrGOId2"), templates);
@@ -19,7 +19,7 @@ class ObjectMgrQuestLoadTest {
         assertTrue(templates.contains("RequiredRaces"), templates);
         assertTrue(templates.contains("ZoneOrSort"), templates);
         assertFalse(templates.toUpperCase().contains("LIMIT"), templates);
-        String relations = String.join("\n", ObjectMgr.questRelationQueries());
+        String relations = String.join("\n", QuestLoader.questRelationQueries());
         assertTrue(relations.contains("creature_questrelation"), relations);
         assertTrue(relations.contains("creature_involvedrelation"), relations);
         assertFalse(relations.toUpperCase().contains("LIMIT"), relations);

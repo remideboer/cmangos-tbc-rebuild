@@ -18,11 +18,11 @@ class ObjectMgrAllMapsSpawnTest {
         for (int mapId : new int[]{0, 1, 530, 30, 489, 565}) {
             assertTrue(World.placesSpawnOnBoot(true, mapId), "map " + mapId);
         }
-        for (String sql : ObjectMgr.creatureSpawnQueries()) {
+        for (String sql : SpawnLoader.creatureSpawnQueries()) {
             assertFalse(sql.contains("map IN (0, 1)"), sql);
             assertFalse(sql.toUpperCase().contains("LIMIT"), sql);
         }
-        for (String sql : ObjectMgr.gameObjectSpawnQueries()) {
+        for (String sql : SpawnLoader.gameObjectSpawnQueries()) {
             assertFalse(sql.contains("map IN (0, 1)"), sql);
             assertFalse(sql.toUpperCase().contains("LIMIT"), sql);
         }
