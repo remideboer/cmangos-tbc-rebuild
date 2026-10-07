@@ -543,7 +543,12 @@ public final class CharacterStore {
         inWorld.remove(g);
         Player p = memory.remove(g);
         if (p != null) {
-            byAccount.getOrDefault(accountId, List.of()).removeIf(x -> Guid.low(x.guid) == g);
+            // byAccount is only filled on create in this process; SQL load puts memory only.
+            // Never removeIf on List.of() (UnsupportedOperationException).
+            List<Player> list = byAccount.get(accountId);
+            if (list != null) {
+                list.removeIf(x -> Guid.low(x.guid) == g);
+            }
         }
         return true;
     }
