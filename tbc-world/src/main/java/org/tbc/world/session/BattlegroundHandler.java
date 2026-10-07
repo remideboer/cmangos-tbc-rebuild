@@ -12,10 +12,40 @@ public final class BattlegroundHandler {
     private BattlegroundHandler() {}
 
     public static void register(OpcodeTable t) {
-        t.register(Opcodes.CMSG_LEAVE_BATTLEFIELD, BattlegroundHandler::leaveBattlefield)
+        t.register(Opcodes.CMSG_BATTLEMASTER_JOIN, (s, w, in) -> join(s, 489))
+                .register(Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA, (s, w, in) -> join(s, 562))
+                .register(Opcodes.CMSG_BATTLEFIELD_STATUS, (s, w, in) -> status(s))
+                .register(Opcodes.CMSG_LEAVE_BATTLEFIELD, BattlegroundHandler::leaveBattlefield)
                 .register(Opcodes.CMSG_BATTLEFIELD_PORT, BattlegroundHandler::battlefieldPort)
                 .register(Opcodes.CMSG_REPORT_PVP_AFK, BattlegroundHandler::reportPvpAfk)
                 .register(Opcodes.MSG_INSPECT_HONOR_STATS, (s, w, in) -> inspectHonorStats(s, in));
+    }
+
+    /** HandleBattlemasterJoinOpcode (Java join path): one queue slot, WAIT_JOIN status straight away. */
+    public static void join(WorldSession s, int map) {
+        s.bgQueue().join(map);
+        s.send(Opcodes.SMSG_BATTLEFIELD_STATUS, battlefieldStatus(map));
+    }
+
+    /** HandleBattlefieldStatusOpcode — resend each occupied queue slot. Empty when none. */
+    public static void status(WorldSession s) {
+        if (!s.bgQueue().queued()) {
+            return;
+        }
+        s.send(Opcodes.SMSG_BATTLEFIELD_STATUS, battlefieldStatus(s.bgQueue().queuedMap()));
+    }
+
+    /** BuildBattleGroundStatusPacket for the Java join path: WAIT_JOIN, map, 80000 ms. */
+    private static byte[] battlefieldStatus(int map) {
+        WowBuffer st = new WowBuffer(32);
+        st.putU32(0);
+        st.putU64((0x0DL << 8) | (2L << 16) | (0x1F90L << 48));
+        st.putU32(0);
+        st.putU8(0);
+        st.putU32(2);
+        st.putU32(map);
+        st.putU32(80_000);
+        return st.array();
     }
 
     /** MiscHandler / BattleGroundHandler HandleLeaveBattlefieldOpcode (battleground.md). */
@@ -44,7 +74,7 @@ public final class BattlegroundHandler {
         float z = p.bgEntryZ;
         float o = p.bgEntryO;
         p.hasBgEntry = false;
-        s.bgQueue = 0;
+        s.bgQueue().leave();
         world.teleport(p, map, x, y, z, o);
     }
 
@@ -64,15 +94,16 @@ public final class BattlegroundHandler {
             in.getU16();
         }
         int action = in.remaining() > 0 ? in.getU8() : 1;
-        if (action == 1 && s.bgQueue != 0) {
+        if (action == 1 && s.bgQueue().queued()) {
+            int map = s.bgQueue().queuedMap();
             p.bgEntryMap = p.mapId;
             p.bgEntryX = p.x;
             p.bgEntryY = p.y;
             p.bgEntryZ = p.z;
             p.bgEntryO = p.o;
             p.hasBgEntry = true;
-            world.teleport(p, s.bgQueue, 0, 0, 0, 0);
-            if (s.bgQueue == 489) {
+            world.teleport(p, map, 0, 0, 0, 0);
+            if (map == 489) {
                 WowBuffer ws = new WowBuffer(24);
                 ws.putU32(489);
                 ws.putU32(0);

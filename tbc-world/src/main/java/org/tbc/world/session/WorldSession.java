@@ -24,6 +24,7 @@ import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.pvp.AbBattlefield;
 import org.tbc.world.pvp.AvBattlefield;
+import org.tbc.world.pvp.BgQueueState;
 import org.tbc.world.pvp.PvpObjectives;
 import org.tbc.world.spell.GameObjectUse;
 import org.tbc.world.world.World;
@@ -77,9 +78,7 @@ public final class WorldSession {
     private int lastCharGuidLow;
     public Player pendingInviteFrom;
     public String lastTicket = "";
-    public int bgQueue;
-    public int worldStates2476;
-    public int worldStates2478;
+    private final BgQueueState bgQueue = new BgQueueState();
     /** HeroPowerBars AddOn subscribed (LANG_ADDON enable). */
     private boolean heroPowerAddonEnabled;
     /** CompanionPartyBar AddOn subscribed (LANG_ADDON enable). */
@@ -116,6 +115,11 @@ public final class WorldSession {
 
     public World.Account account() {
         return account;
+    }
+
+    /** This session's battleground queue slot. */
+    public BgQueueState bgQueue() {
+        return bgQueue;
     }
 
     public int status() {
@@ -400,9 +404,6 @@ public final class WorldSession {
             case Opcodes.CMSG_QUESTGIVER_CHOOSE_REWARD -> handleQuestComplete(world, in);
             case Opcodes.CMSG_QUESTLOG_REMOVE_QUEST -> handleQuestLogRemove(world, in);
             case Opcodes.MSG_AUCTION_HELLO -> handleAuctionHello(world, in);
-            case Opcodes.CMSG_BATTLEMASTER_JOIN -> handleBgJoin(world, 489);
-            case Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA -> handleBgJoin(world, 562);
-            case Opcodes.CMSG_BATTLEFIELD_STATUS -> sendBattlefieldStatus();
             case Opcodes.CMSG_BUY_ITEM -> handleBuy(world, in);
             case Opcodes.CMSG_BUY_ITEM_IN_SLOT -> handleBuyInSlot(world, in);
             case Opcodes.CMSG_TRAINER_LIST -> handleTrainer(world, in);
@@ -1447,32 +1448,6 @@ public final class WorldSession {
         send(Opcodes.MSG_AUCTION_HELLO, out.array());
     }
 
-    private void handleBgJoin(World world, int map) {
-        bgQueue = map;
-        send(Opcodes.SMSG_BATTLEFIELD_STATUS, battlefieldStatus(map));
-    }
-
-    /** HandleBattlefieldStatusOpcode — resend each occupied queue slot. Empty when none. */
-    private void sendBattlefieldStatus() {
-        if (bgQueue == 0) {
-            return;
-        }
-        send(Opcodes.SMSG_BATTLEFIELD_STATUS, battlefieldStatus(bgQueue));
-    }
-
-    /** BuildBattleGroundStatusPacket for the Java join path: WAIT_JOIN, map, 80000 ms. */
-    private static byte[] battlefieldStatus(int map) {
-        WowBuffer st = new WowBuffer(32);
-        st.putU32(0);
-        st.putU64((0x0DL << 8) | (2L << 16) | (0x1F90L << 48));
-        st.putU32(0);
-        st.putU8(0);
-        st.putU32(2);
-        st.putU32(map);
-        st.putU32(80_000);
-        return st.array();
-    }
-
     private void handleBuy(World world, WowBuffer in) {
         world.content.buy(player, world.map(player.mapId, player.instanceId), in, false, world::nextItemGuid, this::send);
     }
@@ -1519,8 +1494,7 @@ public final class WorldSession {
             player.auras.add(new org.tbc.world.entity.Unit.Aura(23333, 0, 1));
         }
         if (player.mapId == 530) {
-            worldStates2476 = 1;
-            worldStates2478 = 1;
+            bgQueue.markEotsWorldStatesSent();
             sendWs(2480, 1);
             sendWs(2476, 1);
             sendWs(2478, 1);

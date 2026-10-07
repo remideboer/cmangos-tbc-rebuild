@@ -116,6 +116,7 @@ class OpcodeTableTest {
             // InstanceHandler
             Opcodes.CMSG_RESET_INSTANCES, Opcodes.MSG_SET_DUNGEON_DIFFICULTY,
             // BattlegroundHandler
+            Opcodes.CMSG_BATTLEMASTER_JOIN, Opcodes.CMSG_BATTLEMASTER_JOIN_ARENA, Opcodes.CMSG_BATTLEFIELD_STATUS,
             Opcodes.CMSG_LEAVE_BATTLEFIELD, Opcodes.CMSG_BATTLEFIELD_PORT, Opcodes.CMSG_REPORT_PVP_AFK,
             Opcodes.MSG_INSPECT_HONOR_STATS,
             // GmTicketHandler
