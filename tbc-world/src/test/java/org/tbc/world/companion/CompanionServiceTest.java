@@ -172,6 +172,35 @@ class CompanionServiceTest {
     }
 
     @Test
+    void creatureQueryWhenMapNpcLacksTemplateShouldNotAnswerAsCompanion() {
+        World world = World.inMemory();
+        Sink sink = login(world, "Owner");
+        Player owner = sink.session.player();
+        int entry = 9_876_543;
+        assertNull(world.objectMgr.creatures.get(entry));
+        Creature npc = new Creature();
+        npc.guid = 0xF13000000000BEEFL;
+        npc.entry = entry;
+        npc.name = "Wild Beast";
+        npc.mapId = owner.mapId;
+        npc.x = owner.x;
+        npc.y = owner.y;
+        npc.z = owner.z;
+        world.map(owner.mapId, owner.instanceId).creatures.put(npc.guid, npc);
+        sink.last.clear();
+
+        WowBuffer q = new WowBuffer(12);
+        q.putU32(entry);
+        q.putU64(npc.guid);
+        sink.session.handle(world, Opcodes.CMSG_CREATURE_QUERY, q.array());
+
+        byte[] reply = sink.last.get(Opcodes.SMSG_CREATURE_QUERY_RESPONSE);
+        assertNotNull(reply);
+        assertEquals(4, reply.length, "unknown real NPC must fail, not synthetic Companion/Humanoid");
+        assertEquals(entry | 0x80000000, u32le(reply, 0));
+    }
+
+    @Test
     void summonWhenOkShouldApplyMirrorAppearanceAndGear() {
         World world = World.inMemory();
         Sink sink = login(world, "Owner");

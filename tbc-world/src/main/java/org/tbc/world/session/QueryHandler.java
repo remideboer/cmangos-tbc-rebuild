@@ -24,12 +24,10 @@ public final class QueryHandler {
         int entry = readU32(in);
         long guid = readU64(in);
         ObjectMgr.CreatureTemplate t = world.objectMgr.creatures.get(entry);
-        // HandleCreatureQueryOpcode answers from creature_template; only a synthetic companion
-        // entry (no template) is resolved from the map body.
-        Creature companion = t != null ? null : mapCreature(session.player(), world, guid);
-        if (companion != null && companion.entry != entry) {
-            companion = null;
-        }
+        // HandleCreatureQueryOpcode answers from creature_template. Only player-controlled
+        // companion bodies (synthetic entry, no template) use the Companion SubName reply —
+        // never a normal map NPC that happens to share a missing-template guid.
+        Creature companion = t != null ? null : companionBody(session.player(), world, guid, entry);
         if (t == null && companion == null) {
             session.send(Opcodes.SMSG_CREATURE_QUERY_RESPONSE, fail(entry));
             return;
@@ -286,6 +284,15 @@ public final class QueryHandler {
             return null;
         }
         return world.map(player.mapId, player.instanceId).creatures.get(guid);
+    }
+
+    /** Synthetic offline-character companion only — not every map creature without a template. */
+    private static Creature companionBody(Player player, World world, long guid, int entry) {
+        Creature body = mapCreature(player, world, guid);
+        if (body == null || body.entry != entry || !body.playerControlledPet) {
+            return null;
+        }
+        return body;
     }
 
     public static void guild(WorldSession session, World world, WowBuffer in) {
