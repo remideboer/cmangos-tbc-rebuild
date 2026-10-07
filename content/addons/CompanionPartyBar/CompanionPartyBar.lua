@@ -206,12 +206,21 @@ local function ensureBar()
         savePosition()
     end)
 
-    for slot = 1, 10 do
-        local button = createButton(slot)
-        local column = math.mod(slot - 1, 5)
-        local row = math.floor((slot - 1) / 5)
-        button:SetPoint("TOPLEFT", bar, "TOPLEFT", 7 + column * 60, -21 - row * 34)
-        buttons[slot] = button
+    local ok, err = pcall(function()
+        for slot = 1, 10 do
+            local button = createButton(slot)
+            local column = (slot - 1) % 5
+            local row = math.floor((slot - 1) / 5)
+            button:SetPoint("TOPLEFT", bar, "TOPLEFT", 7 + column * 60, -21 - row * 34)
+            buttons[slot] = button
+        end
+    end)
+    CompanionPartyBarDB.buttonsBuilt = table.getn(buttons)
+    if ok then
+        CompanionPartyBarDB.buildError = nil
+    else
+        CompanionPartyBarDB.buildError = tostring(err)
+        DEFAULT_CHAT_FRAME:AddMessage("CompanionPartyBar button build failed: " .. tostring(err))
     end
     restorePosition()
     bar:Hide()
@@ -329,6 +338,8 @@ SlashCmdList.COMPANIONPARTYBAR = function(command)
             .. " left=" .. tostring(bar:GetLeft())
             .. " top=" .. tostring(bar:GetTop())
             .. " requests=" .. tostring(CompanionPartyBarDB.requestCount or 0)
+            .. " buttons=" .. tostring(CompanionPartyBarDB.buttonsBuilt or 0)
+            .. " buildError=" .. tostring(CompanionPartyBarDB.buildError or "none")
             .. " lastState=" .. tostring(CompanionPartyBarDB.lastState or "none")
         )
     else

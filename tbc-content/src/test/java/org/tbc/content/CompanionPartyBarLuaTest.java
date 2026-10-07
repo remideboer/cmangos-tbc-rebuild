@@ -58,6 +58,15 @@ class CompanionPartyBarLuaTest {
         assertTrue(lua.contains("button:Show()"));
     }
 
+    @Test
+    void companionPartyBarWhenBuildingButtonsShouldUseLua51MathAndReportBuildErrors() throws Exception {
+        String lua = Files.readString(addonLua());
+
+        assertFalse(lua.contains("math.mod("), "Lua 5.1 (WoW 2.x) has no math.mod; use %");
+        assertTrue(lua.contains("CompanionPartyBarDB.buildError"));
+        assertTrue(lua.contains("CompanionPartyBarDB.buttonsBuilt"));
+    }
+
     private static Path addonLua() {
         Path lua = Path.of(System.getProperty("user.dir"))
                 .resolve("../content/addons/CompanionPartyBar/CompanionPartyBar.lua")
