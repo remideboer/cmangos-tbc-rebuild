@@ -32,4 +32,4 @@ JUnit covers `TP-INV` crypto/headers and SRP6 round-trip. Slice 4+ `method: clie
 
 ## Current slice
 
-See [progress.md](progress.md). One Cursor session per slice (`AGENTS.md`).
+See [progress.md](progress.md). One Cursor session per slice (`AGENTS.md`). Java package boundaries, ratchets, and where new code goes: [docs/architecture.md](docs/architecture.md).

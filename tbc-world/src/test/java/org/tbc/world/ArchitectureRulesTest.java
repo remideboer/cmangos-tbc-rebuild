@@ -20,9 +20,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * cycle that shrinks a hotspot must lower the constant to the new value. Never raise a ratchet.
  */
 class ArchitectureRulesTest {
-    /** Ratchets — lower only. Baseline measured 2026-10-07. */
+    /**
+     * Ratchets — lower only. Baseline measured 2026-10-07; frozen at the measured values after
+     * plan phase 6 (see {@code tbc-server/docs/architecture.md}).
+     */
     static final int WORLD_SESSION_MAX_LINES = 1797;
-    static final int WORLD_SESSION_MAX_CASE_LABELS = 63;
+    static final int WORLD_SESSION_MAX_CASE_LABELS = 62;
     static final int LATER_OPCODES_MAX_LINES = 0;
     static final int WORLD_MAX_LINES = 1678;
     static final int WORLD_MAX_SESSION_REFS = 99;
@@ -33,7 +36,7 @@ class ArchitectureRulesTest {
     /** Table SQL lives in persist/{Inventory,QuestStatus,Aura,Spell}Persist; CharacterStore orchestrates save/load. */
     static final int CHARACTER_STORE_MAX_LINES = 1320;
     /** Lines in entity/spell/combat/content/map that name {@code org.tbc.world.session.}. */
-    static final int DOMAIN_SESSION_DEPENDENCIES_MAX = 20;
+    static final int DOMAIN_SESSION_DEPENDENCIES_MAX = 19;
     /**
      * Raw {@code objectMgr.items.get(...)} map reads and {@code objectMgr.spawns} list touches outside
      * ObjectMgr and its seeds/loaders; consumers go through the content/catalog interfaces.
