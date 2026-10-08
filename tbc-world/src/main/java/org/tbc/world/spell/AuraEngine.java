@@ -18,6 +18,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_CONFUSE = 5;
     public static final int SPELL_AURA_MOD_FEAR = 7;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
+    public static final int SPELL_AURA_MOD_RESISTANCE_PCT = 101;
     public static final int SPELL_AURA_MOD_PACIFY = 25;
     public static final int SPELL_AURA_MOD_ROOT = 26;
     public static final int SPELL_AURA_MOD_SILENCE = 27;
@@ -84,7 +85,7 @@ public final class AuraEngine {
 
     private static final Set<Integer> KNOWN_AURAS = Set.of(
             SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_DECREASE_ARMOR,
-            SPELL_AURA_MOD_RESISTANCE,
+            SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_RESISTANCE_PCT,
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY,
             SPELL_AURA_TRACK_CREATURES, SPELL_AURA_TRACK_RESOURCES,
@@ -233,6 +234,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_RESISTANCE) {
             modResistance(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_RESISTANCE_PCT) {
+            modResistancePct(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_STAT) {
             modStat(target, sp, true);
         }
@@ -299,6 +303,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RESISTANCE) {
             modResistance(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RESISTANCE_PCT) {
+            modResistancePct(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_DECREASE_ARMOR) {
             modDecreaseArmor(target, sp, false);
@@ -539,6 +546,37 @@ public final class AuraEngine {
                     : UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE;
             int buffField = buffBase + i;
             target.setInt(buffField, target.getInt(buffField) + delta);
+        }
+    }
+
+    /**
+     * Aura 101 — CMaNGOS HandleModResistancePercent → TOTAL_PCT per school bit;
+     * sheet buff columns get the resistance delta (ApplyResistanceBuffModsMod).
+     */
+    private static void modResistancePct(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int mask = sp.misc();
+        if (mask == 0) {
+            return;
+        }
+        float factor = (100.0f + amount) / 100.0f;
+        for (int i = 0; i < MAX_SPELL_SCHOOL; i++) {
+            if ((mask & (1 << i)) == 0) {
+                continue;
+            }
+            int resistField = UpdateFields.UNIT_FIELD_RESISTANCES + i;
+            int old = target.getInt(resistField);
+            int neu = apply ? Math.round(old * factor) : Math.round(old / factor);
+            int change = neu - old;
+            target.setInt(resistField, neu);
+            int buffBase = amount > 0
+                    ? UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE
+                    : UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE;
+            int buffField = buffBase + i;
+            target.setInt(buffField, target.getInt(buffField) + change);
         }
     }
 
