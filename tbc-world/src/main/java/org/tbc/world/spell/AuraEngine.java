@@ -66,6 +66,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_WATER_WALK = 104;
     public static final int SPELL_AURA_FEATHER_FALL = 105;
     public static final int SPELL_AURA_HOVER = 106;
+    public static final int SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT = 122;
     public static final int SPELL_AURA_MOD_TARGET_RESISTANCE = 123;
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER = 124;
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT = 167;
@@ -104,7 +105,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
             SPELL_AURA_WATER_BREATHING,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_ATTACK_POWER_PCT,
-            SPELL_AURA_MOD_TARGET_RESISTANCE,
+            SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT, SPELL_AURA_MOD_TARGET_RESISTANCE,
             SPELL_AURA_MOD_RANGED_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
             SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_SAFE_FALL,
@@ -171,6 +172,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_ATTACK_POWER_PCT) {
             modAttackPowerPct(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT) {
+            modOffhandDamagePct(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_TARGET_RESISTANCE) {
             modTargetResistance(target, sp, true);
@@ -425,6 +429,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_ATTACK_POWER_PCT) {
             modAttackPowerPct(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT) {
+            modOffhandDamagePct(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_TARGET_RESISTANCE) {
             modTargetResistance(target, sp, false);
@@ -1197,6 +1204,26 @@ public final class AuraEngine {
         int delta = apply ? amount : -amount;
         target.setInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS,
                 target.getInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS) + delta);
+    }
+
+    /**
+     * Aura 122 — CMaNGOS HandleModOffhandDamagePercent → TOTAL_PCT on UNIT_MOD_DAMAGE_OFFHAND;
+     * scales UNIT_FIELD_MIN/MAXOFFHANDDAMAGE by (100+amount)/100.
+     */
+    private static void modOffhandDamagePct(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        float factor = (100.0f + amount) / 100.0f;
+        scaleFloatField(target, UpdateFields.UNIT_FIELD_MINOFFHANDDAMAGE, factor, apply);
+        scaleFloatField(target, UpdateFields.UNIT_FIELD_MAXOFFHANDDAMAGE, factor, apply);
+    }
+
+    private static void scaleFloatField(Unit target, int field, float factor, boolean apply) {
+        float old = target.getFloat(field);
+        float neu = apply ? old * factor : old / factor;
+        target.setFloat(field, neu);
     }
 
     /**
