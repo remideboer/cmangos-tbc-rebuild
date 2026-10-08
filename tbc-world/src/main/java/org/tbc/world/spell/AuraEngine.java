@@ -33,6 +33,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
     public static final int SPELL_AURA_MOD_SPEED_ALWAYS = 129;
+    public static final int SPELL_AURA_MOD_SPEED_NOT_STACK = 171;
     public static final int SPELL_AURA_MOD_INCREASE_SWIM_SPEED = 58;
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH = 34;
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
@@ -105,7 +106,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, SPELL_AURA_MOD_DAMAGE_DONE,
             SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, SPELL_AURA_MOD_HEALING_DONE,
             SPELL_AURA_MOD_POWER_COST_SCHOOL, SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT,
-            SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_SPEED_ALWAYS,
+            SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_SPEED_ALWAYS, SPELL_AURA_MOD_SPEED_NOT_STACK,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT,
             SPELL_AURA_MOD_INCREASE_ENERGY, SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT,
@@ -249,7 +250,8 @@ public final class AuraEngine {
             modDecreaseSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SPEED
-                || sp.aura() == SPELL_AURA_MOD_SPEED_ALWAYS) {
+                || sp.aura() == SPELL_AURA_MOD_SPEED_ALWAYS
+                || sp.aura() == SPELL_AURA_MOD_SPEED_NOT_STACK) {
             modIncreaseSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SWIM_SPEED) {
@@ -533,7 +535,8 @@ public final class AuraEngine {
             modDecreaseSpeed(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SPEED
-                || sp.aura() == SPELL_AURA_MOD_SPEED_ALWAYS) {
+                || sp.aura() == SPELL_AURA_MOD_SPEED_ALWAYS
+                || sp.aura() == SPELL_AURA_MOD_SPEED_NOT_STACK) {
             modIncreaseSpeed(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SWIM_SPEED) {
@@ -1192,7 +1195,7 @@ public final class AuraEngine {
     }
 
     /**
-     * Aura 31 / 129 — CMaNGOS HandleAuraModIncreaseSpeed → UpdateSpeed;
+     * Aura 31 / 129 / 171 — CMaNGOS HandleAuraModIncreaseSpeed → UpdateSpeed;
      * amount EffectBasePoints+1 %. Stacking max-positive later (GetMaxPositiveAuraModifier).
      */
     private static void modIncreaseSpeed(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
