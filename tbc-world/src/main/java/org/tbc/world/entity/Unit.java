@@ -47,6 +47,8 @@ public class Unit extends Entity {
     public static final int UNIT_DYNFLAG_DEAD = 0x0020;
     /** SharedDefines.h UNIT_DYNFLAG_TRACK_UNIT — Hunter's Mark. */
     public static final int UNIT_DYNFLAG_TRACK_UNIT = 0x0002;
+    /** SharedDefines.h UNIT_DYNFLAG_SPECIALINFO — Beast Lore / Empathy. */
+    public static final int UNIT_DYNFLAG_SPECIALINFO = 0x0010;
     public static final int UPDATEFLAG_SELF = 0x01;
     public static final int UPDATEFLAG_LOWGUID = 0x08;
     public static final int UPDATEFLAG_HIGHGUID = 0x10;
