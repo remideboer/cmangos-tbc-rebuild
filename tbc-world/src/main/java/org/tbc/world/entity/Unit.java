@@ -90,6 +90,8 @@ public class Unit extends Entity {
     private int rootAuraCount;
     /** Active SPELL_AURA_MOD_STUN holders — HasAuraType stacking before SetStunned(false). */
     private int stunAuraCount;
+    /** Active SPELL_AURA_MOD_FEAR holders — HasAuraType for PREVENTS_FLEEING. */
+    private int fearAuraCount;
     /** Active SPELL_AURA_MOD_STEALTH holders — HasAuraType before clearing visibility. */
     private int stealthAuraCount;
     /** Active SPELL_AURA_MOD_INVISIBILITY holders. */
@@ -169,6 +171,24 @@ public class Unit extends Entity {
             stunAuraCount--;
         }
         return stunAuraCount == 0;
+    }
+
+    /** Stacking SPELL_AURA_MOD_FEAR — CMaNGOS HasAuraType for HandlePreventFleeing. */
+    public int fearAuraCount() {
+        return fearAuraCount;
+    }
+
+    public boolean addFearAura() {
+        fearAuraCount++;
+        return fearAuraCount == 1;
+    }
+
+    /** @return true if no MOD_FEAR remain. */
+    public boolean removeFearAura() {
+        if (fearAuraCount > 0) {
+            fearAuraCount--;
+        }
+        return fearAuraCount == 0;
     }
 
     /**

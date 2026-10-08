@@ -66,6 +66,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_PERIODIC_DUMMY = 226;
     public static final int SPELL_AURA_MOD_POWER_REGEN = 85;
     public static final int SPELL_AURA_WATER_BREATHING = 82;
+    public static final int SPELL_AURA_PREVENTS_FLEEING = 92;
     public static final int SPELL_AURA_MOD_UNATTACKABLE = 93;
     public static final int SPELL_AURA_GHOST = 95;
     public static final int SPELL_AURA_MOD_ATTACK_POWER = 99;
@@ -116,7 +117,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE,
             SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
-            SPELL_AURA_WATER_BREATHING, SPELL_AURA_MOD_UNATTACKABLE,
+            SPELL_AURA_WATER_BREATHING, SPELL_AURA_PREVENTS_FLEEING, SPELL_AURA_MOD_UNATTACKABLE,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_ATTACK_POWER_PCT,
             SPELL_AURA_UNTRACKABLE, SPELL_AURA_EMPATHY, SPELL_AURA_TRACK_STEALTHED,
             SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT, SPELL_AURA_MOD_TARGET_RESISTANCE,
@@ -142,7 +143,12 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_FEAR) {
             // HandleModFear(true) → SetFleeing(true).
-            target.setFleeing(true);
+            if (target.addFearAura()) {
+                target.setFleeing(true);
+            }
+        }
+        if (sp.aura() == SPELL_AURA_PREVENTS_FLEEING) {
+            modPreventFleeing(target, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_CONFUSE) {
             // HandleModConfuse(true) → SetConfused(true).
@@ -432,8 +438,13 @@ public final class AuraEngine {
             }
         }
         if (sp.aura() == SPELL_AURA_MOD_FEAR) {
-            // HandleModFear(false) → SetFleeing(false); stacking other MOD_FEAR later.
-            target.setFleeing(false);
+            // HandleModFear(false) → SetFleeing(false) only when no MOD_FEAR remain.
+            if (target.removeFearAura()) {
+                target.setFleeing(false);
+            }
+        }
+        if (sp.aura() == SPELL_AURA_PREVENTS_FLEEING) {
+            modPreventFleeing(target, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_CONFUSE) {
             // HandleModConfuse(false) → SetConfused(false); stacking other MOD_CONFUSE later.
@@ -918,6 +929,17 @@ public final class AuraEngine {
         } else {
             target.setInt(UpdateFields.UNIT_DYNAMIC_FLAGS, dyn & ~Unit.UNIT_DYNFLAG_TRACK_UNIT);
         }
+    }
+
+    /**
+     * Aura 92 — CMaNGOS HandlePreventFleeing: while any MOD_FEAR remains,
+     * clear fleeing on apply and restore on unapply.
+     */
+    private static void modPreventFleeing(Unit target, boolean apply) {
+        if (target.fearAuraCount() == 0) {
+            return;
+        }
+        target.setFleeing(!apply);
     }
 
     /**
