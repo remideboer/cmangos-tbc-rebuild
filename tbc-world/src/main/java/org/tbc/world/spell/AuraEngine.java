@@ -63,8 +63,11 @@ public final class AuraEngine {
     public static final int SPELL_AURA_WATER_WALK = 104;
     public static final int SPELL_AURA_FEATHER_FALL = 105;
     public static final int SPELL_AURA_HOVER = 106;
+    public static final int SPELL_AURA_MOD_TARGET_RESISTANCE = 123;
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER = 124;
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT = 167;
+    /** SharedDefines.h SPELL_SCHOOL_MASK_SPELL — fire|nature|frost|shadow|arcane (no normal/holy). */
+    public static final int SPELL_SCHOOL_MASK_SPELL = 124;
     public static final int SPELL_AURA_MOD_MELEE_HASTE = 138;
     public static final int SPELL_AURA_MOD_RANGED_HASTE = 140;
     public static final int SPELL_AURA_SAFE_FALL = 144;
@@ -95,6 +98,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
             SPELL_AURA_WATER_BREATHING,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_ATTACK_POWER_PCT,
+            SPELL_AURA_MOD_TARGET_RESISTANCE,
             SPELL_AURA_MOD_RANGED_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
             SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_SAFE_FALL);
@@ -160,6 +164,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_ATTACK_POWER_PCT) {
             modAttackPowerPct(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_TARGET_RESISTANCE) {
+            modTargetResistance(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER) {
             modRangedAttackPower(target, sp, true);
@@ -387,6 +394,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_ATTACK_POWER_PCT) {
             modAttackPowerPct(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_TARGET_RESISTANCE) {
+            modTargetResistance(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER) {
             modRangedAttackPower(target, sp, false);
@@ -1067,6 +1077,31 @@ public final class AuraEngine {
         int delta = apply ? amount : -amount;
         target.setInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS,
                 target.getInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS) + delta);
+    }
+
+    /**
+     * Aura 123 — CMaNGOS HandleModTargetResistance (client sheet only):
+     * NORMAL → PLAYER_FIELD_MOD_TARGET_PHYSICAL_RESISTANCE;
+     * full SPELL mask → PLAYER_FIELD_MOD_TARGET_RESISTANCE.
+     */
+    private static void modTargetResistance(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player)) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int delta = apply ? amount : -amount;
+        int mask = sp.misc();
+        if ((mask & 1) != 0) {
+            target.setInt(UpdateFields.PLAYER_FIELD_MOD_TARGET_PHYSICAL_RESISTANCE,
+                    target.getInt(UpdateFields.PLAYER_FIELD_MOD_TARGET_PHYSICAL_RESISTANCE) + delta);
+        }
+        if ((mask & SPELL_SCHOOL_MASK_SPELL) == SPELL_SCHOOL_MASK_SPELL) {
+            target.setInt(UpdateFields.PLAYER_FIELD_MOD_TARGET_RESISTANCE,
+                    target.getInt(UpdateFields.PLAYER_FIELD_MOD_TARGET_RESISTANCE) + delta);
+        }
     }
 
     /**
