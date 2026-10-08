@@ -11,10 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
+      # Swing editor tests need a display (EditorFrame extends JFrame).
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
       - name: Test
-        run: mvn -B test
+        run: xvfb-run -a mvn -B test

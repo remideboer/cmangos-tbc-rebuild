@@ -3,10 +3,12 @@ package org.tbc.editor;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JPanel;
+import java.awt.GraphicsEnvironment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 class EditorLaunchArgsTest {
     @Test
@@ -35,6 +37,7 @@ class EditorLaunchArgsTest {
 class EditorFrameSelectDomainTest {
     @Test
     void selectDomainWhenKnownShouldSelectThatCard() {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "EditorFrame needs a display (CI uses xvfb-run)");
         EditorFrame frame = new EditorFrame();
         frame.addDomain(stub("Characters"));
         frame.addDomain(stub("Quests"));
