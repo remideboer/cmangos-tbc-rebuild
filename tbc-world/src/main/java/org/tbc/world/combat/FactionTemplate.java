@@ -7,6 +7,24 @@ public final class FactionTemplate {
     public static final int GROUP_HORDE = 4;
     public static final int GROUP_MONSTER = 8;
 
+    /** DBC columns ID / faction / factionFlags. */
+    public record Identity(int id, int faction, int flags) {}
+
+    /** DBC columns ourMask / friendlyMask / hostileMask. */
+    public record GroupMasks(int own, int friend, int enemy) {}
+
+    /** DBC columns enemyFaction[4] / friendFaction[4]. Null arrays become empty length-4 slots. */
+    public record FactionLists(int[] enemies, int[] friends) {
+        public FactionLists {
+            enemies = enemies == null ? new int[4] : enemies;
+            friends = friends == null ? new int[4] : friends;
+        }
+
+        public static FactionLists empty() {
+            return new FactionLists(new int[4], new int[4]);
+        }
+    }
+
     public final int id;
     public final int faction;
     public final int factionFlags;
@@ -16,16 +34,15 @@ public final class FactionTemplate {
     public final int[] enemyFaction;
     public final int[] friendFaction;
 
-    public FactionTemplate(int id, int faction, int factionFlags, int factionGroupMask, int friendGroupMask,
-            int enemyGroupMask, int[] enemyFaction, int[] friendFaction) {
-        this.id = id;
-        this.faction = faction;
-        this.factionFlags = factionFlags;
-        this.factionGroupMask = factionGroupMask;
-        this.friendGroupMask = friendGroupMask;
-        this.enemyGroupMask = enemyGroupMask;
-        this.enemyFaction = enemyFaction == null ? new int[4] : enemyFaction;
-        this.friendFaction = friendFaction == null ? new int[4] : friendFaction;
+    public FactionTemplate(Identity identity, GroupMasks groups, FactionLists lists) {
+        this.id = identity.id();
+        this.faction = identity.faction();
+        this.factionFlags = identity.flags();
+        this.factionGroupMask = groups.own();
+        this.friendGroupMask = groups.friend();
+        this.enemyGroupMask = groups.enemy();
+        this.enemyFaction = lists.enemies();
+        this.friendFaction = lists.friends();
     }
 
     /** CMaNGOS ReputationRank; 8606 target frame: HOSTILE=red, NEUTRAL=yellow, FRIENDLY=green. */

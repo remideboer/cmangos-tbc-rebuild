@@ -74,9 +74,12 @@ public final class Factions {
                 if (row.length < 14) {
                     continue;
                 }
-                byId.put(row[0], new FactionTemplate(row[0], row[1], row[2], row[3], row[4], row[5],
-                        new int[]{row[6], row[7], row[8], row[9]},
-                        new int[]{row[10], row[11], row[12], row[13]}));
+                byId.put(row[0], new FactionTemplate(
+                        new FactionTemplate.Identity(row[0], row[1], row[2]),
+                        new FactionTemplate.GroupMasks(row[3], row[4], row[5]),
+                        new FactionTemplate.FactionLists(
+                                new int[]{row[6], row[7], row[8], row[9]},
+                                new int[]{row[10], row[11], row[12], row[13]})));
                 n++;
             }
             log.info("FactionTemplate {} rows from {}", n, file);
@@ -137,11 +140,20 @@ public final class Factions {
     }
 
     private void put(int id, int faction, int flags, int group, int friendGroup, int enemyGroup) {
-        put(id, faction, flags, group, friendGroup, enemyGroup, new int[4], new int[4]);
+        put(id, faction, flags, group, friendGroup, enemyGroup, FactionTemplate.FactionLists.empty());
     }
 
     private void put(int id, int faction, int flags, int group, int friendGroup, int enemyGroup,
             int[] enemyFaction, int[] friendFaction) {
-        byId.put(id, new FactionTemplate(id, faction, flags, group, friendGroup, enemyGroup, enemyFaction, friendFaction));
+        put(id, faction, flags, group, friendGroup, enemyGroup,
+                new FactionTemplate.FactionLists(enemyFaction, friendFaction));
+    }
+
+    private void put(int id, int faction, int flags, int group, int friendGroup, int enemyGroup,
+            FactionTemplate.FactionLists lists) {
+        byId.put(id, new FactionTemplate(
+                new FactionTemplate.Identity(id, faction, flags),
+                new FactionTemplate.GroupMasks(group, friendGroup, enemyGroup),
+                lists));
     }
 }

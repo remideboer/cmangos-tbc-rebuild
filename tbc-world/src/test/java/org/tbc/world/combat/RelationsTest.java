@@ -149,7 +149,10 @@ class RelationsTest {
 
     @Test
     void canAggroOnSightWhenNeutralToAllCritterShouldBeFalse() {
-        factions.add(new FactionTemplate(189, 7, 0, 0, 0, 0, new int[4], new int[4]));
+        factions.add(new FactionTemplate(
+                new FactionTemplate.Identity(189, 7, 0),
+                new FactionTemplate.GroupMasks(0, 0, 0),
+                FactionTemplate.FactionLists.empty()));
         setFaction(c, 189);
         assertTrue(factions.template(c).isNeutralToAll());
         assertFalse(Combat.canAggroOnSight(c, p, factions));
@@ -177,7 +180,10 @@ class RelationsTest {
 
     @Test
     void canAggroOnSightWhenCreatureHatesPlayerWithoutRedBarShouldBeTrue() {
-        factions.add(new FactionTemplate(400, 400, 0, 0, 0, 0, new int[]{1, 0, 0, 0}, new int[4]));
+        factions.add(new FactionTemplate(
+                new FactionTemplate.Identity(400, 400, 0),
+                new FactionTemplate.GroupMasks(0, 0, 0),
+                new FactionTemplate.FactionLists(new int[]{1, 0, 0, 0}, new int[4])));
         setFaction(c, 400);
         assertFalse(factions.isHostile(p, c));
         assertTrue(factions.isHostile(c, p));

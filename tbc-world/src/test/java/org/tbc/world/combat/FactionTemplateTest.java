@@ -88,4 +88,30 @@ class FactionTemplateTest {
         assertFalse(Factions.seeded().get(7).isNeutralToAll());
         assertFalse(Factions.seeded().get(38).isNeutralToAll());
     }
+
+    @Test
+    void constructWhenIdentityGroupsAndListsGivenShouldExposeDbcFields() {
+        FactionTemplate t = new FactionTemplate(
+                new FactionTemplate.Identity(38, 29, 17),
+                new FactionTemplate.GroupMasks(FactionTemplate.GROUP_MONSTER, 0, FactionTemplate.GROUP_PLAYER),
+                new FactionTemplate.FactionLists(new int[]{28, 0, 0, 0}, new int[]{29, 0, 0, 0}));
+        assertEquals(38, t.id);
+        assertEquals(29, t.faction);
+        assertEquals(17, t.factionFlags);
+        assertEquals(FactionTemplate.GROUP_MONSTER, t.factionGroupMask);
+        assertEquals(0, t.friendGroupMask);
+        assertEquals(FactionTemplate.GROUP_PLAYER, t.enemyGroupMask);
+        assertEquals(28, t.enemyFaction[0]);
+        assertEquals(29, t.friendFaction[0]);
+        assertTrue(t.isHostileToPlayers());
+    }
+
+    @Test
+    void factionListsWhenNullArraysShouldBecomeEmptySlots() {
+        FactionTemplate.FactionLists lists = new FactionTemplate.FactionLists(null, null);
+        assertEquals(4, lists.enemies().length);
+        assertEquals(4, lists.friends().length);
+        assertEquals(0, lists.enemies()[0]);
+        assertEquals(0, lists.friends()[0]);
+    }
 }
