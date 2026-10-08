@@ -188,6 +188,8 @@ public class Unit extends Entity {
 
     /** UNIT_FIELD_BYTES_1 byte 2 — UNIT_VIS_FLAG_CREEP (Unit.h). */
     public static final int UNIT_VIS_FLAG_CREEP = 0x02;
+    /** UNIT_FIELD_BYTES_1 byte 2 — UNIT_VIS_FLAG_UNTRACKABLE (Unit.h). */
+    public static final int UNIT_VIS_FLAG_UNTRACKABLE = 0x04;
 
     public Visibility visibility() {
         return visibility;
@@ -208,6 +210,17 @@ public class Unit extends Entity {
 
     public boolean hasVisFlagCreep() {
         return ((getInt(UpdateFields.UNIT_FIELD_BYTES_1) >>> 16) & 0xFF & UNIT_VIS_FLAG_CREEP) != 0;
+    }
+
+    /** Set/clear UNIT_VIS_FLAG_UNTRACKABLE on UNIT_FIELD_BYTES_1 offset 2. */
+    public void setVisFlagUntrackable(boolean apply) {
+        int bytes = getInt(UpdateFields.UNIT_FIELD_BYTES_1);
+        int mask = UNIT_VIS_FLAG_UNTRACKABLE << 16;
+        setInt(UpdateFields.UNIT_FIELD_BYTES_1, apply ? bytes | mask : bytes & ~mask);
+    }
+
+    public boolean hasVisFlagUntrackable() {
+        return ((getInt(UpdateFields.UNIT_FIELD_BYTES_1) >>> 16) & 0xFF & UNIT_VIS_FLAG_UNTRACKABLE) != 0;
     }
 
     public int stealthAuraCount() {

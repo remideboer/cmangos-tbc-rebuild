@@ -70,6 +70,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_WATER_WALK = 104;
     public static final int SPELL_AURA_FEATHER_FALL = 105;
     public static final int SPELL_AURA_HOVER = 106;
+    public static final int SPELL_AURA_UNTRACKABLE = 120;
     public static final int SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT = 122;
     public static final int SPELL_AURA_MOD_TARGET_RESISTANCE = 123;
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER = 124;
@@ -111,6 +112,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
             SPELL_AURA_WATER_BREATHING, SPELL_AURA_MOD_UNATTACKABLE,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_ATTACK_POWER_PCT,
+            SPELL_AURA_UNTRACKABLE,
             SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT, SPELL_AURA_MOD_TARGET_RESISTANCE,
             SPELL_AURA_MOD_RANGED_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
@@ -145,6 +147,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_UNATTACKABLE) {
             modUnattackable(target, true);
+        }
+        if (sp.aura() == SPELL_AURA_UNTRACKABLE) {
+            modUntrackable(target, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_STALKED) {
             modStalked(target, true);
@@ -420,6 +425,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_UNATTACKABLE) {
             modUnattackable(target, false);
+        }
+        if (sp.aura() == SPELL_AURA_UNTRACKABLE) {
+            modUntrackable(target, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_STALKED) {
             modStalked(target, false);
@@ -893,6 +901,11 @@ public final class AuraEngine {
             target.combatStop();
         }
         target.setUntargetable(apply);
+    }
+
+    /** Aura 120 — CMaNGOS HandleAuraUntrackable → UNIT_VIS_FLAG_UNTRACKABLE. */
+    private static void modUntrackable(Unit target, boolean apply) {
+        target.setVisFlagUntrackable(apply);
     }
 
     /**
