@@ -44,6 +44,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL = 71;
     public static final int SPELL_AURA_MOD_DAMAGE_DONE = 13;
     public static final int SPELL_AURA_MOD_DAMAGE_PERCENT_DONE = 79;
+    public static final int SPELL_AURA_MOD_HEALING_DONE = 135;
     public static final int SPELL_AURA_MOD_POWER_COST_SCHOOL = 73;
     public static final int SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT = 72;
     public static final int SPELL_AURA_MOD_SCALE = 61;
@@ -82,7 +83,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_BLOCK_PERCENT, SPELL_AURA_MOD_HIT_CHANCE, SPELL_AURA_MOD_SPELL_HIT_CHANCE,
             SPELL_AURA_MOD_SPELL_CRIT_CHANCE, SPELL_AURA_MOD_STALKED,
             SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, SPELL_AURA_MOD_DAMAGE_DONE,
-            SPELL_AURA_MOD_DAMAGE_PERCENT_DONE,
+            SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, SPELL_AURA_MOD_HEALING_DONE,
             SPELL_AURA_MOD_POWER_COST_SCHOOL, SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT,
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
@@ -240,6 +241,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_DAMAGE_PERCENT_DONE) {
             modDamagePercentDone(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_HEALING_DONE) {
+            modHealingDone(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_POWER_COST_SCHOOL) {
             modPowerCostSchool(target, sp, true);
         }
@@ -300,6 +304,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_DAMAGE_PERCENT_DONE) {
             modDamagePercentDone(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_HEALING_DONE) {
+            modHealingDone(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_POWER_COST_SCHOOL) {
             modPowerCostSchool(target, sp, false);
@@ -569,6 +576,23 @@ public final class AuraEngine {
             int field = UpdateFields.UNIT_FIELD_POWER_COST_MULTIPLIER + i;
             target.setFloat(field, target.getFloat(field) + delta);
         }
+    }
+
+    /**
+     * Aura 135 — CMaNGOS HandleModHealingDone → UpdateSpellHealingBonus:
+     * PLAYER_FIELD_MOD_HEALING_DONE_POS += amount when misc school mask non-zero (client-only).
+     */
+    private static void modHealingDone(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player)) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0 || sp.misc() == 0) {
+            return;
+        }
+        int delta = apply ? amount : -amount;
+        target.setInt(UpdateFields.PLAYER_FIELD_MOD_HEALING_DONE_POS,
+                target.getInt(UpdateFields.PLAYER_FIELD_MOD_HEALING_DONE_POS) + delta);
     }
 
     /**
