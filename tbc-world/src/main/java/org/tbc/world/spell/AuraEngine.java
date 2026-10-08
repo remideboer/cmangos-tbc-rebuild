@@ -64,6 +64,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_FEATHER_FALL = 105;
     public static final int SPELL_AURA_HOVER = 106;
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER = 124;
+    public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT = 167;
     public static final int SPELL_AURA_MOD_MELEE_HASTE = 138;
     public static final int SPELL_AURA_MOD_RANGED_HASTE = 140;
     public static final int SPELL_AURA_SAFE_FALL = 144;
@@ -94,7 +95,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
             SPELL_AURA_WATER_BREATHING,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_ATTACK_POWER_PCT,
-            SPELL_AURA_MOD_RANGED_ATTACK_POWER,
+            SPELL_AURA_MOD_RANGED_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
             SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_SAFE_FALL);
 
@@ -162,6 +163,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER) {
             modRangedAttackPower(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT) {
+            modRangedAttackPowerPct(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, true);
@@ -386,6 +390,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER) {
             modRangedAttackPower(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT) {
+            modRangedAttackPowerPct(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, false);
@@ -1090,6 +1097,23 @@ public final class AuraEngine {
         int delta = apply ? amount : -amount;
         target.setInt(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS,
                 target.getInt(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS) + delta);
+    }
+
+    /**
+     * Aura 167 — CMaNGOS HandleAuraModRangedAttackPowerPercent (wand-users skip);
+     * UNIT_FIELD_RANGED_ATTACK_POWER_MULTIPLIER += amount/100.
+     */
+    private static void modRangedAttackPowerPct(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (target instanceof Player player && player.isWandUser()) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        float delta = (apply ? amount : -amount) / 100.0f;
+        target.setFloat(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MULTIPLIER,
+                target.getFloat(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MULTIPLIER) + delta);
     }
 
     /**
