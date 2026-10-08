@@ -1,5 +1,7 @@
 package org.tbc.world.combat;
 
+import java.util.Objects;
+
 /** FactionTemplate.dbc helpers. spec/03-protocol/dbc-files.md; CMaNGOS DBCStructure.h */
 public final class FactionTemplate {
     public static final int GROUP_PLAYER = 1;
@@ -10,8 +12,8 @@ public final class FactionTemplate {
     /** DBC columns ID / faction / factionFlags. */
     public record Identity(int id, int faction, int flags) {}
 
-    /** DBC columns ourMask / friendlyMask / hostileMask. */
-    public record GroupMasks(int own, int friend, int enemy) {}
+    /** DBC columns ourMask / friendlyMask / hostileMask (avoid C++-lookalike {@code friend}). */
+    public record GroupMasks(int our, int friendly, int hostile) {}
 
     /** DBC columns enemyFaction[4] / friendFaction[4]. Null arrays become empty length-4 slots. */
     public record FactionLists(int[] enemies, int[] friends) {
@@ -35,12 +37,15 @@ public final class FactionTemplate {
     public final int[] friendFaction;
 
     public FactionTemplate(Identity identity, GroupMasks groups, FactionLists lists) {
+        Objects.requireNonNull(identity, "identity");
+        Objects.requireNonNull(groups, "groups");
+        Objects.requireNonNull(lists, "lists");
         this.id = identity.id();
         this.faction = identity.faction();
         this.factionFlags = identity.flags();
-        this.factionGroupMask = groups.own();
-        this.friendGroupMask = groups.friend();
-        this.enemyGroupMask = groups.enemy();
+        this.factionGroupMask = groups.our();
+        this.friendGroupMask = groups.friendly();
+        this.enemyGroupMask = groups.hostile();
         this.enemyFaction = lists.enemies();
         this.friendFaction = lists.friends();
     }

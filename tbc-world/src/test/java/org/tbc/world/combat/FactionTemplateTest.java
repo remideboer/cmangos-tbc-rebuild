@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FactionTemplateTest {
@@ -91,10 +92,21 @@ class FactionTemplateTest {
 
     @Test
     void constructWhenIdentityGroupsAndListsGivenShouldExposeDbcFields() {
-        FactionTemplate t = new FactionTemplate(
-                new FactionTemplate.Identity(38, 29, 17),
-                new FactionTemplate.GroupMasks(FactionTemplate.GROUP_MONSTER, 0, FactionTemplate.GROUP_PLAYER),
-                new FactionTemplate.FactionLists(new int[]{28, 0, 0, 0}, new int[]{29, 0, 0, 0}));
+        FactionTemplate.Identity identity = new FactionTemplate.Identity(38, 29, 17);
+        FactionTemplate.GroupMasks groups = new FactionTemplate.GroupMasks(
+                FactionTemplate.GROUP_MONSTER, 0, FactionTemplate.GROUP_PLAYER);
+        FactionTemplate.FactionLists lists = new FactionTemplate.FactionLists(
+                new int[]{28, 0, 0, 0}, new int[]{29, 0, 0, 0});
+        assertEquals(38, identity.id());
+        assertEquals(29, identity.faction());
+        assertEquals(17, identity.flags());
+        assertEquals(FactionTemplate.GROUP_MONSTER, groups.our());
+        assertEquals(0, groups.friendly());
+        assertEquals(FactionTemplate.GROUP_PLAYER, groups.hostile());
+        assertEquals(28, lists.enemies()[0]);
+        assertEquals(29, lists.friends()[0]);
+
+        FactionTemplate t = new FactionTemplate(identity, groups, lists);
         assertEquals(38, t.id);
         assertEquals(29, t.faction);
         assertEquals(17, t.factionFlags);
@@ -113,5 +125,29 @@ class FactionTemplateTest {
         assertEquals(4, lists.friends().length);
         assertEquals(0, lists.enemies()[0]);
         assertEquals(0, lists.friends()[0]);
+    }
+
+    @Test
+    void constructWhenIdentityNullShouldThrowNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new FactionTemplate(
+                null,
+                new FactionTemplate.GroupMasks(0, 0, 0),
+                FactionTemplate.FactionLists.empty()));
+    }
+
+    @Test
+    void constructWhenGroupsNullShouldThrowNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new FactionTemplate(
+                new FactionTemplate.Identity(1, 1, 0),
+                null,
+                FactionTemplate.FactionLists.empty()));
+    }
+
+    @Test
+    void constructWhenListsNullShouldThrowNullPointerException() {
+        assertThrows(NullPointerException.class, () -> new FactionTemplate(
+                new FactionTemplate.Identity(1, 1, 0),
+                new FactionTemplate.GroupMasks(0, 0, 0),
+                null));
     }
 }
