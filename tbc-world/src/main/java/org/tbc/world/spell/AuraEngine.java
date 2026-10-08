@@ -13,6 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * spell-algorithms.md "Auras 0–261".
  */
 public final class AuraEngine {
+    public static final int SPELL_AURA_MOD_ATTACKSPEED = 9;
     public static final int SPELL_AURA_MOD_STUN = 12;
     public static final int SPELL_AURA_MOD_DECREASE_ARMOR = 15;
     public static final int SPELL_AURA_MOD_CONFUSE = 5;
@@ -88,7 +89,8 @@ public final class AuraEngine {
     public static final int MAX_POWERS = 5;
 
     private static final Set<Integer> KNOWN_AURAS = Set.of(
-            SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_DECREASE_ARMOR,
+            SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_ATTACKSPEED,
+            SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_DECREASE_ARMOR,
             SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_BASE_RESISTANCE, SPELL_AURA_MOD_RESISTANCE_PCT,
             SPELL_AURA_MOD_BASE_RESISTANCE_PCT,
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
@@ -191,6 +193,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT) {
             modRangedAttackPowerPct(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_ATTACKSPEED) {
+            modAttackSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, true);
@@ -463,6 +468,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT) {
             modRangedAttackPowerPct(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_ATTACKSPEED) {
+            modAttackSpeed(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, false);
@@ -1464,6 +1472,17 @@ public final class AuraEngine {
         int old = target.getInt(UpdateFields.PLAYER_SHIELD_BLOCK);
         int neu = apply ? Math.round(old * factor) : Math.round(old / factor);
         target.setInt(UpdateFields.PLAYER_SHIELD_BLOCK, neu);
+    }
+
+    /**
+     * Aura 9 — CMaNGOS HandleModAttackSpeed → ApplyAttackTimePercentMod(BASE_ATTACK) only.
+     */
+    private static void modAttackSpeed(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_BASEATTACKTIME, amount, apply);
     }
 
     /**
