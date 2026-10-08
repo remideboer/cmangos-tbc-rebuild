@@ -60,6 +60,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_FEIGN_DEATH = 66;
     public static final int SPELL_AURA_MOD_DISARM = 67;
     public static final int SPELL_AURA_MOD_PERCENT_STAT = 80;
+    public static final int SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE = 137;
     public static final int SPELL_AURA_MOD_REGEN = 84;
     /** Drink effect1 (Spell.dbc 430) — amount copied onto MOD_POWER_REGEN (spell_scripts Drink). */
     public static final int SPELL_AURA_PERIODIC_DUMMY = 226;
@@ -112,7 +113,8 @@ public final class AuraEngine {
             SPELL_AURA_MOD_INCREASE_ENERGY, SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
-            SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
+            SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE,
+            SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
             SPELL_AURA_WATER_BREATHING, SPELL_AURA_MOD_UNATTACKABLE,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_ATTACK_POWER_PCT,
             SPELL_AURA_UNTRACKABLE, SPELL_AURA_EMPATHY,
@@ -278,6 +280,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_PERCENT_STAT) {
             modPercentStat(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE) {
+            modTotalStatPercentage(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_CRIT_PERCENT) {
             modCritPercent(target, sp, true);
         }
@@ -356,6 +361,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_PERCENT_STAT) {
             modPercentStat(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE) {
+            modTotalStatPercentage(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_CRIT_PERCENT) {
             modCritPercent(target, sp, false);
@@ -1081,6 +1089,37 @@ public final class AuraEngine {
             int cur = target.getInt(field);
             float factor = apply ? (100.0f + amount) / 100.0f : 100.0f / (100.0f + amount);
             target.setInt(field, Math.max(0, Math.round(cur * factor)));
+        }
+    }
+
+    /**
+     * Aura 137 — CMaNGOS HandleModTotalPercentStat → TOTAL_PCT on matching stats;
+     * player/pet also ApplyStatPercentBuffMod (POSSTAT/NEGSTAT).
+     */
+    private static void modTotalStatPercentage(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int misc = sp.misc();
+        if (misc < -1 || misc > 4) {
+            return;
+        }
+        float factor = apply ? (100.0f + amount) / 100.0f : 100.0f / (100.0f + amount);
+        boolean playerOrPet = target instanceof Player;
+        for (int i = 0; i < MAX_STATS; i++) {
+            if (misc != -1 && misc != i) {
+                continue;
+            }
+            int field = UpdateFields.UNIT_FIELD_STAT0 + i;
+            int cur = target.getInt(field);
+            target.setInt(field, Math.max(0, Math.round(cur * factor)));
+            if (playerOrPet) {
+                int pos = UpdateFields.UNIT_FIELD_POSSTAT0 + i;
+                int neg = UpdateFields.UNIT_FIELD_NEGSTAT0 + i;
+                target.setInt(pos, Math.round(target.getInt(pos) * factor));
+                target.setInt(neg, Math.round(target.getInt(neg) * factor));
+            }
         }
     }
 
