@@ -42,6 +42,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_SPELL_CRIT_CHANCE = 57;
     public static final int SPELL_AURA_MOD_STALKED = 68;
     public static final int SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL = 71;
+    public static final int SPELL_AURA_MOD_DAMAGE_DONE = 13;
     public static final int SPELL_AURA_MOD_DAMAGE_PERCENT_DONE = 79;
     public static final int SPELL_AURA_MOD_POWER_COST_SCHOOL = 73;
     public static final int SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT = 72;
@@ -80,7 +81,8 @@ public final class AuraEngine {
             SPELL_AURA_MOD_CRIT_PERCENT, SPELL_AURA_MOD_DODGE_PERCENT, SPELL_AURA_MOD_PARRY_PERCENT,
             SPELL_AURA_MOD_BLOCK_PERCENT, SPELL_AURA_MOD_HIT_CHANCE, SPELL_AURA_MOD_SPELL_HIT_CHANCE,
             SPELL_AURA_MOD_SPELL_CRIT_CHANCE, SPELL_AURA_MOD_STALKED,
-            SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, SPELL_AURA_MOD_DAMAGE_PERCENT_DONE,
+            SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, SPELL_AURA_MOD_DAMAGE_DONE,
+            SPELL_AURA_MOD_DAMAGE_PERCENT_DONE,
             SPELL_AURA_MOD_POWER_COST_SCHOOL, SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT,
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
@@ -232,6 +234,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL) {
             modSpellCritChanceSchool(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_DAMAGE_DONE) {
+            modDamageDone(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_DAMAGE_PERCENT_DONE) {
             modDamagePercentDone(target, sp, true);
         }
@@ -289,6 +294,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL) {
             modSpellCritChanceSchool(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_DAMAGE_DONE) {
+            modDamageDone(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_DAMAGE_PERCENT_DONE) {
             modDamagePercentDone(target, sp, false);
@@ -560,6 +568,47 @@ public final class AuraEngine {
             }
             int field = UpdateFields.UNIT_FIELD_POWER_COST_MULTIPLIER + i;
             target.setFloat(field, target.getFloat(field) + delta);
+        }
+    }
+
+    /**
+     * Aura 13 — CMaNGOS HandleModDamageDone client fields only:
+     * NORMAL → PLAYER_FIELD_MOD_DAMAGE_DONE_POS (or NEG if amount negative);
+     * magic schools when EquippedItemClass −1 → POS/NEG+i for bits in misc mask.
+     * Skips UNIT_MOD_DAMAGE_* / weapon-dependent / pet scaling (min green).
+     */
+    private static void modDamageDone(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player)) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int mask = sp.misc();
+        boolean positive = amount >= 0;
+        int abs = Math.abs(amount);
+        int signed = apply ? abs : -abs;
+        if ((mask & 1) != 0) {
+            int field = positive
+                    ? UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS
+                    : UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG;
+            target.setInt(field, target.getInt(field) + signed);
+        }
+        if ((mask & 0x7E) == 0) {
+            return;
+        }
+        if (sp.equippedItemClass() != -1) {
+            return;
+        }
+        int base = positive
+                ? UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS
+                : UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_NEG;
+        for (int i = 1; i < MAX_SPELL_SCHOOL; i++) {
+            if ((mask & (1 << i)) == 0) {
+                continue;
+            }
+            target.setInt(base + i, target.getInt(base + i) + signed);
         }
     }
 
