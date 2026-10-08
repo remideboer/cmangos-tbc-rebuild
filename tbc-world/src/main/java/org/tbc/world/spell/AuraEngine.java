@@ -62,6 +62,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_PERIODIC_DUMMY = 226;
     public static final int SPELL_AURA_MOD_POWER_REGEN = 85;
     public static final int SPELL_AURA_WATER_BREATHING = 82;
+    public static final int SPELL_AURA_MOD_UNATTACKABLE = 93;
     public static final int SPELL_AURA_GHOST = 95;
     public static final int SPELL_AURA_MOD_ATTACK_POWER = 99;
     public static final int SPELL_AURA_MOD_ATTACK_POWER_PCT = 166;
@@ -106,7 +107,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
-            SPELL_AURA_WATER_BREATHING,
+            SPELL_AURA_WATER_BREATHING, SPELL_AURA_MOD_UNATTACKABLE,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_ATTACK_POWER_PCT,
             SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT, SPELL_AURA_MOD_TARGET_RESISTANCE,
             SPELL_AURA_MOD_RANGED_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT,
@@ -139,6 +140,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_DISARM) {
             target.setDisarmed(true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_UNATTACKABLE) {
+            modUnattackable(target, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_STALKED) {
             modStalked(target, true);
@@ -408,6 +412,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_DISARM) {
             // HandleAuraModDisarm(false); stacking other MOD_DISARM later.
             target.setDisarmed(false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_UNATTACKABLE) {
+            modUnattackable(target, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_STALKED) {
             modStalked(target, false);
@@ -867,6 +874,17 @@ public final class AuraEngine {
         } else {
             target.setInt(UpdateFields.UNIT_DYNAMIC_FLAGS, dyn & ~Unit.UNIT_DYNFLAG_TRACK_UNIT);
         }
+    }
+
+    /**
+     * Aura 93 — CMaNGOS HandleModUnattackable → UNIT_FLAG_UNTARGETABLE;
+     * CombatStop on apply (Real).
+     */
+    private static void modUnattackable(Unit target, boolean apply) {
+        if (apply) {
+            target.combatStop();
+        }
+        target.setUntargetable(apply);
     }
 
     /**

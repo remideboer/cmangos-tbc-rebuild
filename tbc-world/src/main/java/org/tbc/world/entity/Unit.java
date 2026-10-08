@@ -686,6 +686,13 @@ public class Unit extends Entity {
                 apply ? flags | UNIT_FLAG_DISARMED : flags & ~UNIT_FLAG_DISARMED);
     }
 
+    /** CMaNGOS HandleModUnattackable — ApplyModFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNTARGETABLE, apply). */
+    public void setUntargetable(boolean apply) {
+        int flags = getInt(UpdateFields.UNIT_FIELD_FLAGS);
+        setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                apply ? flags | UNIT_FLAG_UNTARGETABLE : flags & ~UNIT_FLAG_UNTARGETABLE);
+    }
+
     /** CMaNGOS RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING). EffectSpawn. */
     public void clearSpawningFlag() {
         setInt(UpdateFields.UNIT_FIELD_FLAGS,
