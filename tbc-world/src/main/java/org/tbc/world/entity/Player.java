@@ -82,6 +82,8 @@ public final class Player extends Unit {
     public static final int PLAYER_FIELD_BYTES_OFFSET_FLAGS = 0;
     /** Player.h PLAYER_FIELD_BYTE_CONTROLLING_PET — SetPet / Unsummon. */
     public static final int PLAYER_FIELD_BYTE_CONTROLLING_PET = 0x01;
+    /** Player.h PLAYER_FIELD_BYTE_TRACK_STEALTHED — Detect Trap / Track Hidden. */
+    public static final int PLAYER_FIELD_BYTE_TRACK_STEALTHED = 0x02;
 
     public WorldSession session;
     public int accountId;
@@ -1358,6 +1360,20 @@ public final class Player extends Unit {
         int shift = PLAYER_FIELD_BYTES_OFFSET_FLAGS * 8;
         int mask = PLAYER_FIELD_BYTE_CONTROLLING_PET << shift;
         setInt(UpdateFields.PLAYER_FIELD_BYTES, on ? bytes | mask : bytes & ~mask);
+    }
+
+    /** CMaNGOS HandleAuraTrackStealthed — PLAYER_FIELD_BYTE_TRACK_STEALTHED on byte 0. */
+    public void setTrackingStealthed(boolean on) {
+        int bytes = getInt(UpdateFields.PLAYER_FIELD_BYTES);
+        int shift = PLAYER_FIELD_BYTES_OFFSET_FLAGS * 8;
+        int mask = PLAYER_FIELD_BYTE_TRACK_STEALTHED << shift;
+        setInt(UpdateFields.PLAYER_FIELD_BYTES, on ? bytes | mask : bytes & ~mask);
+    }
+
+    public boolean isTrackingStealthed() {
+        int bytes = getInt(UpdateFields.PLAYER_FIELD_BYTES);
+        int shift = PLAYER_FIELD_BYTES_OFFSET_FLAGS * 8;
+        return ((bytes >>> shift) & PLAYER_FIELD_BYTE_TRACK_STEALTHED) != 0;
     }
 
     public boolean isControllingPet() {
