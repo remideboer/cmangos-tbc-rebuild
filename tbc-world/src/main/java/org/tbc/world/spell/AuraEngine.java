@@ -26,6 +26,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_ROOT = 26;
     public static final int SPELL_AURA_MOD_SILENCE = 27;
     public static final int SPELL_AURA_MOD_STAT = 29;
+    public static final int SPELL_AURA_MOD_SKILL = 30;
     public static final int SPELL_AURA_MOD_STEALTH = 16;
     public static final int SPELL_AURA_MOD_INVISIBILITY = 18;
     public static final int SPELL_AURA_TRACK_CREATURES = 44;
@@ -101,6 +102,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_BASE_RESISTANCE, SPELL_AURA_MOD_RESISTANCE_PCT,
             SPELL_AURA_MOD_BASE_RESISTANCE_PCT,
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
+            SPELL_AURA_MOD_SKILL,
             SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY,
             SPELL_AURA_TRACK_CREATURES, SPELL_AURA_TRACK_RESOURCES,
             SPELL_AURA_MOD_CRIT_PERCENT, SPELL_AURA_MOD_DODGE_PERCENT, SPELL_AURA_MOD_PARRY_PERCENT,
@@ -287,6 +289,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_STAT) {
             modStat(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_SKILL) {
+            modSkill(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_PERCENT_STAT) {
             modPercentStat(target, sp, true);
         }
@@ -368,6 +373,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_STAT) {
             modStat(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SKILL) {
+            modSkill(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_PERCENT_STAT) {
             modPercentStat(target, sp, false);
@@ -1099,6 +1107,20 @@ public final class AuraEngine {
                 target.getFloat(UpdateFields.PLAYER_OFFHAND_CRIT_PERCENTAGE) + delta);
         target.setFloat(UpdateFields.PLAYER_RANGED_CRIT_PERCENTAGE,
                 target.getFloat(UpdateFields.PLAYER_RANGED_CRIT_PERCENTAGE) + delta);
+    }
+
+    /**
+     * Aura 30 — CMaNGOS HandleAuraModSkill → ModifySkillBonus(misc=skillId, amount, permanent=false).
+     */
+    private static void modSkill(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0 || sp.misc() == 0) {
+            return;
+        }
+        player.modifySkillBonus(sp.misc(), apply ? amount : -amount, false);
     }
 
     /**

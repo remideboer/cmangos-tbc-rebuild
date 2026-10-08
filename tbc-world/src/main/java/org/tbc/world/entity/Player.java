@@ -1614,6 +1614,57 @@ public final class Player extends Unit {
         return false;
     }
 
+    /**
+     * CMaNGOS Player::ModifySkillBonus — temp bonus in low 16 of skill slot word+2;
+     * permanent (talent) in high 16. No-op if skill not learned.
+     */
+    public boolean modifySkillBonus(int skillId, int diff, boolean permanent) {
+        if (skillId == 0 || diff == 0) {
+            return false;
+        }
+        int want = skillId & 0xFFFF;
+        for (int slot = 0; slot < 127; slot++) {
+            int base = UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
+            if ((getInt(base) & 0xFFFF) != want) {
+                continue;
+            }
+            int bonus = getInt(base + 2);
+            int temp = (short) (bonus & 0xFFFF);
+            int perm = (short) ((bonus >>> 16) & 0xFFFF);
+            if (permanent) {
+                perm += diff;
+            } else {
+                temp += diff;
+            }
+            setInt(base + 2, (temp & 0xFFFF) | ((perm & 0xFFFF) << 16));
+            return true;
+        }
+        return false;
+    }
+
+    /** CMaNGOS GetSkillBonus(false) — temporary/item bonus. */
+    public int skillTempBonus(int skillId) {
+        return skillBonus(skillId, false);
+    }
+
+    /** CMaNGOS GetSkillBonus(true) — permanent/talent bonus. */
+    public int skillPermBonus(int skillId) {
+        return skillBonus(skillId, true);
+    }
+
+    private int skillBonus(int skillId, boolean permanent) {
+        int want = skillId & 0xFFFF;
+        for (int slot = 0; slot < 127; slot++) {
+            int base = UpdateFields.PLAYER_SKILL_INFO_1_1 + slot * 3;
+            if ((getInt(base) & 0xFFFF) != want) {
+                continue;
+            }
+            int bonus = getInt(base + 2);
+            return permanent ? (short) ((bonus >>> 16) & 0xFFFF) : (short) (bonus & 0xFFFF);
+        }
+        return 0;
+    }
+
     /** CMaNGOS GetSkillValueBase — low 16 of PLAYER_SKILL_INFO value word. */
     public int skillValue(int skillId) {
         int want = skillId & 0xFFFF;
