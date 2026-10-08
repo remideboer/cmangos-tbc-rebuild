@@ -31,6 +31,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_INCREASE_SWIM_SPEED = 58;
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH = 34;
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
+    public static final int SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT = 133;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     public static final int SPELL_AURA_MOD_PACIFY_SILENCE = 60;
     public static final int SPELL_AURA_MOD_CRIT_PERCENT = 52;
@@ -93,7 +94,8 @@ public final class AuraEngine {
             SPELL_AURA_MOD_POWER_COST_SCHOOL, SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT,
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
-            SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_ENERGY,
+            SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT,
+            SPELL_AURA_MOD_INCREASE_ENERGY,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
@@ -274,6 +276,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT) {
+            modIncreaseHealthPercent(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY) {
             modIncreaseEnergy(target, sp, true);
         }
@@ -337,6 +342,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
             modIncreaseHealth(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT) {
+            modIncreaseHealthPercent(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY) {
             modIncreaseEnergy(target, sp, false);
@@ -900,6 +908,29 @@ public final class AuraEngine {
         }
         int delta = apply ? amount : -amount;
         int max = target.maxHealth() + delta;
+        if (max < 1) {
+            max = 1;
+        }
+        target.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, max);
+        if (target.health() > max) {
+            target.setHealth(max);
+        }
+    }
+
+    /**
+     * Aura 133 — CMaNGOS HandleAuraModIncreaseHealthPercent → TOTAL_PCT on UNIT_MOD_HEALTH.
+     * Multiplies max HP by (100+amount)/100; clamps current when max shrinks.
+     */
+    private static void modIncreaseHealthPercent(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        float factor = (100.0f + amount) / 100.0f;
+        int oldMax = target.maxHealth();
+        int max = apply
+                ? Math.round(oldMax * factor)
+                : Math.round(oldMax / factor);
         if (max < 1) {
             max = 1;
         }
