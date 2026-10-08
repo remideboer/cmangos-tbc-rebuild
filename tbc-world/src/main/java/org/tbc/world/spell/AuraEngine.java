@@ -31,6 +31,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_INCREASE_SWIM_SPEED = 58;
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH = 34;
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
+    public static final int SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT = 132;
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT = 133;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     public static final int SPELL_AURA_MOD_PACIFY_SILENCE = 60;
@@ -95,7 +96,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_INCREASE_SPEED,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT,
-            SPELL_AURA_MOD_INCREASE_ENERGY,
+            SPELL_AURA_MOD_INCREASE_ENERGY, SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
@@ -282,6 +283,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY) {
             modIncreaseEnergy(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT) {
+            modIncreaseEnergyPercent(target, sp, true);
+        }
     }
 
     /** Reverse {@link #apply} for auras that mutate stats (CMaNGOS Aura::ApplyModifier(false)). */
@@ -348,6 +352,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY) {
             modIncreaseEnergy(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT) {
+            modIncreaseEnergyPercent(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_STUN) {
             // HandleAuraModStun(false) → SetStunned(false) only when no MOD_STUN remain.
@@ -957,6 +964,35 @@ public final class AuraEngine {
         int maxField = UpdateFields.UNIT_FIELD_MAXPOWER1 + power;
         int curField = UpdateFields.UNIT_FIELD_POWER1 + power;
         int max = target.getInt(maxField) + delta;
+        if (max < 0) {
+            max = 0;
+        }
+        target.setInt(maxField, max);
+        if (target.getInt(curField) > max) {
+            target.setInt(curField, max);
+        }
+    }
+
+    /**
+     * Aura 132 — CMaNGOS HandleAuraModIncreaseEnergyPercent → TOTAL_PCT on power max (misc = Powers).
+     * Multiplies max power by (100+amount)/100; clamps current when max shrinks.
+     */
+    private static void modIncreaseEnergyPercent(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int power = sp.misc();
+        if (power < 0 || power >= MAX_POWERS) {
+            return;
+        }
+        float factor = (100.0f + amount) / 100.0f;
+        int maxField = UpdateFields.UNIT_FIELD_MAXPOWER1 + power;
+        int curField = UpdateFields.UNIT_FIELD_POWER1 + power;
+        int oldMax = target.getInt(maxField);
+        int max = apply
+                ? Math.round(oldMax * factor)
+                : Math.round(oldMax / factor);
         if (max < 0) {
             max = 0;
         }
