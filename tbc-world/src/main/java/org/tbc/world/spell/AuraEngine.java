@@ -46,6 +46,16 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_MELEE_RANGED_HASTE = 192;
     public static final int SPELL_AURA_HASTE_ALL = 193;
     public static final int SPELL_AURA_FLY = 201;
+    public static final int SPELL_AURA_MOD_FLIGHT_SPEED = 206;
+    public static final int SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED = 207;
+    public static final int SPELL_AURA_MOD_FLIGHT_SPEED_STACKING = 208;
+    public static final int SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED_STACKING = 209;
+    public static final int SPELL_AURA_MOD_FLIGHT_SPEED_NOT_STACKING = 210;
+    public static final int SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED_NOT_STACKING = 211;
+    public static final int SPELL_AURA_ARENA_PREPARATION = 215;
+    public static final int SPELL_AURA_HASTE_RANGED = 218;
+    public static final int SPELL_AURA_FORCE_MOVE_FORWARD = 241;
+    public static final int SPELL_AURA_COMPREHEND_LANGUAGE = 244;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
     public static final int SPELL_AURA_MOD_SPEED_ALWAYS = 129;
     public static final int SPELL_AURA_MOD_SPEED_NOT_STACK = 171;
@@ -158,7 +168,13 @@ public final class AuraEngine {
             SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_MOD_RANGED_AMMO_HASTE,
             SPELL_AURA_USE_NORMAL_MOVEMENT_SPEED,
             SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_ALL,
-            SPELL_AURA_DETECT_AMORE, SPELL_AURA_FLY, SPELL_AURA_SAFE_FALL,
+            SPELL_AURA_DETECT_AMORE, SPELL_AURA_FLY,
+            SPELL_AURA_MOD_FLIGHT_SPEED, SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED,
+            SPELL_AURA_MOD_FLIGHT_SPEED_STACKING, SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED_STACKING,
+            SPELL_AURA_MOD_FLIGHT_SPEED_NOT_STACKING, SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED_NOT_STACKING,
+            SPELL_AURA_ARENA_PREPARATION, SPELL_AURA_HASTE_RANGED,
+            SPELL_AURA_FORCE_MOVE_FORWARD, SPELL_AURA_COMPREHEND_LANGUAGE,
+            SPELL_AURA_SAFE_FALL,
             SPELL_AURA_MOD_SHIELD_BLOCKVALUE, SPELL_AURA_MOD_SHIELD_BLOCKVALUE_PCT);
 
     public boolean knownAura(int aura) {
@@ -255,6 +271,23 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_FLY) {
             target.sendCanFly(true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_STACKING
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED_STACKING
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_NOT_STACKING
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED_NOT_STACKING) {
+            modFlightSpeed(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_ARENA_PREPARATION) {
+            modArenaPreparation(target, true);
+        }
+        if (sp.aura() == SPELL_AURA_FORCE_MOVE_FORWARD) {
+            modForceMoveForward(target, true);
+        }
+        if (sp.aura() == SPELL_AURA_COMPREHEND_LANGUAGE) {
+            modComprehendLanguage(target, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_RANGED_HASTE) {
             modMeleeRangedHaste(target, sp, true);
         }
@@ -288,7 +321,7 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, true);
         }
-        if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE) {
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE || sp.aura() == SPELL_AURA_HASTE_RANGED) {
             modRangedHaste(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_AMMO_HASTE) {
@@ -620,6 +653,23 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_FLY) {
             target.sendCanFly(false);
         }
+        if (sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_STACKING
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED_STACKING
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_NOT_STACKING
+                || sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED_NOT_STACKING) {
+            modFlightSpeed(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_ARENA_PREPARATION) {
+            modArenaPreparation(target, false);
+        }
+        if (sp.aura() == SPELL_AURA_FORCE_MOVE_FORWARD) {
+            modForceMoveForward(target, false);
+        }
+        if (sp.aura() == SPELL_AURA_COMPREHEND_LANGUAGE) {
+            modComprehendLanguage(target, false);
+        }
         if (sp.aura() == SPELL_AURA_MOD_MELEE_RANGED_HASTE) {
             modMeleeRangedHaste(target, sp, false);
         }
@@ -653,7 +703,7 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_MELEE_HASTE) {
             modMeleeHaste(target, sp, false);
         }
-        if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE) {
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE || sp.aura() == SPELL_AURA_HASTE_RANGED) {
             modRangedHaste(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_AMMO_HASTE) {
@@ -1901,7 +1951,46 @@ public final class AuraEngine {
     }
 
     /**
-     * Aura 140 — CMaNGOS HandleAuraModRangedHaste → ApplyAttackTimePercentMod(RANGED_ATTACK).
+     * Auras 206–211 — CMaNGOS HandleAuraModIncreaseFlightSpeed → UpdateSpeed(MOVE_FLIGHT).
+     * Aura 207 also SetCanFly. Polymorph immunity on the flying mount stays later.
+     */
+    private static void modFlightSpeed(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (sp.aura() == SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED) {
+            target.sendCanFly(apply);
+        }
+        target.setFlightSpeedAura(sp.aura(), sp.id(), (sp.minDmg() + sp.maxDmg()) / 2, apply);
+    }
+
+    /** Aura 215 — CMaNGOS HandleArenaPreparation. Fills health, mana, and energy; clears rage on remove. */
+    private static void modArenaPreparation(Unit target, boolean apply) {
+        int flags = target.getInt(UpdateFields.UNIT_FIELD_FLAGS);
+        target.setInt(UpdateFields.UNIT_FIELD_FLAGS,
+                apply ? flags | Unit.UNIT_FLAG_PREPARATION : flags & ~Unit.UNIT_FLAG_PREPARATION);
+        if (apply) {
+            target.setHealth(target.maxHealth());
+            target.setPower(target.maxPower());
+            target.setInt(UpdateFields.UNIT_FIELD_POWER4, target.getInt(UpdateFields.UNIT_FIELD_MAXPOWER4));
+        } else {
+            target.setInt(UpdateFields.UNIT_FIELD_POWER2, 0);
+        }
+    }
+
+    /** Aura 241 — CMaNGOS HandleForceMoveForward → UNIT_FLAG2_FORCE_MOVE. */
+    private static void modForceMoveForward(Unit target, boolean apply) {
+        int flags = target.getInt(UpdateFields.UNIT_FIELD_FLAGS_2);
+        target.setInt(UpdateFields.UNIT_FIELD_FLAGS_2,
+                apply ? flags | Unit.UNIT_FLAG2_FORCE_MOVE : flags & ~Unit.UNIT_FLAG2_FORCE_MOVE);
+    }
+
+    /** Aura 244 — CMaNGOS HandleComprehendLanguage → UNIT_FLAG2_COMPREHEND_LANG. */
+    private static void modComprehendLanguage(Unit target, boolean apply) {
+        int flags = target.getInt(UpdateFields.UNIT_FIELD_FLAGS_2);
+        target.setInt(UpdateFields.UNIT_FIELD_FLAGS_2,
+                apply ? flags | Unit.UNIT_FLAG2_COMPREHEND_LANG : flags & ~Unit.UNIT_FLAG2_COMPREHEND_LANG);
+    }
+
+    /**
+     * Auras 140 and 218 — CMaNGOS HandleAuraModRangedHaste → ApplyAttackTimePercentMod(RANGED_ATTACK).
      */
     private static void modRangedHaste(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
         int amount = (sp.minDmg() + sp.maxDmg()) / 2;
