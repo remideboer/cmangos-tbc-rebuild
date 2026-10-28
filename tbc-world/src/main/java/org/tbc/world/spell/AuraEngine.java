@@ -29,11 +29,21 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_SKILL = 30;
     public static final int SPELL_AURA_MOD_SKILL_TALENT = 98;
     public static final int SPELL_AURA_MOD_STEALTH = 16;
+    public static final int SPELL_AURA_MOD_STEALTH_DETECT = 17;
     public static final int SPELL_AURA_MOD_INVISIBILITY = 18;
     public static final int SPELL_AURA_TRACK_CREATURES = 44;
     public static final int SPELL_AURA_TRACK_RESOURCES = 45;
     public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
     public static final int SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED = 32;
+    public static final int SPELL_AURA_MOD_MOUNTED_SPEED_ALWAYS = 130;
+    public static final int SPELL_AURA_MOD_MANA_REGEN_INTERRUPT = 134;
+    public static final int SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE = 143;
+    public static final int SPELL_AURA_MOD_WATER_BREATHING = 155;
+    public static final int SPELL_AURA_DETECT_AMORE = 170;
+    public static final int SPELL_AURA_MOD_MOUNTED_SPEED_NOT_STACK = 172;
+    public static final int SPELL_AURA_MOD_MELEE_RANGED_HASTE = 192;
+    public static final int SPELL_AURA_HASTE_ALL = 193;
+    public static final int SPELL_AURA_FLY = 201;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
     public static final int SPELL_AURA_MOD_SPEED_ALWAYS = 129;
     public static final int SPELL_AURA_MOD_SPEED_NOT_STACK = 171;
@@ -105,7 +115,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_BASE_RESISTANCE_PCT,
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_SKILL, SPELL_AURA_MOD_SKILL_TALENT,
-            SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_INVISIBILITY,
+            SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_STEALTH_DETECT, SPELL_AURA_MOD_INVISIBILITY,
             SPELL_AURA_TRACK_CREATURES, SPELL_AURA_TRACK_RESOURCES,
             SPELL_AURA_MOD_CRIT_PERCENT, SPELL_AURA_MOD_DODGE_PERCENT, SPELL_AURA_MOD_PARRY_PERCENT,
             SPELL_AURA_MOD_BLOCK_PERCENT, SPELL_AURA_MOD_HIT_CHANCE, SPELL_AURA_MOD_SPELL_HIT_CHANCE,
@@ -114,6 +124,7 @@ public final class AuraEngine {
             SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, SPELL_AURA_MOD_HEALING_DONE,
             SPELL_AURA_MOD_POWER_COST_SCHOOL, SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT,
             SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED,
+            SPELL_AURA_MOD_MOUNTED_SPEED_ALWAYS, SPELL_AURA_MOD_MOUNTED_SPEED_NOT_STACK,
             SPELL_AURA_MOD_SPEED_ALWAYS, SPELL_AURA_MOD_SPEED_NOT_STACK,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT,
@@ -122,13 +133,17 @@ public final class AuraEngine {
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE,
             SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
-            SPELL_AURA_WATER_BREATHING, SPELL_AURA_PREVENTS_FLEEING, SPELL_AURA_MOD_UNATTACKABLE,
+            SPELL_AURA_WATER_BREATHING, SPELL_AURA_MOD_WATER_BREATHING,
+            SPELL_AURA_MOD_MANA_REGEN_INTERRUPT, SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE,
+            SPELL_AURA_PREVENTS_FLEEING, SPELL_AURA_MOD_UNATTACKABLE,
             SPELL_AURA_GHOST, SPELL_AURA_MOD_ATTACK_POWER, SPELL_AURA_MOD_ATTACK_POWER_PCT,
             SPELL_AURA_UNTRACKABLE, SPELL_AURA_EMPATHY, SPELL_AURA_TRACK_STEALTHED,
             SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT, SPELL_AURA_MOD_TARGET_RESISTANCE,
             SPELL_AURA_MOD_RANGED_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
-            SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_SAFE_FALL,
+            SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE,
+            SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_ALL,
+            SPELL_AURA_DETECT_AMORE, SPELL_AURA_FLY, SPELL_AURA_SAFE_FALL,
             SPELL_AURA_MOD_SHIELD_BLOCKVALUE, SPELL_AURA_MOD_SHIELD_BLOCKVALUE_PCT);
 
     public boolean knownAura(int aura) {
@@ -180,6 +195,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_STEALTH) {
             modStealth(target, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_STEALTH_DETECT) {
+            modStealthDetect(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INVISIBILITY) {
             modInvisibility(target, true);
         }
@@ -200,6 +218,27 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
             modWaterBreathing(target, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_WATER_BREATHING) {
+            modWaterBreathingPct(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_MANA_REGEN_INTERRUPT) {
+            modManaRegenInterrupt(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE) {
+            modResistanceExclusive(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_DETECT_AMORE) {
+            modDetectAmore(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_FLY) {
+            target.sendCanFly(true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_MELEE_RANGED_HASTE) {
+            modMeleeRangedHaste(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_HASTE_ALL) {
+            modHasteAll(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_GHOST) {
             modGhost(target, true);
@@ -271,7 +310,9 @@ public final class AuraEngine {
                 || sp.aura() == SPELL_AURA_MOD_SPEED_NOT_STACK) {
             modIncreaseSpeed(target, sp, true);
         }
-        if (sp.aura() == SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED) {
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED
+                || sp.aura() == SPELL_AURA_MOD_MOUNTED_SPEED_ALWAYS
+                || sp.aura() == SPELL_AURA_MOD_MOUNTED_SPEED_NOT_STACK) {
             modIncreaseMountedSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SWIM_SPEED) {
@@ -492,6 +533,9 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_STEALTH) {
             modStealth(target, false);
         }
+        if (sp.aura() == SPELL_AURA_MOD_STEALTH_DETECT) {
+            modStealthDetect(target, sp, false);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INVISIBILITY) {
             modInvisibility(target, false);
         }
@@ -512,6 +556,27 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_WATER_BREATHING) {
             modWaterBreathing(target, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_WATER_BREATHING) {
+            modWaterBreathingPct(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_MANA_REGEN_INTERRUPT) {
+            modManaRegenInterrupt(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE) {
+            modResistanceExclusive(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_DETECT_AMORE) {
+            modDetectAmore(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_FLY) {
+            target.sendCanFly(false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_MELEE_RANGED_HASTE) {
+            modMeleeRangedHaste(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_HASTE_ALL) {
+            modHasteAll(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_GHOST) {
             modGhost(target, false);
@@ -585,7 +650,9 @@ public final class AuraEngine {
                 || sp.aura() == SPELL_AURA_MOD_SPEED_NOT_STACK) {
             modIncreaseSpeed(target, sp, false);
         }
-        if (sp.aura() == SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED) {
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED
+                || sp.aura() == SPELL_AURA_MOD_MOUNTED_SPEED_ALWAYS
+                || sp.aura() == SPELL_AURA_MOD_MOUNTED_SPEED_NOT_STACK) {
             modIncreaseMountedSpeed(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SWIM_SPEED) {
@@ -1308,9 +1375,9 @@ public final class AuraEngine {
     }
 
     /**
-     * Aura 32 — CMaNGOS HandleAuraModIncreaseMountedSpeed → UpdateSpeed(MOVE_RUN).
-     * Amount is the mounted main_speed_mod. On foot, aura 31 stays the positive mod.
-     * Auras 130 and 172 are separate terms in UpdateSpeed.
+     * Auras 32 / 130 / 172 — CMaNGOS HandleAuraModIncreaseMountedSpeed → UpdateSpeed(MOVE_RUN).
+     * 32 is the mounted main mod; 130 and 172 are the mounted stack and non-stack terms.
+     * All three share the mounted percent until the full bonus formula lands. On foot, aura 31 stays the mod.
      */
     private static void modIncreaseMountedSpeed(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
         int amount = (sp.minDmg() + sp.maxDmg()) / 2;
@@ -1695,14 +1762,94 @@ public final class AuraEngine {
     }
 
     /**
-     * Aura 82 — CMaNGOS HandleWaterBreathing → SetWaterBreathingIntervalMultiplier(0) on apply;
-     * restore 1.0 on unapply when no other WATER_BREATHING (HasAuraType / MOD_WATER_BREATHING later).
+     * Aura 82 — CMaNGOS HandleWaterBreathing → infinite breath (multiplier 0).
+     * Unapply restores the MOD_WATER_BREATHING multiplier, or 1.0 when that aura is absent.
      */
     private static void modWaterBreathing(Unit target, boolean apply) {
         if (!(target instanceof Player player)) {
             return;
         }
-        player.setWaterBreathingIntervalMultiplier(apply ? 0f : 1.0f);
+        player.setWaterBreathingInfinite(apply);
+    }
+
+    /**
+     * Aura 155 — CMaNGOS HandleModWaterBreathing → GetTotalAuraMultiplier.
+     * One aura: multiplier (100+amount)/100. Infinite breath from aura 82 wins.
+     */
+    private static void modWaterBreathingPct(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        player.setWaterBreathingModPct(apply ? amount : 0);
+    }
+
+    /**
+     * Aura 134 — CMaNGOS HandleAuraModRegenInterrupt → Player::UpdateManaRegen.
+     * Interrupt regen is the spirit rate times the aura percent (Meditation).
+     */
+    private static void modManaRegenInterrupt(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        player.setManaRegenInterruptPct(apply ? amount : 0);
+    }
+
+    /**
+     * Aura 143 — CMaNGOS HandleAuraModResistanceExclusive: per school, the highest amount wins.
+     */
+    private static void modResistanceExclusive(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount <= 0 || sp.misc() == 0) {
+            return;
+        }
+        target.setExclusiveResistance(sp.id(), sp.misc(), amount, apply);
+    }
+
+    /** Aura 170 — CMaNGOS HandleDetectAmore → PLAYER_FIELD_BYTES2 byte 1, flag {@code 1 << misc}. */
+    private static void modDetectAmore(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        player.setDetectAmore(sp.misc(), apply);
+    }
+
+    /** Aura 17 — CMaNGOS HandleModStealthDetect → AddStealthDetectionStrength. */
+    private static void modStealthDetect(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        target.addStealthDetect(apply ? amount : -amount);
+    }
+
+    /**
+     * Aura 192 — CMaNGOS HandleModMeleeRangedSpeedPct → BASE, OFF, and RANGED attack time.
+     * Bloodlust exclusive-max later.
+     */
+    private static void modMeleeRangedHaste(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_BASEATTACKTIME, amount, apply);
+        applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_BASEATTACKTIME + 1, amount, apply);
+        applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_RANGEDATTACKTIME, amount, apply);
+    }
+
+    /**
+     * Aura 193 — CMaNGOS HandleModCombatSpeedPct → cast time plus BASE, OFF, and RANGED.
+     */
+    private static void modHasteAll(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        modCastingSpeed(target, sp, apply);
+        modMeleeRangedHaste(target, sp, apply);
     }
 
     /**

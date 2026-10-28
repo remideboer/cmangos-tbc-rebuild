@@ -6,7 +6,9 @@ import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 public class Unit extends Entity {
@@ -111,6 +113,12 @@ public class Unit extends Entity {
     private int increaseSwimSpeedPct;
     /** CMaNGOS GetTotalAuraModifier(SPELL_AURA_SAFE_FALL) — yards subtracted from fall height. */
     private int safeFallBonus;
+    /** CMaNGOS VisibilityData stealth detection strength (SPELL_AURA_MOD_STEALTH_DETECT). */
+    private int stealthDetectStrength;
+    /** Spell id → {school mask, amount} for SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE. */
+    private final Map<Integer, int[]> exclusiveResist = new HashMap<>();
+    /** Currently applied exclusive resist per school, so a new max only deltas the sheet. */
+    private final int[] exclusiveResistApplied = new int[7];
     /** CMaNGOS m_speed_rate[MOVE_RUN]; default 1.0. */
     private float runSpeedRate = 1.0f;
     /** CMaNGOS m_speed_rate[MOVE_SWIM]; default 1.0. */
@@ -338,6 +346,20 @@ public class Unit extends Entity {
     }
 
     /**
+     * CMaNGOS Unit::SetCanFly when not client-controlled: SMSG_SPLINE_MOVE_SET_FLYING / UNSET_FLYING.
+     * Players override with SMSG_MOVE_SET_CAN_FLY / UNSET_CAN_FLY.
+     */
+    public void sendCanFly(boolean enable) {
+        if (messageToSet == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(9);
+        b.putPackedGuid(guid);
+        messageToSet.accept(enable ? Opcodes.SMSG_SPLINE_MOVE_SET_FLYING : Opcodes.SMSG_SPLINE_MOVE_UNSET_FLYING,
+                b.array());
+    }
+
+    /**
      * CMaNGOS Unit::SetHover when not client-controlled: SMSG_SPLINE_MOVE_SET_HOVER / UNSET_HOVER
      * packed guid via {@link #messageToSet}. Players override with SMSG_MOVE_SET_HOVER / UNSET_HOVER.
      */
@@ -385,6 +407,44 @@ public class Unit extends Entity {
 
     public int safeFall() {
         return safeFallBonus;
+    }
+
+    /** CMaNGOS VisibilityData::AddStealthDetectionStrength. */
+    public void addStealthDetect(int delta) {
+        stealthDetectStrength += delta;
+    }
+
+    public int stealthDetectStrength() {
+        return stealthDetectStrength;
+    }
+
+    /**
+     * Aura 143 — highest positive exclusive resist per school bit. Recomputes the sheet delta
+     * from the remaining spell contributions.
+     */
+    public void setExclusiveResistance(int spellId, int mask, int amount, boolean apply) {
+        if (apply) {
+            exclusiveResist.put(spellId, new int[] {mask, amount});
+        } else {
+            exclusiveResist.remove(spellId);
+        }
+        for (int school = 0; school < exclusiveResistApplied.length; school++) {
+            int max = 0;
+            for (int[] entry : exclusiveResist.values()) {
+                if ((entry[0] & (1 << school)) != 0 && entry[1] > max) {
+                    max = entry[1];
+                }
+            }
+            int delta = max - exclusiveResistApplied[school];
+            exclusiveResistApplied[school] = max;
+            if (delta == 0) {
+                continue;
+            }
+            setInt(UpdateFields.UNIT_FIELD_RESISTANCES + school,
+                    getInt(UpdateFields.UNIT_FIELD_RESISTANCES + school) + delta);
+            setInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE + school,
+                    getInt(UpdateFields.UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE + school) + delta);
+        }
     }
 
     /** CMaNGOS Unit::GetHitChance(WeaponAttackType). */

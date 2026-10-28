@@ -1466,12 +1466,58 @@ public final class Player extends Unit {
 
     /**
      * CMaNGOS Player::m_environmentBreathingMultiplier — 0 = infinite breath (WATER_BREATHING),
-     * 1 = normal; MOD_WATER_BREATHING scales later.
+     * otherwise {@code (100 + MOD_WATER_BREATHING) / 100}, else 1.
      */
     private float waterBreathingIntervalMultiplier = 1.0f;
+    private boolean waterBreathingInfinite;
+    private int waterBreathingModPct;
 
     public void setWaterBreathingIntervalMultiplier(float multiplier) {
         this.waterBreathingIntervalMultiplier = multiplier;
+    }
+
+    /** Aura 82. Infinite breath wins over aura 155. */
+    public void setWaterBreathingInfinite(boolean infinite) {
+        waterBreathingInfinite = infinite;
+        refreshWaterBreathing();
+    }
+
+    /** Aura 155 — one modifier; 0 clears it. Ignored while aura 82 is up. */
+    public void setWaterBreathingModPct(int pct) {
+        waterBreathingModPct = pct;
+        refreshWaterBreathing();
+    }
+
+    private void refreshWaterBreathing() {
+        if (waterBreathingInfinite) {
+            waterBreathingIntervalMultiplier = 0f;
+        } else if (waterBreathingModPct != 0) {
+            waterBreathingIntervalMultiplier = (100f + waterBreathingModPct) / 100f;
+        } else {
+            waterBreathingIntervalMultiplier = 1f;
+        }
+    }
+
+    /**
+     * Aura 134 — interrupt mana regen is the spirit rate times {@code pct} percent.
+     * {@code pct} 0 clears it (no Meditation).
+     */
+    public void setManaRegenInterruptPct(int pct) {
+        manaRegenInterruptPerSecond = manaRegenPerSecond * pct / 100f;
+        setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN_INTERRUPT, manaRegenInterruptPerSecond);
+    }
+
+    /**
+     * Aura 170 — CMaNGOS ApplyModByteFlag(PLAYER_FIELD_BYTES2, 1, {@code 1 << misc}).
+     * Misc outside 0..7 is ignored so the flag stays inside that byte.
+     */
+    public void setDetectAmore(int misc, boolean apply) {
+        if (misc < 0 || misc > 7) {
+            return;
+        }
+        int bit = (1 << misc) << 8;
+        int bytes = getInt(UpdateFields.PLAYER_FIELD_BYTES2);
+        setInt(UpdateFields.PLAYER_FIELD_BYTES2, apply ? bytes | bit : bytes & ~bit);
     }
 
     public float waterBreathingIntervalMultiplier() {
@@ -1540,6 +1586,21 @@ public final class Player extends Unit {
         b.putPackedGuid(guid);
         b.putU32(moveOrderCounter++);
         session.send(enable ? Opcodes.SMSG_MOVE_FEATHER_FALL : Opcodes.SMSG_MOVE_NORMAL_FALL, b.array());
+    }
+
+    /**
+     * CMaNGOS Unit::SetCanFly for client-controlled: SMSG_MOVE_SET_CAN_FLY / UNSET_CAN_FLY
+     * = packed guid + uint32 order counter (Unit.cpp).
+     */
+    @Override
+    public void sendCanFly(boolean enable) {
+        if (session == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(12);
+        b.putPackedGuid(guid);
+        b.putU32(moveOrderCounter++);
+        session.send(enable ? Opcodes.SMSG_MOVE_SET_CAN_FLY : Opcodes.SMSG_MOVE_UNSET_CAN_FLY, b.array());
     }
 
     /**
