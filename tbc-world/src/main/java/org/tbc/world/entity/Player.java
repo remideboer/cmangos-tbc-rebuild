@@ -124,13 +124,34 @@ public final class Player extends Unit {
 
     /** CMaNGOS ReputationMgr::ModifyReputation — standing += amount; list Standing when known. */
     public void modifyReputation(int factionId, int amount) {
+        modifyReputation(factionId, amount, false);
+    }
+
+    /**
+     * CalculateReputationGain aura portion. Positive gains add the percent; negative gains subtract it.
+     * Aura 190 applies only when {@code kill} is set.
+     */
+    public void modifyReputation(int factionId, int amount, boolean kill) {
         if (factionId <= 0 || amount == 0) {
             return;
         }
-        reputation.merge(factionId, amount, Integer::sum);
+        int mod = reputationGainSum;
+        if (kill) {
+            for (int[] entry : factionReputationGain.values()) {
+                if (entry[0] == factionId) {
+                    mod += entry[1];
+                }
+            }
+        }
+        float percent = 100f + (amount > 0 ? mod : -mod);
+        int adjusted = (int) (amount * percent / 100f);
+        if (adjusted == 0) {
+            return;
+        }
+        reputation.merge(factionId, adjusted, Integer::sum);
         int listId = ReputationMgr.listIdForFaction(factionId);
         if (listId >= 0) {
-            reputations.addStanding(listId, amount);
+            reputations.addStanding(listId, adjusted);
         }
     }
 
@@ -554,6 +575,27 @@ public final class Player extends Unit {
     private int rangedApFromStatApplied;
     /** spell id → {op, aura type, amount} for auras 107 and 108, in apply order. */
     private final Map<Integer, int[]> spellMods = new LinkedHashMap<>();
+    /** Aura 88 — product of (100+amount)/100 on out-of-combat spirit health regen. */
+    private final Map<Integer, Integer> healthRegenPct = new HashMap<>();
+    private float healthRegenPctMultiplier = 1f;
+    /** Aura 116 — sum of amounts, and the count that allows health regen in combat. */
+    private final Map<Integer, Integer> regenDuringCombat = new HashMap<>();
+    private int regenDuringCombatSum;
+    /** Aura 161 — flat health per second, also allows the combat regen call. */
+    private final Map<Integer, Integer> regenInCombat = new HashMap<>();
+    private int regenInCombatFlat;
+    /** Aura 94 — presence stops rage decay. */
+    private final java.util.Set<Integer> interruptRegen = new HashSet<>();
+    /** Aura 200 — each amount multiplies xp by (1+amount/100), in apply order. */
+    private final Map<Integer, Integer> xpPct = new LinkedHashMap<>();
+    /** Aura 213 — summed percent on attacker rage. */
+    private final Map<Integer, Integer> rageFromDamageDealt = new HashMap<>();
+    private int rageFromDamageDealtSum;
+    /** Aura 156 — summed percent on all reputation gains. */
+    private final Map<Integer, Integer> reputationGain = new HashMap<>();
+    private int reputationGainSum;
+    /** Aura 190 — spell id → {faction, amount}, added on kill reputation only. */
+    private final Map<Integer, int[]> factionReputationGain = new HashMap<>();
     /** spell id → {stat index, amount} for SPELL_AURA_MOD_MANA_REGEN_FROM_STAT. */
     private final Map<Integer, int[]> manaRegenFromStat = new HashMap<>();
     /** spell id → amount for SPELL_AURA_MOD_RANGED_AMMO_HASTE. Highest positive wins. */
@@ -614,6 +656,7 @@ public final class Player extends Unit {
         if (amount < 1 || !alive() || level >= MAX_LEVEL || levelStats == null) {
             return new int[0];
         }
+        amount = xpModifiedByAuras(amount);
         int rest = 0;
         if (victim != null) {
             rest = Math.min((int) restBonus, amount);
@@ -719,9 +762,10 @@ public final class Player extends Unit {
     }
 
     /**
-     * CMaNGOS Player::Update → RegenerateAll every REGEN_TIME_FULL: health and rage decay only out of
-     * combat; mana uses MOD_MANA_REGEN OOC, MOD_MANA_REGEN_INTERRUPT in combat or under the five-second
-     * rule. Returns the unit fields that changed. Ghosts/corpses skip regen.
+     * CMaNGOS Player::Update → RegenerateAll every REGEN_TIME_FULL. Health also runs in combat while
+     * aura 116 or 161 is up. Rage decay is skipped while aura 94 is up. Mana uses MOD_MANA_REGEN out
+     * of combat and MOD_MANA_REGEN_INTERRUPT in combat or under the five-second rule. Ghosts and
+     * corpses skip regen.
      */
     public int[] regenerateAll(int diff) {
         if (ghost || !alive()) {
@@ -735,11 +779,12 @@ public final class Player extends Unit {
         int d = regenTimerMs / 100 * 100;
         regenTimerMs -= d;
         List<Integer> changed = new ArrayList<>();
-        if (!inCombat) {
+        boolean combatHealth = !regenDuringCombat.isEmpty() || !regenInCombat.isEmpty();
+        if (!inCombat || combatHealth) {
             if (regenerateHealth(d)) {
                 changed.add(UpdateFields.UNIT_FIELD_HEALTH);
             }
-            if (regenerateRage(d)) {
+            if (!inCombat && interruptRegen.isEmpty() && regenerateRage(d)) {
                 changed.add(UpdateFields.UNIT_FIELD_POWER2);
             }
         }
@@ -764,15 +809,31 @@ public final class Player extends Unit {
         return true;
     }
 
-    /** Player::RegenerateHealth: OCTRegenHPPerSpirit * diff / 1000 (×1.5 while sitting). */
+    /**
+     * Player::RegenerateHealth. Out of combat, spirit regen times aura 88, then ×1.5 while sitting.
+     * In combat, spirit regen runs only while aura 116 is up, multiplied by the sum of those amounts
+     * over 100. Aura 161 is a flat per-second add in and out of combat.
+     */
     private boolean regenerateHealth(int diff) {
         int cur = health();
         if (cur >= maxHealth()) {
             return false;
         }
-        float add = hpRegenPerSecond;
-        if (!isStanding()) {
-            add *= 1.5f;
+        float add = 0f;
+        if (!inCombat || !regenDuringCombat.isEmpty()) {
+            add = hpRegenPerSecond;
+            if (!inCombat) {
+                add *= healthRegenPctMultiplier;
+            } else {
+                add *= regenDuringCombatSum / 100f;
+            }
+            if (!isStanding()) {
+                add *= 1.5f;
+            }
+        }
+        add += regenInCombatFlat;
+        if (add < 0f) {
+            add = 0f;
         }
         int gain = (int) (add * diff / 1000f);
         if (gain == 0) {
@@ -1243,6 +1304,7 @@ public final class Player extends Unit {
         float speed = getInt(UpdateFields.UNIT_FIELD_BASEATTACKTIME) / 1000.0f;
         float hitFactor = speed * (crit ? 7f : 3.5f);
         float addRage = (damage / conv * 7.5f + hitFactor) / 2.0f;
+        addRage *= 1.0f + rageFromDamageDealtSum / 100f;
         int add = (int) (addRage * 10);
         if (classless) {
             setRage(rage() + add);
@@ -1676,6 +1738,80 @@ public final class Player extends Unit {
             return base;
         }
         return (base + totalFlat) * Math.max(0, totalPct) / 100;
+    }
+
+    public void setHealthRegenPercent(int spellId, int amount, boolean apply) {
+        putAmount(healthRegenPct, spellId, amount, apply);
+        float product = 1f;
+        for (int value : healthRegenPct.values()) {
+            product *= (100f + value) / 100f;
+        }
+        healthRegenPctMultiplier = product;
+    }
+
+    public void setRegenDuringCombat(int spellId, int amount, boolean apply) {
+        putAmount(regenDuringCombat, spellId, amount, apply);
+        regenDuringCombatSum = sumValues(regenDuringCombat);
+    }
+
+    public void setHealthRegenInCombat(int spellId, int amount, boolean apply) {
+        putAmount(regenInCombat, spellId, amount, apply);
+        regenInCombatFlat = sumValues(regenInCombat);
+    }
+
+    public void setInterruptRegen(int spellId, boolean apply) {
+        if (apply) {
+            interruptRegen.add(spellId);
+        } else {
+            interruptRegen.remove(spellId);
+        }
+    }
+
+    public void setXpPercent(int spellId, int amount, boolean apply) {
+        putAmount(xpPct, spellId, amount, apply);
+    }
+
+    /** Each aura multiplies, in apply order. {@code (int)(xp * (1 + amount/100))}. */
+    public int xpModifiedByAuras(int xp) {
+        int value = xp;
+        for (int amount : xpPct.values()) {
+            value = (int) (value * (1.0f + amount / 100.0f));
+        }
+        return value;
+    }
+
+    public void setRageFromDamageDealt(int spellId, int amount, boolean apply) {
+        putAmount(rageFromDamageDealt, spellId, amount, apply);
+        rageFromDamageDealtSum = sumValues(rageFromDamageDealt);
+    }
+
+    public void setReputationGain(int spellId, int amount, boolean apply) {
+        putAmount(reputationGain, spellId, amount, apply);
+        reputationGainSum = sumValues(reputationGain);
+    }
+
+    public void setFactionReputationGain(int spellId, int factionId, int amount, boolean apply) {
+        if (apply) {
+            factionReputationGain.put(spellId, new int[] {factionId, amount});
+        } else {
+            factionReputationGain.remove(spellId);
+        }
+    }
+
+    private static void putAmount(Map<Integer, Integer> map, int spellId, int amount, boolean apply) {
+        if (apply) {
+            map.put(spellId, amount);
+        } else {
+            map.remove(spellId);
+        }
+    }
+
+    private static int sumValues(Map<Integer, Integer> map) {
+        int sum = 0;
+        for (int value : map.values()) {
+            sum += value;
+        }
+        return sum;
     }
 
     private void refreshManaRegenFields() {

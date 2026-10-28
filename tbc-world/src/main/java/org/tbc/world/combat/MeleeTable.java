@@ -54,6 +54,10 @@ public final class MeleeTable {
         if (victim instanceof Creature creature && (creature.evading || creature.evadeTimerMs > 0)) {
             return new Result(Outcome.EVADE, 0, 0);
         }
+        if (attacker.meleeAlwaysHits()) {
+            int dmg = damageRoll.applyAsInt(weaponMin, weaponMax);
+            return new Result(Outcome.HIT, dmg, dmg);
+        }
         double r = unitRoll.getAsDouble();
         double acc = missChance(attacker, victim, offhand);
         if (r < acc) {

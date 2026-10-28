@@ -36,6 +36,23 @@ public final class AuraEngine {
     public static final int SPELL_AURA_SPIRIT_OF_REDEMPTION = 176;
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER_OF_STAT_PERCENT = 212;
     public static final int SPELL_AURA_PHASE = 261;
+    public static final int SPELL_AURA_PERIODIC_DAMAGE = 3;
+    public static final int SPELL_AURA_PROC_TRIGGER_SPELL = 42;
+    public static final int SPELL_AURA_PERIODIC_LEECH = 53;
+    public static final int SPELL_AURA_PERIODIC_HEALTH_FUNNEL = 62;
+    public static final int SPELL_AURA_PERIODIC_MANA_LEECH = 64;
+    public static final int SPELL_AURA_MOD_HEALTH_REGEN_PERCENT = 88;
+    public static final int SPELL_AURA_INTERRUPT_REGEN = 94;
+    public static final int SPELL_AURA_MOD_REGEN_DURING_COMBAT = 116;
+    public static final int SPELL_AURA_MOD_REPUTATION_GAIN = 156;
+    public static final int SPELL_AURA_NO_PVP_CREDIT = 159;
+    public static final int SPELL_AURA_MOD_HEALTH_REGEN_IN_COMBAT = 161;
+    public static final int SPELL_AURA_POWER_BURN_MANA = 162;
+    public static final int SPELL_AURA_MOD_FACTION_REPUTATION_GAIN = 190;
+    public static final int SPELL_AURA_MOD_XP_PCT = 200;
+    public static final int SPELL_AURA_MOD_RAGE_FROM_DAMAGE_DEALT = 213;
+    /** HandleAuraProcTriggerSpell spell 39057 — melee always hits. */
+    public static final int SPELL_SERPENTSHRINE_PARASITE = 39057;
     /** SpellDefines.h MAX_SPELLMOD. An op at or above this is ignored. */
     public static final int MAX_SPELLMOD = 32;
     /** SpellDefines.h SPELLMOD_DAMAGE. */
@@ -197,6 +214,13 @@ public final class AuraEngine {
             SPELL_AURA_OVERRIDE_CLASS_SCRIPTS, SPELL_AURA_FORCE_REACTION,
             SPELL_AURA_SPIRIT_OF_REDEMPTION, SPELL_AURA_MOD_RANGED_ATTACK_POWER_OF_STAT_PERCENT,
             SPELL_AURA_PHASE,
+            SPELL_AURA_PERIODIC_DAMAGE, SPELL_AURA_PROC_TRIGGER_SPELL,
+            SPELL_AURA_PERIODIC_LEECH, SPELL_AURA_PERIODIC_HEALTH_FUNNEL, SPELL_AURA_PERIODIC_MANA_LEECH,
+            SPELL_AURA_POWER_BURN_MANA,
+            SPELL_AURA_MOD_HEALTH_REGEN_PERCENT, SPELL_AURA_INTERRUPT_REGEN,
+            SPELL_AURA_MOD_REGEN_DURING_COMBAT, SPELL_AURA_MOD_HEALTH_REGEN_IN_COMBAT,
+            SPELL_AURA_MOD_REPUTATION_GAIN, SPELL_AURA_MOD_FACTION_REPUTATION_GAIN,
+            SPELL_AURA_NO_PVP_CREDIT, SPELL_AURA_MOD_XP_PCT, SPELL_AURA_MOD_RAGE_FROM_DAMAGE_DEALT,
             SPELL_AURA_MOD_INCREASE_ENERGY, SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE,
             SPELL_AURA_MOD_SCALE, SPELL_AURA_MOD_SCALE_2,
@@ -566,6 +590,15 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_OVERRIDE_CLASS_SCRIPTS) {
             modOverrideClassScript(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_PROC_TRIGGER_SPELL && sp.id() == SPELL_SERPENTSHRINE_PARASITE) {
+            target.setMeleeAlwaysHit(true);
+        }
+        if (sp.aura() == SPELL_AURA_NO_PVP_CREDIT) {
+            target.setNoPvpCredit(true);
+        }
+        if (target instanceof Player player) {
+            modPlayerCatalog(player, sp, true);
+        }
         if (sp.id() == SPELL_UNINTERACTIBLE_HEALTH_REGEN && sp.aura() == SPELL_AURA_OBS_MOD_HEALTH) {
             modUninteractible(target, true);
         }
@@ -704,6 +737,15 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_OVERRIDE_CLASS_SCRIPTS) {
             modOverrideClassScript(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_PROC_TRIGGER_SPELL && sp.id() == SPELL_SERPENTSHRINE_PARASITE) {
+            target.setMeleeAlwaysHit(false);
+        }
+        if (sp.aura() == SPELL_AURA_NO_PVP_CREDIT) {
+            target.setNoPvpCredit(false);
+        }
+        if (target instanceof Player player) {
+            modPlayerCatalog(player, sp, false);
         }
         if (sp.id() == SPELL_UNINTERACTIBLE_HEALTH_REGEN && sp.aura() == SPELL_AURA_OBS_MOD_HEALTH) {
             modUninteractible(target, false);
@@ -2501,9 +2543,9 @@ public final class AuraEngine {
     }
 
     /**
-     * PeriodicTick for auras 8, 20, 21, 24, and 89. Returns true when {@code sp} is one of those
-     * auras. Heals (8 and 20) do nothing without a caster. Armor, school immunity, and bonus
-     * healing stay later. Spell 40409's flag is applied in {@link #apply}, not here.
+     * PeriodicTick for auras 8, 20, 21, 24, 53, 62, 64, 89, and 162. Returns true when {@code sp}
+     * is one of those auras. Heals (8 and 20) do nothing without a caster. Armor, school immunity,
+     * and bonus healing stay later. Spell 40409's flag is applied in {@link #apply}, not here.
      */
     public boolean tickCatalogPeriodic(Unit caster, Unit target, SpellEngine.SpellInfo sp,
                                        BiConsumer<Integer, byte[]> send) {
@@ -2513,7 +2555,9 @@ public final class AuraEngine {
         int aura = sp.aura();
         if (aura != SPELL_AURA_PERIODIC_HEAL && aura != SPELL_AURA_OBS_MOD_HEALTH
                 && aura != SPELL_AURA_OBS_MOD_MANA && aura != SPELL_AURA_PERIODIC_ENERGIZE
-                && aura != SPELL_AURA_PERIODIC_DAMAGE_PERCENT) {
+                && aura != SPELL_AURA_PERIODIC_DAMAGE_PERCENT
+                && aura != SPELL_AURA_PERIODIC_LEECH && aura != SPELL_AURA_PERIODIC_HEALTH_FUNNEL
+                && aura != SPELL_AURA_PERIODIC_MANA_LEECH && aura != SPELL_AURA_POWER_BURN_MANA) {
             return false;
         }
         if (!target.alive()) {
@@ -2556,6 +2600,18 @@ public final class AuraEngine {
             addPower(target, UpdateFields.UNIT_FIELD_POWER1 + power, max, amount, send);
             return true;
         }
+        if (aura == SPELL_AURA_PERIODIC_LEECH || aura == SPELL_AURA_PERIODIC_HEALTH_FUNNEL) {
+            tickHealthLeech(caster, target, sp, aura == SPELL_AURA_PERIODIC_HEALTH_FUNNEL, amount, send);
+            return true;
+        }
+        if (aura == SPELL_AURA_PERIODIC_MANA_LEECH) {
+            tickManaLeech(caster, target, sp, amount, send);
+            return true;
+        }
+        if (aura == SPELL_AURA_POWER_BURN_MANA) {
+            tickPowerBurn(caster, target, sp, amount, send);
+            return true;
+        }
         int damage = target.maxHealth() * amount / 100;
         if (damage <= 0) {
             return true;
@@ -2563,6 +2619,116 @@ public final class AuraEngine {
         target.setHealth(target.health() - damage);
         sendField(target, UpdateFields.UNIT_FIELD_HEALTH, send);
         return true;
+    }
+
+    /** Players only. Amount 0 still counts for auras whose presence matters (94, 116, 161). */
+    private static void modPlayerCatalog(Player player, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        int aura = sp.aura();
+        if (aura == SPELL_AURA_MOD_HEALTH_REGEN_PERCENT) {
+            player.setHealthRegenPercent(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_REGEN_DURING_COMBAT) {
+            player.setRegenDuringCombat(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_HEALTH_REGEN_IN_COMBAT) {
+            player.setHealthRegenInCombat(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_INTERRUPT_REGEN) {
+            player.setInterruptRegen(sp.id(), apply);
+        } else if (aura == SPELL_AURA_MOD_XP_PCT) {
+            player.setXpPercent(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_RAGE_FROM_DAMAGE_DEALT) {
+            player.setRageFromDamageDealt(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_REPUTATION_GAIN) {
+            player.setReputationGain(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_FACTION_REPUTATION_GAIN) {
+            player.setFactionReputationGain(sp.id(), sp.misc(), amount, apply);
+        }
+    }
+
+    /**
+     * Auras 53 and 62. Leech damages the target and heals the caster. Funnel swaps them.
+     * EffectMultipleValue is 1 until SpellInfo carries it. School immunity on the aura target
+     * skips the tick. Healing threat stays later.
+     */
+    private static void tickHealthLeech(Unit caster, Unit target, SpellEngine.SpellInfo sp, boolean funnel,
+                                        int amount, BiConsumer<Integer, byte[]> send) {
+        if (caster == null || !caster.alive() || target.isImmuneToDamage(schoolMask(sp))) {
+            return;
+        }
+        Unit victim = funnel ? caster : target;
+        Unit beneficiary = funnel ? target : caster;
+        int dealt = Math.min(amount, victim.health());
+        if (dealt <= 0) {
+            return;
+        }
+        victim.setHealth(victim.health() - dealt);
+        beneficiary.setHealth(beneficiary.health() + dealt);
+        sendField(victim, UpdateFields.UNIT_FIELD_HEALTH, send);
+        sendField(beneficiary, UpdateFields.UNIT_FIELD_HEALTH, send);
+    }
+
+    /**
+     * Aura 64. The target's power type must still match misc. The caster gains the drained
+     * amount when that power's maximum is above 0 (multiple value 1).
+     */
+    private static void tickManaLeech(Unit caster, Unit target, SpellEngine.SpellInfo sp, int amount,
+                                      BiConsumer<Integer, byte[]> send) {
+        if (caster == null || !caster.alive() || target.isImmuneToDamage(schoolMask(sp))) {
+            return;
+        }
+        int power = sp.misc();
+        if (power < 0 || power >= MAX_POWERS || target.nativePowerType() != power) {
+            return;
+        }
+        int drained = drainPower(target, power, amount, send);
+        if (drained <= 0) {
+            return;
+        }
+        int max = caster.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1 + power);
+        if (max <= 0) {
+            return;
+        }
+        addPower(caster, UpdateFields.UNIT_FIELD_POWER1 + power, max, drained, send);
+    }
+
+    /**
+     * Aura 162. Drains misc power when it is still the target's power type, then deals that much
+     * damage (multiple value 1). Damage immunity skips the drain.
+     */
+    private static void tickPowerBurn(Unit caster, Unit target, SpellEngine.SpellInfo sp, int amount,
+                                      BiConsumer<Integer, byte[]> send) {
+        if (caster == null || !caster.alive() || target.isImmuneToDamage(schoolMask(sp))) {
+            return;
+        }
+        int power = sp.misc();
+        if (power < 0 || power >= MAX_POWERS || target.nativePowerType() != power) {
+            return;
+        }
+        int drained = drainPower(target, power, amount, send);
+        if (drained <= 0) {
+            return;
+        }
+        target.setHealth(target.health() - drained);
+        sendField(target, UpdateFields.UNIT_FIELD_HEALTH, send);
+    }
+
+    private static int drainPower(Unit target, int power, int amount, BiConsumer<Integer, byte[]> send) {
+        int field = UpdateFields.UNIT_FIELD_POWER1 + power;
+        int cur = target.getInt(field);
+        int drained = Math.min(cur, amount);
+        if (drained <= 0) {
+            return 0;
+        }
+        target.setInt(field, cur - drained);
+        sendField(target, field, send);
+        return drained;
+    }
+
+    private static int schoolMask(SpellEngine.SpellInfo sp) {
+        int school = sp.school();
+        if (school < 0 || school >= MAX_SPELL_SCHOOL) {
+            return 0;
+        }
+        return 1 << school;
     }
 
     private static void addPower(Unit target, int field, int max, int gain, BiConsumer<Integer, byte[]> send) {
