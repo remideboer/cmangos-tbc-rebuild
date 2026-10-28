@@ -2,6 +2,7 @@ package org.tbc.world.pvp;
 
 import org.tbc.common.WowBuffer;
 import org.tbc.world.entity.Player;
+import org.tbc.world.entity.Unit;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.WorldSession;
@@ -11,6 +12,14 @@ public final class Honor {
     public static final int MAX_HONOR_POINTS = 75_000;
 
     private Honor() {}
+
+    /** RewardHonor when the victim is known. Aura 159 on the victim grants nothing. */
+    public static void rewardFromVictim(Player killer, Unit victim, int amount) {
+        if (killer == null || (victim != null && victim.blocksPvpCredit())) {
+            return;
+        }
+        reward(killer, killer.session, victim == null ? 0 : victim.guid, Math.max(0, amount));
+    }
 
     public static void reward(Player killer, WorldSession session, long victimGuid, int amount) {
         int add = Math.max(0, amount);

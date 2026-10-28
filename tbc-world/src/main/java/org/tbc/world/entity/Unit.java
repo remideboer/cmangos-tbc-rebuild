@@ -179,6 +179,10 @@ public class Unit extends Entity {
     private final java.util.Set<Integer> overrideClassScripts = new java.util.HashSet<>();
     /** Server-side phase. CMaNGOS default is 1. */
     private int phaseMask = 1;
+    /** Aura 42 spell 39057. Melee rolls skip miss, dodge, parry, and block. */
+    private int meleeAlwaysHitCount;
+    /** Aura 159. RewardHonor from this unit grants nothing. */
+    private int noPvpCreditCount;
     /** Faction saved by the first SPELL_AURA_FACTION_OVERRIDE still in force. */
     private boolean factionOverrideActive;
     private int savedFactionTemplate;
@@ -1177,6 +1181,14 @@ public class Unit extends Entity {
         return getInt(UpdateFields.UNIT_FIELD_POWER1);
     }
 
+    /** Player.powerType, otherwise the power byte of UNIT_FIELD_BYTES_0. */
+    public int nativePowerType() {
+        if (this instanceof Player player) {
+            return player.powerType;
+        }
+        return (getInt(UpdateFields.UNIT_FIELD_BYTES_0) >> 24) & 0xFF;
+    }
+
     public int maxPower() {
         return getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
     }
@@ -1410,6 +1422,30 @@ public class Unit extends Entity {
 
     public void setPhaseMask(int mask) {
         phaseMask = mask;
+    }
+
+    public void setMeleeAlwaysHit(boolean apply) {
+        if (apply) {
+            meleeAlwaysHitCount++;
+        } else if (meleeAlwaysHitCount > 0) {
+            meleeAlwaysHitCount--;
+        }
+    }
+
+    public boolean meleeAlwaysHits() {
+        return meleeAlwaysHitCount > 0;
+    }
+
+    public void setNoPvpCredit(boolean apply) {
+        if (apply) {
+            noPvpCreditCount++;
+        } else if (noPvpCreditCount > 0) {
+            noPvpCreditCount--;
+        }
+    }
+
+    public boolean blocksPvpCredit() {
+        return noPvpCreditCount > 0;
     }
 
     /**
