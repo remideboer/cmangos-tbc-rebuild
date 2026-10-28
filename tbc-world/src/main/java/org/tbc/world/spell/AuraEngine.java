@@ -51,6 +51,16 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_FACTION_REPUTATION_GAIN = 190;
     public static final int SPELL_AURA_MOD_XP_PCT = 200;
     public static final int SPELL_AURA_MOD_RAGE_FROM_DAMAGE_DEALT = 213;
+    public static final int SPELL_AURA_MOD_DAMAGE_TAKEN = 14;
+    public static final int SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN = 87;
+    public static final int SPELL_AURA_MOD_MELEE_DAMAGE_TAKEN = 125;
+    public static final int SPELL_AURA_MOD_CRIT_DAMAGE_BONUS = 163;
+    public static final int SPELL_AURA_MOD_ATTACKER_MELEE_HIT_CHANCE = 184;
+    public static final int SPELL_AURA_MOD_ATTACKER_RANGED_HIT_CHANCE = 185;
+    public static final int SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_CHANCE = 187;
+    public static final int SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_CHANCE = 188;
+    public static final int SPELL_AURA_IGNORE_COMBAT_RESULT = 202;
+    public static final int SPELL_AURA_MOD_COMBAT_RESULT_CHANCE = 248;
     /** HandleAuraProcTriggerSpell spell 39057 — melee always hits. */
     public static final int SPELL_SERPENTSHRINE_PARASITE = 39057;
     /** SpellDefines.h MAX_SPELLMOD. An op at or above this is ignored. */
@@ -221,6 +231,11 @@ public final class AuraEngine {
             SPELL_AURA_MOD_REGEN_DURING_COMBAT, SPELL_AURA_MOD_HEALTH_REGEN_IN_COMBAT,
             SPELL_AURA_MOD_REPUTATION_GAIN, SPELL_AURA_MOD_FACTION_REPUTATION_GAIN,
             SPELL_AURA_NO_PVP_CREDIT, SPELL_AURA_MOD_XP_PCT, SPELL_AURA_MOD_RAGE_FROM_DAMAGE_DEALT,
+            SPELL_AURA_MOD_DAMAGE_TAKEN, SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, SPELL_AURA_MOD_MELEE_DAMAGE_TAKEN,
+            SPELL_AURA_MOD_CRIT_DAMAGE_BONUS, SPELL_AURA_MOD_ATTACKER_MELEE_HIT_CHANCE,
+            SPELL_AURA_MOD_ATTACKER_RANGED_HIT_CHANCE, SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_CHANCE,
+            SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_CHANCE, SPELL_AURA_IGNORE_COMBAT_RESULT,
+            SPELL_AURA_MOD_COMBAT_RESULT_CHANCE,
             SPELL_AURA_MOD_INCREASE_ENERGY, SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE,
             SPELL_AURA_MOD_SCALE, SPELL_AURA_MOD_SCALE_2,
@@ -596,6 +611,7 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_NO_PVP_CREDIT) {
             target.setNoPvpCredit(true);
         }
+        modCombatCatalog(target, sp, true);
         if (target instanceof Player player) {
             modPlayerCatalog(player, sp, true);
         }
@@ -744,6 +760,7 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_NO_PVP_CREDIT) {
             target.setNoPvpCredit(false);
         }
+        modCombatCatalog(target, sp, false);
         if (target instanceof Player player) {
             modPlayerCatalog(player, sp, false);
         }
@@ -2619,6 +2636,41 @@ public final class AuraEngine {
         target.setHealth(target.health() - damage);
         sendField(target, UpdateFields.UNIT_FIELD_HEALTH, send);
         return true;
+    }
+
+    /**
+     * Hit, crit, avoid, and damage-taken auras. Amount 0 is a no-op except aura 202, which is keyed
+     * by misc (the combat result to skip).
+     */
+    private static void modCombatCatalog(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int aura = sp.aura();
+        if (aura == SPELL_AURA_IGNORE_COMBAT_RESULT) {
+            target.setIgnoreCombatResult(sp.id(), sp.misc(), apply);
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        if (aura == SPELL_AURA_MOD_ATTACKER_MELEE_HIT_CHANCE) {
+            target.setAttackerMeleeHitChance(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_ATTACKER_RANGED_HIT_CHANCE) {
+            target.setAttackerRangedHitChance(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_CHANCE) {
+            target.setAttackerMeleeCritChance(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_CHANCE) {
+            target.setAttackerRangedCritChance(sp.id(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_COMBAT_RESULT_CHANCE) {
+            target.setCombatResultChance(sp.id(), sp.misc(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_CRIT_DAMAGE_BONUS) {
+            target.setCritDamageBonus(sp.id(), sp.misc(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_DAMAGE_TAKEN) {
+            target.setDamageTaken(sp.id(), sp.misc(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN) {
+            target.setDamageTakenPercent(sp.id(), sp.misc(), amount, apply);
+        } else if (aura == SPELL_AURA_MOD_MELEE_DAMAGE_TAKEN) {
+            target.setMeleeDamageTaken(sp.id(), amount, apply);
+        }
     }
 
     /** Players only. Amount 0 still counts for auras whose presence matters (94, 116, 161). */

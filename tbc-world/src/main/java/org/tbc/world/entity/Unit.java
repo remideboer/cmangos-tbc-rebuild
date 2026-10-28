@@ -51,6 +51,14 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_IMMUNE = 0x80000000;
     /** SharedDefines.h SPELL_SCHOOL_MASK_NORMAL. */
     public static final int SPELL_SCHOOL_MASK_NORMAL = 1;
+    /** Unit.h MELEE_HIT_* — misc for SPELL_AURA_IGNORE_COMBAT_RESULT. */
+    public static final int MELEE_HIT_DODGE = 2;
+    public static final int MELEE_HIT_BLOCK = 3;
+    public static final int MELEE_HIT_PARRY = 4;
+    /** Unit.h VICTIMSTATE_* — misc for SPELL_AURA_MOD_COMBAT_RESULT_CHANCE. */
+    public static final int VICTIMSTATE_DODGE = 2;
+    public static final int VICTIMSTATE_PARRY = 3;
+    public static final int VICTIMSTATE_BLOCKS = 5;
     /** SharedDefines.h POWER_MANA — UNIT_FIELD_BYTES_0 power byte / POWER1. */
     public static final int POWER_MANA = 0;
     /** ChrClasses.dbc CLASS_MAGE — creature UnitClass that uses mana. */
@@ -183,6 +191,29 @@ public class Unit extends Entity {
     private int meleeAlwaysHitCount;
     /** Aura 159. RewardHonor from this unit grants nothing. */
     private int noPvpCreditCount;
+    /** Aura 184 / 185. Summed percent subtracted from the attacker's miss chance. */
+    private final Map<Integer, Integer> attackerMeleeHit = new HashMap<>();
+    private int attackerMeleeHitSum;
+    private final Map<Integer, Integer> attackerRangedHit = new HashMap<>();
+    private int attackerRangedHitSum;
+    /** Aura 187 / 188. Summed percent added to the attacker's crit chance. */
+    private final Map<Integer, Integer> attackerMeleeCrit = new HashMap<>();
+    private int attackerMeleeCritSum;
+    private final Map<Integer, Integer> attackerRangedCrit = new HashMap<>();
+    private int attackerRangedCritSum;
+    /** Aura 202. Spell id → MELEE_HIT_* result the attacker skips. */
+    private final Map<Integer, Integer> ignoreCombatResult = new HashMap<>();
+    /** Aura 248. Spell id → {VICTIMSTATE_*, amount}. */
+    private final Map<Integer, int[]> combatResultChance = new HashMap<>();
+    /** Aura 163. Spell id → {school mask, percent}. */
+    private final Map<Integer, int[]> critDamageBonus = new HashMap<>();
+    /** Aura 14. Spell id → {school mask, flat}. */
+    private final Map<Integer, int[]> damageTaken = new HashMap<>();
+    /** Aura 87. Spell id → {school mask, percent}. Product of (100+amount)/100. */
+    private final Map<Integer, int[]> damageTakenPct = new HashMap<>();
+    /** Aura 125. Flat melee damage taken, any school. */
+    private final Map<Integer, Integer> meleeDamageTaken = new HashMap<>();
+    private int meleeDamageTakenSum;
     /** Faction saved by the first SPELL_AURA_FACTION_OVERRIDE still in force. */
     private boolean factionOverrideActive;
     private int savedFactionTemplate;
@@ -1446,6 +1477,145 @@ public class Unit extends Entity {
 
     public boolean blocksPvpCredit() {
         return noPvpCreditCount > 0;
+    }
+
+    public void setAttackerMeleeHitChance(int spellId, int amount, boolean apply) {
+        attackerMeleeHitSum = putSum(attackerMeleeHit, attackerMeleeHitSum, spellId, amount, apply);
+    }
+
+    public int attackerMeleeHitChance() {
+        return attackerMeleeHitSum;
+    }
+
+    public void setAttackerRangedHitChance(int spellId, int amount, boolean apply) {
+        attackerRangedHitSum = putSum(attackerRangedHit, attackerRangedHitSum, spellId, amount, apply);
+    }
+
+    public int attackerRangedHitChance() {
+        return attackerRangedHitSum;
+    }
+
+    public void setAttackerMeleeCritChance(int spellId, int amount, boolean apply) {
+        attackerMeleeCritSum = putSum(attackerMeleeCrit, attackerMeleeCritSum, spellId, amount, apply);
+    }
+
+    public int attackerMeleeCritChance() {
+        return attackerMeleeCritSum;
+    }
+
+    public void setAttackerRangedCritChance(int spellId, int amount, boolean apply) {
+        attackerRangedCritSum = putSum(attackerRangedCrit, attackerRangedCritSum, spellId, amount, apply);
+    }
+
+    public int attackerRangedCritChance() {
+        return attackerRangedCritSum;
+    }
+
+    public void setIgnoreCombatResult(int spellId, int result, boolean apply) {
+        if (apply) {
+            ignoreCombatResult.put(spellId, result);
+        } else {
+            ignoreCombatResult.remove(spellId);
+        }
+    }
+
+    public boolean ignoresCombatResult(int result) {
+        return ignoreCombatResult.containsValue(result);
+    }
+
+    public void setCombatResultChance(int spellId, int state, int amount, boolean apply) {
+        if (apply) {
+            combatResultChance.put(spellId, new int[] {state, amount});
+        } else {
+            combatResultChance.remove(spellId);
+        }
+    }
+
+    /** Sum of aura 248 amounts whose misc equals {@code state}. */
+    public int combatResultChance(int state) {
+        int sum = 0;
+        for (int[] entry : combatResultChance.values()) {
+            if (entry[0] == state) {
+                sum += entry[1];
+            }
+        }
+        return sum;
+    }
+
+    public void setCritDamageBonus(int spellId, int schoolMask, int amount, boolean apply) {
+        putMasked(critDamageBonus, spellId, schoolMask, amount, apply);
+    }
+
+    /** Sum of aura 163 amounts whose school mask overlaps {@code schoolMask}. */
+    public int critDamageBonus(int schoolMask) {
+        return sumMasked(critDamageBonus, schoolMask);
+    }
+
+    public void setDamageTaken(int spellId, int schoolMask, int amount, boolean apply) {
+        putMasked(damageTaken, spellId, schoolMask, amount, apply);
+    }
+
+    public int damageTakenFlat(int schoolMask) {
+        return sumMasked(damageTaken, schoolMask);
+    }
+
+    public void setDamageTakenPercent(int spellId, int schoolMask, int amount, boolean apply) {
+        putMasked(damageTakenPct, spellId, schoolMask, amount, apply);
+    }
+
+    /** Product of (100+amount)/100 for aura 87 entries overlapping {@code schoolMask}. */
+    public float damageTakenMultiplier(int schoolMask) {
+        float product = 1f;
+        if (schoolMask == 0) {
+            return product;
+        }
+        for (int[] entry : damageTakenPct.values()) {
+            if ((entry[0] & schoolMask) != 0) {
+                product *= (100f + entry[1]) / 100f;
+            }
+        }
+        return product;
+    }
+
+    public void setMeleeDamageTaken(int spellId, int amount, boolean apply) {
+        meleeDamageTakenSum = putSum(meleeDamageTaken, meleeDamageTakenSum, spellId, amount, apply);
+    }
+
+    public int meleeDamageTakenFlat() {
+        return meleeDamageTakenSum;
+    }
+
+    private static int putSum(Map<Integer, Integer> map, int sum, int spellId, int amount, boolean apply) {
+        Integer previous = map.remove(spellId);
+        if (previous != null) {
+            sum -= previous;
+        }
+        if (apply) {
+            map.put(spellId, amount);
+            sum += amount;
+        }
+        return sum;
+    }
+
+    private static void putMasked(Map<Integer, int[]> map, int spellId, int schoolMask, int amount, boolean apply) {
+        if (apply) {
+            map.put(spellId, new int[] {schoolMask, amount});
+        } else {
+            map.remove(spellId);
+        }
+    }
+
+    private static int sumMasked(Map<Integer, int[]> map, int schoolMask) {
+        if (schoolMask == 0) {
+            return 0;
+        }
+        int sum = 0;
+        for (int[] entry : map.values()) {
+            if ((entry[0] & schoolMask) != 0) {
+                sum += entry[1];
+            }
+        }
+        return sum;
     }
 
     /**
