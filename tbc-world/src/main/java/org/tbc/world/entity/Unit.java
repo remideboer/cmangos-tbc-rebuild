@@ -1252,6 +1252,13 @@ public class Unit extends Entity {
         return threat * threatModifier[school];
     }
 
+    /** Damage threat after {@link #applyTotalThreatModifier}, on both the list and the legacy total. */
+    public void creditDamageThreat(Creature victim, float raw, int schoolMask) {
+        float threat = applyTotalThreatModifier(raw, schoolMask);
+        victim.threatManager.add(this, threat);
+        victim.threat += Math.round(threat);
+    }
+
     /** Aura 39. The immune flag drops only when no school-immunity aura remains. */
     public void setSchoolImmunity(int spellId, int schoolMask, boolean apply) {
         if (apply) {

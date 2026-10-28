@@ -356,12 +356,7 @@ public final class CompanionBehavior {
         if (isCombatDamageEffect(sp.effect())) {
             dmg = world.spells.apply(body, prey, sp, now);
             if (dmg > 0) {
-                int school = sp.school();
-                int schoolMask = school >= 0 && school < org.tbc.world.spell.AuraEngine.MAX_SPELL_SCHOOL
-                        ? (1 << school) : 0;
-                float threat = body.applyTotalThreatModifier(dmg, schoolMask);
-                prey.threatManager.add(body, threat);
-                prey.threat += Math.round(threat);
+                body.creditDamageThreat(prey, dmg, Player.spellSchoolMask(sp));
                 world.pullOrRetarget(body, prey, owner);
                 damageLog = world.spells.encodeDamageLog(prey.guid, owner.pet.guid, sp, dmg);
                 var hp = UpdateBuilder.maybeCompress(UpdateBuilder.values(prey, UpdateFields.UNIT_FIELD_HEALTH));

@@ -428,9 +428,7 @@ public final class Combat {
         p.updateCombatSkills(false, offhand, skillChanceRoll);
         if (r.damage() > 0) {
             c.setHealth(c.health() - r.damage());
-            float threat = p.applyTotalThreatModifier(r.threat(), Unit.SPELL_SCHOOL_MASK_NORMAL);
-            c.threat += Math.round(threat);
-            c.threatManager.add(p, threat);
+            p.creditDamageThreat(c, r.threat(), Unit.SPELL_SCHOOL_MASK_NORMAL);
             c.victim = c.threatManager.highestGuid();
             refreshCombatTimer(c, nowMs);
             if (c.taggedBy == 0) {

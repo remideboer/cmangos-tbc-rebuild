@@ -556,6 +556,14 @@ public final class Player extends Unit {
     private int lastManaUseTimerMs;
 
     public static final int REGEN_TIME_FULL = 2000;
+
+    /** First school bit of a spell, or 0 when the spell is missing. */
+    public static int spellSchoolMask(org.tbc.world.spell.SpellEngine.SpellInfo sp) {
+        if (sp == null || sp.school() < 0 || sp.school() >= org.tbc.world.spell.AuraEngine.MAX_SPELL_SCHOOL) {
+            return 0;
+        }
+        return 1 << sp.school();
+    }
     private static final int LAST_MANA_USE_MS = 5000;
 
     /**

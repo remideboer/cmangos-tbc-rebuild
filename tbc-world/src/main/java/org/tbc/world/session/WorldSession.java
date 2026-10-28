@@ -1382,11 +1382,7 @@ public final class WorldSession {
         }
         if (unit instanceof Creature hit && wasAlive) {
             int dealt = Math.max(0, hpBefore - hit.health());
-            var landed = world.spells.info(spellId);
-            int school = landed == null ? 0 : landed.school();
-            int schoolMask = school >= 0 && school < org.tbc.world.spell.AuraEngine.MAX_SPELL_SCHOOL
-                    ? (1 << school) : 0;
-            world.onCreatureAttackedBySpell(player, hit, dealt, schoolMask);
+            world.onCreatureAttackedBySpell(player, hit, dealt, Player.spellSchoolMask(world.spells.info(spellId)));
         }
         if (!(unit instanceof Creature cr) || cr.eventAi == null) {
             return;
