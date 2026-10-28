@@ -55,7 +55,7 @@ public final class MeleeTable {
             return new Result(Outcome.EVADE, 0, 0);
         }
         if (attacker.meleeAlwaysHits()) {
-            int dmg = damageRoll.applyAsInt(weaponMin, weaponMax);
+            int dmg = taken(victim, damageRoll.applyAsInt(weaponMin, weaponMax));
             return new Result(Outcome.HIT, dmg, dmg);
         }
         double r = unitRoll.getAsDouble();
@@ -64,49 +64,65 @@ public final class MeleeTable {
             return miss();
         }
         if (victim instanceof Player && !victim.isStanding()) {
-            return hit(Outcome.CRIT, weaponMin, weaponMax, 2);
+            return hit(Outcome.CRIT, attacker, victim, weaponMin, weaponMax, 2);
         }
-        acc += dodgeChance(attacker, victim, offhand);
-        if (r < acc) {
-            return new Result(Outcome.DODGE, 0, 0);
-        }
-        acc += parryChance(attacker, victim, offhand);
-        if (r < acc) {
-            return new Result(Outcome.PARRY, 0, 0);
-        }
-        acc += blockChance(attacker, victim);
-        if (r < acc) {
-            int raw = damageRoll.applyAsInt(weaponMin, weaponMax);
-            int shield = victim instanceof Player p ? p.getInt(UpdateFields.PLAYER_SHIELD_BLOCK) : 0;
-            int dmg = raw - shield;
-            if (dmg < 0) {
-                dmg = 0;
+        if (!attacker.ignoresCombatResult(Unit.MELEE_HIT_DODGE)) {
+            acc += dodgeChance(attacker, victim, offhand);
+            if (r < acc) {
+                return new Result(Outcome.DODGE, 0, 0);
             }
-            return new Result(Outcome.BLOCK, dmg, dmg, raw - dmg);
+        }
+        if (!attacker.ignoresCombatResult(Unit.MELEE_HIT_PARRY)) {
+            acc += parryChance(attacker, victim, offhand);
+            if (r < acc) {
+                return new Result(Outcome.PARRY, 0, 0);
+            }
+        }
+        if (!attacker.ignoresCombatResult(Unit.MELEE_HIT_BLOCK)) {
+            acc += blockChance(attacker, victim);
+            if (r < acc) {
+                int raw = damageRoll.applyAsInt(weaponMin, weaponMax);
+                int shield = victim instanceof Player p ? p.getInt(UpdateFields.PLAYER_SHIELD_BLOCK) : 0;
+                int afterShield = raw - shield;
+                if (afterShield < 0) {
+                    afterShield = 0;
+                }
+                int dmg = taken(victim, afterShield);
+                return new Result(Outcome.BLOCK, dmg, dmg, raw - afterShield);
+            }
         }
         acc += glanceChance(attacker, victim);
         if (r < acc) {
             int raw = damageRoll.applyAsInt(weaponMin, weaponMax);
-            int dmg = glanceDamage(raw, attacker, victim);
+            int dmg = taken(victim, glanceDamage(raw, attacker, victim));
             return new Result(Outcome.GLANCE, dmg, dmg);
         }
         double crit = critChance(attacker, victim, offhand);
         acc += crit;
         if (r < acc) {
-            return hit(Outcome.CRIT, weaponMin, weaponMax, 2);
+            return hit(Outcome.CRIT, attacker, victim, weaponMin, weaponMax, 2);
         }
         acc += crushChance(attacker, victim);
         if (r < acc) {
-            int crush = damageRoll.applyAsInt(weaponMin, weaponMax) * 3 / 2;
+            int crush = taken(victim, damageRoll.applyAsInt(weaponMin, weaponMax) * 3 / 2);
             return new Result(Outcome.CRUSH, crush, crush);
         }
-        int dmg = damageRoll.applyAsInt(weaponMin, weaponMax);
+        int dmg = taken(victim, damageRoll.applyAsInt(weaponMin, weaponMax));
         return new Result(Outcome.HIT, dmg, dmg);
     }
 
-    private Result hit(Outcome outcome, int weaponMin, int weaponMax, int mul) {
+    private Result hit(Outcome outcome, Unit attacker, Unit victim, int weaponMin, int weaponMax, int mul) {
         int dmg = damageRoll.applyAsInt(weaponMin, weaponMax) * mul;
+        dmg = (int) (dmg * (1f + attacker.critDamageBonus(Unit.SPELL_SCHOOL_MASK_NORMAL) / 100f));
+        dmg = taken(victim, dmg);
         return new Result(outcome, dmg, dmg);
+    }
+
+    /** MeleeDamageBonusTaken for a white swing: school flat, melee flat, then school percent. */
+    private static int taken(Unit victim, int damage) {
+        int flat = victim.damageTakenFlat(Unit.SPELL_SCHOOL_MASK_NORMAL) + victim.meleeDamageTakenFlat();
+        float pct = victim.damageTakenMultiplier(Unit.SPELL_SCHOOL_MASK_NORMAL);
+        return Math.max(0, (int) ((damage + flat) * pct));
     }
 
     private static Result miss() {
@@ -120,6 +136,11 @@ public final class MeleeTable {
 
     /** CMaNGOS CalculateEffectiveMissChance — subtract GetHitChance(attType). */
     static double missChance(Unit attacker, Unit victim, boolean offhand) {
+        return missChance(attacker, victim, offhand, false);
+    }
+
+    /** {@code ranged} selects aura 185; melee selects aura 184. Both are subtracted before hit rating. */
+    public static double missChance(Unit attacker, Unit victim, boolean offhand, boolean ranged) {
         double pct = 5.0;
         if (victim instanceof Creature creature && creature.totem) {
             pct = 0;
@@ -143,6 +164,7 @@ public final class MeleeTable {
             pct += difference * 0.04;
         }
         // chance -= GetHitChance(attType); Unit.cpp CalculateEffectiveMissChance.
+        pct -= ranged ? victim.attackerRangedHitChance() : victim.attackerMeleeHitChance();
         pct -= attacker.weaponHitChance(offhand ? Unit.OFF_ATTACK : Unit.BASE_ATTACK);
         if (attacker instanceof Player player) {
             pct += org.tbc.world.classless.WeaponPenaltyPolicy.missAddPercent(player, offhand);
@@ -157,15 +179,28 @@ public final class MeleeTable {
     }
 
     static double dodgeChance(Unit attacker, Unit victim, boolean offhand) {
-        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.1, 0.1, offhand), attacker, offhand);
+        double chance = skillAvoid(attacker, victim, UpdateFields.PLAYER_DODGE_PERCENTAGE, 0.1, 0.1, offhand);
+        chance += attacker.combatResultChance(Unit.VICTIMSTATE_DODGE) / 100.0;
+        return capChance(minusExpertise(chance, attacker, offhand));
     }
 
     static double parryChance(Unit attacker, Unit victim, boolean offhand) {
-        return minusExpertise(skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6, offhand), attacker, offhand);
+        double chance = skillAvoid(attacker, victim, UpdateFields.PLAYER_PARRY_PERCENTAGE, 0.1, 0.6, offhand);
+        chance += attacker.combatResultChance(Unit.VICTIMSTATE_PARRY) / 100.0;
+        return capChance(minusExpertise(chance, attacker, offhand));
     }
 
     static double blockChance(Unit attacker, Unit victim) {
-        return skillAvoid(attacker, victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE, 0.0, 0.0, false);
+        double chance = skillAvoid(attacker, victim, UpdateFields.PLAYER_BLOCK_PERCENTAGE, 0.0, 0.0, false);
+        chance += attacker.combatResultChance(Unit.VICTIMSTATE_BLOCKS) / 100.0;
+        return capChance(chance);
+    }
+
+    private static double capChance(double chance) {
+        if (chance > 1.0) {
+            return 1.0;
+        }
+        return chance;
     }
 
     /** PLAYER_EXPERTISE / 4 percent; offhand uses PLAYER_OFFHAND_EXPERTISE. spec/03-protocol/update-fields.yaml */
@@ -203,11 +238,17 @@ public final class MeleeTable {
     }
 
     static double critChance(Unit attacker, Unit victim, boolean offhand) {
+        return critChance(attacker, victim, offhand, false);
+    }
+
+    /** {@code ranged} selects aura 188; melee selects aura 187. Added before the 0..100 clamp. */
+    public static double critChance(Unit attacker, Unit victim, boolean offhand, boolean ranged) {
         double pct = attacker instanceof Player
                 ? attacker.getFloat(offhand
                         ? UpdateFields.PLAYER_OFFHAND_CRIT_PERCENTAGE
                         : UpdateFields.PLAYER_CRIT_PERCENTAGE)
                 : 5.0;
+        pct += ranged ? victim.attackerRangedCritChance() : victim.attackerMeleeCritChance();
         // Vs NPC: GetSkillMaxForLevel (weapon skill does not raise crit). Vs player: weapon skill (PvP max).
         int skill = victim instanceof Creature
                 ? attacker.level * 5
