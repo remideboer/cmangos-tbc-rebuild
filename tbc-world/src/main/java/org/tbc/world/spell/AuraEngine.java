@@ -33,6 +33,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_TRACK_CREATURES = 44;
     public static final int SPELL_AURA_TRACK_RESOURCES = 45;
     public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
+    public static final int SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED = 32;
     public static final int SPELL_AURA_MOD_DECREASE_SPEED = 33;
     public static final int SPELL_AURA_MOD_SPEED_ALWAYS = 129;
     public static final int SPELL_AURA_MOD_SPEED_NOT_STACK = 171;
@@ -112,7 +113,8 @@ public final class AuraEngine {
             SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, SPELL_AURA_MOD_DAMAGE_DONE,
             SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, SPELL_AURA_MOD_HEALING_DONE,
             SPELL_AURA_MOD_POWER_COST_SCHOOL, SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT,
-            SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_SPEED_ALWAYS, SPELL_AURA_MOD_SPEED_NOT_STACK,
+            SPELL_AURA_MOD_INCREASE_SPEED, SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED,
+            SPELL_AURA_MOD_SPEED_ALWAYS, SPELL_AURA_MOD_SPEED_NOT_STACK,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT,
             SPELL_AURA_MOD_INCREASE_ENERGY, SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT,
@@ -268,6 +270,9 @@ public final class AuraEngine {
                 || sp.aura() == SPELL_AURA_MOD_SPEED_ALWAYS
                 || sp.aura() == SPELL_AURA_MOD_SPEED_NOT_STACK) {
             modIncreaseSpeed(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED) {
+            modIncreaseMountedSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SWIM_SPEED) {
             modIncreaseSwimSpeed(target, sp, true);
@@ -579,6 +584,9 @@ public final class AuraEngine {
                 || sp.aura() == SPELL_AURA_MOD_SPEED_ALWAYS
                 || sp.aura() == SPELL_AURA_MOD_SPEED_NOT_STACK) {
             modIncreaseSpeed(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED) {
+            modIncreaseMountedSpeed(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_SWIM_SPEED) {
             modIncreaseSwimSpeed(target, sp, false);
@@ -1297,6 +1305,19 @@ public final class AuraEngine {
             return;
         }
         target.setDecreaseSpeedPct(apply ? amount : 0);
+    }
+
+    /**
+     * Aura 32 — CMaNGOS HandleAuraModIncreaseMountedSpeed → UpdateSpeed(MOVE_RUN).
+     * Amount is the mounted main_speed_mod. On foot, aura 31 stays the positive mod.
+     * Auras 130 and 172 are separate terms in UpdateSpeed.
+     */
+    private static void modIncreaseMountedSpeed(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        target.setMountedSpeedPct(apply ? amount : 0);
     }
 
     /**
