@@ -1026,12 +1026,11 @@ public final class World implements Runnable {
      * Unit::AttackedBy + HandleDamageDealt threat after a hostile spell lands.
      * Misses (no HP lost while still alive) do not pull; a killing blow still tags via onCreatureKilledBySpell.
      */
-    public void onCreatureAttackedBySpell(Player p, Creature c, int damage) {
+    public void onCreatureAttackedBySpell(Player p, Creature c, int damage, int schoolMask) {
         if (p == null || c == null || !c.alive() || damage <= 0) {
             return;
         }
-        c.threatManager.add(p, damage);
-        c.threat += damage;
+        p.creditDamageThreat(c, damage, schoolMask);
         if (c.taggedBy == 0) {
             c.taggedBy = p.guid;
         }

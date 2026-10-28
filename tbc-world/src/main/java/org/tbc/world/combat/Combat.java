@@ -428,8 +428,7 @@ public final class Combat {
         p.updateCombatSkills(false, offhand, skillChanceRoll);
         if (r.damage() > 0) {
             c.setHealth(c.health() - r.damage());
-            c.threat += r.threat();
-            c.threatManager.add(p, r.threat());
+            p.creditDamageThreat(c, r.threat(), Unit.SPELL_SCHOOL_MASK_NORMAL);
             c.victim = c.threatManager.highestGuid();
             refreshCombatTimer(c, nowMs);
             if (c.taggedBy == 0) {
@@ -557,7 +556,8 @@ public final class Combat {
         MeleeTable.Result r = table.rollOne(attacker, victim, meleeMin(attacker), meleeMax(attacker));
         if (r.damage() > 0) {
             victim.setHealth(victim.health() - r.damage());
-            victim.threatManager.add(attacker, r.threat());
+            float threat = attacker.applyTotalThreatModifier(r.threat(), Unit.SPELL_SCHOOL_MASK_NORMAL);
+            victim.threatManager.add(attacker, threat);
             refreshCombatTimer(attacker, nowMs);
             refreshCombatTimer(victim, nowMs);
         }

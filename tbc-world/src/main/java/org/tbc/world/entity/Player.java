@@ -541,8 +541,14 @@ public final class Player extends Unit {
      */
     private float manaRegenPctMultiplier = 1f;
     private float energyRegenMultiplier = 1f;
+    /**
+     * Aura 219 — sum of {@code stat * amount / 500} (mana per second). Not multiplied by aura 110.
+     */
+    private float manaRegenFromStatPerSecond;
     /** spell id → {power, amount} for SPELL_AURA_MOD_POWER_REGEN_PERCENT. */
     private final Map<Integer, int[]> powerRegenPct = new HashMap<>();
+    /** spell id → {stat index, amount} for SPELL_AURA_MOD_MANA_REGEN_FROM_STAT. */
+    private final Map<Integer, int[]> manaRegenFromStat = new HashMap<>();
     /** spell id → amount for SPELL_AURA_MOD_RANGED_AMMO_HASTE. Highest positive wins. */
     private final Map<Integer, Integer> ammoHaste = new HashMap<>();
     /** CMaNGOS Unit::m_regenTimer / m_lastManaUseTimer (five-second rule). */
@@ -550,6 +556,14 @@ public final class Player extends Unit {
     private int lastManaUseTimerMs;
 
     public static final int REGEN_TIME_FULL = 2000;
+
+    /** First school bit of a spell, or 0 when the spell is missing. */
+    public static int spellSchoolMask(org.tbc.world.spell.SpellEngine.SpellInfo sp) {
+        if (sp == null || sp.school() < 0 || sp.school() >= org.tbc.world.spell.AuraEngine.MAX_SPELL_SCHOOL) {
+            return 0;
+        }
+        return 1 << sp.school();
+    }
     private static final int LAST_MANA_USE_MS = 5000;
 
     /**
@@ -771,7 +785,8 @@ public final class Player extends Unit {
             return false;
         }
         boolean interrupted = lastManaUseTimerMs > 0 || inCombat;
-        float rate = (interrupted ? manaRegenInterruptPerSecond : manaRegenPerSecond) * manaRegenPctMultiplier;
+        float rate = (interrupted ? manaRegenInterruptPerSecond : manaRegenPerSecond) * manaRegenPctMultiplier
+                + manaRegenFromStatPerSecond;
         int gain = (int) (rate * (diff / 1000));
         if (gain == 0) {
             return false;
@@ -1089,6 +1104,12 @@ public final class Player extends Unit {
         manaRegenInterruptPerSecond = src.manaRegenInterruptPerSecond;
         manaRegenPctMultiplier = src.manaRegenPctMultiplier;
         energyRegenMultiplier = src.energyRegenMultiplier;
+        manaRegenFromStatPerSecond = src.manaRegenFromStatPerSecond;
+        manaRegenFromStat.clear();
+        for (Map.Entry<Integer, int[]> entry : src.manaRegenFromStat.entrySet()) {
+            int[] value = entry.getValue();
+            manaRegenFromStat.put(entry.getKey(), new int[] {value[0], value[1]});
+        }
         System.arraycopy(src.createStats, 0, createStats, 0, 5);
         heroStats.copyFrom(src.heroStats);
     }
@@ -1546,10 +1567,32 @@ public final class Player extends Unit {
         refreshManaRegenFields();
     }
 
+    /**
+     * Aura 219 — store the stat contribution and refresh both regen fields.
+     * {@code stat * amount / 500} is mana per second and is not multiplied by aura 110.
+     */
+    public void setManaRegenFromStat(int spellId, int stat, int amount, boolean apply) {
+        if (stat < 0 || stat >= 5) {
+            return;
+        }
+        if (apply) {
+            manaRegenFromStat.put(spellId, new int[] {stat, amount});
+        } else {
+            manaRegenFromStat.remove(spellId);
+        }
+        refreshManaRegenFields();
+    }
+
     private void refreshManaRegenFields() {
-        setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, manaRegenPerSecond * manaRegenPctMultiplier);
+        float fromStat = 0f;
+        for (int[] entry : manaRegenFromStat.values()) {
+            fromStat += getInt(UpdateFields.UNIT_FIELD_STAT0 + entry[0]) * entry[1] / 500.0f;
+        }
+        manaRegenFromStatPerSecond = fromStat;
+        setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN,
+                fromStat + manaRegenPerSecond * manaRegenPctMultiplier);
         setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN_INTERRUPT,
-                manaRegenInterruptPerSecond * manaRegenPctMultiplier);
+                fromStat + manaRegenInterruptPerSecond * manaRegenPctMultiplier);
     }
 
     /** Highest positive SPELL_AURA_MOD_RANGED_AMMO_HASTE amount. 0 when none. */

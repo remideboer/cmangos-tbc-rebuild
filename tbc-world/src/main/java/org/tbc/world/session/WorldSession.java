@@ -1382,7 +1382,7 @@ public final class WorldSession {
         }
         if (unit instanceof Creature hit && wasAlive) {
             int dealt = Math.max(0, hpBefore - hit.health());
-            world.onCreatureAttackedBySpell(player, hit, dealt);
+            world.onCreatureAttackedBySpell(player, hit, dealt, Player.spellSchoolMask(world.spells.info(spellId)));
         }
         if (!(unit instanceof Creature cr) || cr.eventAi == null) {
             return;

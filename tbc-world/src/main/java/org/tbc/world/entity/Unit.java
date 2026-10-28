@@ -47,6 +47,10 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG2_FORCE_MOVE = 0x00000040;
     /** Unit.h UNIT_FLAG_PREPARATION. */
     public static final int UNIT_FLAG_PREPARATION = 0x00000020;
+    /** Unit.h UNIT_FLAG_IMMUNE — school immunity (aura 39). */
+    public static final int UNIT_FLAG_IMMUNE = 0x80000000;
+    /** SharedDefines.h SPELL_SCHOOL_MASK_NORMAL. */
+    public static final int SPELL_SCHOOL_MASK_NORMAL = 1;
     /** SharedDefines.h POWER_MANA — UNIT_FIELD_BYTES_0 power byte / POWER1. */
     public static final int POWER_MANA = 0;
     /** ChrClasses.dbc CLASS_MAGE — creature UnitClass that uses mana. */
@@ -150,6 +154,25 @@ public class Unit extends Entity {
     private float flightSpeedRate = 1.0f;
     /** Aura id → spell id → amount for flight-speed auras 206–211. */
     private final Map<Integer, Map<Integer, Integer>> flightAuras = new HashMap<>();
+    /** Spell id → amount for SPELL_AURA_MOD_SCALE (61) and SPELL_AURA_MOD_SCALE_2 (239). */
+    private final Map<Integer, Integer> scaleAuras = new HashMap<>();
+    private final Map<Integer, Integer> scale2Auras = new HashMap<>();
+    /** CMaNGOS m_threatModifier[MAX_SPELL_SCHOOL], default 1. */
+    private final float[] threatModifier = {1f, 1f, 1f, 1f, 1f, 1f, 1f};
+    /** Living SPELL_AURA_MOD_THREAT holders. ApplyTotalThreatModifier skips the product at 0. */
+    private int threatModAuraCount;
+    /** Spell id → school mask for SPELL_AURA_SCHOOL_IMMUNITY. */
+    private final Map<Integer, Integer> schoolImmunity = new HashMap<>();
+    /** Spell id → mechanic for SPELL_AURA_MECHANIC_IMMUNITY. */
+    private final Map<Integer, Integer> mechanicImmunity = new HashMap<>();
+    /** Spell id → effect id for SPELL_AURA_EFFECT_IMMUNITY. */
+    private final Map<Integer, Integer> effectImmunity = new HashMap<>();
+    /** Spell id → school mask for SPELL_AURA_DAMAGE_IMMUNITY. */
+    private final Map<Integer, Integer> damageImmunity = new HashMap<>();
+    /** Faction saved by the first SPELL_AURA_FACTION_OVERRIDE still in force. */
+    private boolean factionOverrideActive;
+    private int savedFactionTemplate;
+    private int savedFactionId;
     /** Classless unproficient-armor move-speed penalty (negative percent points, e.g. -15). */
     private float equipmentSpeedPenaltyPct;
     private boolean knockBackPending;
@@ -1154,6 +1177,186 @@ public class Unit extends Entity {
 
     public boolean alive() {
         return health() > 0;
+    }
+
+    /**
+     * Auras 61 and 239 — recompute OBJECT_FIELD_SCALE_X from both sums.
+     * {@code max(0.1, (100+scale)/100 * (100+scale2)/100)}.
+     */
+    public void setScaleAura(boolean scale2, int spellId, int amount, boolean apply) {
+        Map<Integer, Integer> map = scale2 ? scale2Auras : scaleAuras;
+        if (apply) {
+            map.put(spellId, amount);
+        } else {
+            map.remove(spellId);
+        }
+        int sum = 0;
+        for (int value : scaleAuras.values()) {
+            sum += value;
+        }
+        int sum2 = 0;
+        for (int value : scale2Auras.values()) {
+            sum2 += value;
+        }
+        float scale = Math.max(0.1f, (100f + sum) / 100f * (100f + sum2) / 100f);
+        setFloat(UpdateFields.OBJECT_FIELD_SCALE_X, scale);
+    }
+
+    /**
+     * Aura 10 — ApplyPercentModFloatVar on each school bit. −100 is clamped to −99.99 so the
+     * modifier cannot become zero.
+     */
+    public void applyThreatPercent(int schoolMask, float amount, boolean apply) {
+        float val = amount == -100f ? -99.99f : amount;
+        float factor = apply ? (100f + val) / 100f : 100f / (100f + val);
+        boolean any = false;
+        for (int school = 0; school < threatModifier.length; school++) {
+            if ((schoolMask & (1 << school)) == 0) {
+                continue;
+            }
+            threatModifier[school] *= factor;
+            any = true;
+        }
+        if (!any) {
+            return;
+        }
+        if (apply) {
+            threatModAuraCount++;
+        } else {
+            threatModAuraCount = Math.max(0, threatModAuraCount - 1);
+        }
+    }
+
+    public float threatModifier(int school) {
+        if (school < 0 || school >= threatModifier.length) {
+            return 1f;
+        }
+        return threatModifier[school];
+    }
+
+    /**
+     * CMaNGOS Unit::ApplyTotalThreatModifier. No aura, or a zero school mask, leaves threat as-is.
+     * Otherwise the first school bit in the mask selects the multiplier.
+     */
+    public float applyTotalThreatModifier(float threat, int schoolMask) {
+        if (threatModAuraCount <= 0 || schoolMask == 0) {
+            return threat;
+        }
+        int school = 0;
+        for (int i = 0; i < threatModifier.length; i++) {
+            if ((schoolMask & (1 << i)) != 0) {
+                school = i;
+                break;
+            }
+        }
+        return threat * threatModifier[school];
+    }
+
+    /** Damage threat after {@link #applyTotalThreatModifier}, on both the list and the legacy total. */
+    public void creditDamageThreat(Creature victim, float raw, int schoolMask) {
+        float threat = applyTotalThreatModifier(raw, schoolMask);
+        victim.threatManager.add(this, threat);
+        victim.threat += Math.round(threat);
+    }
+
+    /** Aura 39. The immune flag drops only when no school-immunity aura remains. */
+    public void setSchoolImmunity(int spellId, int schoolMask, boolean apply) {
+        if (apply) {
+            schoolImmunity.put(spellId, schoolMask);
+        } else {
+            schoolImmunity.remove(spellId);
+        }
+        int flags = getInt(UpdateFields.UNIT_FIELD_FLAGS);
+        if (schoolImmunity.isEmpty()) {
+            setInt(UpdateFields.UNIT_FIELD_FLAGS, flags & ~UNIT_FLAG_IMMUNE);
+        } else {
+            setInt(UpdateFields.UNIT_FIELD_FLAGS, flags | UNIT_FLAG_IMMUNE);
+        }
+    }
+
+    public boolean isSchoolImmune(int schoolMask) {
+        if (schoolMask == 0) {
+            return false;
+        }
+        for (int mask : schoolImmunity.values()) {
+            if ((mask & schoolMask) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Aura 77. */
+    public void setMechanicImmunity(int spellId, int mechanic, boolean apply) {
+        if (apply) {
+            mechanicImmunity.put(spellId, mechanic);
+        } else {
+            mechanicImmunity.remove(spellId);
+        }
+    }
+
+    public boolean isImmuneToMechanic(int mechanic) {
+        return mechanicImmunity.containsValue(mechanic);
+    }
+
+    /** Aura 37. */
+    public void setEffectImmunity(int spellId, int effect, boolean apply) {
+        if (apply) {
+            effectImmunity.put(spellId, effect);
+        } else {
+            effectImmunity.remove(spellId);
+        }
+    }
+
+    public boolean isImmuneToEffect(int effect) {
+        return effectImmunity.containsValue(effect);
+    }
+
+    /** Aura 40. */
+    public void setDamageImmunity(int spellId, int schoolMask, boolean apply) {
+        if (apply) {
+            damageImmunity.put(spellId, schoolMask);
+        } else {
+            damageImmunity.remove(spellId);
+        }
+    }
+
+    public boolean isImmuneToDamage(int schoolMask) {
+        if (schoolMask == 0) {
+            return false;
+        }
+        for (int mask : damageImmunity.values()) {
+            if ((mask & schoolMask) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Aura 243. The first apply saves UNIT_FIELD_FACTIONTEMPLATE; every unapply restores that
+     * saved value (CMaNGOS RestoreOriginalFaction, no stack).
+     */
+    public void overrideFaction(int templateId, boolean apply) {
+        if (templateId <= 0) {
+            return;
+        }
+        if (apply) {
+            if (!factionOverrideActive) {
+                savedFactionTemplate = getInt(UpdateFields.UNIT_FIELD_FACTIONTEMPLATE);
+                savedFactionId = faction;
+                factionOverrideActive = true;
+            }
+            faction = templateId;
+            setInt(UpdateFields.UNIT_FIELD_FACTIONTEMPLATE, templateId);
+            return;
+        }
+        if (!factionOverrideActive) {
+            return;
+        }
+        faction = savedFactionId;
+        setInt(UpdateFields.UNIT_FIELD_FACTIONTEMPLATE, savedFactionTemplate);
+        factionOverrideActive = false;
     }
 
     /**
