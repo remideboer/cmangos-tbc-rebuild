@@ -105,6 +105,8 @@ public class Unit extends Entity {
     private int decreaseSpeedPct;
     /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SPEED); 0 = none. */
     private int increaseSpeedPct;
+    /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED); 0 = none. */
+    private int mountedSpeedPct;
     /** CMaNGOS GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SWIM_SPEED); 0 = none. */
     private int increaseSwimSpeedPct;
     /** CMaNGOS GetTotalAuraModifier(SPELL_AURA_SAFE_FALL) — yards subtracted from fall height. */
@@ -363,6 +365,15 @@ public class Unit extends Entity {
         updateRunSpeed();
     }
 
+    /**
+     * Aura 32 — mounted {@code main_speed_mod}. Stored even on foot; {@link #updateRunSpeed}
+     * uses it only while {@link Player#mounted} is set.
+     */
+    public void setMountedSpeedPct(int pct) {
+        mountedSpeedPct = pct;
+        updateRunSpeed();
+    }
+
     public void setIncreaseSwimSpeedPct(int pct) {
         increaseSwimSpeedPct = pct;
         updateSwimSpeed();
@@ -466,8 +477,12 @@ public class Unit extends Entity {
     }
 
     private void updateRunSpeed() {
-        // Unit::UpdateSpeed MOVE_RUN: positive main_speed_mod then strongest slow.
-        float rate = increaseSpeedPct != 0 ? (100.0f + increaseSpeedPct) / 100.0f : 1.0f;
+        // Unit::UpdateSpeed MOVE_RUN: mounted uses aura 32; on foot aura 31. Slow applies after.
+        int positive = increaseSpeedPct;
+        if (this instanceof Player player && player.mounted && mountedSpeedPct != 0) {
+            positive = mountedSpeedPct;
+        }
+        float rate = positive != 0 ? (100.0f + positive) / 100.0f : 1.0f;
         if (decreaseSpeedPct != 0) {
             rate *= (100.0f + decreaseSpeedPct) / 100.0f;
         }
