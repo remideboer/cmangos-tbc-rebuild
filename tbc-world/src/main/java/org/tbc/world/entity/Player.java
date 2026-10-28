@@ -54,6 +54,8 @@ public final class Player extends Unit {
     public static final int POWER_RAGE_MAX = 1000;
     /** SharedDefines.h POWER_ENERGY / POWER_ENERGY_DEFAULT (Unit::GetCreatePowers for players). */
     public static final int POWER_ENERGY = 3;
+    /** SharedDefines.h MAX_COMBAT_RATING. */
+    public static final int MAX_COMBAT_RATING = 25;
     public static final int POWER_ENERGY_MAX = 100;
     /** ChrClasses unused TBC id — classless mode when ClasslessConfig.enabled. */
     public static final int CLASS_CLASSLESS = 6;
@@ -533,6 +535,16 @@ public final class Player extends Unit {
      * Used under the five-second rule and while in combat (same shared class pattern).
      */
     private float manaRegenInterruptPerSecond;
+    /**
+     * Aura 110 — GetTotalAuraMultiplierByMiscValue(MOD_POWER_REGEN_PERCENT, POWER_MANA / ENERGY).
+     * 1.0 when no matching aura is applied.
+     */
+    private float manaRegenPctMultiplier = 1f;
+    private float energyRegenMultiplier = 1f;
+    /** spell id → {power, amount} for SPELL_AURA_MOD_POWER_REGEN_PERCENT. */
+    private final Map<Integer, int[]> powerRegenPct = new HashMap<>();
+    /** spell id → amount for SPELL_AURA_MOD_RANGED_AMMO_HASTE. Highest positive wins. */
+    private final Map<Integer, Integer> ammoHaste = new HashMap<>();
     /** CMaNGOS Unit::m_regenTimer / m_lastManaUseTimer (five-second rule). */
     private int regenTimerMs;
     private int lastManaUseTimerMs;
@@ -726,7 +738,8 @@ public final class Player extends Unit {
         if (cur >= max) {
             return false;
         }
-        setInt(UpdateFields.UNIT_FIELD_POWER4, Math.min(max, cur + diff / 100));
+        int gain = (int) ((diff / 100) * energyRegenMultiplier);
+        setInt(UpdateFields.UNIT_FIELD_POWER4, Math.min(max, cur + gain));
         return true;
     }
 
@@ -758,7 +771,7 @@ public final class Player extends Unit {
             return false;
         }
         boolean interrupted = lastManaUseTimerMs > 0 || inCombat;
-        float rate = interrupted ? manaRegenInterruptPerSecond : manaRegenPerSecond;
+        float rate = (interrupted ? manaRegenInterruptPerSecond : manaRegenPerSecond) * manaRegenPctMultiplier;
         int gain = (int) (rate * (diff / 1000));
         if (gain == 0) {
             return false;
@@ -852,8 +865,7 @@ public final class Player extends Unit {
         }
         setInt(UpdateFields.PLAYER_NEXT_LEVEL_XP, nextLevelXp);
         setInt(UpdateFields.PLAYER_XP, xp);
-        setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, manaRegenPerSecond);
-        setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN_INTERRUPT, manaRegenInterruptPerSecond);
+        refreshManaRegenFields();
         // InitStatsForLevel: zero POS/NEG, PCT=1.00 for MAX_SPELL_SCHOOL (client $SPH / PaperDoll).
         for (int i = 0; i < 7; i++) {
             setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + i, 0);
@@ -1075,6 +1087,8 @@ public final class Player extends Unit {
         hpRegenPerSecond = src.hpRegenPerSecond;
         manaRegenPerSecond = src.manaRegenPerSecond;
         manaRegenInterruptPerSecond = src.manaRegenInterruptPerSecond;
+        manaRegenPctMultiplier = src.manaRegenPctMultiplier;
+        energyRegenMultiplier = src.energyRegenMultiplier;
         System.arraycopy(src.createStats, 0, createStats, 0, 5);
         heroStats.copyFrom(src.heroStats);
     }
@@ -1504,7 +1518,89 @@ public final class Player extends Unit {
      */
     public void setManaRegenInterruptPct(int pct) {
         manaRegenInterruptPerSecond = manaRegenPerSecond * pct / 100f;
-        setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN_INTERRUPT, manaRegenInterruptPerSecond);
+        refreshManaRegenFields();
+    }
+
+    /**
+     * Aura 110 — product of {@code (100+amount)/100} for misc POWER_MANA and POWER_ENERGY.
+     * Other powers are stored and ignored, matching UpdateManaRegen / UpdateEnergyRegen.
+     */
+    public void setPowerRegenPercent(int spellId, int power, int amount, boolean apply) {
+        if (apply) {
+            powerRegenPct.put(spellId, new int[] {power, amount});
+        } else {
+            powerRegenPct.remove(spellId);
+        }
+        float mana = 1f;
+        float energy = 1f;
+        for (int[] entry : powerRegenPct.values()) {
+            float factor = (100f + entry[1]) / 100f;
+            if (entry[0] == POWER_MANA) {
+                mana *= factor;
+            } else if (entry[0] == POWER_ENERGY) {
+                energy *= factor;
+            }
+        }
+        manaRegenPctMultiplier = mana;
+        energyRegenMultiplier = energy;
+        refreshManaRegenFields();
+    }
+
+    private void refreshManaRegenFields() {
+        setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN, manaRegenPerSecond * manaRegenPctMultiplier);
+        setFloat(UpdateFields.PLAYER_FIELD_MOD_MANA_REGEN_INTERRUPT,
+                manaRegenInterruptPerSecond * manaRegenPctMultiplier);
+    }
+
+    /** Highest positive SPELL_AURA_MOD_RANGED_AMMO_HASTE amount. 0 when none. */
+    public int highestAmmoMod() {
+        int max = 0;
+        for (int value : ammoHaste.values()) {
+            if (value > max) {
+                max = value;
+            }
+        }
+        return max;
+    }
+
+    public void noteAmmoMod(int spellId, int amount, boolean apply) {
+        if (apply) {
+            ammoHaste.put(spellId, amount);
+        } else {
+            ammoHaste.remove(spellId);
+        }
+    }
+
+    /**
+     * Aura 189 — ApplyRatingMod sheet half. Adds {@code amount} onto each combat-rating bit.
+     * Derived dodge, crit, and haste from the rating table stay later.
+     */
+    public void applyRatingMod(int mask, int amount, boolean apply) {
+        if (mask == 0 || amount == 0) {
+            return;
+        }
+        int delta = apply ? amount : -amount;
+        for (int rating = 0; rating < MAX_COMBAT_RATING; rating++) {
+            if ((mask & (1 << rating)) == 0) {
+                continue;
+            }
+            int field = UpdateFields.PLAYER_FIELD_COMBAT_RATING_1 + rating;
+            setInt(field, Math.max(0, getInt(field) + delta));
+        }
+    }
+
+    /**
+     * Aura 240 — UpdateExpertise for BASE and OFF when the spell fits every weapon.
+     * Combat-rating expertise and item-class checks stay later.
+     */
+    public void applyExpertise(int amount, boolean apply) {
+        if (amount == 0) {
+            return;
+        }
+        int delta = apply ? amount : -amount;
+        setInt(UpdateFields.PLAYER_EXPERTISE, Math.max(0, getInt(UpdateFields.PLAYER_EXPERTISE) + delta));
+        setInt(UpdateFields.PLAYER_OFFHAND_EXPERTISE,
+                Math.max(0, getInt(UpdateFields.PLAYER_OFFHAND_EXPERTISE) + delta));
     }
 
     /**
