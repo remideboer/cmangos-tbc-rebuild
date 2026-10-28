@@ -71,6 +71,10 @@ public class Unit extends Entity {
     public static final float BASE_RUN_SPEED = 7.0f;
     /** Unit.cpp baseMoveSpeed[MOVE_SWIM]. */
     public static final float BASE_SWIM_SPEED = 4.722222f;
+    /** ObjectVisibility.h STEALTH_TYPE_MAX — unit and trap. */
+    public static final int STEALTH_TYPE_MAX = 2;
+    /** ObjectVisibility.h INVISIBILITY_TYPE_MAX. */
+    public static final int INVISIBILITY_TYPE_MAX = 32;
     /** SharedDefines.h WeaponAttackType. */
     public static final int BASE_ATTACK = 0;
     public static final int OFF_ATTACK = 1;
@@ -115,6 +119,17 @@ public class Unit extends Entity {
     private int safeFallBonus;
     /** CMaNGOS VisibilityData stealth detection strength (SPELL_AURA_MOD_STEALTH_DETECT). */
     private int stealthDetectStrength;
+    /** CMaNGOS VisibilityData stealth strength per StealthType (SPELL_AURA_MOD_STEALTH_LEVEL). */
+    private final int[] stealthStrength = new int[STEALTH_TYPE_MAX];
+    /** SPELL_AURA_MOD_INVISIBILITY_DETECTION value per InvisibilityType. */
+    private final int[] invisDetectValue = new int[INVISIBILITY_TYPE_MAX];
+    /** spell id → {type, amount} so unapply can drop the detect mask when the type is gone. */
+    private final Map<Integer, int[]> invisDetectAuras = new HashMap<>();
+    private int invisDetectMask;
+    /** spell id → amount for SPELL_AURA_USE_NORMAL_MOVEMENT_SPEED. */
+    private final Map<Integer, Integer> normalMoveSpeedAuras = new HashMap<>();
+    /** Max positive aura 191 amount. 0 means UpdateSpeed does not cap. */
+    private int normalMoveSpeedCap;
     /** Spell id → {school mask, amount} for SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE. */
     private final Map<Integer, int[]> exclusiveResist = new HashMap<>();
     /** Currently applied exclusive resist per school, so a new max only deltas the sheet. */
@@ -418,6 +433,88 @@ public class Unit extends Entity {
         return stealthDetectStrength;
     }
 
+    /** CMaNGOS VisibilityData::AddStealthStrength. Type outside 0..1 is ignored. */
+    public void addStealthStrength(int type, int delta) {
+        if (type < 0 || type >= stealthStrength.length || delta == 0) {
+            return;
+        }
+        stealthStrength[type] += delta;
+    }
+
+    public int stealthStrength(int type) {
+        if (type < 0 || type >= stealthStrength.length) {
+            return 0;
+        }
+        return stealthStrength[type];
+    }
+
+    /**
+     * Aura 19 — SetInvisibilityDetectMask plus AddInvisibilityDetectValue.
+     * Unapply clears the type bit only when no other aura of that type remains.
+     */
+    public void setInvisibilityDetect(int spellId, int type, int amount, boolean apply) {
+        if (apply) {
+            if (type < 0 || type >= invisDetectValue.length) {
+                return;
+            }
+            invisDetectAuras.put(spellId, new int[] {type, amount});
+            invisDetectValue[type] += amount;
+            invisDetectMask |= 1 << type;
+            return;
+        }
+        int[] prev = invisDetectAuras.remove(spellId);
+        if (prev == null) {
+            return;
+        }
+        type = prev[0];
+        invisDetectValue[type] -= prev[1];
+        boolean still = false;
+        for (int[] entry : invisDetectAuras.values()) {
+            if (entry[0] == type) {
+                still = true;
+                break;
+            }
+        }
+        if (!still) {
+            invisDetectMask &= ~(1 << type);
+        }
+    }
+
+    public int invisibilityDetectMask() {
+        return invisDetectMask;
+    }
+
+    public int invisibilityDetectValue(int type) {
+        if (type < 0 || type >= invisDetectValue.length) {
+            return 0;
+        }
+        return invisDetectValue[type];
+    }
+
+    /**
+     * Aura 191 — max positive amount. Players cap MOVE_RUN and MOVE_SWIM in UpdateSpeed.
+     * Flight speed is still unwired, so MOVE_FLIGHT is unchanged.
+     */
+    public void setUseNormalMovementSpeed(int spellId, int amount, boolean apply) {
+        if (apply) {
+            normalMoveSpeedAuras.put(spellId, amount);
+        } else {
+            normalMoveSpeedAuras.remove(spellId);
+        }
+        int max = 0;
+        for (int value : normalMoveSpeedAuras.values()) {
+            if (value > max) {
+                max = value;
+            }
+        }
+        if (max == normalMoveSpeedCap) {
+            return;
+        }
+        normalMoveSpeedCap = max;
+        updateRunSpeed();
+        updateSwimSpeed();
+    }
+
     /**
      * Aura 143 — highest positive exclusive resist per school bit. Recomputes the sheet delta
      * from the remaining spell contributions.
@@ -537,12 +634,19 @@ public class Unit extends Entity {
     }
 
     private void updateRunSpeed() {
-        // Unit::UpdateSpeed MOVE_RUN: mounted uses aura 32; on foot aura 31. Slow applies after.
+        // Unit::UpdateSpeed MOVE_RUN: mounted uses aura 32; on foot aura 31.
+        // Aura 191 caps players before the slow.
         int positive = increaseSpeedPct;
         if (this instanceof Player player && player.mounted && mountedSpeedPct != 0) {
             positive = mountedSpeedPct;
         }
         float rate = positive != 0 ? (100.0f + positive) / 100.0f : 1.0f;
+        if (this instanceof Player && normalMoveSpeedCap > 0) {
+            float maxRate = normalMoveSpeedCap / BASE_RUN_SPEED;
+            if (rate > maxRate) {
+                rate = maxRate;
+            }
+        }
         if (decreaseSpeedPct != 0) {
             rate *= (100.0f + decreaseSpeedPct) / 100.0f;
         }
@@ -562,6 +666,12 @@ public class Unit extends Entity {
     private void updateSwimSpeed() {
         // Unit::UpdateSpeed MOVE_SWIM: main_speed_mod = MOD_INCREASE_SWIM_SPEED.
         float rate = increaseSwimSpeedPct != 0 ? (100.0f + increaseSwimSpeedPct) / 100.0f : 1.0f;
+        if (this instanceof Player && normalMoveSpeedCap > 0) {
+            float maxRate = normalMoveSpeedCap / BASE_SWIM_SPEED;
+            if (rate > maxRate) {
+                rate = maxRate;
+            }
+        }
         if (rate < 0.01f) {
             rate = 0.01f;
         }

@@ -31,6 +31,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_STEALTH = 16;
     public static final int SPELL_AURA_MOD_STEALTH_DETECT = 17;
     public static final int SPELL_AURA_MOD_INVISIBILITY = 18;
+    public static final int SPELL_AURA_MOD_INVISIBILITY_DETECTION = 19;
     public static final int SPELL_AURA_TRACK_CREATURES = 44;
     public static final int SPELL_AURA_TRACK_RESOURCES = 45;
     public static final int SPELL_AURA_MOD_INCREASE_SPEED = 31;
@@ -41,6 +42,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_WATER_BREATHING = 155;
     public static final int SPELL_AURA_DETECT_AMORE = 170;
     public static final int SPELL_AURA_MOD_MOUNTED_SPEED_NOT_STACK = 172;
+    public static final int SPELL_AURA_USE_NORMAL_MOVEMENT_SPEED = 191;
     public static final int SPELL_AURA_MOD_MELEE_RANGED_HASTE = 192;
     public static final int SPELL_AURA_HASTE_ALL = 193;
     public static final int SPELL_AURA_FLY = 201;
@@ -70,6 +72,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT = 72;
     public static final int SPELL_AURA_MOD_SCALE = 61;
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
+    public static final int SPELL_AURA_HASTE_SPELLS = 216;
     public static final int SPELL_AURA_FEIGN_DEATH = 66;
     public static final int SPELL_AURA_MOD_DISARM = 67;
     public static final int SPELL_AURA_MOD_PERCENT_STAT = 80;
@@ -78,6 +81,7 @@ public final class AuraEngine {
     /** Drink effect1 (Spell.dbc 430) — amount copied onto MOD_POWER_REGEN (spell_scripts Drink). */
     public static final int SPELL_AURA_PERIODIC_DUMMY = 226;
     public static final int SPELL_AURA_MOD_POWER_REGEN = 85;
+    public static final int SPELL_AURA_MOD_POWER_REGEN_PERCENT = 110;
     public static final int SPELL_AURA_WATER_BREATHING = 82;
     public static final int SPELL_AURA_PREVENTS_FLEEING = 92;
     public static final int SPELL_AURA_MOD_UNATTACKABLE = 93;
@@ -90,14 +94,20 @@ public final class AuraEngine {
     public static final int SPELL_AURA_UNTRACKABLE = 120;
     public static final int SPELL_AURA_EMPATHY = 121;
     public static final int SPELL_AURA_TRACK_STEALTHED = 151;
+    public static final int SPELL_AURA_MOD_STEALTH_LEVEL = 154;
     public static final int SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT = 122;
     public static final int SPELL_AURA_MOD_TARGET_RESISTANCE = 123;
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER = 124;
     public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT = 167;
+    public static final int SPELL_AURA_MOD_RATING = 189;
+    public static final int SPELL_AURA_MOD_SPELL_DAMAGE_OF_ATTACK_POWER = 237;
+    public static final int SPELL_AURA_MOD_SPELL_HEALING_OF_ATTACK_POWER = 238;
+    public static final int SPELL_AURA_MOD_EXPERTISE = 240;
     /** SharedDefines.h SPELL_SCHOOL_MASK_SPELL — fire|nature|frost|shadow|arcane (no normal/holy). */
     public static final int SPELL_SCHOOL_MASK_SPELL = 124;
     public static final int SPELL_AURA_MOD_MELEE_HASTE = 138;
     public static final int SPELL_AURA_MOD_RANGED_HASTE = 140;
+    public static final int SPELL_AURA_MOD_RANGED_AMMO_HASTE = 141;
     public static final int SPELL_AURA_SAFE_FALL = 144;
     public static final int SPELL_AURA_MOD_SHIELD_BLOCKVALUE_PCT = 150;
     public static final int SPELL_AURA_MOD_SHIELD_BLOCKVALUE = 158;
@@ -115,7 +125,8 @@ public final class AuraEngine {
             SPELL_AURA_MOD_BASE_RESISTANCE_PCT,
             SPELL_AURA_MOD_PACIFY, SPELL_AURA_MOD_ROOT, SPELL_AURA_MOD_SILENCE, SPELL_AURA_MOD_STAT,
             SPELL_AURA_MOD_SKILL, SPELL_AURA_MOD_SKILL_TALENT,
-            SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_STEALTH_DETECT, SPELL_AURA_MOD_INVISIBILITY,
+            SPELL_AURA_MOD_STEALTH, SPELL_AURA_MOD_STEALTH_DETECT, SPELL_AURA_MOD_STEALTH_LEVEL,
+            SPELL_AURA_MOD_INVISIBILITY, SPELL_AURA_MOD_INVISIBILITY_DETECTION,
             SPELL_AURA_TRACK_CREATURES, SPELL_AURA_TRACK_RESOURCES,
             SPELL_AURA_MOD_CRIT_PERCENT, SPELL_AURA_MOD_DODGE_PERCENT, SPELL_AURA_MOD_PARRY_PERCENT,
             SPELL_AURA_MOD_BLOCK_PERCENT, SPELL_AURA_MOD_HIT_CHANCE, SPELL_AURA_MOD_SPELL_HIT_CHANCE,
@@ -130,9 +141,10 @@ public final class AuraEngine {
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT,
             SPELL_AURA_MOD_INCREASE_ENERGY, SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
-            SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
+            SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_HASTE_SPELLS,
+            SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE,
-            SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN,
+            SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN, SPELL_AURA_MOD_POWER_REGEN_PERCENT,
             SPELL_AURA_WATER_BREATHING, SPELL_AURA_MOD_WATER_BREATHING,
             SPELL_AURA_MOD_MANA_REGEN_INTERRUPT, SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE,
             SPELL_AURA_PREVENTS_FLEEING, SPELL_AURA_MOD_UNATTACKABLE,
@@ -140,8 +152,11 @@ public final class AuraEngine {
             SPELL_AURA_UNTRACKABLE, SPELL_AURA_EMPATHY, SPELL_AURA_TRACK_STEALTHED,
             SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT, SPELL_AURA_MOD_TARGET_RESISTANCE,
             SPELL_AURA_MOD_RANGED_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT,
+            SPELL_AURA_MOD_RATING, SPELL_AURA_MOD_EXPERTISE,
+            SPELL_AURA_MOD_SPELL_DAMAGE_OF_ATTACK_POWER, SPELL_AURA_MOD_SPELL_HEALING_OF_ATTACK_POWER,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
-            SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE,
+            SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_MOD_RANGED_AMMO_HASTE,
+            SPELL_AURA_USE_NORMAL_MOVEMENT_SPEED,
             SPELL_AURA_MOD_MELEE_RANGED_HASTE, SPELL_AURA_HASTE_ALL,
             SPELL_AURA_DETECT_AMORE, SPELL_AURA_FLY, SPELL_AURA_SAFE_FALL,
             SPELL_AURA_MOD_SHIELD_BLOCKVALUE, SPELL_AURA_MOD_SHIELD_BLOCKVALUE_PCT);
@@ -198,6 +213,12 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_STEALTH_DETECT) {
             modStealthDetect(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_MOD_STEALTH_LEVEL) {
+            modStealthLevel(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INVISIBILITY_DETECTION) {
+            modInvisibilityDetect(target, sp, true);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INVISIBILITY) {
             modInvisibility(target, true);
         }
@@ -210,7 +231,7 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_SCALE) {
             modScale(target, sp, true);
         }
-        if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK) {
+        if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK || sp.aura() == SPELL_AURA_HASTE_SPELLS) {
             modCastingSpeed(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_FEIGN_DEATH) {
@@ -269,6 +290,27 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE) {
             modRangedHaste(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_AMMO_HASTE) {
+            modRangedAmmoHaste(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_POWER_REGEN_PERCENT) {
+            modPowerRegenPercent(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_USE_NORMAL_MOVEMENT_SPEED) {
+            modUseNormalMovementSpeed(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RATING) {
+            modRating(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_EXPERTISE) {
+            modExpertise(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SPELL_DAMAGE_OF_ATTACK_POWER) {
+            modSpellDamageOfAttackPower(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SPELL_HEALING_OF_ATTACK_POWER) {
+            modSpellHealingOfAttackPower(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_SAFE_FALL) {
             modSafeFall(target, sp, true);
@@ -536,6 +578,12 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_STEALTH_DETECT) {
             modStealthDetect(target, sp, false);
         }
+        if (sp.aura() == SPELL_AURA_MOD_STEALTH_LEVEL) {
+            modStealthLevel(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INVISIBILITY_DETECTION) {
+            modInvisibilityDetect(target, sp, false);
+        }
         if (sp.aura() == SPELL_AURA_MOD_INVISIBILITY) {
             modInvisibility(target, false);
         }
@@ -548,7 +596,7 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_SCALE) {
             modScale(target, sp, false);
         }
-        if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK) {
+        if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK || sp.aura() == SPELL_AURA_HASTE_SPELLS) {
             modCastingSpeed(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_FEIGN_DEATH) {
@@ -607,6 +655,27 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_RANGED_HASTE) {
             modRangedHaste(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_AMMO_HASTE) {
+            modRangedAmmoHaste(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_POWER_REGEN_PERCENT) {
+            modPowerRegenPercent(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_USE_NORMAL_MOVEMENT_SPEED) {
+            modUseNormalMovementSpeed(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RATING) {
+            modRating(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_EXPERTISE) {
+            modExpertise(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SPELL_DAMAGE_OF_ATTACK_POWER) {
+            modSpellDamageOfAttackPower(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_SPELL_HEALING_OF_ATTACK_POWER) {
+            modSpellHealingOfAttackPower(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_SAFE_FALL) {
             modSafeFall(target, sp, false);
@@ -1731,6 +1800,107 @@ public final class AuraEngine {
     }
 
     /**
+     * Aura 141 — CMaNGOS HandleRangedAmmoHaste. Players only; the highest positive amount
+     * is the one applied to ranged attack time. EquippedItemClass other than -1 needs a
+     * weapon fit check, which is not wired, so those spells do nothing.
+     */
+    private static void modRangedAmmoHaste(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player) || sp.equippedItemClass() != -1) {
+            return;
+        }
+        int oldHighest = player.highestAmmoMod();
+        player.noteAmmoMod(sp.id(), (sp.minDmg() + sp.maxDmg()) / 2, apply);
+        int newHighest = player.highestAmmoMod();
+        if (oldHighest == newHighest) {
+            return;
+        }
+        if (oldHighest > 0) {
+            applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_RANGEDATTACKTIME, oldHighest, false);
+        }
+        if (newHighest > 0) {
+            applyAttackTimePercentMod(target, UpdateFields.UNIT_FIELD_RANGEDATTACKTIME, newHighest, true);
+        }
+    }
+
+    /**
+     * Aura 110 — CMaNGOS HandleModPowerRegenPCT. Mana scales the spirit regen fields;
+     * energy scales Regenerate(POWER_ENERGY).
+     */
+    private static void modPowerRegenPercent(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        player.setPowerRegenPercent(sp.id(), sp.misc(), (sp.minDmg() + sp.maxDmg()) / 2, apply);
+    }
+
+    /** Aura 191 — CMaNGOS HandleAuraModUseNormalSpeed → UpdateSpeed run, swim, and flight. */
+    private static void modUseNormalMovementSpeed(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setUseNormalMovementSpeed(sp.id(), (sp.minDmg() + sp.maxDmg()) / 2, apply);
+    }
+
+    /** Aura 189 — CMaNGOS HandleModRating → ApplyRatingMod for each misc bit. */
+    private static void modRating(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        player.applyRatingMod(sp.misc(), (sp.minDmg() + sp.maxDmg()) / 2, apply);
+    }
+
+    /** Aura 240 — CMaNGOS HandleAuraModExpertise → UpdateExpertise(BASE) and OFF. */
+    private static void modExpertise(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player) || sp.equippedItemClass() != -1) {
+            return;
+        }
+        player.applyExpertise((sp.minDmg() + sp.maxDmg()) / 2, apply);
+    }
+
+    /**
+     * Aura 237 — SpellBaseDamageBonusDone attack-power term, written per school bit
+     * onto PLAYER_FIELD_MOD_DAMAGE_DONE_POS. Players only.
+     */
+    private static void modSpellDamageOfAttackPower(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player) || sp.misc() == 0) {
+            return;
+        }
+        int bonus = attackPowerSpellBonus(target, sp);
+        int delta = apply ? bonus : -bonus;
+        for (int school = 0; school < MAX_SPELL_SCHOOL; school++) {
+            if ((sp.misc() & (1 << school)) == 0) {
+                continue;
+            }
+            target.setInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + school,
+                    target.getInt(UpdateFields.PLAYER_FIELD_MOD_DAMAGE_DONE_POS + school) + delta);
+        }
+    }
+
+    /**
+     * Aura 238 — SpellBaseHealingBonusDone attack-power term. Any school bit against
+     * SPELL_SCHOOL_MASK_ALL adds the bonus once to PLAYER_FIELD_MOD_HEALING_DONE_POS.
+     */
+    private static void modSpellHealingOfAttackPower(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player) || (sp.misc() & ((1 << MAX_SPELL_SCHOOL) - 1)) == 0) {
+            return;
+        }
+        int bonus = attackPowerSpellBonus(target, sp);
+        int delta = apply ? bonus : -bonus;
+        target.setInt(UpdateFields.PLAYER_FIELD_MOD_HEALING_DONE_POS,
+                target.getInt(UpdateFields.PLAYER_FIELD_MOD_HEALING_DONE_POS) + delta);
+    }
+
+    /** CMaNGOS GetTotalAttackPowerValue(BASE_ATTACK) * amount / 100, truncated. */
+    private static int attackPowerSpellBonus(Unit target, SpellEngine.SpellInfo sp) {
+        int mods = target.getInt(UpdateFields.UNIT_FIELD_ATTACK_POWER_MODS);
+        int pos = (short) (mods & 0xFFFF);
+        int neg = (short) (mods >> 16);
+        int ap = target.getInt(UpdateFields.UNIT_FIELD_ATTACK_POWER) + pos + neg;
+        if (ap < 0) {
+            ap = 0;
+        }
+        float total = ap * (1f + target.getFloat(UpdateFields.UNIT_FIELD_ATTACK_POWER_MULTIPLIER));
+        return (int) (total * ((sp.minDmg() + sp.maxDmg()) / 2) / 100f);
+    }
+
+    /**
      * Aura 140 — CMaNGOS HandleAuraModRangedHaste → ApplyAttackTimePercentMod(RANGED_ATTACK).
      */
     private static void modRangedHaste(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
@@ -1819,6 +1989,21 @@ public final class AuraEngine {
             return;
         }
         player.setDetectAmore(sp.misc(), apply);
+    }
+
+    /** Aura 154 — CMaNGOS HandleModStealthLevel → AddStealthStrength(StealthType). */
+    private static void modStealthLevel(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        target.addStealthStrength(sp.misc(), apply ? amount : -amount);
+    }
+
+    /**
+     * Aura 19 — CMaNGOS HandleInvisibilityDetect. Spell 44855's phase-mask hack has no phase
+     * field here; the detect value and mask still apply.
+     */
+    private static void modInvisibilityDetect(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        target.setInvisibilityDetect(sp.id(), sp.misc(), amount, apply);
     }
 
     /** Aura 17 — CMaNGOS HandleModStealthDetect → AddStealthDetectionStrength. */
