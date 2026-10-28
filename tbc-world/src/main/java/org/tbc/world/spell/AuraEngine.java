@@ -2,10 +2,12 @@ package org.tbc.world.spell;
 
 import org.tbc.world.entity.Player;
 import org.tbc.world.entity.Unit;
+import org.tbc.world.net.wow8606.UpdateBuilder;
 import org.tbc.world.net.wow8606.UpdateFields;
 
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BiConsumer;
 
 /**
  * SPELL_AURA_* modifier catalog (CMaNGOS Aura::ApplyModifier → AuraHandler[auraName]).
@@ -19,6 +21,31 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_DECREASE_ARMOR = 15;
     public static final int SPELL_AURA_MOD_CONFUSE = 5;
     public static final int SPELL_AURA_MOD_FEAR = 7;
+    public static final int SPELL_AURA_PERIODIC_HEAL = 8;
+    public static final int SPELL_AURA_OBS_MOD_HEALTH = 20;
+    public static final int SPELL_AURA_OBS_MOD_MANA = 21;
+    public static final int SPELL_AURA_PERIODIC_ENERGIZE = 24;
+    public static final int SPELL_AURA_STATE_IMMUNITY = 38;
+    public static final int SPELL_AURA_DISPEL_IMMUNITY = 41;
+    public static final int SPELL_AURA_PERIODIC_DAMAGE_PERCENT = 89;
+    public static final int SPELL_AURA_ADD_FLAT_MODIFIER = 107;
+    public static final int SPELL_AURA_ADD_PCT_MODIFIER = 108;
+    public static final int SPELL_AURA_OVERRIDE_CLASS_SCRIPTS = 112;
+    public static final int SPELL_AURA_FORCE_REACTION = 139;
+    public static final int SPELL_AURA_MECHANIC_IMMUNITY_MASK = 147;
+    public static final int SPELL_AURA_SPIRIT_OF_REDEMPTION = 176;
+    public static final int SPELL_AURA_MOD_RANGED_ATTACK_POWER_OF_STAT_PERCENT = 212;
+    public static final int SPELL_AURA_PHASE = 261;
+    /** SpellDefines.h MAX_SPELLMOD. An op at or above this is ignored. */
+    public static final int MAX_SPELLMOD = 32;
+    /** SpellDefines.h SPELLMOD_DAMAGE. */
+    public static final int SPELLMOD_DAMAGE = 0;
+    /** SpellDefines.h SPELLMOD_CASTING_TIME. */
+    public static final int SPELLMOD_CASTING_TIME = 10;
+    /** SpellDefines.h SPELLMOD_COST. */
+    public static final int SPELLMOD_COST = 14;
+    /** HandleAuraModTotalHealthPercentRegen spell 40409 sets UNIT_FLAG_UNINTERACTIBLE. */
+    private static final int SPELL_UNINTERACTIBLE_HEALTH_REGEN = 40409;
     public static final int SPELL_AURA_MOD_RESISTANCE = 22;
     public static final int SPELL_AURA_MOD_BASE_RESISTANCE = 83;
     public static final int SPELL_AURA_MOD_RESISTANCE_PCT = 101;
@@ -162,7 +189,14 @@ public final class AuraEngine {
             SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_2,
             SPELL_AURA_MOD_INCREASE_MAX_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT,
             SPELL_AURA_EFFECT_IMMUNITY, SPELL_AURA_SCHOOL_IMMUNITY, SPELL_AURA_DAMAGE_IMMUNITY,
+            SPELL_AURA_STATE_IMMUNITY, SPELL_AURA_DISPEL_IMMUNITY, SPELL_AURA_MECHANIC_IMMUNITY_MASK,
             SPELL_AURA_MECHANIC_IMMUNITY,
+            SPELL_AURA_PERIODIC_HEAL, SPELL_AURA_OBS_MOD_HEALTH, SPELL_AURA_OBS_MOD_MANA,
+            SPELL_AURA_PERIODIC_ENERGIZE, SPELL_AURA_PERIODIC_DAMAGE_PERCENT,
+            SPELL_AURA_ADD_FLAT_MODIFIER, SPELL_AURA_ADD_PCT_MODIFIER,
+            SPELL_AURA_OVERRIDE_CLASS_SCRIPTS, SPELL_AURA_FORCE_REACTION,
+            SPELL_AURA_SPIRIT_OF_REDEMPTION, SPELL_AURA_MOD_RANGED_ATTACK_POWER_OF_STAT_PERCENT,
+            SPELL_AURA_PHASE,
             SPELL_AURA_MOD_INCREASE_ENERGY, SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT,
             SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE,
             SPELL_AURA_MOD_SCALE, SPELL_AURA_MOD_SCALE_2,
@@ -505,6 +539,36 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_DAMAGE_IMMUNITY) {
             modDamageImmunity(target, sp, true);
         }
+        if (sp.aura() == SPELL_AURA_STATE_IMMUNITY) {
+            modStateImmunity(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_DISPEL_IMMUNITY) {
+            modDispelImmunity(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MECHANIC_IMMUNITY_MASK) {
+            modMechanicImmunityMask(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_PHASE) {
+            modPhase(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER_OF_STAT_PERCENT) {
+            modRangedAttackPowerOfStatPercent(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_SPIRIT_OF_REDEMPTION) {
+            modSpiritOfRedemption(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_FORCE_REACTION) {
+            modForceReaction(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_ADD_FLAT_MODIFIER || sp.aura() == SPELL_AURA_ADD_PCT_MODIFIER) {
+            modSpellModifier(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_OVERRIDE_CLASS_SCRIPTS) {
+            modOverrideClassScript(target, sp, true);
+        }
+        if (sp.id() == SPELL_UNINTERACTIBLE_HEALTH_REGEN && sp.aura() == SPELL_AURA_OBS_MOD_HEALTH) {
+            modUninteractible(target, true);
+        }
         if (sp.aura() == SPELL_AURA_FACTION_OVERRIDE) {
             modFactionOverride(target, sp, true);
         }
@@ -613,6 +677,36 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_DAMAGE_IMMUNITY) {
             modDamageImmunity(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_STATE_IMMUNITY) {
+            modStateImmunity(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_DISPEL_IMMUNITY) {
+            modDispelImmunity(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MECHANIC_IMMUNITY_MASK) {
+            modMechanicImmunityMask(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_PHASE) {
+            modPhase(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_RANGED_ATTACK_POWER_OF_STAT_PERCENT) {
+            modRangedAttackPowerOfStatPercent(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_SPIRIT_OF_REDEMPTION) {
+            modSpiritOfRedemption(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_FORCE_REACTION) {
+            modForceReaction(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_ADD_FLAT_MODIFIER || sp.aura() == SPELL_AURA_ADD_PCT_MODIFIER) {
+            modSpellModifier(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_OVERRIDE_CLASS_SCRIPTS) {
+            modOverrideClassScript(target, sp, false);
+        }
+        if (sp.id() == SPELL_UNINTERACTIBLE_HEALTH_REGEN && sp.aura() == SPELL_AURA_OBS_MOD_HEALTH) {
+            modUninteractible(target, false);
         }
         if (sp.aura() == SPELL_AURA_FACTION_OVERRIDE) {
             modFactionOverride(target, sp, false);
@@ -2295,6 +2389,201 @@ public final class AuraEngine {
     /** Aura 40 — ApplySpellImmune(IMMUNITY_DAMAGE, misc). Threat suppression stays later. */
     private static void modDamageImmunity(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
         target.setDamageImmunity(sp.id(), sp.misc(), apply);
+    }
+
+    /** Aura 38 — ApplySpellImmune(IMMUNITY_STATE, misc). The purge attribute stays later. */
+    private static void modStateImmunity(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setStateImmunity(sp.id(), sp.misc(), apply);
+    }
+
+    /** Aura 41 — ApplySpellDispelImmunity. Removing auras of that dispel type stays later. */
+    private static void modDispelImmunity(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setDispelImmunity(sp.id(), sp.misc(), apply);
+    }
+
+    /**
+     * Aura 147 — the mask checked by IsImmuneToSpell ({@code mask & (1 << mechanic)}).
+     * The purge attribute stays later. This is separate from aura 77's single mechanic id.
+     */
+    private static void modMechanicImmunityMask(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setMechanicImmunityMask(sp.id(), sp.misc(), apply);
+    }
+
+    /**
+     * Aura 261 — SetPhaseMask(apply ? misc : 1) on the target and, when the target is a player
+     * with a pet, on that pet. Unapply writes 1 even if another phase aura is still up.
+     */
+    private static void modPhase(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int mask = apply ? sp.misc() : 1;
+        target.setPhaseMask(mask);
+        if (target instanceof Player player && player.pet != null) {
+            player.pet.asUnit().setPhaseMask(mask);
+        }
+    }
+
+    /**
+     * Aura 212 — players who are not wand users. {@code (int)(stat * amount / 100)} is added to
+     * UNIT_FIELD_RANGED_ATTACK_POWER_MODS without replacing flat aura 124.
+     */
+    private static void modRangedAttackPowerOfStatPercent(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player) || player.isWandUser()) {
+            return;
+        }
+        int stat = sp.misc();
+        if (stat < 0 || stat >= MAX_STATS) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        player.setRangedAttackPowerOfStatPercent(sp.id(), stat, amount, apply);
+    }
+
+    /**
+     * Aura 176 — damage immunity 255, stand if seated, fill mana. Unapply sets health to 0
+     * (spell 27965 is not in the catalog). Cast interrupts stay later.
+     */
+    private static void modSpiritOfRedemption(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setDamageImmunity(sp.id(), 255, apply);
+        if (!apply) {
+            target.setHealth(0);
+            return;
+        }
+        if (target instanceof Player player && !player.isStanding()) {
+            player.stand();
+        }
+        target.setInt(UpdateFields.UNIT_FIELD_POWER1, target.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1));
+    }
+
+    /** Aura 139 — players only. Faction id is misc, rank is the amount. Packets and stop-attack stay later. */
+    private static void modForceReaction(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        player.reputations.applyForceReaction(sp.misc(), amount, apply);
+    }
+
+    /**
+     * Auras 107 and 108 — players only, misc is the spell mod op. Charge spells and spell-family
+     * masks stay later; {@link Player#applySpellMod} sums every stored mod of that op.
+     */
+    private static void modSpellModifier(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        if (sp.misc() < 0 || sp.misc() >= MAX_SPELLMOD) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        player.setSpellMod(sp.id(), sp.misc(), sp.aura(), amount, apply);
+    }
+
+    /**
+     * Aura 112 — RegisterOverrideScriptAura keyed by the script id. A later aura with the same
+     * id replaces the first, and any unapply of that id clears it.
+     */
+    private static void modOverrideClassScript(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setOverrideClassScript(sp.misc(), apply);
+    }
+
+    private static void modUninteractible(Unit target, boolean apply) {
+        int flags = target.getInt(UpdateFields.UNIT_FIELD_FLAGS);
+        if (apply) {
+            target.setInt(UpdateFields.UNIT_FIELD_FLAGS, flags | Unit.UNIT_FLAG_UNINTERACTIBLE);
+        } else {
+            target.setInt(UpdateFields.UNIT_FIELD_FLAGS, flags & ~Unit.UNIT_FLAG_UNINTERACTIBLE);
+        }
+    }
+
+    /**
+     * PeriodicTick for auras 8, 20, 21, 24, and 89. Returns true when {@code sp} is one of those
+     * auras. Heals (8 and 20) do nothing without a caster. Armor, school immunity, and bonus
+     * healing stay later. Spell 40409's flag is applied in {@link #apply}, not here.
+     */
+    public boolean tickCatalogPeriodic(Unit caster, Unit target, SpellEngine.SpellInfo sp,
+                                       BiConsumer<Integer, byte[]> send) {
+        if (target == null || sp == null) {
+            return false;
+        }
+        int aura = sp.aura();
+        if (aura != SPELL_AURA_PERIODIC_HEAL && aura != SPELL_AURA_OBS_MOD_HEALTH
+                && aura != SPELL_AURA_OBS_MOD_MANA && aura != SPELL_AURA_PERIODIC_ENERGIZE
+                && aura != SPELL_AURA_PERIODIC_DAMAGE_PERCENT) {
+            return false;
+        }
+        if (!target.alive()) {
+            return true;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount <= 0) {
+            return true;
+        }
+        if (aura == SPELL_AURA_PERIODIC_HEAL || aura == SPELL_AURA_OBS_MOD_HEALTH) {
+            if (caster == null || target.health() == target.maxHealth()) {
+                return true;
+            }
+            int gain = aura == SPELL_AURA_OBS_MOD_HEALTH ? target.maxHealth() * amount / 100 : amount;
+            if (gain <= 0) {
+                return true;
+            }
+            target.setHealth(target.health() + gain);
+            sendField(target, UpdateFields.UNIT_FIELD_HEALTH, send);
+            return true;
+        }
+        if (aura == SPELL_AURA_OBS_MOD_MANA) {
+            int max = target.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1);
+            if (max == 0) {
+                return true;
+            }
+            int gain = max * amount / 100;
+            addPower(target, UpdateFields.UNIT_FIELD_POWER1, max, gain, send);
+            return true;
+        }
+        if (aura == SPELL_AURA_PERIODIC_ENERGIZE) {
+            int power = sp.misc();
+            if (power < 0 || power >= MAX_POWERS) {
+                return true;
+            }
+            int max = target.getInt(UpdateFields.UNIT_FIELD_MAXPOWER1 + power);
+            if (max == 0) {
+                return true;
+            }
+            addPower(target, UpdateFields.UNIT_FIELD_POWER1 + power, max, amount, send);
+            return true;
+        }
+        int damage = target.maxHealth() * amount / 100;
+        if (damage <= 0) {
+            return true;
+        }
+        target.setHealth(target.health() - damage);
+        sendField(target, UpdateFields.UNIT_FIELD_HEALTH, send);
+        return true;
+    }
+
+    private static void addPower(Unit target, int field, int max, int gain, BiConsumer<Integer, byte[]> send) {
+        if (gain <= 0) {
+            return;
+        }
+        int cur = target.getInt(field);
+        int next = Math.min(max, cur + gain);
+        if (next == cur) {
+            return;
+        }
+        target.setInt(field, next);
+        sendField(target, field, send);
+    }
+
+    private static void sendField(Unit target, int field, BiConsumer<Integer, byte[]> send) {
+        if (send == null) {
+            return;
+        }
+        var upd = UpdateBuilder.maybeCompress(UpdateBuilder.values(target, field));
+        send.accept(upd.opcode(), upd.payload());
     }
 
     /**

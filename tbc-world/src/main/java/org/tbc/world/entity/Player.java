@@ -10,12 +10,14 @@ import org.tbc.world.content.WeaponSkills;
 import org.tbc.world.net.wow8606.Opcodes;
 import org.tbc.world.net.wow8606.UpdateFields;
 import org.tbc.world.session.WorldSession;
+import org.tbc.world.spell.AuraEngine;
 import org.tbc.world.spell.AuraSlots;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -547,6 +549,11 @@ public final class Player extends Unit {
     private float manaRegenFromStatPerSecond;
     /** spell id → {power, amount} for SPELL_AURA_MOD_POWER_REGEN_PERCENT. */
     private final Map<Integer, int[]> powerRegenPct = new HashMap<>();
+    /** spell id → {stat, amount} for aura 212. The summed bonus is already in the ranged AP mods field. */
+    private final Map<Integer, int[]> rangedApFromStat = new HashMap<>();
+    private int rangedApFromStatApplied;
+    /** spell id → {op, aura type, amount} for auras 107 and 108, in apply order. */
+    private final Map<Integer, int[]> spellMods = new LinkedHashMap<>();
     /** spell id → {stat index, amount} for SPELL_AURA_MOD_MANA_REGEN_FROM_STAT. */
     private final Map<Integer, int[]> manaRegenFromStat = new HashMap<>();
     /** spell id → amount for SPELL_AURA_MOD_RANGED_AMMO_HASTE. Highest positive wins. */
@@ -1110,6 +1117,21 @@ public final class Player extends Unit {
             int[] value = entry.getValue();
             manaRegenFromStat.put(entry.getKey(), new int[] {value[0], value[1]});
         }
+        rangedApFromStat.clear();
+        for (Map.Entry<Integer, int[]> entry : src.rangedApFromStat.entrySet()) {
+            int[] value = entry.getValue();
+            rangedApFromStat.put(entry.getKey(), new int[] {value[0], value[1]});
+        }
+        int bonus = src.rangedApFromStatApplied;
+        int delta = bonus - rangedApFromStatApplied;
+        rangedApFromStatApplied = bonus;
+        setInt(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS,
+                getInt(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS) + delta);
+        spellMods.clear();
+        for (Map.Entry<Integer, int[]> entry : src.spellMods.entrySet()) {
+            int[] value = entry.getValue();
+            spellMods.put(entry.getKey(), new int[] {value[0], value[1], value[2]});
+        }
         System.arraycopy(src.createStats, 0, createStats, 0, 5);
         heroStats.copyFrom(src.heroStats);
     }
@@ -1581,6 +1603,79 @@ public final class Player extends Unit {
             manaRegenFromStat.remove(spellId);
         }
         refreshManaRegenFields();
+    }
+
+    /**
+     * Aura 212 — {@code (int)(stat * amount / 100)} summed into the positive ranged AP mods,
+     * leaving flat aura 124 in place. A stat change that does not call this again leaves the
+     * field stale until the next apply or unapply.
+     */
+    public void setRangedAttackPowerOfStatPercent(int spellId, int stat, int amount, boolean apply) {
+        if (stat < 0 || stat >= 5) {
+            return;
+        }
+        if (apply) {
+            rangedApFromStat.put(spellId, new int[] {stat, amount});
+        } else {
+            rangedApFromStat.remove(spellId);
+        }
+        refreshRangedAttackPowerFromStat();
+    }
+
+    private void refreshRangedAttackPowerFromStat() {
+        int sum = 0;
+        for (int[] entry : rangedApFromStat.values()) {
+            int statValue = getInt(UpdateFields.UNIT_FIELD_STAT0 + entry[0]);
+            sum += (int) (statValue * entry[1] / 100.0f);
+        }
+        int delta = sum - rangedApFromStatApplied;
+        rangedApFromStatApplied = sum;
+        setInt(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS,
+                getInt(UpdateFields.UNIT_FIELD_RANGED_ATTACK_POWER_MODS) + delta);
+    }
+
+    /** Auras 107 and 108. {@code type} is the aura id (flat 107 or percent 108). */
+    public void setSpellMod(int spellId, int op, int type, int amount, boolean apply) {
+        if (apply) {
+            spellMods.put(spellId, new int[] {op, type, amount});
+        } else {
+            spellMods.remove(spellId);
+        }
+    }
+
+    /**
+     * Player::ApplySpellMod for an int base. Percent starts at 100 and each percent mod adds its
+     * value; the result is {@code (base + flat) * max(0, pct) / 100}. Cost and casting-time mods
+     * stop once the running total is already 0. A casting-time percent of -100 or lower is skipped
+     * when the base is at least 10 seconds. Spell-family masks and charges are not applied.
+     */
+    public int applySpellMod(int op, int base) {
+        int totalPct = 100;
+        int totalFlat = 0;
+        for (int[] mod : spellMods.values()) {
+            if (mod[0] != op) {
+                continue;
+            }
+            if ((op == AuraEngine.SPELLMOD_CASTING_TIME || op == AuraEngine.SPELLMOD_COST)
+                    && (base + totalFlat) * Math.max(0, totalPct) / 100 <= 0) {
+                break;
+            }
+            if (mod[1] == AuraEngine.SPELL_AURA_ADD_FLAT_MODIFIER) {
+                totalFlat += mod[2];
+            } else if (mod[1] == AuraEngine.SPELL_AURA_ADD_PCT_MODIFIER) {
+                if (op == AuraEngine.SPELLMOD_CASTING_TIME && base >= 10_000 && mod[2] <= -100) {
+                    continue;
+                }
+                totalPct += mod[2];
+            }
+        }
+        if (totalPct < 0) {
+            totalPct = 0;
+        }
+        if (totalFlat == 0 && totalPct == 100) {
+            return base;
+        }
+        return (base + totalFlat) * Math.max(0, totalPct) / 100;
     }
 
     private void refreshManaRegenFields() {
