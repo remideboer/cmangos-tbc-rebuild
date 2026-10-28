@@ -41,6 +41,12 @@ public class Unit extends Entity {
     public static final int UNIT_FLAG_PREVENT_ANIM = 0x20000000;
     /** Unit.h UNIT_FLAG2_FEIGN_DEATH. */
     public static final int UNIT_FLAG2_FEIGN_DEATH = 0x00000001;
+    /** Unit.h UNIT_FLAG2_COMPREHEND_LANG. */
+    public static final int UNIT_FLAG2_COMPREHEND_LANG = 0x00000008;
+    /** Unit.h UNIT_FLAG2_FORCE_MOVE. */
+    public static final int UNIT_FLAG2_FORCE_MOVE = 0x00000040;
+    /** Unit.h UNIT_FLAG_PREPARATION. */
+    public static final int UNIT_FLAG_PREPARATION = 0x00000020;
     /** SharedDefines.h POWER_MANA — UNIT_FIELD_BYTES_0 power byte / POWER1. */
     public static final int POWER_MANA = 0;
     /** ChrClasses.dbc CLASS_MAGE — creature UnitClass that uses mana. */
@@ -71,6 +77,8 @@ public class Unit extends Entity {
     public static final float BASE_RUN_SPEED = 7.0f;
     /** Unit.cpp baseMoveSpeed[MOVE_SWIM]. */
     public static final float BASE_SWIM_SPEED = 4.722222f;
+    /** CMaNGOS baseMoveSpeed[MOVE_FLIGHT]. */
+    public static final float BASE_FLIGHT_SPEED = 7.0f;
     /** ObjectVisibility.h STEALTH_TYPE_MAX — unit and trap. */
     public static final int STEALTH_TYPE_MAX = 2;
     /** ObjectVisibility.h INVISIBILITY_TYPE_MAX. */
@@ -138,6 +146,10 @@ public class Unit extends Entity {
     private float runSpeedRate = 1.0f;
     /** CMaNGOS m_speed_rate[MOVE_SWIM]; default 1.0. */
     private float swimSpeedRate = 1.0f;
+    /** CMaNGOS m_speed_rate[MOVE_FLIGHT]; default 1.0. */
+    private float flightSpeedRate = 1.0f;
+    /** Aura id → spell id → amount for flight-speed auras 206–211. */
+    private final Map<Integer, Map<Integer, Integer>> flightAuras = new HashMap<>();
     /** Classless unproficient-armor move-speed penalty (negative percent points, e.g. -15). */
     private float equipmentSpeedPenaltyPct;
     private boolean knockBackPending;
@@ -513,6 +525,7 @@ public class Unit extends Entity {
         normalMoveSpeedCap = max;
         updateRunSpeed();
         updateSwimSpeed();
+        updateFlightSpeed();
     }
 
     /**
@@ -614,6 +627,24 @@ public class Unit extends Entity {
         return swimSpeedRate * BASE_SWIM_SPEED;
     }
 
+    public float flightSpeed() {
+        return flightSpeedRate * BASE_FLIGHT_SPEED;
+    }
+
+    /**
+     * Auras 206–211. Unmounted flight uses 206 (sum), 208 (product) and 210 (max positive).
+     * Mounted flight uses 207 (max positive), 209 (product) and 211 (max positive).
+     */
+    public void setFlightSpeedAura(int aura, int spellId, int amount, boolean apply) {
+        Map<Integer, Integer> bucket = flightAuras.computeIfAbsent(aura, ignored -> new HashMap<>());
+        if (apply) {
+            bucket.put(spellId, amount);
+        } else {
+            bucket.remove(spellId);
+        }
+        updateFlightSpeed();
+    }
+
     /** Classless armor penalty: negative percent points summed from unproficient pieces. */
     public void setEquipmentSpeedPenaltyPct(float pct) {
         if (pct > 0f) {
@@ -680,6 +711,82 @@ public class Unit extends Entity {
         }
         swimSpeedRate = rate;
         sendSwimSpeedChange();
+    }
+
+    private void updateFlightSpeed() {
+        // Unit::UpdateSpeed MOVE_FLIGHT. Aura 191 caps players before the slow.
+        boolean mounted = this instanceof Player player && player.mounted;
+        int main = mounted ? flightMaxPositive(207) : flightSum(206);
+        float stack = mounted ? flightProduct(209) : flightProduct(208);
+        float nonStack = (100f + (mounted ? flightMaxPositive(211) : flightMaxPositive(210))) / 100f;
+        float bonus = Math.max(nonStack, stack);
+        float rate = main != 0 ? bonus * (100f + main) / 100f : bonus;
+        if (this instanceof Player && normalMoveSpeedCap > 0) {
+            float maxRate = normalMoveSpeedCap / BASE_FLIGHT_SPEED;
+            if (rate > maxRate) {
+                rate = maxRate;
+            }
+        }
+        if (decreaseSpeedPct != 0) {
+            rate *= (100f + decreaseSpeedPct) / 100f;
+        }
+        if (rate < 0.01f) {
+            rate = 0.01f;
+        }
+        if (rate == flightSpeedRate) {
+            return;
+        }
+        flightSpeedRate = rate;
+        sendFlightSpeedChange();
+    }
+
+    private int flightSum(int aura) {
+        Map<Integer, Integer> bucket = flightAuras.get(aura);
+        if (bucket == null) {
+            return 0;
+        }
+        int sum = 0;
+        for (int value : bucket.values()) {
+            sum += value;
+        }
+        return sum;
+    }
+
+    private int flightMaxPositive(int aura) {
+        Map<Integer, Integer> bucket = flightAuras.get(aura);
+        if (bucket == null) {
+            return 0;
+        }
+        int max = 0;
+        for (int value : bucket.values()) {
+            if (value > max) {
+                max = value;
+            }
+        }
+        return max;
+    }
+
+    private float flightProduct(int aura) {
+        Map<Integer, Integer> bucket = flightAuras.get(aura);
+        if (bucket == null) {
+            return 1f;
+        }
+        float product = 1f;
+        for (int value : bucket.values()) {
+            product *= (100f + value) / 100f;
+        }
+        return product;
+    }
+
+    /** Non-player: SMSG_SPLINE_SET_FLIGHT_SPEED packed guid + float speed. */
+    protected void sendFlightSpeedChange() {
+        if (messageToSet == null) {
+            return;
+        }
+        WowBuffer b = new WowBuffer(13);
+        b.putPackedGuid(guid);
+        b.putFloat(flightSpeed());
+        messageToSet.accept(Opcodes.SMSG_SPLINE_SET_FLIGHT_SPEED, b.array());
     }
 
     /** Non-player: SMSG_SPLINE_SET_RUN_SPEED packed guid + float speed. */
