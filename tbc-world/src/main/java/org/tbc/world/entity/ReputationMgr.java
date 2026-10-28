@@ -2,6 +2,9 @@ package org.tbc.world.entity;
 
 import org.tbc.common.WowBuffer;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * CMaNGOS ReputationMgr — 128 ReputationListID slots for {@code SMSG_INITIALIZE_FACTIONS}.
  * Seeds Alliance Stormwind (Faction.dbc 72) and Booty Bay (21).
@@ -41,6 +44,8 @@ public final class ReputationMgr {
     private final boolean[] occupied = new boolean[SLOTS];
     private final int[] flags = new int[SLOTS];
     private final int[] standing = new int[SLOTS];
+    /** Faction.dbc id → ReputationRank forced by aura 139. Absent factions return -1. */
+    private final Map<Integer, Integer> forcedReactions = new HashMap<>();
 
     /**
      * Player::Create / ReputationMgr::Initialize subset.
@@ -166,6 +171,25 @@ public final class ReputationMgr {
         System.arraycopy(src.occupied, 0, occupied, 0, SLOTS);
         System.arraycopy(src.flags, 0, flags, 0, SLOTS);
         System.arraycopy(src.standing, 0, standing, 0, SLOTS);
+        forcedReactions.clear();
+        forcedReactions.putAll(src.forcedReactions);
+    }
+
+    /**
+     * ReputationMgr::ApplyForceReaction. Apply overwrites the rank for that faction.
+     * Unapply drops the faction even if another aura had written it.
+     */
+    public void applyForceReaction(int factionId, int rank, boolean apply) {
+        if (apply) {
+            forcedReactions.put(factionId, rank);
+        } else {
+            forcedReactions.remove(factionId);
+        }
+    }
+
+    /** -1 when no aura is forcing this faction. Rank 0 is hated, which is a real value. */
+    public int forcedReaction(int factionId) {
+        return forcedReactions.getOrDefault(factionId, -1);
     }
 
     /** ReputationMgr::SendInitialReputations — count 0x80 then 128 × (flags u8, standing u32). */

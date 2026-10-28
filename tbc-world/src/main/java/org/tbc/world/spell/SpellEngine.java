@@ -3388,13 +3388,12 @@ public final class SpellEngine {
         return true;
     }
 
-    /**
-     * Amplitude tick: PERIODIC_DAMAGE (DoT), MOD_REGEN (food), MOD_POWER_REGEN (drink).
-     * combat-log.md / CMaNGOS Aura::PeriodicTick. Eat/drink on the world pulse uses
-     * {@link #accrueEatDrink} so a full call here is one completed period.
-     */
+    /** Amplitude tick: DoT, food, drink, and the catalog periodics in AuraEngine. */
     public void tickPeriodic(Unit caster, Unit target, SpellInfo sp, BiConsumer<Integer, byte[]> send) {
         if (caster == null || target == null || sp == null || send == null) {
+            return;
+        }
+        if (auras.tickCatalogPeriodic(caster, target, sp, send)) {
             return;
         }
         if (sp.aura == SPELL_AURA_PERIODIC_DAMAGE) {

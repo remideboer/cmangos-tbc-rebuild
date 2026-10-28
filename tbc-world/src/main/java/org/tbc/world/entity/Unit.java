@@ -169,6 +169,16 @@ public class Unit extends Entity {
     private final Map<Integer, Integer> effectImmunity = new HashMap<>();
     /** Spell id → school mask for SPELL_AURA_DAMAGE_IMMUNITY. */
     private final Map<Integer, Integer> damageImmunity = new HashMap<>();
+    /** Spell id → aura type for SPELL_AURA_STATE_IMMUNITY. */
+    private final Map<Integer, Integer> stateImmunity = new HashMap<>();
+    /** Spell id → dispel type for SPELL_AURA_DISPEL_IMMUNITY. */
+    private final Map<Integer, Integer> dispelImmunity = new HashMap<>();
+    /** Spell id → mechanic mask for SPELL_AURA_MECHANIC_IMMUNITY_MASK. */
+    private final Map<Integer, Integer> mechanicImmunityMask = new HashMap<>();
+    /** Script id present while SPELL_AURA_OVERRIDE_CLASS_SCRIPTS is applied. */
+    private final java.util.Set<Integer> overrideClassScripts = new java.util.HashSet<>();
+    /** Server-side phase. CMaNGOS default is 1. */
+    private int phaseMask = 1;
     /** Faction saved by the first SPELL_AURA_FACTION_OVERRIDE still in force. */
     private boolean factionOverrideActive;
     private int savedFactionTemplate;
@@ -1331,6 +1341,75 @@ public class Unit extends Entity {
             }
         }
         return false;
+    }
+
+    /** Aura 38. */
+    public void setStateImmunity(int spellId, int auraType, boolean apply) {
+        if (apply) {
+            stateImmunity.put(spellId, auraType);
+        } else {
+            stateImmunity.remove(spellId);
+        }
+    }
+
+    public boolean isImmuneToAuraState(int auraType) {
+        return stateImmunity.containsValue(auraType);
+    }
+
+    /** Aura 41. */
+    public void setDispelImmunity(int spellId, int dispelType, boolean apply) {
+        if (apply) {
+            dispelImmunity.put(spellId, dispelType);
+        } else {
+            dispelImmunity.remove(spellId);
+        }
+    }
+
+    public boolean isImmuneToDispel(int dispelType) {
+        return dispelImmunity.containsValue(dispelType);
+    }
+
+    /** Aura 147. Bit {@code 1 << mechanic}, matching convertEnumToFlag. */
+    public void setMechanicImmunityMask(int spellId, int mask, boolean apply) {
+        if (apply) {
+            mechanicImmunityMask.put(spellId, mask);
+        } else {
+            mechanicImmunityMask.remove(spellId);
+        }
+    }
+
+    public boolean isImmuneToMechanicMask(int mechanic) {
+        if (mechanic < 0 || mechanic >= 32) {
+            return false;
+        }
+        int bit = 1 << mechanic;
+        for (int mask : mechanicImmunityMask.values()) {
+            if ((mask & bit) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Aura 112. Keyed by script id, so a second aura with the same id replaces the first. */
+    public void setOverrideClassScript(int scriptId, boolean apply) {
+        if (apply) {
+            overrideClassScripts.add(scriptId);
+        } else {
+            overrideClassScripts.remove(scriptId);
+        }
+    }
+
+    public boolean hasOverrideClassScript(int scriptId) {
+        return overrideClassScripts.contains(scriptId);
+    }
+
+    public int phaseMask() {
+        return phaseMask;
+    }
+
+    public void setPhaseMask(int mask) {
+        phaseMask = mask;
     }
 
     /**
