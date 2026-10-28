@@ -14,6 +14,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class AuraEngine {
     public static final int SPELL_AURA_MOD_ATTACKSPEED = 9;
+    public static final int SPELL_AURA_MOD_THREAT = 10;
     public static final int SPELL_AURA_MOD_STUN = 12;
     public static final int SPELL_AURA_MOD_DECREASE_ARMOR = 15;
     public static final int SPELL_AURA_MOD_CONFUSE = 5;
@@ -61,9 +62,14 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_SPEED_NOT_STACK = 171;
     public static final int SPELL_AURA_MOD_INCREASE_SWIM_SPEED = 58;
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH = 34;
+    public static final int SPELL_AURA_MOD_INCREASE_HEALTH_2 = 250;
+    public static final int SPELL_AURA_MOD_INCREASE_MAX_HEALTH = 230;
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY = 35;
     public static final int SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT = 132;
     public static final int SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT = 133;
+    public static final int SPELL_AURA_EFFECT_IMMUNITY = 37;
+    public static final int SPELL_AURA_SCHOOL_IMMUNITY = 39;
+    public static final int SPELL_AURA_DAMAGE_IMMUNITY = 40;
     public static final int SPELL_AURA_MOD_SHAPESHIFT = 36;
     public static final int SPELL_AURA_MOD_PACIFY_SILENCE = 60;
     public static final int SPELL_AURA_MOD_CRIT_PERCENT = 52;
@@ -81,6 +87,8 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_POWER_COST_SCHOOL = 73;
     public static final int SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT = 72;
     public static final int SPELL_AURA_MOD_SCALE = 61;
+    public static final int SPELL_AURA_MOD_SCALE_2 = 239;
+    public static final int SPELL_AURA_MECHANIC_IMMUNITY = 77;
     public static final int SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK = 65;
     public static final int SPELL_AURA_HASTE_SPELLS = 216;
     public static final int SPELL_AURA_FEIGN_DEATH = 66;
@@ -92,6 +100,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_PERIODIC_DUMMY = 226;
     public static final int SPELL_AURA_MOD_POWER_REGEN = 85;
     public static final int SPELL_AURA_MOD_POWER_REGEN_PERCENT = 110;
+    public static final int SPELL_AURA_MOD_MANA_REGEN_FROM_STAT = 219;
     public static final int SPELL_AURA_WATER_BREATHING = 82;
     public static final int SPELL_AURA_PREVENTS_FLEEING = 92;
     public static final int SPELL_AURA_MOD_UNATTACKABLE = 93;
@@ -113,6 +122,7 @@ public final class AuraEngine {
     public static final int SPELL_AURA_MOD_SPELL_DAMAGE_OF_ATTACK_POWER = 237;
     public static final int SPELL_AURA_MOD_SPELL_HEALING_OF_ATTACK_POWER = 238;
     public static final int SPELL_AURA_MOD_EXPERTISE = 240;
+    public static final int SPELL_AURA_FACTION_OVERRIDE = 243;
     /** SharedDefines.h SPELL_SCHOOL_MASK_SPELL — fire|nature|frost|shadow|arcane (no normal/holy). */
     public static final int SPELL_SCHOOL_MASK_SPELL = 124;
     public static final int SPELL_AURA_MOD_MELEE_HASTE = 138;
@@ -130,6 +140,7 @@ public final class AuraEngine {
 
     private static final Set<Integer> KNOWN_AURAS = Set.of(
             SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_ATTACKSPEED,
+            SPELL_AURA_MOD_THREAT,
             SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_DECREASE_ARMOR,
             SPELL_AURA_MOD_RESISTANCE, SPELL_AURA_MOD_BASE_RESISTANCE, SPELL_AURA_MOD_RESISTANCE_PCT,
             SPELL_AURA_MOD_BASE_RESISTANCE_PCT,
@@ -148,13 +159,18 @@ public final class AuraEngine {
             SPELL_AURA_MOD_MOUNTED_SPEED_ALWAYS, SPELL_AURA_MOD_MOUNTED_SPEED_NOT_STACK,
             SPELL_AURA_MOD_SPEED_ALWAYS, SPELL_AURA_MOD_SPEED_NOT_STACK,
             SPELL_AURA_MOD_DECREASE_SPEED, SPELL_AURA_MOD_INCREASE_SWIM_SPEED,
-            SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT,
+            SPELL_AURA_MOD_INCREASE_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_2,
+            SPELL_AURA_MOD_INCREASE_MAX_HEALTH, SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT,
+            SPELL_AURA_EFFECT_IMMUNITY, SPELL_AURA_SCHOOL_IMMUNITY, SPELL_AURA_DAMAGE_IMMUNITY,
+            SPELL_AURA_MECHANIC_IMMUNITY,
             SPELL_AURA_MOD_INCREASE_ENERGY, SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT,
-            SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE, SPELL_AURA_MOD_SCALE,
+            SPELL_AURA_MOD_SHAPESHIFT, SPELL_AURA_MOD_PACIFY_SILENCE,
+            SPELL_AURA_MOD_SCALE, SPELL_AURA_MOD_SCALE_2,
             SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK, SPELL_AURA_HASTE_SPELLS,
             SPELL_AURA_FEIGN_DEATH, SPELL_AURA_MOD_DISARM,
             SPELL_AURA_MOD_PERCENT_STAT, SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE,
             SPELL_AURA_MOD_REGEN, SPELL_AURA_MOD_POWER_REGEN, SPELL_AURA_MOD_POWER_REGEN_PERCENT,
+            SPELL_AURA_MOD_MANA_REGEN_FROM_STAT,
             SPELL_AURA_WATER_BREATHING, SPELL_AURA_MOD_WATER_BREATHING,
             SPELL_AURA_MOD_MANA_REGEN_INTERRUPT, SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE,
             SPELL_AURA_PREVENTS_FLEEING, SPELL_AURA_MOD_UNATTACKABLE,
@@ -162,7 +178,7 @@ public final class AuraEngine {
             SPELL_AURA_UNTRACKABLE, SPELL_AURA_EMPATHY, SPELL_AURA_TRACK_STEALTHED,
             SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT, SPELL_AURA_MOD_TARGET_RESISTANCE,
             SPELL_AURA_MOD_RANGED_ATTACK_POWER, SPELL_AURA_MOD_RANGED_ATTACK_POWER_PCT,
-            SPELL_AURA_MOD_RATING, SPELL_AURA_MOD_EXPERTISE,
+            SPELL_AURA_MOD_RATING, SPELL_AURA_MOD_EXPERTISE, SPELL_AURA_FACTION_OVERRIDE,
             SPELL_AURA_MOD_SPELL_DAMAGE_OF_ATTACK_POWER, SPELL_AURA_MOD_SPELL_HEALING_OF_ATTACK_POWER,
             SPELL_AURA_WATER_WALK, SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,
             SPELL_AURA_MOD_MELEE_HASTE, SPELL_AURA_MOD_RANGED_HASTE, SPELL_AURA_MOD_RANGED_AMMO_HASTE,
@@ -244,7 +260,7 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_TRACK_CREATURES) {
             modTrackCreatures(target, sp, true);
         }
-        if (sp.aura() == SPELL_AURA_MOD_SCALE) {
+        if (sp.aura() == SPELL_AURA_MOD_SCALE || sp.aura() == SPELL_AURA_MOD_SCALE_2) {
             modScale(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK || sp.aura() == SPELL_AURA_HASTE_SPELLS) {
@@ -261,6 +277,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_MANA_REGEN_INTERRUPT) {
             modManaRegenInterrupt(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_MANA_REGEN_FROM_STAT) {
+            modManaRegenFromStat(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE) {
             modResistanceExclusive(target, sp, true);
@@ -462,11 +481,32 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT) {
             modPowerCostSchoolPct(target, sp, true);
         }
-        if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH || sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH_2) {
             modIncreaseHealth(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_MAX_HEALTH) {
+            modIncreaseMaxHealth(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT) {
             modIncreaseHealthPercent(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_THREAT) {
+            modThreat(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_SCHOOL_IMMUNITY) {
+            modSchoolImmunity(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_MECHANIC_IMMUNITY) {
+            modMechanicImmunity(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_EFFECT_IMMUNITY) {
+            modEffectImmunity(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_DAMAGE_IMMUNITY) {
+            modDamageImmunity(target, sp, true);
+        }
+        if (sp.aura() == SPELL_AURA_FACTION_OVERRIDE) {
+            modFactionOverride(target, sp, true);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY) {
             modIncreaseEnergy(target, sp, true);
@@ -550,11 +590,32 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_MOD_POWER_COST_SCHOOL_PCT) {
             modPowerCostSchoolPct(target, sp, false);
         }
-        if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH) {
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH || sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH_2) {
             modIncreaseHealth(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_INCREASE_MAX_HEALTH) {
+            modIncreaseMaxHealth(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_HEALTH_PERCENT) {
             modIncreaseHealthPercent(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_THREAT) {
+            modThreat(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_SCHOOL_IMMUNITY) {
+            modSchoolImmunity(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MECHANIC_IMMUNITY) {
+            modMechanicImmunity(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_EFFECT_IMMUNITY) {
+            modEffectImmunity(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_DAMAGE_IMMUNITY) {
+            modDamageImmunity(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_FACTION_OVERRIDE) {
+            modFactionOverride(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_INCREASE_ENERGY) {
             modIncreaseEnergy(target, sp, false);
@@ -626,7 +687,7 @@ public final class AuraEngine {
         if (sp.aura() == SPELL_AURA_TRACK_CREATURES) {
             modTrackCreatures(target, sp, false);
         }
-        if (sp.aura() == SPELL_AURA_MOD_SCALE) {
+        if (sp.aura() == SPELL_AURA_MOD_SCALE || sp.aura() == SPELL_AURA_MOD_SCALE_2) {
             modScale(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK || sp.aura() == SPELL_AURA_HASTE_SPELLS) {
@@ -643,6 +704,9 @@ public final class AuraEngine {
         }
         if (sp.aura() == SPELL_AURA_MOD_MANA_REGEN_INTERRUPT) {
             modManaRegenInterrupt(target, sp, false);
+        }
+        if (sp.aura() == SPELL_AURA_MOD_MANA_REGEN_FROM_STAT) {
+            modManaRegenFromStat(target, sp, false);
         }
         if (sp.aura() == SPELL_AURA_MOD_RESISTANCE_EXCLUSIVE) {
             modResistanceExclusive(target, sp, false);
@@ -1384,8 +1448,8 @@ public final class AuraEngine {
     }
 
     /**
-     * Aura 34 — CMaNGOS HandleAuraModIncreaseHealth default → HandleStatModifier(UNIT_MOD_HEALTH).
-     * Clamp current health when max drops below it on unapply.
+     * Auras 34 and 250 — CMaNGOS HandleAuraModIncreaseHealth default → TOTAL_VALUE on UNIT_MOD_HEALTH.
+     * Current health stays put; unapply clamps it when max drops below it.
      */
     private static void modIncreaseHealth(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
         int amount = (sp.minDmg() + sp.maxDmg()) / 2;
@@ -1401,6 +1465,32 @@ public final class AuraEngine {
         if (target.health() > max) {
             target.setHealth(max);
         }
+    }
+
+    /**
+     * Aura 230 — CMaNGOS HandleAuraModIncreaseMaxHealth. Flat max health, current health keeps its
+     * share of the old max ({@code ceil}). Health 0 stays 0. A zero old max is left unscaled.
+     */
+    private static void modIncreaseMaxHealth(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        int oldHealth = target.health();
+        int oldMax = target.maxHealth();
+        int max = oldMax + (apply ? amount : -amount);
+        if (max < 1) {
+            max = 1;
+        }
+        target.setInt(UpdateFields.UNIT_FIELD_MAXHEALTH, max);
+        if (oldHealth <= 0 || oldMax <= 0) {
+            return;
+        }
+        int next = (int) Math.ceil(max * ((double) oldHealth / oldMax));
+        if (next < 1) {
+            next = 1;
+        }
+        target.setHealth(next);
     }
 
     /**
@@ -2145,20 +2235,77 @@ public final class AuraEngine {
     }
 
     /**
-     * Aura 61 — CMaNGOS HandleAuraModScale: scale = max(0.1, (100+MOD_SCALE)/100 * (100+MOD_SCALE_2)/100).
-     * MOD_SCALE_2 stacking later; unapply restores 1.0 when no other scale auras.
+     * Auras 61 and 239 — CMaNGOS HandleAuraModScale:
+     * {@code max(0.1, (100+sum61)/100 * (100+sum239)/100)}. A zero amount leaves the stored sum alone.
      */
     private static void modScale(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
         int amount = (sp.minDmg() + sp.maxDmg()) / 2;
-        if (!apply) {
-            target.setFloat(UpdateFields.OBJECT_FIELD_SCALE_X, 1.0f);
-            return;
-        }
         if (amount == 0) {
             return;
         }
-        float scale = Math.max(0.1f, (100f + amount) / 100f);
-        target.setFloat(UpdateFields.OBJECT_FIELD_SCALE_X, scale);
+        target.setScaleAura(sp.aura() == SPELL_AURA_MOD_SCALE_2, sp.id(), amount, apply);
+    }
+
+    /** Aura 219 — players only. {@code stat * amount / 500} added to both mana regen fields, not × aura 110. */
+    private static void modManaRegenFromStat(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!(target instanceof Player player)) {
+            return;
+        }
+        int stat = sp.misc();
+        if (stat < 0 || stat >= MAX_STATS) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0) {
+            return;
+        }
+        player.setManaRegenFromStat(sp.id(), stat, amount, apply);
+    }
+
+    /**
+     * Aura 10 — CMaNGOS HandleModThreat. Percent-mod {@code m_threatModifier[school]} for each misc bit.
+     * Dead targets are skipped. Spell-id level scaling (26400 and the Defiance talents) stays later.
+     */
+    private static void modThreat(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (!target.alive()) {
+            return;
+        }
+        int amount = (sp.minDmg() + sp.maxDmg()) / 2;
+        if (amount == 0 || sp.misc() == 0) {
+            return;
+        }
+        target.applyThreatPercent(sp.misc(), amount, apply);
+    }
+
+    /** Aura 39 — ApplySpellImmune(IMMUNITY_SCHOOL) and UNIT_FLAG_IMMUNE while any such aura remains. */
+    private static void modSchoolImmunity(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setSchoolImmunity(sp.id(), sp.misc(), apply);
+    }
+
+    /** Aura 77 — ApplySpellImmune(IMMUNITY_MECHANIC, misc). Purge and trinket specials stay later. */
+    private static void modMechanicImmunity(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setMechanicImmunity(sp.id(), sp.misc(), apply);
+    }
+
+    /** Aura 37 — ApplySpellImmune(IMMUNITY_EFFECT, misc). */
+    private static void modEffectImmunity(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setEffectImmunity(sp.id(), sp.misc(), apply);
+    }
+
+    /** Aura 40 — ApplySpellImmune(IMMUNITY_DAMAGE, misc). Threat suppression stays later. */
+    private static void modDamageImmunity(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        target.setDamageImmunity(sp.id(), sp.misc(), apply);
+    }
+
+    /**
+     * Aura 243 — CMaNGOS HandleFactionOverride. misc ≤ 0 is a missing template and does nothing.
+     * Unapply restores the faction saved on the first apply, even if another override is still up.
+     */
+    private static void modFactionOverride(Unit target, SpellEngine.SpellInfo sp, boolean apply) {
+        if (sp.misc() <= 0) {
+            return;
+        }
+        target.overrideFaction(sp.misc(), apply);
     }
 
     /**
